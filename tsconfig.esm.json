@@ -1,0 +1,14 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+      "module": "NodeNext",
+      "target": "ES2022",
+      "moduleResolution": "NodeNext"
+    },
+    "ts-node": {
+      "esm": true,
+      "experimentalSpecifierResolution": "node",
+      "transpileOnly": true
+    }
+  }
+  

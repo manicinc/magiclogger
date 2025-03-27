@@ -1,0 +1,20 @@
+{
+  "branches": ["main", "master"],
+  "plugins": [
+    "@semantic-release/commit-analyzer",
+    "@semantic-release/release-notes-generator",
+    "@semantic-release/npm",
+    ["@semantic-release/github", {
+      "assets": [
+        {"path": "dist/**", "label": "Distribution"},
+        {"path": "LICENSE.md", "label": "License"},
+        {"path": "README.md", "label": "Readme"}
+      ]
+    }],
+    ["@semantic-release/git", {
+      "assets": ["package.json", "CHANGELOG.md"],
+      "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+    }]
+  ],
+  "preset": "angular"
+}

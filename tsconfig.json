@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "isolatedModules": true,
+    "baseUrl": ".",                        // ✅ required for paths
+    "paths": {
+      "magiclogger": ["./src/index.ts"],
+      "magiclogger/*": ["./src/*"]
+    },
+    "types": ["node"],
+    "outDir": "./dist",
+    "declaration": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "strict": true
+  },
+  "include": ["src/**/*.ts", "examples/**/*.ts"]
+}

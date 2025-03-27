@@ -1,0 +1,50 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18.x'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Verify tests pass
+        run: npm test
+      
+      - name: Generate coverage badge
+        run: npm run test:coverage:badge
+      
+      - name: Semantic Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npx semantic-release
+      
+      - name: Commit updated coverage badge
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git config --local user.email "action@github.com"
+            git config --local user.name "GitHub Action"
+            git add README.md docs/test-coverage.md
+            git commit -m "docs: update coverage badge [skip ci]"
+            git push
+          fi
