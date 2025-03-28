@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Manual version bump script for local testing
+ * Comprehensive version bump script for local development
  * Usage: node scripts/version-bump.js [patch|minor|major]
  */
 
@@ -12,81 +12,104 @@ const { execSync } = require('child_process');
 const bumpType = process.argv[2] || 'patch';
 const validBumpTypes = ['patch', 'minor', 'major'];
 
+// Validate bump type
 if (!validBumpTypes.includes(bumpType)) {
   console.error(`Invalid bump type: ${bumpType}. Must be one of: ${validBumpTypes.join(', ')}`);
   process.exit(1);
 }
 
+// Comprehensive logging function
+function log(message, type = 'info') {
+  const colors = {
+    info: '\x1b[36m', // Cyan
+    success: '\x1b[32m', // Green
+    error: '\x1b[31m', // Red
+    warning: '\x1b[33m' // Yellow
+  };
+  console.log(`${colors[type]}${message}\x1b[0m`);
+}
+
 try {
-  // Run tests and lint to ensure quality
-  console.log('Running tests and linting...');
-  execSync('npm test && npm run lint', { stdio: 'inherit' });
-
-  // Generate coverage badge
-  console.log('Generating coverage badge...');
-  execSync('npm run test:coverage:badge', { stdio: 'inherit' });
-
-  // Bump the version
-  console.log(`Bumping ${bumpType} version...`);
+  // Pre-bump checks
+  log('Running pre-bump checks...', 'warning');
+  
+  // Run tests
+  log('Running tests...');
+  execSync('npm test', { stdio: 'inherit' });
+  
+  // Run linting
+  log('Running linter...');
+  execSync('npm run lint', { stdio: 'inherit' });
+  
+  // Bump version
+  log(`Bumping ${bumpType} version...`, 'warning');
   const output = execSync(`npm version ${bumpType} --no-git-tag-version`).toString().trim();
   const newVersion = output.replace('v', '');
   
-  console.log(`Version bumped to ${newVersion}`);
+  log(`Version bumped to ${newVersion}`, 'success');
+
+  // Update README version badge
+  const readmePath = path.join(__dirname, '..', 'README.md');
+  let readmeContent = fs.readFileSync(readmePath, 'utf8');
+
+  const versionBadge = `![Version](https://img.shields.io/badge/version-${newVersion}-blue.svg)`;
+  const versionRegex = /!\[Version\]\(https:\/\/img\.shields\.io\/badge\/version-[^)]*\.svg\)/;
+
+  readmeContent = readmeContent.replace(versionRegex, versionBadge);
+  fs.writeFileSync(readmePath, readmeContent);
   
-  // Update CHANGELOG.md
-  console.log('Updating CHANGELOG.md...');
+  // Generate coverage badge
+  log('Generating coverage badge...', 'warning');
+  execSync('npm run test:coverage:badge', { stdio: 'inherit' });
+
+  // Prepare CHANGELOG
+  log('Updating CHANGELOG.md...', 'warning');
   const changelogPath = path.join(__dirname, '..', 'CHANGELOG.md');
-  let changelog = '';
+  let changelog = fs.existsSync(changelogPath) 
+    ? fs.readFileSync(changelogPath, 'utf8')
+    : '# Changelog\n\nAll notable changes to this project will be documented in this file.\n\n';
   
-  if (fs.existsSync(changelogPath)) {
-    changelog = fs.readFileSync(changelogPath, 'utf8');
-  } else {
-    changelog = '# Changelog\n\nAll notable changes to this project will be documented in this file.\n\n';
-  }
-  
-  // Get git logs since last tag
+  // Retrieve git logs
   let gitLogs;
   try {
-    gitLogs = execSync('git log $(git describe --tags --abbrev=0)..HEAD --pretty=format:"- %s"').toString();
+    gitLogs = execSync('git log $(git describe --tags --abbrev=0)..HEAD --pretty=format:"- %s"').toString().trim();
   } catch (error) {
-    // If no previous tag exists
-    gitLogs = execSync('git log --pretty=format:"- %s"').toString();
+    gitLogs = execSync('git log --pretty=format:"- %s"').toString().trim();
   }
   
-  if (!gitLogs.trim()) {
+  if (!gitLogs) {
     gitLogs = '- No changes documented';
   }
   
   const today = new Date().toISOString().split('T')[0];
   const newEntry = `## [${newVersion}] - ${today}\n\n${gitLogs}\n\n`;
   
-  // Insert new entry after the header
   changelog = changelog.replace(
     /# Changelog.*?\n\n/s,
     match => `${match}${newEntry}`
   );
   
   fs.writeFileSync(changelogPath, changelog);
-  
-  console.log('CHANGELOG.md updated');
-  
-  // Stage the changes
-  console.log('Staging changes...');
+
+  // Stage changes
+  log('Staging changes...', 'warning');
   execSync('git add package.json package-lock.json CHANGELOG.md README.md docs/test-coverage.md', { stdio: 'inherit' });
   
-  // Create commit
-  console.log('Creating commit...');
+  // Commit changes
+  log('Creating commit...', 'warning');
   execSync(`git commit -m "chore: release v${newVersion}"`, { stdio: 'inherit' });
   
   // Create tag
-  console.log('Creating git tag...');
+  log('Creating git tag...', 'warning');
   execSync(`git tag v${newVersion}`, { stdio: 'inherit' });
   
-  console.log(`\nVersion ${newVersion} prepared! To finish, run:`);
-  console.log('  git push && git push --tags');
-  console.log('Then the CI will handle npm publishing.');
+  log('\n🎉 Version bump completed successfully!', 'success');
+  log('Next steps:', 'info');
+  log('  1. Verify changes', 'info');
+  log('  2. Run: git push && git push --tags', 'info');
+  log('  3. Trigger npm publish via CI/CD', 'info');
 
 } catch (error) {
-  console.error('Error during version bump:', error.message);
+  log(`Error during version bump: ${error.message}`, 'error');
   process.exit(1);
 }

@@ -1,0 +1,56 @@
+// src/constants/paths.ts
+
+/**
+ * Regular expression to match file extensions that are commonly used in code projects
+ */
+export const CODE_FILE_EXTENSIONS = [
+  'js',
+  'ts',
+  'jsx',
+  'tsx',
+  'mjs',
+  'cjs', // JavaScript/TypeScript
+  'html',
+  'css',
+  'scss',
+  'sass', // Web
+  'json',
+  'md',
+  'txt',
+  'log', // Common data/docs
+  'sh',
+  'yml',
+  'yaml',
+  'ini',
+  'toml', // Config
+  'svg',
+  'png',
+  'jpg',
+  'jpeg', // Images
+].join('|');
+
+/**
+ * Regular expression elements for matching different types of paths
+ */
+export const PATH_REGEX_ELEMENTS = [
+  '(https?:\\/\\/[^\\s]+)', // URLs
+  '(file:\\/\\/[^\\s]+)', // File protocol
+  `(\\/[^\\s]+\\.(${CODE_FILE_EXTENSIONS}))`, // Unix absolute
+  `(\\.\\/[^\\s]+\\.(${CODE_FILE_EXTENSIONS}))`, // relative
+  `([a-zA-Z]:\\\\[^\\s]+\\.(${CODE_FILE_EXTENSIONS}))`, // Windows
+];
+
+/**
+ * Regular expression for matching paths in text
+ * Supports URLs, file paths (Unix & Windows), and relative paths
+ */
+export const PATH_REGEX = new RegExp(PATH_REGEX_ELEMENTS.join('|'), 'gi');
+
+/**
+ * Regular expression to detect if a string is a path or URL
+ * Used for checking individual strings
+ */
+export const IS_PATH_REGEX = new RegExp(
+  `^(https?:\\/\\/|file:\\/\\/|www\\.|\\.\\/|\\.\\.\\/|\\/|[a-zA-Z]:\\\\).+$|\\.(${CODE_FILE_EXTENSIONS})$`,
+  'i'
+);

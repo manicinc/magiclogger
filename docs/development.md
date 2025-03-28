@@ -1,114 +1,190 @@
-# Development Guide
+# Development Guide for Magiclogger
 
-This document covers development setup and workflow for Magiclogger.
+## Project Overview
 
-## Environment Setup
+Magiclogger is a fully typed, high-performance logging library built with TypeScript. This guide provides comprehensive instructions for setting up, developing, and contributing to the project.
 
-Magiclogger supports environment variables for configuration during development. These are not required for production use of the library.
+## Prerequisites
 
-### Environment Variables
+- Node.js 14.0.0 or higher
+- npm 6.0.0 or higher
+- TypeScript 4.5.0 or higher
 
-You can use the following environment variables during development:
+## Local Development Setup
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `LOG_VERBOSE` | Enable verbose logging during development | `false` |
-| `LOG_TO_FILE` | Write logs to disk | `false` |
-| `LOG_DIR` | Custom log directory | `./logs` |
+### Installation
 
-For CI/CD and advanced features, these optional variables may be used:
+Clone the repository and install dependencies:
 
-| Variable | Description | Required For |
-|----------|-------------|-------------|
-| `NPM_TOKEN` | NPM authentication token | Publishing to npm |
-| `GITHUB_TOKEN` | GitHub authentication token | Creating releases and interacting with GitHub API |
-| `CODECOV_TOKEN` | Codecov.io token | Uploading coverage reports (optional) |
-
-**Note**: For local development, you can create a `.env` file in your project root with these variables. This file should not be committed to Git.
+```bash
+git clone https://github.com/manicinc/magiclogger.git
+cd magiclogger
+npm install
+```
 
 ## Development Workflow
 
-1. **Install dependencies**
-   ```bash
-   npm install
-   ```
+### Available Scripts
 
-2. **Run in development mode**
-   ```bash
-   npm run dev
-   ```
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start development mode with file watching |
+| `npm test` | Run test suite |
+| `npm run test:coverage` | Run tests with coverage report |
+| `npm run build` | Compile TypeScript to JavaScript |
+| `npm run lint` | Run ESLint |
+| `npm run format` | Format code with Prettier |
+| `npm run preflight` | Run comprehensive pre-release checks |
 
-3. **Run tests**
-   ```bash
-   npm test
-   ```
-
-4. **Check coverage**
-   ```bash
-   npm run test:coverage
-   ```
-
-5. **Format code**
-   ```bash
-   npm run format
-   ```
-
-6. **Lint code**
-   ```bash
-   npm run lint
-   ```
-
-## Test Coverage
-
-Magiclogger maintains high test coverage standards. You can view the current coverage report with:
+### Development Mode
 
 ```bash
-npm run test:coverage
+npm run dev
 ```
 
-Coverage reports are saved to the `coverage/` directory. The required thresholds are:
+Starts TypeScript compilation in watch mode, automatically rebuilding on file changes.
+
+## Testing
+
+### Running Tests
+
+```bash
+npm test
+```
+
+### Coverage Requirements
+
+Magiclogger maintains rigorous test coverage standards:
+
 - Statements: 95%
 - Branches: 95%
 - Functions: 95%
 - Lines: 95%
 
-### Coverage Reporting (Optional)
-
-For public coverage reporting and tracking, Magiclogger can optionally use [Codecov](https://codecov.io/). See [Codecov Integration](codecov.md) for setup instructions.
-
-## Local Release Testing
-
-To test the release process locally without publishing:
-
+View detailed coverage report:
 ```bash
-# Test patch version bump
-node scripts/version-bump.js patch
-
-# Test minor version bump
-node scripts/version-bump.js minor
-
-# Test major version bump
-node scripts/version-bump.js major
+npm run test:coverage
 ```
 
-This will simulate the version bump, changelog generation, and git tagging without pushing anything.
+## Code Quality
 
-## Commit Messages
+### Linting
 
-Magiclogger uses [Conventional Commits](https://www.conventionalcommits.org/) for automatic versioning. Format your commit messages as:
+```bash
+npm run lint
+```
+
+Checks code against ESLint rules. Use `npm run lint:fix` to automatically resolve simple issues.
+
+### Formatting
+
+```bash
+npm run format
+```
+
+Ensures consistent code style using Prettier.
+
+## Configuration
+
+### Environment Variables
+
+Create a `.env` file in the project root for local development configuration:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `LOG_VERBOSE` | Enable verbose logging | `false` |
+| `LOG_TO_FILE` | Write logs to disk | `false` |
+| `LOG_DIR` | Custom log directory | `./logs` |
+
+**Note**: Do not commit `.env` to version control.
+
+## Commit Guidelines
+
+We use Conventional Commits for semantic versioning:
 
 ```
 <type>(<scope>): <description>
+
+[optional body]
+
+[optional footer(s)]
 ```
 
-Common types:
-- `feat`: A new feature (triggers minor version bump)
-- `fix`: A bug fix (triggers patch version bump)
-- `docs`: Documentation changes
-- `style`: Code style changes (formatting, etc.)
-- `refactor`: Code changes that neither fix bugs nor add features
-- `perf`: Performance improvements
-- `test`: Adding or correcting tests
-- `chore`: Changes to the build process or tools
+### Commit Types
 
-For breaking changes, add `!` after the type or include a `BREAKING CHANGE:` footer.
+| Type | Purpose | Version Impact |
+|------|---------|----------------|
+| `feat` | New feature | Minor version bump |
+| `fix` | Bug fix | Patch version bump |
+| `docs` | Documentation changes | No version change |
+| `style` | Code formatting | No version change |
+| `refactor` | Code restructuring | No version change |
+| `test` | Test modifications | No version change |
+| `chore` | Maintenance tasks | No version change |
+
+### Breaking Changes
+
+Indicate breaking changes by:
+- Adding `!` after the type, or
+- Including a `BREAKING CHANGE:` footer
+
+## Release Process
+
+### Local Release Testing
+
+Test version bumps without publishing:
+
+```bash
+# Patch release
+node scripts/version-bump.js patch
+
+# Minor release
+node scripts/version-bump.js minor
+
+# Major release
+node scripts/version-bump.js major
+```
+
+### Preflight Checks
+
+Before any release, run comprehensive checks:
+
+```bash
+npm run preflight
+```
+
+This script ensures:
+- Code is formatted
+- Linting passes
+- All tests pass
+- Build succeeds
+- Coverage requirements met
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run `npm run preflight`
+5. Submit a pull request
+
+## TypeScript Support
+
+Magiclogger is built 100% in TypeScript, providing:
+- Full type safety
+- Comprehensive type definitions
+- Intelligent type inference
+- Zero runtime type overhead
+
+Recommended TypeScript configuration:
+```json
+{
+  "compilerOptions": {
+    "strict": true,
+    "esModuleInterop": true,
+    "moduleResolution": "node",
+    "declaration": true,
+    "declarationMap": true
+  }
+}
+```

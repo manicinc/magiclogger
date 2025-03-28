@@ -1,6 +1,6 @@
 /**
  * Style Test for Magiclogger
- * 
+ *
  * This script tests all available styles to ensure they're working properly
  * in the current terminal environment.
  */
@@ -45,7 +45,7 @@ function testLoggerColor() {
   const blinkStyle = logger.color('blink');
   const reverseStyle = logger.color('reverse');
   const strikethroughStyle = logger.color('strikethrough');
-  
+
   console.log(boldStyle('Bold text using logger.color()'));
   console.log(dimStyle('Dim text using logger.color()'));
   console.log(italicStyle('Italic text using logger.color()'));
@@ -61,7 +61,7 @@ function testCombinedStyles() {
   const boldGreen = logger.color('bold', 'green');
   const underlineCyan = logger.color('underline', 'cyan');
   const italicYellow = logger.color('italic', 'yellow');
-  
+
   console.log(boldGreen('Bold Green text with combined styles'));
   console.log(underlineCyan('Underlined Cyan text with combined styles'));
   console.log(italicYellow('Italic Yellow text with combined styles'));
@@ -71,15 +71,15 @@ function testCombinedStyles() {
 // Test terminal capabilities
 function testTerminalCapabilities() {
   console.log('\nTesting terminal capabilities:');
-  
+
   const envInfo = {
-    'Terminal': process.env.TERM || 'unknown',
-    'Platform': process.platform,
+    Terminal: process.env.TERM || 'unknown',
+    Platform: process.platform,
     'Node Version': process.version,
     'COLOR Support': process.stdout.hasColors() ? 'Yes' : 'No',
-    'Color Depth': process.stdout.getColorDepth ? process.stdout.getColorDepth() : 'unknown'
+    'Color Depth': process.stdout.getColorDepth ? process.stdout.getColorDepth() : 'unknown',
   };
-  
+
   console.log('Environment Information:');
   Object.entries(envInfo).forEach(([key, value]) => {
     console.log(`  ${key}: ${value}`);
@@ -93,17 +93,19 @@ function runTest() {
   console.log('MAGIC LOGGER STYLE TEST');
   console.log('='.repeat(60));
   console.log('\nThis script tests different styling methods to check terminal compatibility.\n');
-  
+
   testRawANSI();
   testColorCodes();
   testLoggerColor();
   testCombinedStyles();
   testTerminalCapabilities();
-  
+
   console.log('\n' + '='.repeat(60));
   console.log('TEST COMPLETE');
   console.log('='.repeat(60));
-  console.log('\nIf styles are not displaying correctly, your terminal may not support all ANSI styles.');
+  console.log(
+    '\nIf styles are not displaying correctly, your terminal may not support all ANSI styles.'
+  );
   console.log('Common issues:');
   console.log('1. Italic, strikethrough, and blink are not supported in all terminals');
   console.log('2. Windows terminals sometimes have limited ANSI support');

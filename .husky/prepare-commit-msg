@@ -1,6 +1,3 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
 # Skip if commit message is already provided via -m or if it's a merge, etc.
 if [ -z "$HUSKY_SKIP_HOOKS" ] && [ "$2" = "" ] && [ "$3" = "" ]; then
   # Check if commit message file is empty or contains only comments or whitespace

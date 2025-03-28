@@ -4,28 +4,24 @@ Magiclogger maintains high test coverage to ensure reliability and stability.
 
 ## Latest Coverage Report
 
+<!-- COVERAGE_TABLE_PLACEHOLDER -->
 ```
 --------------------------------|---------|----------|---------|---------|-------------------
 File                            | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
 --------------------------------|---------|----------|---------|---------|-------------------
-All files                       |   99.13 |    98.25 |   98.72 |   99.07 |                   
- src                            |   99.31 |    98.66 |   98.53 |   99.27 |                   
-  Logger.ts                     |   99.46 |    98.65 |   98.48 |   99.44 | 427               
-  index.ts                      |     100 |      100 |     100 |     100 |                   
- src/compatibility              |   98.82 |    96.77 |     100 |   98.79 |                   
-  index.ts                      |   98.82 |    96.77 |     100 |   98.79 | 156,312           
- src/types                      |     100 |      100 |     100 |     100 |                   
-  console.ts                    |     100 |      100 |     100 |     100 |                   
-  index.ts                      |     100 |      100 |     100 |     100 |                   
+All files                       |   00.00 |    00.00 |   00.00 |   00.00 |                   
 --------------------------------|---------|----------|---------|---------|-------------------
 ```
+<!-- /COVERAGE_TABLE_PLACEHOLDER -->
 
 ## Coverage Breakdown
 
-- **Statements**: 99.13% covered
-- **Branches**: 98.25% covered  
-- **Functions**: 98.72% covered
-- **Lines**: 99.07% covered
+<!-- COVERAGE_BREAKDOWN_PLACEHOLDER -->
+- **Statements**: 00.00% covered
+- **Branches**: 00.00% covered
+- **Functions**: 00.00% covered
+- **Lines**: 00.00% covered
+<!-- /COVERAGE_BREAKDOWN_PLACEHOLDER -->
 
 ## Running the Coverage Report
 

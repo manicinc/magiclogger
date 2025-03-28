@@ -1,235 +1,135 @@
-# Publishing Instructions
+# Publishing Workflow for Magiclogger
 
-This document explains how to build, deploy, and publish the Magiclogger package to npm and GitHub Packages.
+## Project Build & Release Ecosystem
 
-## Table of Contents
+Magiclogger uses a comprehensive set of npm scripts and custom Node.js scripts to manage the entire development, build, test, and release process. This document explains the ecosystem, why each script exists, and how they work together.
 
-- [Preparing for Release](#preparing-for-release)
-- [Package Versioning](#package-versioning)
-- [Publishing to npm](#publishing-to-npm)
-- [Publishing to GitHub Packages](#publishing-to-github-packages)
-- [Creating GitHub Releases](#creating-github-releases)
-- [Automating Releases with GitHub Actions](#automating-releases-with-github-actions)
+## 🛠 Scripts Ecosystem
 
-## Preparing for Release
+### Development Scripts
 
-Before publishing a new version, ensure that:
+| Script | Purpose | What it Does |
+|--------|---------|--------------|
+| `npm run dev` | Development Watch Mode | Watches source files and rebuilds on changes |
+| `npm run check` | Code Quality Check | Runs formatting and linting checks |
+| `npm run lint` | Code Linting | Checks code against ESLint rules |
+| `npm run lint:fix` | Auto-fix Linting | Automatically fixes linting issues |
+| `npm run format` | Code Formatting | Formats code using Prettier |
+| `npm run test` | Run Tests | Executes Jest test suite |
+| `npm run test:coverage` | Test Coverage | Runs tests and generates coverage report |
 
-1. All tests pass: `npm test`
-2. Code passes linting: `npm run lint`
-3. Documentation is up-to-date
-4. CHANGELOG.md is updated with the latest changes
-5. Version number is updated in package.json
+### Build & Preparation Scripts
 
-## Package Versioning
+| Script | Purpose | What it Does |
+|--------|---------|--------------|
+| `npm run clean` | Clean Build Artifacts | Removes previous build outputs and temporary files |
+| `npm run build` | Production Build | Compiles TypeScript to JavaScript for distribution |
+| `npm run build:examples` | Example Builds | Compiles example scripts |
+| `npm run analyze:build` | Build Size Analysis | Generates a table of build output sizes in README |
+| `npm run test:coverage:badge` | Coverage Badge | Generates a test coverage badge for README |
+| `npm run preflight` | Pre-publish Checks | Comprehensive script running all checks, tests, and builds |
 
-This project follows [Semantic Versioning](https://semver.org/) (SemVer):
+### Release Management Scripts
 
-- **MAJOR** version for incompatible API changes
-- **MINOR** version for backwards-compatible functionality
-- **PATCH** version for backwards-compatible bug fixes
+| Script | Purpose | What it Does |
+|--------|---------|--------------|
+| `npm run version:bump` | Version & Changelog | Bumps version, updates changelog, creates git tag |
+| `npm run release:manual` | Manual Release | Runs preflight, bumps version, prepares for publish |
+| `npm run commit` | Conventional Commit | Opens Commitizen for structured commit messages |
 
-To update the version, use one of these npm commands:
+## 🔍 Deep Dive: Key Scripts
 
-```bash
-# For a patch release (1.0.0 -> 1.0.1)
-npm version patch
-
-# For a minor release (1.0.0 -> 1.1.0)
-npm version minor
-
-# For a major release (1.0.0 -> 2.0.0)
-npm version major
+### `preflight` Script
+```json
+"preflight": "npm run clean && npm run check && npm run lint && npm run test:coverage && npm run build && npm run test:coverage:badge && npm run analyze:build"
 ```
 
-These commands will:
-1. Update the version in package.json
-2. Create a Git tag
-3. Run the version script from package.json (format code and git add)
-4. Commit the changes
+This script is the guardian of code quality:
+1. Cleans previous builds
+2. Checks code formatting
+3. Runs linting
+4. Executes full test suite with coverage
+5. Builds the project
+6. Generates coverage badge
+7. Analyzes and logs build sizes
 
-## Publishing to npm
+### `version:bump` Script
+Located at `scripts/version-bump.js`, this comprehensive script:
+- Validates version bump type (patch/minor/major)
+- Runs pre-bump checks (tests, linting)
+- Bumps package version
+- Updates README version badge
+- Generates coverage badge
+- Updates CHANGELOG.md with git logs
+- Stages and commits changes
+- Creates git tag
 
-### One-time Setup
+### `analyze-build.js` Script
+Located at `scripts/analyze-build.js`, this script:
+- Measures build output file sizes
+- Generates a markdown table
+- Injects the table into README.md
+- Provides visibility into bundle sizes
 
-If you haven't published to npm before:
+### `generate-cover-badge.js`
+Located at `scripts/generate-cover-badge.js`, this script:
+- Reads Jest coverage reports
+- Generates a coverage percentage badge
+- Updates README.md
+- Updates `docs/test-coverage.md`
+- Color-codes badge based on coverage percentage
 
-1. Create an npm account if you don't have one: [npm signup](https://www.npmjs.com/signup)
-2. Log in from the command line:
+## 🚀 Typical Workflow
+
+1. Development
    ```bash
-   npm login
+   npm run dev           # Start development mode
+   npm run test          # Run tests
+   npm run lint:fix      # Fix any linting issues
    ```
 
-### Publishing a New Version
-
-1. Make sure you're in the main branch with the latest changes:
+2. Before Release
    ```bash
-   git checkout main
-   git pull
+   npm run preflight     # Run comprehensive checks
+   npm run version:bump patch  # Bump version (patch/minor/major)
    ```
 
-2. Build the package:
+3. Publishing
    ```bash
-   npm run build
+   git push && git push --tags  # Push code and version tag
+   npm publish                  # Publish to npm
    ```
 
-3. Publish to npm:
-   ```bash
-   npm publish
-   ```
+## 🎯 Philosophy
 
-### Publishing a Beta Version
+Our scripts aim to:
+- Automate repetitive tasks
+- Ensure consistent code quality
+- Provide transparency in build and release processes
+- Reduce manual steps in development workflow
 
-For testing before an official release:
+## 🔒 Best Practices
 
-```bash
-# Update version with beta tag
-npm version prerelease --preid=beta
+- Always run `preflight` before releasing
+- Use conventional commit messages
+- Ensure all tests pass before bumping version
+- Review changelog and README updates before publishing
 
-# Publish with beta tag
-npm publish --tag beta
-```
+## 🆘 Troubleshooting
 
-Users can install the beta with:
-```bash
-npm install magiclogger@beta
-```
+- If `version:bump` fails, check:
+  - Git is initialized
+  - All changes are committed
+  - You have proper npm and git configurations
+- For coverage badge issues, run `npm run test:coverage` first
 
-## Publishing to GitHub Packages
+## 📦 Extensibility
 
-### One-time Setup
+These scripts are designed to be easily modified. Feel free to:
+- Add more pre-release checks
+- Customize badge generation
+- Extend changelog formatting
 
-1. Create a Personal Access Token on GitHub with `read:packages`, `write:packages` permissions
-2. Create or edit a `.npmrc` file in your home directory:
-   ```
-   //npm.pkg.github.com/:_authToken=YOUR_GITHUB_TOKEN
-   ```
+---
 
-3. Add GitHub registry to your project's `.npmrc`:
-   ```
-   @OWNER:registry=https://npm.pkg.github.com
-   ```
-
-4. Update `package.json` to include the GitHub registry:
-   ```json
-   "publishConfig": {
-     "registry": "https://npm.pkg.github.com"
-   }
-   ```
-
-### Publishing to GitHub Packages
-
-```bash
-# Build the package
-npm run build
-
-# Publish to GitHub Packages
-npm publish
-```
-
-## Creating GitHub Releases
-
-After publishing, create a GitHub release:
-
-1. Go to your repository on GitHub
-2. Click "Releases" in the sidebar
-3. Click "Draft a new release"
-4. Select the tag version you created
-5. Add a title (typically the version number)
-6. Add a description of the changes (can be from your CHANGELOG.md)
-7. Attach the built package if desired
-8. Publish the release
-
-## Automating Releases with GitHub Actions
-
-You can automate the release process using GitHub Actions.
-
-### Setup GitHub Action Workflow
-
-Create a file at `.github/workflows/release.yml`:
-
-```yaml
-name: Release
-
-on:
-  push:
-    tags:
-      - 'v*'
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-        with:
-          node-version: '16.x'
-          registry-url: 'https://registry.npmjs.org'
-      
-      - name: Install dependencies
-        run: npm ci
-      
-      - name: Run tests
-        run: npm test
-      
-      - name: Build
-        run: npm run build
-      
-      - name: Publish to npm
-        run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-      
-      - name: Setup for GitHub Packages
-        uses: actions/setup-node@v3
-        with:
-          registry-url: 'https://npm.pkg.github.com'
-      
-      - name: Publish to GitHub Packages
-        run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
-        with:
-          body_path: CHANGELOG.md
-          files: |
-            LICENSE.md
-            README.md
-            dist/*.js
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-```
-
-### Using the Automated Workflow
-
-With this setup, releases happen automatically when you push a version tag:
-
-```bash
-# Update version, create tag, and push
-npm version patch
-git push --follow-tags
-```
-
-### Required Secrets
-
-Set up these secrets in your GitHub repository:
-
-- `NPM_TOKEN`: Your npm access token
-
-The `GITHUB_TOKEN` is provided automatically by GitHub Actions.
-
-## Release Checklist
-
-Use this checklist for each release:
-
-1. [ ] Update CHANGELOG.md with new version changes
-2. [ ] Ensure all tests pass (`npm test`)
-3. [ ] Ensure code passes linting (`npm run lint`)
-4. [ ] Bump version (`npm version [patch|minor|major]`)
-5. [ ] Push changes and tags (`git push --follow-tags`)
-6. [ ] Verify GitHub Action completed successfully
-7. [ ] Verify package is available on npm
-8. [ ] Verify package is available on GitHub Packages
-9. [ ] Check the GitHub Release page
+🚀

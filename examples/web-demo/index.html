@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MagicLogger Advanced Playground</title>
+  <style>
+    body {
+      font-family: 'Courier New', monospace;
+      background-color: #1e1e1e;
+      color: #e0e0e0;
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .rainbow-title {
+      text-align: center;
+      font-size: 1em;
+      white-space: pre-wrap;
+      margin-bottom: 20px;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin: 20px 0;
+    }
+
+    button {
+      background-color: #4ecdc4;
+      color: #1e1e1e;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 0.85em;
+    }
+
+    button:hover {
+      background-color: #45b7aa;
+      transform: scale(1.05);
+    }
+
+    .demo-section, .github-link {
+      background-color: #2d2d2d;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 20px;
+    }
+
+    #demoOutput {
+      background-color: #121212;
+      border-radius: 8px;
+      padding: 20px;
+      min-height: 300px;
+      max-height: 600px;
+      overflow-y: auto;
+      font-size: 14px;
+      text-align: left;
+      white-space: pre-wrap;
+    }
+
+    .github-link a {
+      display: inline-block;
+      background-color: #4ecdc4;
+      color: #1e1e1e;
+      padding: 10px 20px;
+      text-decoration: none;
+      border-radius: 5px;
+      font-weight: bold;
+      transition: all 0.3s ease;
+    }
+
+    .github-link a:hover {
+      background-color: #45b7aa;
+      transform: scale(1.05);
+    }
+  </style>
+</head>
+<body>
+  <div class="rainbow-title" id="rainbowTitle"></div>
+
+  <div class="demo-section">
+    <h2>🪄 MagicLogger Advanced Playground</h2>
+    <p>Explore colorful terminal-style logs right in your browser!</p>
+  </div>
+
+  <div class="controls">
+    <button id="btnBasicLogs">📝 Basic Logs</button>
+    <button id="btnStylePresets">🎨 Style Presets</button>
+    <button id="btnColorParts">🌈 Color Parts</button>
+    <button id="btnCustomStyling">✨ Custom Styling</button>
+    <button id="btnProgressBars">📊 Progress Bars</button>
+    <button id="btnTableDemo">📋 Table Demo</button>
+    <button id="btnDeployment">🚀 Deployment</button>
+    <button id="btnHealthCheck">❤️‍🔥 Health Check</button>
+    <button id="btnServerMonitor">🖥️ Server Monitor</button>
+    <button id="btnFullDemo">🌈 Full Demo</button>
+  </div>
+
+    <div class="instructions">
+        <h2>🚨 Demo Instructions</h2>
+        <p>Open browser DevTools (Ctrl+Shift+J / Cmd+Option+J) to see full-color logging magic!</p>
+        <p>Buttons will showcase different logging capabilities:</p>
+        <ul>
+            <li>🌈 Full Demo: Complete logging showcase</li>
+            <li>🎨 Styled Logs: Preset and custom styling</li>
+            <li>🔍 Color Parts: Selective text coloring</li>
+            <li>📊 Progress Tracking: Animated progress bars</li>
+        </ul>
+    </div>
+
+  <div class="github-link">
+    <h3>🌟 Check Out MagicLogger</h3>
+    <a href="https://github.com/manicinc/magiclogger" target="_blank">manicinc/magiclogger</a>
+    <p>Star ⭐ and contribute to the most magical logging library!</p>
+  </div>
+
+  <script type="module">
+    import { Logger } from './dist/index.js';
+
+    const logger = new Logger({ useColors: true, verbose: true });
+    const output = document.getElementById('demoOutput');
+    const rainbow = document.getElementById('rainbowTitle');
+
+    const sleep = ms => new Promise(res => setTimeout(res, ms));
+    const colors = ['red', 'orange', 'yellow', 'green', 'cyan', 'blue', 'magenta'];
+
+    function rainbowText(text) {
+      return [...text].map((c, i) =>
+        `<span style="color:${colors[i % colors.length]}">${c}</span>`
+      ).join('');
+    }
+
+    function logToOutput(text, delay = 0) {
+    //   output.innerHTML += text + '\n';
+      if (delay) return sleep(delay);
+    }
+
+    function clearOutput() {
+    //   output.innerHTML = '';
+    }
+
+    async function basicLogsDemo() {
+      clearOutput();
+      logger.header('  BASIC LOGGING METHODS  ');
+      await sleep(300);
+      logToOutput('info: Application started successfully');
+      logToOutput('success: User registration completed');
+      logToOutput('warn: Disk space is running low');
+      logToOutput('error: Failed to connect to database');
+      logToOutput('debug: Authentication token details');
+    }
+
+    async function stylePresetsDemo() {
+      clearOutput();
+      logger.header('  STYLE PRESETS  ');
+      const presets = [
+        'info', 'success', 'warning', 'error', 'debug',
+        'important', 'highlight', 'muted', 'special', 'code', 'header'
+      ];
+      for (let preset of presets) {
+        logger.styled(`Preset style: "${preset}"`, preset);
+        await sleep(200);
+      }
+    }
+
+    async function colorPartsDemo() {
+      clearOutput();
+      logger.header('  SELECTIVE COLORIZATION  ');
+      logger.colorParts(
+        'API Request: POST /users/create - Status: 201 Created',
+        {
+          POST: ['brightBlue', 'bold'],
+          '/users/create': ['cyan', 'underline'],
+          '201 Created': ['green', 'bold']
+        }
+      );
+      await sleep(500);
+      logger.colorParts(
+        'System Alert: High memory usage detected on node-01.cluster',
+        {
+          'System Alert:': ['red', 'bold'],
+          'node-01.cluster': ['yellow', 'underline']
+        }
+      );
+    }
+
+    async function customStyleDemo() {
+      clearOutput();
+      logger.header('  CUSTOM STYLING  ');
+      logger.custom('MagicLogger supports custom prefixes & colors', ['cyan'], 'CUSTOM');
+      logger.custom('Database connected successfully', ['green'], 'DB');
+      logger.custom('Token expired', ['red'], 'AUTH');
+      logger.custom('GET /api/items - 200 OK (42ms)', ['blue'], 'API');
+    }
+
+    async function progressBarsDemo() {
+      clearOutput();
+      logger.header('  PROGRESS DEMO  ');
+      for (let i = 0; i <= 100; i += 10) {
+        logger.progressBar(i, 30, '█', '░');
+        await sleep(150);
+      }
+      logger.success('Operation complete.');
+    }
+
+    async function tableDemo() {
+      clearOutput();
+      logger.header('  TABLE OUTPUT  ');
+      const users = [
+        { id: 1, name: 'Alice', role: 'Admin', active: true },
+        { id: 2, name: 'Bob', role: 'User', active: false },
+        { id: 3, name: 'Charlie', role: 'Editor', active: true },
+      ];
+      logger.table(users, ['brightGreen', 'bold']);
+    }
+
+    async function deploymentDemo() {
+      clearOutput();
+      logger.header('  DEPLOYMENT PIPELINE  ');
+      logger.custom('Starting build...', ['cyan'], 'BUILD');
+      for (let i = 0; i <= 100; i += 5) {
+        logger.progressBar(i, 40, '█', '░');
+        await sleep(100);
+      }
+      logger.success('Build complete');
+      logger.custom('Uploading assets...', ['cyan'], 'DEPLOY');
+      await sleep(500);
+      logger.success('Deployment successful!');
+    }
+
+    async function healthCheckDemo() {
+      clearOutput();
+      logger.header('  SYSTEM HEALTH CHECK  ');
+      const services = [
+        { name: 'Auth Service', status: 'ONLINE' },
+        { name: 'Payments', status: 'DEGRADED' },
+        { name: 'Search', status: 'OFFLINE' },
+      ];
+      for (const svc of services) {
+        const color = svc.status === 'ONLINE' ? 'green' : svc.status === 'DEGRADED' ? 'yellow' : 'red';
+        logger.custom(`${svc.name.padEnd(20)}: ${svc.status}`, [color, 'bold'], 'STATUS');
+        await sleep(300);
+      }
+    }
+
+    async function serverMonitorDemo() {
+      clearOutput();
+      logger.header('  SERVER MONITORING  ');
+      for (let i = 0; i < 10; i++) {
+        const cpu = 10 + Math.floor(Math.random() * 60);
+        const mem = 30 + Math.floor(Math.random() * 40);
+        logger.custom(`CPU: ${cpu}%`, [cpu > 50 ? 'red' : 'green'], 'CPU');
+        logger.custom(`Memory: ${mem}%`, [mem > 60 ? 'yellow' : 'green'], 'MEM');
+        await sleep(500);
+      }
+      logger.success('Monitoring finished.');
+    }
+
+    async function fullDemo() {
+        await basicLogsDemo();
+        await sleep(1000);
+        await stylePresetsDemo();
+        await sleep(1000);
+        await colorPartsDemo();
+        await sleep(1000);
+        await customStyleDemo();
+        await sleep(1000);
+        await progressBarsDemo();
+        await sleep(1000);
+        await tableDemo();
+        await sleep(1000);
+        await deploymentDemo();
+        await sleep(1000);
+        await healthCheckDemo();
+        await sleep(1000);
+        await serverMonitorDemo();
+    }
+
+    function renderRainbowTitle() {
+      const title = `
+ ███╗   ███╗ █████╗  ██████╗ ██╗ ██████╗
+ ████╗ ████║██╔══██╗██╔════╝ ██║██╔════╝
+ ██╔████╔██║███████║██║  ███╗██║██║     
+ ██║╚██╔╝██║██╔══██║██║   ██║██║██║     
+ ██║ ╚═╝ ██║██║  ██║╚██████╔╝██║╚██████╗
+ ╚═╝     ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═╝ ╚═════╝`;
+      rainbow.innerHTML = title.split('\n').map(line => rainbowText(line)).join('\n');
+    }
+
+    renderRainbowTitle();
+
+    document.getElementById('btnBasicLogs').onclick = basicLogsDemo;
+    document.getElementById('btnFullDemo').onclick = fullDemo;
+    document.getElementById('btnStylePresets').onclick = stylePresetsDemo;
+    document.getElementById('btnColorParts').onclick = colorPartsDemo;
+    document.getElementById('btnCustomStyling').onclick = customStyleDemo;
+    document.getElementById('btnProgressBars').onclick = progressBarsDemo;
+    document.getElementById('btnTableDemo').onclick = tableDemo;
+    document.getElementById('btnDeployment').onclick = deploymentDemo;
+    document.getElementById('btnHealthCheck').onclick = healthCheckDemo;
+    document.getElementById('btnServerMonitor').onclick = serverMonitorDemo;
+  </script>
+</body>
+</html>

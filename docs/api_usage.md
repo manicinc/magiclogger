@@ -2,19 +2,6 @@
 
 A comprehensive guide to using the Magiclogger API.
 
-## Features
-
-- 🎨 **Rich Terminal Styling** - Colors, bold, italic, underline and more with terminal capability detection
-- 🔄 **Universal Log Method** - Single method with flexible level support
-- 📊 **Progress Bars & Tables** - Visualize data and progress directly in your terminal
-- 📝 **File Logging** - Automatic log file rotation and retention
-- 🔌 **Drop-in Compatibility** - Works as a replacement for console, Winston, Bunyan, and Pino
-- 🔗 **Link Preservation** - Automatically detects and preserves formatting of URLs and file paths
-- 🧩 **Custom Styling** - Apply colors and styles to specific parts of messages
-- 🧠 **Smart Terminal Detection** - Automatically adapts styles based on terminal capabilities
-- ⚡ **Zero Config** - Works out of the box with sensible defaults
-- 📦 **Zero Dependencies** - No external packages required
-
 ## Table of Contents
 
 - [Installation](#installation)
@@ -522,5 +509,36 @@ if (support.styles.italic) {
   logger.custom('This terminal supports italic text', ['italic'], 'STYLE');
 } else {
   logger.custom('This terminal does not support italic text', ['dim'], 'STYLE');
+}
+```
+
+### BaseCompatibleLogger 
+
+```
+import { BaseCompatibleLogger } from 'magiclogger';
+
+class MyNewLogger extends BaseCompatibleLogger {
+  log(level: string, message: string): void {
+    switch (level) {
+      case 'info':
+      case 'warn':
+      case 'error':
+      case 'debug':
+      case 'success':
+        this.logger.log(message, level as LogLevel);
+        break;
+      case 'trace':
+        this.logger.debug(`TRACE: ${message}`);
+        break;
+      case 'fatal':
+        this.logger.error(`FATAL: ${message}`);
+        break;
+      default:
+        if (this.strictLevels) {
+          throw new Error(`Unknown level: ${level}`);
+        }
+        this.logger.custom(message, ['white'], level.toUpperCase());
+    }
+  }
 }
 ```

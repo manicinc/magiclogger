@@ -2,152 +2,157 @@
 
 ## Why Two Module Formats?
 
-MagicLogger provides both ESM (`.js`) and CommonJS (`.cjs`) files to support:
+MagicLogger provides both ESM (`.mjs`) and CommonJS (`.js`) entry points to support:
+- ✅ Modern environments using import statements
+- ✅ Legacy environments using require()
+- ✅ Hybrid codebases migrating from CommonJS to ESM
+- ✅ TypeScript projects with different module resolutions
 
-- Modern environments using ESM with `import` statements
-- Legacy environments using CommonJS with `require()`
-- Hybrid codebases transitioning between module systems
-- TypeScript projects with different module resolutions
-
-You can use whichever format suits your project best - the library detects and works with both automatically.
+Use whichever format fits your stack — the library supports both seamlessly.
 
 ## Browser Support
 
-MagicLogger can be used in browser environments including Vue, React, and other frontend frameworks. When used in browsers:
+MagicLogger works in browser-based projects (like React or Vue) with automatic adaptation:
+- Terminal-specific features (e.g., cursor movement) are disabled
+- ANSI styling is adjusted for browser console support
+- File logging is disabled in browser contexts
+- The environment is auto-detected and fallback-safe
 
-- Terminal-specific features (like cursor movement) are automatically disabled
-- Color output is adapted for browser consoles, which support many but not all ANSI color codes
-- File logging functionality is disabled (as browsers can't directly write to the filesystem)
-- The library automatically detects the browser environment and adjusts accordingly
-
-## Setting Up the Project
+## Getting Started
 
 1. Install dependencies:
-
 ```bash
 npm install
 ```
 
-2. Build the project:
-
+2. Build the library:
 ```bash
 npm run build
 ```
+This compiles the `src` files into `dist/` with both ESM and CJS outputs.
 
-This will create the `dist` directory with both ESM and CommonJS builds using tsup.
+### Development Mode
 
-## Development Mode
-
-For development with automatic rebuilding:
-
+Watch mode for rapid iteration:
 ```bash
 npm run dev
 ```
+This runs `tsup` in watch mode to rebuild on file changes.
 
-This will watch your files and rebuild on changes.
+### Running the Demo
 
-## Running the Demo
+You can run examples in multiple ways:
 
-After building, you can run the demo in several ways:
-
-### ES Modules (Recommended for Modern Node.js)
-
+#### ES Modules (Recommended for Modern Node)
 ```bash
 node dist/examples/demo.mjs
 ```
 
-### CommonJS
-
+#### CommonJS
 ```bash
 node dist/examples/demo.js
 ```
 
-### Directly with TypeScript (Without Building)
-
+#### Without Building (TS Direct)
 ```bash
-# Install ts-node if you don't have it
-npm install -g ts-node
-
-# Run the demo
 npx ts-node examples/demo.ts
 ```
 
 ## Testing
 
-Run the test suite:
-
+Run all tests:
 ```bash
 npm test
 ```
 
-With coverage report:
-
+Run with coverage:
 ```bash
 npm run test:coverage
 ```
 
+Generate coverage badge and markdown report:
+```bash
+npm run test:coverage:badge
+```
+
 ## Linting and Formatting
 
-Format the code:
-
+Format code:
 ```bash
 npm run format
 ```
 
-Lint the code:
-
+Lint code:
 ```bash
 npm run lint
 ```
 
-Fix linting issues automatically:
-
+Auto-fix lint issues:
 ```bash
 npm run lint:fix
 ```
 
+## Preflight Check (Before Releasing)
+
+Run a full validation of the build before tagging or publishing:
+```bash
+npm run preflight
+```
+
+This will:
+* Clean build artifacts
+* Run format checks and lint
+* Run all tests
+* Build the output
+* Generate a coverage badge
+* Inject build size stats into `README.md`
+
+## Manual Release Workflow
+
+1. Run a preflight check:
+```bash
+npm run preflight
+```
+
+2. Bump version and generate changelog:
+```bash
+npm run version:bump patch # or minor / major
+```
+
+3. Push and publish:
+```bash
+git push && git push --tags npm publish
+```
+
+Or run it all in one step:
+```bash
+npm run release:manual patch
+```
+
+This combines `preflight` + version bump automation + changelog + README injection.
+
 ## Troubleshooting
 
-If you're having issues with ESM imports, try one of these solutions:
+### Common ESM/CJS Issues
 
-1. Make sure you're using the correct file extension:
-   - `.mjs` for ESM modules
-   - `.js` for CommonJS modules
+1. Make sure you're using the correct file extensions:
+   * `.mjs` for ES Modules
+   * `.js` for CommonJS
 
-2. For Node.js versions that don't fully support ESM, use the CommonJS version:
-   ```bash
-   node dist/examples/demo.js
-   ```
+2. For older Node.js versions, fall back to CommonJS:
+```bash
+node dist/index.js
+```
 
-3. If you see errors about `.js` extensions in imports, make sure you're using the recommended Node.js version (14+).
+3. If you see errors related to file extensions in `import` paths, make sure you're using Node 14+ with `"type": "module"` in `package.json`.
 
 ## Package Structure
 
-- `src/` - Source TypeScript files
-- `dist/*.js` - Compiled CommonJS JavaScript files
-- `dist/*.mjs` - Compiled ESM JavaScript files
-- `dist/*.d.ts` - TypeScript declaration files
-- `examples/` - Example usage and demo scripts
-- `__tests__/` - Test files
-
-## Import Examples
-
-### In TypeScript
-
-```typescript
-// ESM style import (preferred)
-import { Logger, COLORS } from 'magiclogger';
-
-// CommonJS style import
-const { Logger, COLORS } = require('magiclogger');
-```
-
-### In JavaScript
-
-```javascript
-// ES Modules
-import { Logger } from 'magiclogger';
-
-// CommonJS
-const { Logger } = require('magiclogger');
-```
+* `src/` — Source TypeScript files
+* `dist/index.js` — CommonJS build
+* `dist/index.mjs` — ESM build
+* `dist/index.d.ts` — TypeScript types
+* `examples/` — Example/demo scripts
+* `scripts/` — Automation scripts (coverage, versioning, build analysis)
+* `tests/` — Unit test files
+* `docs/` — Developer documentation

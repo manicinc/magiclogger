@@ -1,6 +1,35 @@
-# Magiclogger
+# MagicLogger
 
-A powerful, no-config cross-platform logging library for Node.js with rich terminal styling, colors, and multiple output formats.
+<!-- VERSION_BADGE_PLACEHOLDER -->
+![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)
+<!-- /VERSION_BADGE_PLACEHOLDER -->
+
+A powerful, no-config cross-platform logging library for Node.js with rich terminal styling, colors, and multiple output formats. Provides drop-in compatibility with popular logging libraries.
+
+## Table of Contents
+
+- [Features](#features)
+- [Installation](#installation)
+- [Build Output Sizes](#-build-output-sizes)
+- [Test Coverage](#-test-coverage)
+- [Quick Start](#quick-start)
+- [Drop-in Compatibility](#drop-in-compatibility)
+- [Usage](#usage)
+  - [Logging Methods](#logging-methods)
+  - [Visual Elements](#visual-elements)
+  - [Custom Styling](#custom-styling)
+  - [File Logging](#file-logging)
+- [Advanced Configuration](#advanced-configuration)
+- [Available Styles](#available-styles)
+  - [Colors](#colors)
+  - [Style Presets](#style-presets)
+- [Architecture](#architecture)
+  - [Core Components](#core-components)
+  - [Data Flow](#data-flow)
+  - [Key Responsibilities](#key-responsibilities)
+- [Extending MagicLogger](#extending-magiclogger)
+- [Documentation](#documentation)
+- [License](#license)
 
 ## Features
 
@@ -8,7 +37,7 @@ A powerful, no-config cross-platform logging library for Node.js with rich termi
 - 🔄 **Universal Log Method** - Single method with flexible level support
 - 📊 **Progress Bars & Tables** - Visualize data and progress directly in your terminal
 - 📝 **File Logging** - Automatic log file rotation and retention
-- 🔌 **Drop-in Compatibility** - Works as a replacement for console, Winston, Bunyan, and Pino
+- 🔌 **Extensive Compatibility** - Drop-in replacement for console, Winston, Bunyan, Pino, and custom loggers
 - 🔗 **Link Preservation** - Automatically detects and preserves formatting of URLs and file paths
 - 🧩 **Custom Styling** - Apply colors and styles to specific parts of messages
 - ⚡ **Zero Config** - Works out of the box with sensible defaults
@@ -22,6 +51,30 @@ npm install magiclogger
 yarn add magiclogger
 ```
 
+<!-- BUILD_OUTPUT_SIZES_PLACEHOLDER -->
+## 📦 Build Output Sizes
+| File | Format | Size |
+|------|--------|------|
+| index.js | CJS | 45.62 KB |
+| index.mjs | ESM | 335 B |
+| index.d.ts | Types | 24.12 KB |
+
+*Generated via `scripts/analyze-build.js`.*
+<!-- /BUILD_OUTPUT_SIZES_PLACEHOLDER -->
+
+<!-- TEST_COVERAGE_PLACEHOLDER -->
+## 📊 Test Coverage
+![Test Coverage](https://img.shields.io/badge/coverage-85%25-brightgreen.svg)
+
+### Coverage Breakdown
+- **Statements**: 85.00% covered
+- **Branches**: 80.00% covered
+- **Functions**: 90.00% covered
+- **Lines**: 85.00% covered
+
+Detailed coverage report available in [test-coverage.md](./docs/test-coverage.md)
+<!-- /TEST_COVERAGE_PLACEHOLDER -->
+
 ## Quick Start
 
 ```javascript
@@ -34,104 +87,136 @@ const logger = new Logger({
   logDir: './logs',  // Directory for log files (default: './logs')
 });
 
-// Use the universal log method with different levels
+// Universal log method with different levels
 logger.log('This is a standard info message');
 logger.log('Warning: something might be wrong', 'warn');
 logger.log('Critical error encountered', 'error');
 logger.log('Detailed debug information', 'debug');
 logger.log('Operation completed successfully', 'success');
-```
 
-## Usage
-
-### Universal Log Method
-
-The new universal `log()` method accepts an optional level parameter for flexible logging:
-
-```javascript
-// Signature: log(message, level?)
-// Where level can be: 'info', 'warn', 'error', 'debug', 'success'
-
-logger.log('Processing user data');                    // Default: info level
-logger.log('High CPU usage detected', 'warn');         // Warning level
-logger.log('Database connection failed', 'error');     // Error level
-logger.log('Request payload: {...}', 'debug');         // Debug level (only shown in verbose mode)
-logger.log('Data migration completed', 'success');     // Success level
-```
-
-### Direct Level Methods
-
-For convenience, you can also use direct level-specific methods:
-
-```javascript
-logger.info('Application started');
-logger.warn('Cache expiring soon');
-logger.error('Failed to authenticate user');
-logger.debug('Auth token: ey...');
+// Or use direct level-specific methods
+logger.info('Application starting up...');
+logger.warn('Connection pool nearing capacity');
+logger.error('Database connection failed');
+logger.debug('User authentication details');
 logger.success('Email sent successfully');
 ```
 
-### Headers & Sections
+## Drop-in Compatibility
 
-Create visual sections in your logs:
+MagicLogger provides seamless compatibility with popular logging libraries, allowing you to enhance your existing logging code without major refactoring:
+
+### Console Enhancement
 
 ```javascript
-logger.header('Application Initialization');
-// => [BLUE BACKGROUND] Application Initialization 
+import { enhanceConsole } from 'magiclogger';
 
-// Custom colors for headers
-logger.header('Important Section', ['brightRed', 'bold']);
+// Enhance the console object with all MagicLogger capabilities
+const { logger, restoreConsole } = enhanceConsole({ writeToDisk: true });
+
+// Use standard console methods with enhanced styling
+console.log('Standard log message');
+console.warn('Warning message');
+
+// Access new methods
+console.header('SYSTEM STATUS');
+console.success('Database connected');
+console.progress(75);  // 75% progress bar
 ```
 
-### Progress Bars
-
-Show progress for long-running operations:
+### Winston / Bunyan / Pino Compatible
 
 ```javascript
-// Basic usage
+// Winston-compatible interface
+import { createWinstonCompatible } from 'magiclogger';
+const winstonLogger = createWinstonCompatible({ verbose: true });
+winstonLogger.info('Server started');
+
+// Bunyan-compatible interface
+import { createBunyanCompatible } from 'magiclogger';
+const bunyanLogger = createBunyanCompatible({ name: 'my-app' });
+bunyanLogger.info({ userID: 123 }, 'User logged in');
+
+// Pino-compatible interface
+import { createPinoCompatible } from 'magiclogger';
+const pinoLogger = createPinoCompatible();
+pinoLogger.info('Request received');
+```
+
+### Custom Logger Adapters
+
+Easily create adapters for any logging library using our base compatibility layer:
+
+```javascript
+import { BaseCompatibleLogger } from 'magiclogger';
+
+// Create a custom adapter for your favorite logger
+class CustomLoggerAdapter extends BaseCompatibleLogger {
+  log(level, message) {
+    // Map to appropriate MagicLogger methods
+    switch(level) {
+      case 'info': this.logger.log(message); break;
+      case 'warn': this.logger.warn(message); break;
+      // Add custom implementations
+    }
+  }
+}
+```
+
+For detailed information on compatibility options, see our [Compatibility Guide](./docs/compatibility.md).
+
+## Usage
+
+### Logging Methods
+
+```javascript
+// Universal log method with different levels
+logger.log('Processing user data');                    // Default: info level
+logger.log('High CPU usage detected', 'warn');         // Warning level
+logger.log('Database connection failed', 'error');     // Error level
+
+// Direct level methods
+logger.info('Application started');
+logger.warn('Cache expiring soon');
+logger.error('Failed to authenticate user');
+logger.debug('Auth token details');
+logger.success('Email sent successfully');
+```
+
+### Visual Elements
+
+```javascript
+// Section headers
+logger.header('APPLICATION INITIALIZATION');
+
+// Progress bars
 logger.progressBar(50);  // 50% complete
+logger.progressBar(75, 30, '▓', '░');  // Custom appearance
 
-// With custom appearance
-logger.progressBar(75, 30, '▓', '░');  // 75% complete with 30-char length
-```
-
-### Tables
-
-Display tabular data:
-
-```javascript
-const users = [
+// Tables
+logger.table([
   { id: 1, name: 'Alice', role: 'Admin' },
   { id: 2, name: 'Bob', role: 'User' },
-];
-
-logger.table(users);
+]);
 ```
 
-### Custom Colors & Styling
-
-Apply colors to entire messages:
+### Custom Styling
 
 ```javascript
+// Style entire messages
 logger.custom('Database migration starting...', ['blue', 'bold'], 'DB');
-// => [DB] Database migration starting...
 
-// Using presets
+// Use predefined style presets
 logger.styled('Critical system notification', 'important');
-```
 
-Colorize only specific parts of a message:
-
-```javascript
+// Colorize specific parts
 logger.colorParts('File uploaded: user.json (2.4MB)', {
   'user.json': ['cyan', 'underline'],
   '2.4MB': ['green', 'bold']
 });
 ```
 
-### Logging to Files
-
-Enable file logging:
+### File Logging
 
 ```javascript
 const logger = new Logger({
@@ -146,22 +231,6 @@ const logPath = logger.getPath();
 
 ## Advanced Configuration
 
-### Object-based Constructor
-
-Create a logger with multiple options:
-
-```javascript
-const logger = new Logger({
-  verbose: process.env.NODE_ENV === 'development',
-  writeToDisk: true,
-  useColors: !process.env.NO_COLOR,
-  logDir: './logs',
-  logRetentionDays: 7
-});
-```
-
-### Dynamic Configuration
-
 Change logger settings at runtime:
 
 ```javascript
@@ -171,9 +240,6 @@ logger.setLogDir('./new-logs', true);  // true to reinitialize log file
 // Enable/disable verbose mode
 logger.setVerbose(true);
 
-// Enable/disable file logging
-logger.setFileLogging(true);
-
 // Enable/disable colors
 logger.setColorsEnabled(true);
 
@@ -181,100 +247,13 @@ logger.setColorsEnabled(true);
 logger.setLogRetentionDays(14, true);  // true to clean old logs immediately
 ```
 
-## Integration with Existing Loggers
+## Available Styles
 
-### Console Replacement
-
-```javascript
-import { enhanceConsole } from 'magiclogger';
-
-// Enhance the console object with Magiclogger capabilities
-const { logger, restoreConsole } = enhanceConsole({ 
-  verbose: true,
-  writeToDisk: true
-});
-
-// Now you can use standard console methods with enhanced abilities
-console.log('Standard log message');
-console.warn('Warning message');
-console.error('Error message');
-
-// Plus new methods
-console.success('Operation completed');
-console.header('Processing Started');
-console.progress(50);  // 50% progress
-
-// Use the colorize function
-const highlightText = console.colorize('yellow', 'bold');
-console.log(`This is ${highlightText('important')} to note`);
-
-// Restore original console if needed
-restoreConsole();
-```
-
-### Winston-compatible Interface
-
-```javascript
-import { createWinstonCompatible } from 'magiclogger';
-
-const logger = createWinstonCompatible({
-  verbose: true,
-  writeToDisk: true
-});
-
-// Use like Winston
-logger.info('Info message');
-logger.warn('Warning message');
-logger.error('Error message');
-
-// With enhanced features
-logger.header('New Section');
-logger.progress(75);
-```
-
-### Bunyan-compatible Interface
-
-```javascript
-import { createBunyanCompatible } from 'magiclogger';
-
-const logger = createBunyanCompatible({
-  name: 'my-app',
-  verbose: true
-});
-
-// Use like Bunyan
-logger.info('Info message');
-logger.warn({ id: 123 }, 'Warning for resource');
-logger.error(new Error('Something failed'), 'Operation failed');
-
-// With enhanced features
-logger.header('Started processing');
-```
-
-### Pino-compatible Interface
-
-```javascript
-import { createPinoCompatible } from 'magiclogger';
-
-const logger = createPinoCompatible({
-  verbose: true
-});
-
-// Use like Pino
-logger.info('Info message');
-logger.warn({ resourceId: 123 }, 'Warning for resource');
-logger.error('Operation failed');
-
-// With enhanced features
-logger.header('Processing');
-logger.progress(25);
-```
-
-## Available Colors and Styles
+### Colors
 
 ```javascript
 // Foreground colors
-'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white', 'gray', 'grey',
+'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white', 'gray',
 
 // Bright foreground colors
 'brightRed', 'brightGreen', 'brightYellow', 'brightBlue', 
@@ -282,27 +261,129 @@ logger.progress(25);
 
 // Background colors
 'bgBlack', 'bgRed', 'bgGreen', 'bgYellow', 'bgBlue', 
-'bgMagenta', 'bgCyan', 'bgWhite', 'bgGray', 'bgGrey',
+'bgMagenta', 'bgCyan', 'bgWhite', 'bgGray',
 
-// Text styles (will fallback gracefully if not supported by terminal)
-'bold', 'dim', 'italic', 'underline', 'blink', 'reverse', 'hidden', 'strikethrough'
+// Text styles 
+'bold', 'dim', 'italic', 'underline', 'blink', 'reverse', 'strikethrough'
 ```
 
-## Style Presets
+### Style Presets
+
+Type-safe presets for consistent styling:
+
+- `'debug'` - Gray, italic
+- `'info'` - Cyan, bold
+- `'warning'` - Yellow, bold
+- `'error'` - Bright red, bold
+- `'success'` - Green, bold
+- `'important'` - Bright yellow, bold
+- `'highlight'` - Bright white, bold
+- `'muted'` - Dim or gray
+- `'special'` - Magenta, bold
+- `'code'` - Bright cyan
+- `'header'` - Bright white, blue background, bold
+
+## Architecture
+
+MagicLogger follows a layered architecture with clear separation of concerns:
+
+### Core Components
+
+```mermaid
+graph TD
+    A[User Application] --> B[Logger]
+    B --> C1[NodeLogger]
+    B --> C2[BrowserLogger]
+    C1 --> D[Formatter]
+    C2 --> D
+    D --> E[Colorizer]
+    C1 --> F[Printer]
+    C2 --> F
+    G[BaseCompatibleLogger] --> H1[EnhancedConsole]
+    G --> H2[Winston/Bunyan/Pino Compatible]
+    B --> G
+```
+
+### Data Flow
+
+1. **User Call**: Application calls a logging method
+2. **Logger**: Determines environment and delegates to appropriate implementation
+3. **Implementation**: NodeLogger or BrowserLogger processes the log message
+4. **Formatting**: Formatter uses Colorizer to apply styles to the message
+5. **Output**: Printer handles the final output based on environment
+
+### Key Responsibilities
+
+#### Colorizer
+- Provides color and styling utilities
+- Handles ANSI color codes for terminal 
+- Supports standard, bright, and background colors
+- Applies text styles (bold, italic, underline)
+- Core utility with no dependencies on other components
+
+#### Formatter
+- Applies formatting using Colorizer
+- Detects and preserves links and file paths
+- Supports style presets for consistent formatting
+- Manages color enabling/disabling
+
+#### Printer
+- Abstracts output between Node.js and browsers
+- Handles progress bars and special formatting
+- Manages console output and file writing
+- Adapts to terminal capabilities
+
+#### Logger
+- Presents unified API to users
+- Auto-detects environment (Node.js vs browser)
+- Supports multiple log levels
+- Provides convenience methods
+
+#### Compatibility Layer
+- Offers drop-in replacements for popular logging libraries
+- Maintains consistent styling across different interfaces
+- Adapts third-party logger APIs to MagicLogger's core
+- Extends the base functionality without modifying core components
+
+## Extending MagicLogger
+
+You can write your own loggers using MagicLogger.
 
 ```javascript
-'info'      - Cyan, bold
-'success'   - Green, bold
-'warning'   - Yellow, bold
-'error'     - Bright red, bold
-'debug'     - Gray, italic
-'important' - Magenta, bold, underline
-'highlight' - Bright yellow, bold
-'muted'     - Dim or gray
-'special'   - Bright cyan, bold
-'code'      - Bright green
-'header'    - Bright white, blue background, bold
+import { BaseCompatibleLogger } from 'magiclogger';
+
+class MyNewLogger extends BaseCompatibleLogger {
+  log(level: string, message: string): void {
+    switch (level) {
+      case 'info':
+      case 'warn':
+      case 'error':
+      case 'debug':
+      case 'success':
+        this.logger.log(message, level as LogLevel);
+        break;
+      case 'trace':
+        this.logger.debug(`TRACE: ${message}`);
+        break;
+      case 'fatal':
+        this.logger.error(`FATAL: ${message}`);
+        break;
+      default:
+        if (this.strictLevels) {
+          throw new Error(`Unknown level: ${level}`);
+        }
+        this.logger.custom(message, ['white'], level.toUpperCase());
+    }
+  }
+}
 ```
+
+## Documentation
+
+- [API Reference](./docs/api_usage.md)
+- [Compatibility Guide](./docs/compatibility.md)
+- [Terminal Support](./docs/terminal_support.md)
+- [Contributing Guide](./docs/contributing.md)
 
 ## License
 

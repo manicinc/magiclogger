@@ -1,0 +1,76 @@
+{
+  "default": {
+    "info": ["cyan", "bold"],
+    "success": ["green", "bold"],
+    "warning": ["yellow", "bold"],
+    "error": ["brightRed", "bold"],
+    "debug": ["gray", "italic"],
+    "important": ["magenta", "bold", "underline"],
+    "highlight": ["brightYellow", "bold"],
+    "muted": ["dim"],
+    "special": ["brightCyan", "bold"],
+    "code": ["brightGreen"],
+    "header": ["brightWhite", "bgBlue", "bold"]
+  },
+  "dark": {
+    "info": ["brightCyan"],
+    "success": ["brightGreen"],
+    "warning": ["brightYellow"],
+    "error": ["brightRed", "bold"],
+    "debug": ["gray", "italic"],
+    "header": ["brightWhite", "bgMagenta", "bold"]
+  },
+  "solarized": {
+    "info": ["blue"],
+    "success": ["green"],
+    "warning": ["yellow"],
+    "error": ["red", "bold"],
+    "debug": ["cyan", "italic"],
+    "muted": ["dim"],
+    "header": ["white", "bgBlue", "bold"]
+  },
+  "matrix": {
+    "info": ["green"],
+    "success": ["brightGreen"],
+    "warning": ["yellow"],
+    "error": ["brightRed", "bold"],
+    "debug": ["green", "dim"],
+    "header": ["black", "bgGreen", "bold"],
+    "special": ["brightGreen", "italic"]
+  },
+  "vaporwave": {
+    "info": ["magenta", "italic"],
+    "success": ["brightMagenta"],
+    "warning": ["brightYellow", "italic"],
+    "error": ["brightRed", "bold", "italic"],
+    "debug": ["cyan", "dim"],
+    "header": ["brightWhite", "bgMagenta", "bold"],
+    "highlight": ["brightCyan", "underline"]
+  },
+  "cyberpunk": {
+    "info": ["brightCyan"],
+    "success": ["brightGreen"],
+    "warning": ["brightYellow"],
+    "error": ["brightMagenta", "bold"],
+    "debug": ["gray", "italic"],
+    "header": ["black", "bgBrightMagenta", "bold"],
+    "special": ["magenta", "bold"]
+  },
+  "midnight": {
+    "info": ["blue"],
+    "success": ["green"],
+    "warning": ["yellow"],
+    "error": ["red", "bold"],
+    "debug": ["gray", "italic"],
+    "muted": ["dim"],
+    "header": ["brightWhite", "bgBlack", "bold"]
+  },
+  "neon": {
+    "info": ["brightCyan", "bold"],
+    "success": ["brightGreen", "bold"],
+    "warning": ["brightYellow", "bold"],
+    "error": ["brightRed", "bold"],
+    "debug": ["gray", "italic"],
+    "header": ["brightWhite", "bgBrightBlue", "bold"]
+  }
+}
