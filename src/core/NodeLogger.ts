@@ -218,6 +218,15 @@ export class NodeLogger extends LoggerBase {
   }
 
   /**
+   * Sets a new theme to apply styles dynamically.
+   * @param theme Object mapping log levels and labels to color styles
+   */
+  public setTheme(theme: Record<string, ColorName[]>): void {
+    super.setTheme(theme);
+    this.formatter.setTheme(theme); // Pass to formatter if needed
+  }
+
+  /**
    * Resolves a list of colors for the given preset style.
    * @param preset The preset name (e.g. 'info', 'error')
    * @returns Array of ColorName styles

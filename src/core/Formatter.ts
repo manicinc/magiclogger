@@ -9,7 +9,18 @@ import { PRESETS, COLORS } from '../constants';
  * Uses the Colorizer utility for all color-related functionality.
  */
 export class Formatter {
+  /** Optional theme override for preset styles */
+  private theme: Record<string, ColorName[]> = {};
+
   constructor(private useColors: boolean = true) {}
+
+  /**
+   * Sets a theme mapping for style presets and level overrides.
+   * @param theme Theme object where each key is a preset name and the value is an array of ColorNames.
+   */
+  public setTheme(theme: Record<string, ColorName[]>): void {
+    this.theme = theme ?? {};
+  }
 
   /**
    * Applies the given array of color/style names to a message.
@@ -30,6 +41,7 @@ export class Formatter {
 
   /**
    * Applies a preset style to a message.
+   * Uses theme override if available.
    * @param message The message to format.
    * @param preset The style preset name.
    * @returns The formatted message.
@@ -37,21 +49,9 @@ export class Formatter {
   public applyPreset(message: string, preset: StylePreset): string {
     if (!this.useColors) return message;
 
-    // Get the color codes for this preset
-    const presetColors = PRESETS[preset] || [];
+    const presetColors = this.theme?.[preset] || PRESETS[preset] || [];
 
-    // Apply colors directly from COLORS constants
-    let result = '';
-    for (const color of presetColors) {
-      // Only apply if the color exists in COLORS and isn't empty
-      if (COLORS[color as keyof typeof COLORS] && COLORS[color as keyof typeof COLORS].length > 0) {
-        result += COLORS[color as keyof typeof COLORS];
-      }
-    }
-
-    // Add the message and reset code
-    result += message + COLORS.reset;
-    return result;
+    return this.applyColors(message, presetColors);
   }
 
   /**
@@ -90,16 +90,14 @@ export class Formatter {
   private applyColors(message: string, colors: ColorName[]): string {
     if (!this.useColors || !colors || colors.length === 0) return message;
 
-    // Apply colors directly from COLORS constants
     let result = '';
     for (const color of colors) {
-      // Only apply if the color exists in COLORS and isn't empty
-      if (COLORS[color as keyof typeof COLORS] && COLORS[color as keyof typeof COLORS].length > 0) {
-        result += COLORS[color as keyof typeof COLORS];
+      const code = COLORS[color as keyof typeof COLORS];
+      if (code && code.length > 0) {
+        result += code;
       }
     }
 
-    // Add the message and reset code
     result += message + COLORS.reset;
     return result;
   }

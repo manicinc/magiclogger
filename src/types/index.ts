@@ -1,6 +1,6 @@
 export * from './console';
 export * from './terminal';
-export * from './logger';
 export * from './preset';
 export * from './colors';
-export * from './theme';
+export type { LoggerOptions, LogLevel } from './logger';
+export type { ThemeDefinition, ThemeMap, ColorStyleMap } from './theme';

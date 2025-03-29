@@ -1,6 +1,7 @@
 import { NodeLogger } from './core/NodeLogger'; // Import the NodeLogger class
 import { BrowserLogger } from './core/BrowserLogger'; // Import the BrowserLogger class
 import { LoggerOptions, LogLevel, StylePreset, ColorName } from './types'; // Import Logger options type
+import type { LoggerBase } from './core/LoggerBase';
 
 /**
  * This class automatically detects whether it's running in a Node.js or Browser environment.
@@ -178,6 +179,37 @@ export class Logger {
    */
   setColorsEnabled(enabled: boolean): void {
     this.loggerInstance.setColorsEnabled(enabled);
+  }
+
+  /**
+   * Get the current theme applied to the logger.
+   */
+  public get theme(): Record<string, ColorName[]> {
+    return (this.loggerInstance as LoggerBase)['theme'];
+  }
+
+  /**
+   * Set or replace the theme applied to this logger.
+   *
+   * A theme maps log level names or aliases to color/style arrays.
+   * Example:
+   * {
+   *   info: ['cyan', 'bold'],
+   *   error: ['brightRed', 'bold'],
+   *   header: ['brightWhite', 'bgBlue', 'bold']
+   * }
+   *
+   * @param theme The theme definition to apply
+   */
+  public setTheme(theme: Record<string, unknown>): void {
+    const validated: Record<string, ColorName[]> = {};
+
+    for (const [key, value] of Object.entries(theme)) {
+      if (Array.isArray(value) && value.every(v => typeof v === 'string')) {
+        validated[key] = value as ColorName[];
+      }
+    }
+    (this.loggerInstance as LoggerBase).setTheme(validated);
   }
 }
 

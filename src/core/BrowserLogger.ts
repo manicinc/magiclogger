@@ -158,4 +158,13 @@ export class BrowserLogger extends LoggerBase {
     const percent = this.formatter.colorize(`${safeProgress.toFixed(1)}%`, ['bold']);
     Printer.print(`${bar} ${percent}`);
   }
+
+  /**
+   * Sets a new theme for dynamic styling.
+   * @param theme Object mapping log levels and labels to color arrays
+   */
+  public setTheme(theme: Record<string, ColorName[]>): void {
+    super.setTheme(theme);
+    this.formatter.setTheme?.(theme); // if formatter supports theme
+  }
 }

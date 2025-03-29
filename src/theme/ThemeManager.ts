@@ -1,11 +1,15 @@
+import { fileURLToPath } from 'url';
 import * as fs from 'fs';
 import * as path from 'path';
-import { ColorName } from '../types';
+import type { ColorName } from '../types';
 import { COLORS } from '../constants';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 export class ThemeManager {
-  private themes: Record<string, Record<string, ColorName[]>> = {};
-  private themePath = path.resolve(__dirname, 'themes.json');
+  public themes: Record<string, Record<string, ColorName[]>> = {};
+  private themePath = path.resolve(__dirname, '../../theme/themes.json');
 
   constructor() {
     this.loadThemes();
@@ -13,15 +17,21 @@ export class ThemeManager {
 
   private loadThemes(): void {
     if (fs.existsSync(this.themePath)) {
-      const data = fs.readFileSync(this.themePath, 'utf-8');
-      this.themes = JSON.parse(data);
+      try {
+        const data = fs.readFileSync(this.themePath, 'utf-8');
+        this.themes = JSON.parse(data);
+      } catch (err) {
+        console.warn(`[ThemeManager] Failed to parse themes.json:`, err);
+        this.themes = {};
+      }
     } else {
-      throw new Error(`Theme file not found at: ${this.themePath}`);
+      console.warn(`[ThemeManager] Theme file not found at: ${this.themePath}`);
+      this.themes = {};
     }
   }
 
   getTheme(themeName: string): Record<string, ColorName[]> {
-    return this.themes[themeName] || this.themes['default'];
+    return this.themes[themeName] || this.themes['default'] || {};
   }
 
   applyStyles(styles: ColorName[], message: string): string {
@@ -31,7 +41,7 @@ export class ThemeManager {
   }
 
   getCssStyles(level: string): string {
-    const styles = this.themes['default'][level] || [];
+    const styles = this.themes['default']?.[level] || [];
     return styles.map(style => this.cssStyleMap(style)).join('; ');
   }
 
@@ -39,18 +49,17 @@ export class ThemeManager {
     const styleMap: Partial<Record<ColorName, string>> = {
       black: 'color: black',
       red: 'color: red',
-      green: 'color: green',
-      yellow: 'color: yellow',
-      blue: 'color: blue',
-      magenta: 'color: magenta',
-      cyan: 'color: cyan',
-      white: 'color: white',
-      gray: 'color: gray',
+      green: 'green',
+      yellow: 'yellow',
+      blue: 'blue',
+      magenta: 'magenta',
+      cyan: 'cyan',
+      white: 'white',
+      gray: 'gray',
       bold: 'font-weight: bold',
       dim: 'opacity: 0.7',
       italic: 'font-style: italic',
       underline: 'text-decoration: underline',
-      // Add other styles as needed
     };
     return styleMap[style] || '';
   }

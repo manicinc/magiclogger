@@ -2,16 +2,38 @@ import type { ColorName } from './colors';
 import type { StylePreset } from './preset';
 
 /**
- * Represents a single style preset mapping
+ * A theme definition maps log levels or style presets to arrays of color/style names.
+ * Keys are StylePreset strings such as 'info', 'error', 'success', or custom presets.
+ *
+ * @example
+ * {
+ *   info: ['cyan', 'bold'],
+ *   error: ['brightRed', 'bold'],
+ *   header: ['brightWhite', 'bgBlue', 'bold']
+ * }
  */
-export type ThemeDefinition = Partial<Record<StylePreset, ColorName[]>>;
+export type ThemeDefinition = Partial<Record<StylePreset | string, ColorName[]>>;
 
 /**
- * Represents a map of theme names to their definitions
+ * A map of theme names to their corresponding theme definitions.
+ * Used by ThemeManager to load and switch between preconfigured themes.
+ *
+ * @example
+ * {
+ *   default: { info: ['blue'], success: ['green', 'bold'] },
+ *   dark:    { info: ['cyan'], error: ['brightRed'] }
+ * }
  */
 export type ThemeMap = Record<string, ThemeDefinition>;
 
 /**
- * Optional color override map per theme
+ * A map that overrides specific color names with CSS equivalents.
+ * Used for browser console logging with CSS styles.
+ *
+ * @example
+ * {
+ *   red: 'color: red',
+ *   bold: 'font-weight: bold'
+ * }
  */
 export type ColorStyleMap = Partial<Record<ColorName, string>>;

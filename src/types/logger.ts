@@ -1,3 +1,20 @@
+import type { ColorName } from '../types'; // Adjust path if needed
+
+/**
+ * A theme defines color/style mappings for log levels.
+ *
+ * Each key represents a log level or category, and the value is
+ * an array of `ColorName` styles applied to messages of that level.
+ *
+ * @example
+ * {
+ *   info: ['cyan', 'bold'],
+ *   error: ['brightRed', 'bold'],
+ *   header: ['brightWhite', 'bgBlue', 'bold']
+ * }
+ */
+export type ThemeDefinition = Record<string, ColorName[]>;
+
 /**
  * Configuration options for a MagicLogger instance.
  * These settings control the logger's behavior, output format, identity, and destination.
@@ -74,16 +91,21 @@ export interface LoggerOptions {
   strictLevels?: boolean;
 
   /**
-   * The name of the theme to apply to logger output.
-   * If undefined, uses the default theme.
+   * Theme used to style logger output.
+   * Can be a string (theme name from ThemeManager) or a full object.
    *
    * @example 'dark'
+   * @example {
+   *   info: ['cyan', 'bold'],
+   *   error: ['brightRed', 'bold'],
+   *   header: ['brightWhite', 'bgBlue', 'bold']
+   * }
    */
-  theme?: string;
+  theme?: string | ThemeDefinition;
 }
 
 /**
  * Supported log levels for structured logging.
  * Additional custom levels are allowed unless strictLevels is true.
  */
-export type LogLevel = 'info' | 'warn' | 'error' | 'debug' | 'success' | string; // Custom levels (e.g. 'trace', 'audit') unless strictLevels is enforced
+export type LogLevel = 'info' | 'warn' | 'error' | 'debug' | 'success' | string;

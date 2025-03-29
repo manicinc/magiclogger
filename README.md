@@ -378,6 +378,59 @@ class MyNewLogger extends BaseCompatibleLogger {
 }
 ```
 
+## Themes
+
+### 🖌️ Theme Support
+
+MagicLogger supports dynamic theming using named presets or custom-defined themes. Themes control how log levels like `info`, `error`, `success`, and `header` are styled using color/style arrays.
+
+---
+
+#### 🎨 Use a Theme by Name
+
+If your project includes a `themes.json` file and you'd like to use a predefined theme (like `dark`):
+
+```ts
+const logger = new Logger({
+  theme: 'dark' // Automatically loads the 'dark' theme from ThemeManager
+});
+```
+
+Make sure your theme/themes.json file looks something like this:
+```
+{
+  "dark": {
+    "info": ["cyan", "bold"],
+    "error": ["brightRed", "bold"],
+    "success": ["green", "bold"],
+    "header": ["brightWhite", "bgBlue", "bold"]
+  }
+}
+```
+
+Switching themes:
+
+```
+const customTheme = {
+  info: ['cyan', 'bold'],
+  error: ['brightRed', 'bold'],
+  success: ['green', 'bold'],
+  header: ['brightWhite', 'bgBlue', 'bold']
+};
+
+const logger = new Logger();
+logger.setTheme(customTheme);
+logger.info('This log uses a manually applied theme!');
+```
+
+```
+logger.setTheme({ info: ['magenta', 'bold'] });
+logger.info('Theme updated at runtime');
+
+logger.setTheme({ info: ['yellow', 'italic'] });
+logger.info('Theme changed again');
+```
+
 ## Documentation
 
 - [API Reference](./docs/api_usage.md)
