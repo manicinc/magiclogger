@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>MagicLogger Logo</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      background: transparent;
+      font-family: 'Orbitron', sans-serif;
+      overflow: hidden;
+    }
+
+    .logo-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      background: transparent;
+    }
+
+    .magiclogger-logo {
+      font-size: 8vw;
+      text-transform: uppercase;
+      background: linear-gradient(
+        45deg, 
+        #FF1493,   /* Deep Pink */
+        #FF69B4,   /* Hot Pink */
+        #FF00FF,   /* Magenta */
+        #FF4500,   /* Orange Red */
+        #8A2BE2    /* Blue Violet */
+      );
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      color: transparent;
+      background-size: 400% 400%;
+      animation: gradientShift 5s ease infinite;
+      letter-spacing: 0.03em;
+      line-height: 1;
+      text-shadow: 
+        0 0 10px rgba(255,20,147,0.5),
+        0 0 20px rgba(255,105,180,0.3);
+      display: inline-block;
+      padding: 20px;
+      max-width: 100%;
+    }
+
+    @keyframes gradientShift {
+      0% {background-position: 0% 50%;}
+      50% {background-position: 100% 50%;}
+      100% {background-position: 0% 50%;}
+    }
+
+    #exportBtn {
+      margin-top: 20px;
+      background: linear-gradient(135deg, #FF1493, #FF69B4);
+      border: none;
+      color: white;
+      padding: 12px 25px;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.2em;
+      cursor: pointer;
+      border-radius: 8px;
+      box-shadow: 
+        0 4px 6px rgba(0,0,0,0.2),
+        0 0 20px rgba(255,20,147,0.3);
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    #exportBtn:hover {
+      transform: scale(1.05);
+      background: linear-gradient(135deg, #FF69B4, #FF1493);
+      box-shadow: 
+        0 6px 8px rgba(0,0,0,0.3),
+        0 0 30px rgba(255,20,147,0.5);
+    }
+
+    #canvas-container {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="logo-container">
+    <div class="magiclogger-logo">MagicLogger</div>
+    <button id="exportBtn">Export as PNG</button>
+  </div>
+
+  <div id="canvas-container"></div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Load dom-to-image library dynamically
+      var script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/dom-to-image/2.6.0/dom-to-image.min.js';
+      script.onload = function() {
+        console.log('dom-to-image library loaded successfully');
+        // Add event listener after library is loaded
+        document.getElementById('exportBtn').addEventListener('click', exportAsPng);
+      };
+      script.onerror = function() {
+        console.error('Failed to load dom-to-image library');
+        alert('Error loading required library. Please try again later.');
+      };
+      document.head.appendChild(script);
+    });
+
+    function exportAsPng() {
+      // Reference to the logo element
+      const logoElement = document.querySelector('.magiclogger-logo');
+      
+      // Pause animation during export
+      const originalAnimationState = logoElement.style.animationPlayState;
+      logoElement.style.animationPlayState = 'paused';
+      
+      // Use dom-to-image for better transparency support
+      domtoimage.toPng(logoElement, {
+        bgcolor: null,
+        height: logoElement.offsetHeight,
+        width: logoElement.offsetWidth,
+        style: {
+          'transform': 'none',
+          'margin': '0',
+          'padding': '20px'
+        },
+        filter: (node) => {
+          // Make sure we only capture the logo text
+          return node.tagName !== 'BUTTON' && !node.classList?.contains('logo-container');
+        }
+      })
+      .then(function(dataUrl) {
+        // Restore animation
+        logoElement.style.animationPlayState = originalAnimationState;
+        
+        // Create download link
+        const link = document.createElement('a');
+        link.download = 'magiclogger-logo.png';
+        link.href = dataUrl;
+        link.click();
+      })
+      .catch(function(error) {
+        console.error('Error exporting logo:', error);
+        
+        // Restore animation in case of error
+        logoElement.style.animationPlayState = originalAnimationState;
+        alert('Failed to export logo. Please try again.');
+      });
+    }
+  </script>
+</body>
+</html>

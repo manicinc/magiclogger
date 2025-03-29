@@ -15,11 +15,37 @@
       text-align: center;
     }
 
-    .rainbow-title {
-      text-align: center;
-      font-size: 1em;
-      white-space: pre-wrap;
+    .magiclogger-logo {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 4vw;
+      text-transform: uppercase;
+      background: linear-gradient(
+        45deg, 
+        #FF1493,   /* Deep Pink */
+        #FF69B4,   /* Hot Pink */
+        #FF00FF,   /* Magenta */
+        #FF4500,   /* Orange Red */
+        #8A2BE2    /* Blue Violet */
+      );
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      color: transparent;
+      background-size: 400% 400%;
+      animation: gradientShift 5s ease infinite;
+      letter-spacing: 0.03em;
+      display: inline-block;
+      line-height: 1;
       margin-bottom: 20px;
+      text-shadow: 
+        0 0 10px rgba(255,20,147,0.5),
+        0 0 20px rgba(255,105,180,0.3);
+    }
+
+    @keyframes gradientShift {
+      0% {background-position: 0% 50%;}
+      50% {background-position: 100% 50%;}
+      100% {background-position: 0% 50%;}
     }
 
     .controls {
@@ -83,7 +109,7 @@
   </style>
 </head>
 <body>
-  <div class="rainbow-title" id="rainbowTitle"></div>
+  <div class="magiclogger-logo">MagicLogger</div>
 
   <div class="demo-section">
     <h2>🪄 MagicLogger Advanced Playground</h2>
@@ -282,19 +308,6 @@
         await sleep(1000);
         await serverMonitorDemo();
     }
-
-    function renderRainbowTitle() {
-      const title = `
- ███╗   ███╗ █████╗  ██████╗ ██╗ ██████╗
- ████╗ ████║██╔══██╗██╔════╝ ██║██╔════╝
- ██╔████╔██║███████║██║  ███╗██║██║     
- ██║╚██╔╝██║██╔══██║██║   ██║██║██║     
- ██║ ╚═╝ ██║██║  ██║╚██████╔╝██║╚██████╗
- ╚═╝     ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═╝ ╚═════╝`;
-      rainbow.innerHTML = title.split('\n').map(line => rainbowText(line)).join('\n');
-    }
-
-    renderRainbowTitle();
 
     document.getElementById('btnBasicLogs').onclick = basicLogsDemo;
     document.getElementById('btnFullDemo').onclick = fullDemo;
