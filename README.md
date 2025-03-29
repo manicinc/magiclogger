@@ -77,6 +77,17 @@ Detailed coverage report available in [test-coverage.md](./docs/test-coverage.md
 
 ## Quick Start
 
+Demos:
+
+```sh
+# Console demo
+npm run demo
+# Console demo with API call examples
+npm run demo:guided
+# Web demo
+npm run demo:web
+```
+
 ```javascript
 import { Logger } from 'magiclogger';
 
@@ -437,6 +448,7 @@ logger.info('Theme changed again');
 - [Compatibility Guide](./docs/compatibility.md)
 - [Terminal Support](./docs/terminal_support.md)
 - [Contributing Guide](./docs/contributing.md)
+- [Developer's Guide](./docs/development.md)
 
 ## License
 
