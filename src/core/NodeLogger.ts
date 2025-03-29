@@ -12,6 +12,9 @@ import { PRESETS } from '../constants';
 export class NodeLogger extends LoggerBase {
   private fileManager: FileManager | null = null;
   private formatter: Formatter;
+  protected logDir: string;
+  protected logRetentionDays: number;
+  protected writeToDisk: boolean;
 
   /**
    * Constructs a NodeLogger instance with optional file logging and styles.
@@ -20,9 +23,12 @@ export class NodeLogger extends LoggerBase {
   constructor(options: LoggerOptions = {}) {
     super(options);
     this.formatter = new Formatter(this.useColors);
+    this.logDir = options.logDir || 'logs';
+    this.logRetentionDays = options.logRetentionDays || 30;
+    this.writeToDisk = options.writeToDisk || false;
 
-    if (options.writeToDisk) {
-      this.fileManager = new FileManager(options.logDir ?? 'logs', options.logRetentionDays);
+    if (this.writeToDisk) {
+      this.fileManager = new FileManager(this.logDir, this.logRetentionDays);
       this.fileManager.initLogFile();
     }
   }
@@ -193,6 +199,85 @@ export class NodeLogger extends LoggerBase {
   }
 
   /**
+   * Gets the current log file path.
+   * @returns The log file path or null if file logging is disabled
+   */
+  public getLogFilePath(): string | null {
+    return this.fileManager?.getLogFile() || null;
+  }
+
+  /**
+   * Enables or disables file logging
+   * @param enabled Whether to enable file logging
+   */
+  public setFileLogging(enabled: boolean): void {
+    this.writeToDisk = enabled;
+
+    if (enabled) {
+      if (!this.fileManager) {
+        this.fileManager = new FileManager(this.logDir || 'logs', this.logRetentionDays);
+      }
+
+      this.fileManager.initLogFile().catch(err => {
+        console.error('Failed to initialize log file:', err);
+        this.writeToDisk = false;
+      });
+    }
+  }
+
+  /**
+   * Gets the log directory path
+   * @returns The log directory path
+   */
+  public getLogDirectory(): string {
+    return this.fileManager?.getLogDir() || this.logDir || 'logs';
+  }
+
+  /**
+   * Sets the log directory path
+   * @param dir New log directory
+   * @param reinitialize Whether to reinitialize the log file
+   */
+  public setLogDirectory(dir: string, reinitialize = false): void {
+    this.logDir = dir || 'logs';
+
+    if (!this.fileManager) {
+      this.fileManager = new FileManager(this.logDir, this.logRetentionDays);
+    } else {
+      this.fileManager.setLogDir(this.logDir);
+    }
+
+    if (reinitialize && this.writeToDisk) {
+      this.fileManager.initLogFile();
+    }
+  }
+
+  /**
+   * Gets the log retention period in days
+   * @returns Days to retain logs
+   */
+  public getLogRetentionDays(): number {
+    return this.fileManager?.getLogRetentionDays() || this.logRetentionDays || 30;
+  }
+
+  /**
+   * Sets the log retention period
+   * @param days Number of days to retain logs
+   * @param cleanNow Whether to clean old logs immediately
+   */
+  public setLogRetentionDays(days: number, cleanNow = false): void {
+    this.logRetentionDays = Math.max(1, days || 1);
+
+    if (this.fileManager) {
+      this.fileManager.setLogRetentionDays(this.logRetentionDays);
+
+      if (cleanNow) {
+        this.fileManager.cleanupOldLogs();
+      }
+    }
+  }
+
+  /**
    * Internal print method that applies styling, then prints and logs.
    * @param levelStr Display label (e.g. 'INFO')
    * @param msg The message text
@@ -212,7 +297,7 @@ export class NodeLogger extends LoggerBase {
    * @param line The log string to append to the file
    */
   private writeFile(line: string): void {
-    if (this.fileManager) {
+    if (this.fileManager && this.writeToDisk) {
       this.fileManager.appendToFile(line);
     }
   }
@@ -223,7 +308,7 @@ export class NodeLogger extends LoggerBase {
    */
   public setTheme(theme: Record<string, ColorName[]>): void {
     super.setTheme(theme);
-    this.formatter.setTheme(theme); // Pass to formatter if needed
+    this.formatter.setTheme?.(theme); // Pass to formatter if needed
   }
 
   /**

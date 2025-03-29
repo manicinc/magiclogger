@@ -1,4 +1,4 @@
-// Import modules
+// Import required modules
 const fs = jest.requireActual('fs');
 const path = jest.requireActual('path');
 
@@ -29,6 +29,7 @@ mockFileSystem.set(path.join(LOG_DIR, 'new-log.log'), {
 // ----------------------
 // Function Mock Setup
 // ----------------------
+// Define these functions first, before they're used
 const fsMockImplementation = {
   existsSync: jest.fn(),
   mkdirSync: jest.fn(),
@@ -179,6 +180,16 @@ jest.mock('fs', () => {
 import * as fsModule from 'fs';
 import * as pathModule from 'path';
 
+// ----------------------
+// Import other classes after the fs mock is set up
+// ----------------------
+import { Logger } from './src/Logger';
+import { NodeLogger } from './src/core/NodeLogger';
+import { FileManager } from './src/core/FileManager';
+import { Formatter } from './src/core/Formatter';
+import { BrowserLogger } from './src/core/BrowserLogger';
+import { BrowserStorageManager } from './src/core/BrowserStorageManager';
+
 export const fsMocks = fsModule as jest.Mocked<typeof fsModule> & {
   resetAll: () => void;
 };
@@ -199,7 +210,57 @@ export const terminalUtils = {
   // Always return true for style support in tests
   isStyleSupported: jest.fn().mockImplementation(() => true),
   getFallbackStyle: jest.fn().mockImplementation(style => style),
+  getTerminalSupport: jest.fn().mockReturnValue({
+    basic: true,
+    colors: true,
+    brightColors: true,
+    rgb: true,
+    styles: {
+      bold: true,
+      dim: true,
+      italic: true,
+      underline: true,
+      blink: true,
+      reverse: true,
+      hidden: true,
+      strikethrough: true,
+    },
+    features: {
+      hyperlinks: true,
+      cursorMovement: true,
+      windowTitle: true,
+      mouseTracking: true,
+    },
+  }),
 };
+
+// ----------------------
+// Browser Storage Mock
+// ----------------------
+const mockLocalStorage = (() => {
+  let store: Record<string, string> = {};
+  return {
+    getItem: jest.fn((key: string) => store[key] || null),
+    setItem: jest.fn((key: string, value: string) => {
+      store[key] = value.toString();
+    }),
+    removeItem: jest.fn((key: string) => {
+      delete store[key];
+    }),
+    clear: jest.fn(() => {
+      store = {};
+    }),
+    _getStore: () => ({ ...store }),
+    _resetStore: () => {
+      store = {};
+    },
+  };
+})();
+
+// Mock localStorage for browser tests
+Object.defineProperty(global, 'localStorage', {
+  value: mockLocalStorage,
+});
 
 // ----------------------
 // LoggerInternal interface
@@ -241,6 +302,95 @@ export function createStatsMock(
     isFIFO: () => false,
   };
   return Object.setPrototypeOf(mockStats, fsModule.Stats.prototype);
+}
+
+/**
+ * Creates a spy for a class constructor
+ * @param targetClass The class to spy on
+ * @returns A jest mock function that tracks constructor calls
+ */
+export function spyOnConstructor<T extends new (...args: any[]) => any>(
+  targetClass: T
+): jest.Mock<T, ConstructorParameters<T>> {
+  const originalConstructor = targetClass;
+
+  // Create a mock constructor function
+  const mockConstructor = jest.fn((...args: ConstructorParameters<T>) => {
+    // Create a new instance using the original constructor
+    return new originalConstructor(...args);
+  });
+
+  // Replace the original constructor with our mock
+  Object.defineProperty(targetClass, 'constructor', {
+    value: mockConstructor,
+    writable: true,
+    configurable: true,
+  });
+
+  return mockConstructor;
+}
+
+/**
+ * Helper to mock class without touching constructor
+ * @param targetClass The class to create a mocked version of
+ * @returns A jest mocked version of the class
+ */
+export function createMockedClass<T>(
+  targetClass: new (...args: any[]) => T
+): jest.MockedClass<typeof targetClass> {
+  return targetClass as jest.MockedClass<typeof targetClass>;
+}
+
+// ----------------------
+// Helper Functions
+// ----------------------
+
+/**
+ * Get a properly mocked Logger instance for testing
+ */
+export function getMockedLogger(options = {}): Logger & LoggerInternal {
+  const loggerInstance = new Logger(options);
+  return loggerInstance as Logger & LoggerInternal;
+}
+
+/**
+ * Get a properly mocked NodeLogger instance for testing
+ */
+export function getMockedNodeLogger(options = {}): NodeLogger & LoggerInternal {
+  const logger = new NodeLogger(options) as NodeLogger & LoggerInternal;
+  // Ensure we have a FileManager for tests
+  if (!(logger as any).fileManager) {
+    (logger as any).fileManager = new FileManager(LOG_DIR, 30);
+  }
+  return logger;
+}
+
+/**
+ * Get a properly mocked FileManager instance for testing
+ */
+export function getMockedFileManager(dir = LOG_DIR, retentionDays = 30): FileManager {
+  return new FileManager(dir, retentionDays);
+}
+
+/**
+ * Get a properly mocked Formatter instance for testing
+ */
+export function getMockedFormatter(useColors = true): Formatter {
+  return new Formatter(useColors);
+}
+
+/**
+ * Get a properly mocked BrowserLogger instance for testing
+ */
+export function getMockedBrowserLogger(options = {}): BrowserLogger {
+  return new BrowserLogger(options);
+}
+
+/**
+ * Get a properly mocked BrowserStorageManager for testing
+ */
+export function getMockedBrowserStorage(options = {}): BrowserStorageManager {
+  return new BrowserStorageManager(options);
 }
 
 // ----------------------
@@ -334,6 +484,9 @@ beforeEach(() => {
   // Reset all mocks before each test
   jest.clearAllMocks();
   fsMocks.resetAll();
+
+  // Reset localStorage
+  mockLocalStorage.clear();
 
   // Reset the terminal utils
   terminalUtils.isStyleSupported.mockImplementation(() => true);

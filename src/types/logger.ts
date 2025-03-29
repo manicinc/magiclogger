@@ -102,6 +102,38 @@ export interface LoggerOptions {
    * }
    */
   theme?: string | ThemeDefinition;
+
+  /**
+   * Whether to store logs in browser storage when in browser environment.
+   * Has no effect in Node.js environments.
+   *
+   * @default false
+   */
+  storeInBrowser?: boolean;
+
+  /**
+   * Maximum number of log entries to keep in browser storage.
+   * Has no effect in Node.js environments.
+   *
+   * @default 1000
+   */
+  maxStoredLogs?: number;
+
+  /**
+   * Name to use for browser storage (localStorage key or IndexedDB name).
+   * Has no effect in Node.js environments.
+   *
+   * @default 'magiclogger-logs'
+   */
+  storageName?: string;
+
+  /**
+   * Whether to use localStorage (true) or IndexedDB (false) for browser storage.
+   * Has no effect in Node.js environments.
+   *
+   * @default true
+   */
+  useLocalStorage?: boolean;
 }
 
 /**

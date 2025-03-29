@@ -2,6 +2,10 @@ import { NodeLogger } from './core/NodeLogger'; // Import the NodeLogger class
 import { BrowserLogger } from './core/BrowserLogger'; // Import the BrowserLogger class
 import { LoggerOptions, LogLevel, StylePreset, ColorName } from './types'; // Import Logger options type
 import type { LoggerBase } from './core/LoggerBase';
+import * as path from 'path';
+import * as fs from 'fs';
+import { FileManager } from './core/FileManager';
+import { IS_PATH_REGEX } from './constants/paths';
 
 /**
  * This class automatically detects whether it's running in a Node.js or Browser environment.
@@ -210,6 +214,199 @@ export class Logger {
       }
     }
     (this.loggerInstance as LoggerBase).setTheme(validated);
+  }
+
+  /**
+   * Gets the current log file path
+   * @returns The log file path or null if not writing to disk
+   */
+  public getPath(): string | null {
+    if (this.loggerInstance instanceof NodeLogger) {
+      return (this.loggerInstance as any).fileManager?.getLogFile() || null;
+    }
+    return null;
+  }
+
+  /**
+   * Gets the current log directory
+   * @returns The configured log directory
+   */
+  public getLogDir(): string {
+    if (this.loggerInstance instanceof NodeLogger) {
+      return (this.loggerInstance as any).fileManager?.getLogDir() || 'logs';
+    }
+    return 'logs';
+  }
+
+  /**
+   * Sets the log directory
+   * @param dir New log directory path
+   * @param reinitialize Whether to reinitialize the log file
+   */
+  public setLogDir(dir: string, reinitialize = false): void {
+    if (this.loggerInstance instanceof NodeLogger) {
+      const nodeLogger = this.loggerInstance as any;
+      if (!nodeLogger.fileManager) {
+        nodeLogger.fileManager = new FileManager(dir, nodeLogger.logRetentionDays);
+      } else {
+        nodeLogger.fileManager.setLogDir(dir);
+      }
+
+      if (reinitialize && nodeLogger.writeToDisk) {
+        nodeLogger.fileManager.initLogFile();
+      }
+    }
+  }
+
+  /**
+   * Gets the log retention period in days
+   * @returns Number of days to retain logs
+   */
+  public getLogRetentionDays(): number {
+    if (this.loggerInstance instanceof NodeLogger) {
+      return (this.loggerInstance as any).fileManager?.getLogRetentionDays() || 30;
+    }
+    return 30; // Default
+  }
+
+  /**
+   * Sets the log retention period in days
+   * @param days Number of days to retain logs
+   * @param cleanNow Whether to clean old logs immediately
+   */
+  public setLogRetentionDays(days: number, cleanNow = false): void {
+    if (this.loggerInstance instanceof NodeLogger) {
+      const nodeLogger = this.loggerInstance as any;
+      const safeDays = Math.max(1, days || 1);
+
+      if (!nodeLogger.fileManager) return;
+
+      nodeLogger.fileManager.setLogRetentionDays(safeDays);
+
+      if (cleanNow) {
+        nodeLogger.fileManager.cleanupOldLogs();
+      }
+    }
+  }
+
+  /**
+   * Enables or disables file logging
+   * @param enabled Whether to enable file logging
+   */
+  public setFileLogging(enabled: boolean): void {
+    if (this.loggerInstance instanceof NodeLogger) {
+      const nodeLogger = this.loggerInstance as any;
+      nodeLogger.writeToDisk = enabled;
+
+      if (enabled) {
+        if (!nodeLogger.fileManager) {
+          nodeLogger.fileManager = new FileManager(
+            nodeLogger.logDir || 'logs',
+            nodeLogger.logRetentionDays || 30
+          );
+        }
+
+        nodeLogger.fileManager.initLogFile().catch((err: Error): void => {
+          console.error('Failed to initialize log file:', err);
+          nodeLogger.writeToDisk = false;
+        });
+      }
+    }
+  }
+
+  /**
+   * Normalize path to use forward slashes
+   * @param path Path to normalize
+   * @returns Normalized path
+   */
+  public static normalizePath(path: string): string {
+    if (!path) return path;
+    return path.replace(/\\/g, '/');
+  }
+
+  /**
+   * Normalize line endings to LF
+   * @param text Text to normalize
+   * @returns Text with normalized line endings
+   */
+  public static normalizeLineEndings(text: string): string {
+    if (!text || typeof text !== 'string') return text;
+    return text.replace(/\r\n/g, '\n');
+  }
+
+  /**
+   * Check if a string looks like a URL or file path
+   * @param text Text to check
+   * @returns Whether text is link-like
+   */
+  public static isLinkLike(text: string): boolean {
+    if (!text || typeof text !== 'string') return false;
+    return IS_PATH_REGEX.test(text);
+  }
+
+  /**
+   * Utility to clean up a directory
+   * @param dir Directory to clean
+   */
+  public static cleanupDirectory(dir: string): void {
+    try {
+      if (!fs.existsSync(dir)) return;
+
+      const entries = fs.readdirSync(dir);
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry);
+        const stats = fs.statSync(fullPath);
+
+        if (stats.isDirectory()) {
+          Logger.cleanupDirectory(fullPath); // Recursively clean subdirectories
+          fs.rmdirSync(fullPath);
+        } else {
+          fs.unlinkSync(fullPath);
+        }
+      }
+    } catch (err) {
+      console.error(`Error cleaning directory ${dir}:`, err);
+    }
+  }
+
+  /**
+   * Gets all stored logs (if in browser environment with storage enabled)
+   * @returns Array of log entries or null if not in browser or storage disabled
+   */
+  public getLogs(): string[] | null {
+    if (typeof window !== 'undefined' && this.loggerInstance instanceof BrowserLogger) {
+      return (this.loggerInstance as BrowserLogger).getLogs();
+    }
+    return null;
+  }
+
+  /**
+   * Clears all stored logs (if in browser environment with storage enabled)
+   */
+  public clearLogs(): void {
+    if (typeof window !== 'undefined' && this.loggerInstance instanceof BrowserLogger) {
+      (this.loggerInstance as BrowserLogger).clearLogs();
+    }
+  }
+
+  /**
+   * Downloads stored logs as a text file (browser only)
+   * @param filename The filename to use for the download
+   */
+  public downloadLogs(filename = 'logs.txt'): void {
+    if (typeof window !== 'undefined' && this.loggerInstance instanceof BrowserLogger) {
+      (this.loggerInstance as BrowserLogger).downloadLogs(filename);
+    }
+  }
+
+  /**
+   * Enable or disable browser storage (browser only)
+   * @param enabled Whether to enable browser storage
+   */
+  public setStorageEnabled(enabled: boolean): void {
+    if (typeof window !== 'undefined' && this.loggerInstance instanceof BrowserLogger) {
+      (this.loggerInstance as BrowserLogger).setStorageEnabled(enabled);
+    }
   }
 }
 

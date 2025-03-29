@@ -18,6 +18,7 @@ const importNodeModules = async () => {
 
 /**
  * Provides file-based logging utilities for NodeLogger.
+ * Handles log file initialization, writing, rotation, and cleanup.
  */
 export class FileManager {
   private logFile: string | null = null;
@@ -133,5 +134,70 @@ export class FileManager {
    */
   public getLogFile(): string | null {
     return this.logFile;
+  }
+
+  /**
+   * Gets the current log directory path.
+   * @returns The log directory path.
+   */
+  public getLogDir(): string {
+    return this.logDir;
+  }
+
+  /**
+   * Sets the log directory path.
+   * If the directory doesn't exist, it will be created on next write.
+   *
+   * @param dir The new log directory path
+   */
+  public setLogDir(dir: string): void {
+    this.logDir = this.resolveLogDir(dir || 'logs');
+  }
+
+  /**
+   * Gets the current log retention period in days.
+   * @returns Days to retain logs.
+   */
+  public getLogRetentionDays(): number {
+    return this.logRetentionDays;
+  }
+
+  /**
+   * Sets the log retention period in days.
+   * Logs older than this number of days will be deleted during cleanup.
+   *
+   * @param days Number of days to retain logs (minimum 1)
+   */
+  public setLogRetentionDays(days: number): void {
+    this.logRetentionDays = Math.max(1, days || 1);
+  }
+
+  /**
+   * Recursively cleans up a directory and its contents.
+   * @param dirPath Directory path to clean
+   */
+  public async cleanupDirectory(dirPath: string): Promise<void> {
+    if (!this.fs || !this.path) {
+      await this.initializeModules();
+    }
+
+    try {
+      if (!this.fs.existsSync(dirPath)) return;
+
+      const entries = this.fs.readdirSync(dirPath);
+      for (const entry of entries) {
+        const fullPath = this.path.join(dirPath, entry);
+        const stats = this.fs.statSync(fullPath);
+
+        if (stats.isDirectory()) {
+          await this.cleanupDirectory(fullPath); // Recursively clean subdirectories
+          this.fs.rmdirSync(fullPath);
+        } else {
+          this.fs.unlinkSync(fullPath);
+        }
+      }
+    } catch (err) {
+      console.error(`[FileManager] Error cleaning directory ${dirPath}:`, err);
+    }
   }
 }

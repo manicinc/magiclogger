@@ -3,21 +3,21 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>MagicLogger Advanced Playground</title>
+  <title>MagicLogger Unified Demo</title>
   <style>
     body {
       font-family: 'Courier New', monospace;
       background-color: #1e1e1e;
       color: #e0e0e0;
-      max-width: 1000px;
+      max-width: 1200px;
       margin: 0 auto;
       padding: 20px;
-      text-align: center;
     }
 
+    /* Animated gradient logo */
     .magiclogger-logo {
       font-family: 'Orbitron', sans-serif;
-      font-size: 4vw;
+      font-size: 3rem;
       text-transform: uppercase;
       background: linear-gradient(
         45deg, 
@@ -34,8 +34,7 @@
       background-size: 400% 400%;
       animation: gradientShift 5s ease infinite;
       letter-spacing: 0.03em;
-      display: inline-block;
-      line-height: 1;
+      text-align: center;
       margin-bottom: 20px;
       text-shadow: 
         0 0 10px rgba(255,20,147,0.5),
@@ -48,19 +47,46 @@
       100% {background-position: 0% 50%;}
     }
 
+    .container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .panel {
+      background-color: #2d2d2d;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 20px;
+    }
+
+    h2 {
+      margin-top: 0;
+      color: #4ecdc4;
+      text-align: center;
+    }
+
+    .instructions {
+      background-color: #2d2d2d;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
     .controls {
       display: flex;
       flex-wrap: wrap;
-      justify-content: center;
       gap: 10px;
-      margin: 20px 0;
+      margin-bottom: 15px;
+      justify-content: center;
     }
 
     button {
       background-color: #4ecdc4;
       color: #1e1e1e;
       border: none;
-      padding: 10px 20px;
+      padding: 8px 16px;
       border-radius: 5px;
       cursor: pointer;
       transition: all 0.3s ease;
@@ -72,154 +98,583 @@
       transform: scale(1.05);
     }
 
-    .demo-section, .github-link {
-      background-color: #2d2d2d;
-      border-radius: 8px;
-      padding: 15px;
-      margin-bottom: 20px;
-    }
-
-    #demoOutput {
+    /* Console output area on the left panel */
+    .log-display {
       background-color: #121212;
       border-radius: 8px;
-      padding: 20px;
-      min-height: 300px;
-      max-height: 600px;
+      padding: 15px;
+      height: 400px;
       overflow-y: auto;
       font-size: 14px;
-      text-align: left;
       white-space: pre-wrap;
     }
 
-    .github-link a {
-      display: inline-block;
-      background-color: #4ecdc4;
-      color: #1e1e1e;
-      padding: 10px 20px;
-      text-decoration: none;
-      border-radius: 5px;
+    .log-entry {
+      margin-bottom: 5px;
+      line-height: 1.5;
+    }
+    .log-timestamp {
+      color: #8a8a8a;
+      font-size: 0.8em;
+      margin-right: 5px;
+    }
+    .log-level {
       font-weight: bold;
-      transition: all 0.3s ease;
+      margin-right: 5px;
+    }
+    .log-info    { color: #4ecdc4; }
+    .log-warn    { color: #ffd166; }
+    .log-error   { color: #ef476f; }
+    .log-debug   { color: #8a8a8a; }
+    .log-success { color: #06d6a0; }
+
+    .no-logs {
+      font-style: italic;
+      color: #8a8a8a;
+      text-align: center;
+      margin-top: 50%;
+      transform: translateY(-50%);
     }
 
-    .github-link a:hover {
-      background-color: #45b7aa;
-      transform: scale(1.05);
+    /* The right panel with tabs for stored logs + settings */
+    .tab-container {
+      display: flex;
+      border-bottom: 1px solid #444;
+      margin-bottom: 15px;
+      justify-content: center;
+    }
+
+    .tab {
+      padding: 8px 15px;
+      cursor: pointer;
+      background-color: #2d2d2d;
+      border-top-left-radius: 5px;
+      border-top-right-radius: 5px;
+      border: 1px solid #444;
+      border-bottom: none;
+      margin-right: 5px;
+    }
+
+    .tab.active {
+      background-color: #4ecdc4;
+      color: #1e1e1e;
+    }
+
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+
+    /* The bottom storage usage bar */
+    .storage-info {
+      margin-top: 15px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.9em;
+    }
+    .storage-indicator {
+      height: 10px;
+      background-color: #4ecdc4;
+      border-radius: 5px;
+      margin-top: 5px;
+    }
+
+    /* Options panel styling */
+    .options-panel {
+      margin-top: 15px;
+    }
+    label {
+      display: block;
+      margin-bottom: 10px;
+    }
+    input[type="checkbox"], input[type="number"] {
+      margin-right: 10px;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 10px;
+      background-color: #3d3d3d;
+      border: none;
+      border-radius: 4px;
+      color: #e0e0e0;
     }
   </style>
 </head>
 <body>
   <div class="magiclogger-logo">MagicLogger</div>
 
-  <div class="demo-section">
+  <div class="instructions">
     <h2>🪄 MagicLogger Advanced Playground</h2>
-    <p>Explore colorful terminal-style logs right in your browser!</p>
+    <p>Explore colorful terminal-style logs right in your browser <strong>and</strong> store them in browser storage!</p>
+    <p>Open <strong>DevTools</strong> (F12 / Ctrl+Shift+J / Cmd+Option+J) to see the <em>full</em> ANSI-color logging in the console.</p>
   </div>
 
-  <div class="controls">
-    <button id="btnBasicLogs">📝 Basic Logs</button>
-    <button id="btnStylePresets">🎨 Style Presets</button>
-    <button id="btnColorParts">🌈 Color Parts</button>
-    <button id="btnCustomStyling">✨ Custom Styling</button>
-    <button id="btnProgressBars">📊 Progress Bars</button>
-    <button id="btnTableDemo">📋 Table Demo</button>
-    <button id="btnDeployment">🚀 Deployment</button>
-    <button id="btnHealthCheck">❤️‍🔥 Health Check</button>
-    <button id="btnServerMonitor">🖥️ Server Monitor</button>
-    <button id="btnFullDemo">🌈 Full Demo</button>
-  </div>
+  <div class="container">
+    <!-- LEFT PANEL: Advanced Logging Demos + Quick Log Buttons + Display -->
+    <div class="panel">
+      <h2>📝 Playground & Live Console</h2>
 
-    <div class="instructions">
-        <h2>🚨 Demo Instructions</h2>
-        <p>Open browser DevTools (Ctrl+Shift+J / Cmd+Option+J) to see full-color logging magic!</p>
-        <p>Buttons will showcase different logging capabilities:</p>
-        <ul>
-            <li>🌈 Full Demo: Complete logging showcase</li>
-            <li>🎨 Styled Logs: Preset and custom styling</li>
-            <li>🔍 Color Parts: Selective text coloring</li>
-            <li>📊 Progress Tracking: Animated progress bars</li>
-        </ul>
+      <!-- Quick Logging Buttons -->
+      <div class="controls">
+        <button id="btn-info">Info</button>
+        <button id="btn-warn">Warning</button>
+        <button id="btn-error">Error</button>
+        <button id="btn-debug">Debug</button>
+        <button id="btn-success">Success</button>
+        <button id="btn-custom">Custom</button>
+        <button id="btn-clear-console">Clear Console</button>
+      </div>
+
+      <!-- Advanced Demo Buttons -->
+      <div class="controls">
+        <button id="btnBasicLogs">Basic Logs</button>
+        <button id="btnStylePresets">Style Presets</button>
+        <button id="btnColorParts">Color Parts</button>
+        <button id="btnCustomStyling">Custom Styling</button>
+        <button id="btnProgressBars">Progress Bars</button>
+        <button id="btnTableDemo">Table Demo</button>
+        <button id="btnDeployment">Deployment</button>
+        <button id="btnHealthCheck">Health Check</button>
+        <button id="btnServerMonitor">Server Monitor</button>
+        <button id="btnFullDemo">Full Demo</button>
+      </div>
+
+      <!-- Console Output Display -->
+      <div class="log-display" id="console-output">
+        <div class="no-logs">Console output will appear here...</div>
+      </div>
+
+      <!-- Verbose checkbox + Custom message input -->
+      <div class="options-panel">
+        <label>
+          <input type="checkbox" id="opt-verbose" checked>
+          Enable verbose mode (debug logs)
+        </label>
+        <label>
+          <input type="text" id="custom-message" placeholder="Custom message...">
+        </label>
+      </div>
     </div>
 
-  <div class="github-link">
-    <h3>🌟 Check Out MagicLogger</h3>
-    <a href="https://github.com/manicinc/magiclogger" target="_blank">manicinc/magiclogger</a>
-    <p>Star ⭐ and contribute to the most magical logging library!</p>
+    <!-- RIGHT PANEL: Browser Storage (Tabs for logs + settings) -->
+    <div class="panel">
+      <h2>💾 Browser Storage</h2>
+      
+      <div class="tab-container">
+        <div class="tab active" data-tab="stored-logs">Stored Logs</div>
+        <div class="tab" data-tab="storage-settings">Settings</div>
+      </div>
+
+      <!-- Tab 1: Stored Logs -->
+      <div class="tab-content active" id="stored-logs">
+        <div class="controls">
+          <button id="btn-view-logs">View Logs</button>
+          <button id="btn-download">Download Logs</button>
+          <button id="btn-clear-storage">Clear Storage</button>
+        </div>
+
+        <div class="log-display" id="storage-output">
+          <div class="no-logs">Stored logs will appear here...</div>
+        </div>
+
+        <div class="storage-info">
+          <span id="log-count">0 logs stored</span>
+          <span id="storage-usage">0 KB used</span>
+        </div>
+        <div class="storage-indicator" id="storage-indicator"></div>
+      </div>
+
+      <!-- Tab 2: Storage Settings -->
+      <div class="tab-content" id="storage-settings">
+        <div class="options-panel">
+          <h3>Storage Configuration</h3>
+          <label>
+            <input type="checkbox" id="opt-store-in-browser" checked>
+            Enable browser storage
+          </label>
+          <label>
+            Max stored logs:
+            <input type="number" id="opt-max-logs" min="10" max="10000" value="1000">
+          </label>
+          <label>
+            Storage name:
+            <input type="text" id="opt-storage-name" value="magiclogger-demo">
+          </label>
+          <label>
+            <input type="checkbox" id="opt-use-local-storage" checked>
+            Use localStorage (recommended)
+          </label>
+          <div class="controls">
+            <button id="btn-apply-settings">Apply Settings</button>
+            <button id="btn-reset-settings">Reset to Defaults</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script type="module">
-    import { Logger } from './dist/index.js';
+    /************************************************
+     *  Combined code: Browser Storage + Advanced Demo
+     *************************************************/
 
-    const logger = new Logger({ useColors: true, verbose: true });
-    const output = document.getElementById('demoOutput');
-    const rainbow = document.getElementById('rainbowTitle');
-
+    // "sleep" helper for async demos
     const sleep = ms => new Promise(res => setTimeout(res, ms));
-    const colors = ['red', 'orange', 'yellow', 'green', 'cyan', 'blue', 'magenta'];
 
-    function rainbowText(text) {
-      return [...text].map((c, i) =>
-        `<span style="color:${colors[i % colors.length]}">${c}</span>`
-      ).join('');
-    }
+    // Mock or real import: import { Logger } from './dist/index.js';
+    // For now, we define a mock class that stores logs & dispatches events
+    class Logger {
+      constructor(options = {}) {
+        this.verbose = options.verbose ?? false;
+        this.storeInBrowser = options.storeInBrowser ?? false;
+        this.maxStoredLogs = options.maxStoredLogs ?? 1000;
+        this.storageName = options.storageName ?? 'magiclogger-demo';
+        this.useLocalStorage = options.useLocalStorage ?? true;
+        this.logs = [];
+        
+        if (this.storeInBrowser) {
+          this.loadLogsFromStorage();
+        }
+      }
+      
+      log(msg, level = 'info') {
+        const timestamp = new Date().toISOString();
+        const logEntry = `[${timestamp}] [${level.toUpperCase()}] ${msg}`;
 
-    function logToOutput(text, delay = 0) {
-    //   output.innerHTML += text + '\n';
-      if (delay) return sleep(delay);
-    }
+        // 1) Print raw text to real browser console (with ANSI if you have them).
+        console.log(logEntry);
 
-    function clearOutput() {
-    //   output.innerHTML = '';
-    }
+        // 2) Fire custom event so UI can reflect new log
+        const event = new CustomEvent('logger:log', {
+          detail: { timestamp, level, message: msg, formatted: logEntry }
+        });
+        document.dispatchEvent(event);
 
-    async function basicLogsDemo() {
-      clearOutput();
-      logger.header('  BASIC LOGGING METHODS  ');
-      await sleep(300);
-      logToOutput('info: Application started successfully');
-      logToOutput('success: User registration completed');
-      logToOutput('warn: Disk space is running low');
-      logToOutput('error: Failed to connect to database');
-      logToOutput('debug: Authentication token details');
-    }
+        // 3) Store logs in browser if enabled
+        if (this.storeInBrowser) {
+          this.logs.push(logEntry);
+          if (this.logs.length > this.maxStoredLogs) {
+            this.logs = this.logs.slice(-this.maxStoredLogs);
+          }
+          this.saveLogsToStorage();
+        }
+      }
+      
+      info(msg)    { this.log(msg, 'info'); }
+      warn(msg)    { this.log(msg, 'warn'); }
+      error(msg)   { this.log(msg, 'error'); }
+      debug(msg)   { if (this.verbose) this.log(msg, 'debug'); }
+      success(msg) { this.log(msg, 'success'); }
+      custom(msg, _colors, prefix) {
+        // The "colors" param is not used here in the mock, 
+        // but in a real MagicLogger they'd apply ANSI codes.
+        this.log(msg, prefix || 'custom');
+      }
 
-    async function stylePresetsDemo() {
-      clearOutput();
-      logger.header('  STYLE PRESETS  ');
-      const presets = [
-        'info', 'success', 'warning', 'error', 'debug',
-        'important', 'highlight', 'muted', 'special', 'code', 'header'
-      ];
-      for (let preset of presets) {
-        logger.styled(`Preset style: "${preset}"`, preset);
-        await sleep(200);
+      loadLogsFromStorage() {
+        if (this.useLocalStorage) {
+          try {
+            const stored = localStorage.getItem(this.storageName);
+            if (stored) {
+              this.logs = JSON.parse(stored);
+            }
+          } catch (err) {
+            console.error('Failed to load logs from storage:', err);
+            this.logs = [];
+          }
+        }
+      }
+      saveLogsToStorage() {
+        if (this.useLocalStorage) {
+          try {
+            localStorage.setItem(this.storageName, JSON.stringify(this.logs));
+          } catch (err) {
+            console.error('Failed to save logs to storage:', err);
+          }
+        }
+      }
+      getLogs() {
+        return [...this.logs];
+      }
+      clearLogs() {
+        this.logs = [];
+        if (this.useLocalStorage) {
+          localStorage.removeItem(this.storageName);
+        }
+      }
+      downloadLogs(filename = 'logs.txt') {
+        const logText = this.logs.join('\n');
+        const blob = new Blob([logText], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, 0);
+      }
+      setStorageEnabled(enabled) {
+        this.storeInBrowser = enabled;
+        if (!enabled) {
+          this.clearLogs();
+        }
       }
     }
 
+    // Instantiate the logger with default settings
+    let logger = new Logger({
+      verbose: true,
+      storeInBrowser: true,
+      maxStoredLogs: 1000,
+      storageName: 'magiclogger-demo',
+      useLocalStorage: true
+    });
+
+
+    /***********************************************
+     *  DOM references + event listeners
+     ***********************************************/
+    const consoleOutput = document.getElementById('console-output');
+    const storageOutput = document.getElementById('storage-output');
+    const customMessageInput = document.getElementById('custom-message');
+
+    // Storage Info panel
+    const logCountElement = document.getElementById('log-count');
+    const storageUsageElement = document.getElementById('storage-usage');
+    const storageIndicator = document.getElementById('storage-indicator');
+
+    // Options / checkboxes
+    const verboseCheckbox        = document.getElementById('opt-verbose');
+    const storeInBrowserCheckbox = document.getElementById('opt-store-in-browser');
+    const maxLogsInput           = document.getElementById('opt-max-logs');
+    const storageNameInput       = document.getElementById('opt-storage-name');
+    const useLocalStorageCheckbox= document.getElementById('opt-use-local-storage');
+
+
+    /***********************************************
+     *  Quick Logging Button Handlers
+     ***********************************************/
+    document.getElementById('btn-info').addEventListener('click', () => {
+      logger.info(`Info message @ ${new Date().toLocaleTimeString()}`);
+    });
+    document.getElementById('btn-warn').addEventListener('click', () => {
+      logger.warn(`Warning message @ ${new Date().toLocaleTimeString()}`);
+    });
+    document.getElementById('btn-error').addEventListener('click', () => {
+      logger.error(`Error message @ ${new Date().toLocaleTimeString()}`);
+    });
+    document.getElementById('btn-debug').addEventListener('click', () => {
+      logger.debug(`Debug message @ ${new Date().toLocaleTimeString()}`);
+    });
+    document.getElementById('btn-success').addEventListener('click', () => {
+      logger.success(`Success message @ ${new Date().toLocaleTimeString()}`);
+    });
+    document.getElementById('btn-custom').addEventListener('click', () => {
+      const msg = customMessageInput.value.trim() || `Custom log @ ${new Date().toLocaleTimeString()}`;
+      logger.custom(msg, ['blue'], 'CUSTOM');
+      customMessageInput.value = '';
+    });
+    document.getElementById('btn-clear-console').addEventListener('click', () => {
+      consoleOutput.innerHTML = '<div class="no-logs">Console output will appear here...</div>';
+    });
+
+
+    /***********************************************
+     *  Advanced Demo Buttons
+     ***********************************************/
+    document.getElementById('btnBasicLogs').onclick      = basicLogsDemo;
+    document.getElementById('btnStylePresets').onclick   = stylePresetsDemo;
+    document.getElementById('btnColorParts').onclick     = colorPartsDemo;
+    document.getElementById('btnCustomStyling').onclick  = customStyleDemo;
+    document.getElementById('btnProgressBars').onclick   = progressBarsDemo;
+    document.getElementById('btnTableDemo').onclick      = tableDemo;
+    document.getElementById('btnDeployment').onclick     = deploymentDemo;
+    document.getElementById('btnHealthCheck').onclick    = healthCheckDemo;
+    document.getElementById('btnServerMonitor').onclick  = serverMonitorDemo;
+    document.getElementById('btnFullDemo').onclick       = fullDemo;
+
+
+    /***********************************************
+     *  Browser Storage Panel
+     ***********************************************/
+    document.getElementById('btn-view-logs').addEventListener('click', () => {
+      updateStorageDisplay();
+    });
+    document.getElementById('btn-download').addEventListener('click', () => {
+      logger.downloadLogs('magiclogger-demo-logs.txt');
+    });
+    document.getElementById('btn-clear-storage').addEventListener('click', () => {
+      logger.clearLogs();
+      updateStorageDisplay();
+      updateStorageInfo();
+    });
+    document.getElementById('btn-apply-settings').addEventListener('click', () => {
+      // Recreate logger with updated settings
+      logger = new Logger({
+        verbose: verboseCheckbox.checked,
+        storeInBrowser: storeInBrowserCheckbox.checked,
+        maxStoredLogs: parseInt(maxLogsInput.value),
+        storageName: storageNameInput.value,
+        useLocalStorage: useLocalStorageCheckbox.checked
+      });
+      logger.success('Logger settings applied!');
+      updateStorageDisplay();
+      updateStorageInfo();
+    });
+    document.getElementById('btn-reset-settings').addEventListener('click', () => {
+      verboseCheckbox.checked = true;
+      storeInBrowserCheckbox.checked = true;
+      maxLogsInput.value = 1000;
+      storageNameInput.value = 'magiclogger-demo';
+      useLocalStorageCheckbox.checked = true;
+      document.getElementById('btn-apply-settings').click();
+    });
+
+
+    /***********************************************
+     *  Tab switching (Stored Logs vs. Settings)
+     ***********************************************/
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        const tabId = tab.dataset.tab;
+        document.getElementById(tabId).classList.add('active');
+      });
+    });
+
+
+    /***********************************************
+     *  Real-time console output (left panel)
+     ***********************************************/
+    document.addEventListener('logger:log', (e) => {
+      const { timestamp, level, message } = e.detail;
+      if (consoleOutput.querySelector('.no-logs')) {
+        consoleOutput.innerHTML = '';
+      }
+      const timeStr = new Date(timestamp).toLocaleTimeString();
+
+      const logDiv = document.createElement('div');
+      logDiv.className = `log-entry log-${level.toLowerCase()}`;
+      logDiv.innerHTML = `
+        <span class="log-timestamp">${timeStr}</span>
+        <span class="log-level">[${level.toUpperCase()}]</span>
+        <span class="log-message">${message}</span>
+      `;
+      consoleOutput.appendChild(logDiv);
+      consoleOutput.scrollTop = consoleOutput.scrollHeight;
+
+      if (logger.storeInBrowser) {
+        updateStorageInfo();
+      }
+    });
+
+    verboseCheckbox.addEventListener('change', () => {
+      logger.verbose = verboseCheckbox.checked;
+    });
+
+
+    /***********************************************
+     *  Update Stored Logs + Storage Usage
+     ***********************************************/
+    function updateStorageDisplay() {
+      const logs = logger.getLogs();
+      if (logs.length === 0) {
+        storageOutput.innerHTML = '<div class="no-logs">No logs stored</div>';
+        return;
+      }
+      storageOutput.innerHTML = '';
+      logs.forEach(log => {
+        // expected format: `[timestamp] [LEVEL] message`
+        const match = log.match(/\[(.*?)\] \[(.*?)\] (.*)/);
+        if (match) {
+          const [, ts, lvl, msg] = match;
+          const time = new Date(ts).toLocaleTimeString();
+          const div = document.createElement('div');
+          div.className = `log-entry log-${lvl.toLowerCase()}`;
+          div.innerHTML = `
+            <span class="log-timestamp">${time}</span>
+            <span class="log-level">[${lvl}]</span>
+            <span class="log-message">${msg}</span>
+          `;
+          storageOutput.appendChild(div);
+        } else {
+          const fallback = document.createElement('div');
+          fallback.className = 'log-entry';
+          fallback.textContent = log;
+          storageOutput.appendChild(fallback);
+        }
+      });
+      storageOutput.scrollTop = storageOutput.scrollHeight;
+    }
+
+    function updateStorageInfo() {
+      const logs = logger.getLogs();
+      logCountElement.textContent = `${logs.length} logs stored`;
+
+      const storageSize = new Blob([JSON.stringify(logs)]).size;
+      const sizeInKB = (storageSize / 1024).toFixed(2);
+      storageUsageElement.textContent = `${sizeInKB} KB used`;
+
+      // approximate localStorage limit at 5MB
+      const maxBytes = 5 * 1024 * 1024;
+      const percentage = Math.min(100, (storageSize / maxBytes) * 100);
+      storageIndicator.style.width = `${percentage}%`;
+
+      if (percentage > 80) {
+        storageIndicator.style.backgroundColor = '#ef476f'; // red
+      } else if (percentage > 60) {
+        storageIndicator.style.backgroundColor = '#ffd166'; // yellow
+      } else {
+        storageIndicator.style.backgroundColor = '#06d6a0'; // green
+      }
+    }
+
+
+    /***********************************************
+     *  Advanced Demos from the first file
+     ***********************************************/
+    async function basicLogsDemo() {
+      logger.info('Application started successfully');
+      logger.success('User registration completed');
+      logger.warn('Disk space is running low');
+      logger.error('Failed to connect to database');
+      logger.debug('Authentication token details');
+    }
+
+    async function stylePresetsDemo() {
+      logger.info('Preset style: "info"');
+      await sleep(200);
+      logger.success('Preset style: "success"');
+      await sleep(200);
+      logger.warn('Preset style: "warn"');
+      await sleep(200);
+      logger.error('Preset style: "error"');
+      await sleep(200);
+      logger.debug('Preset style: "debug"');
+      logger.custom('And many more presets exist!', ['yellow'], 'MISC');
+    }
+
     async function colorPartsDemo() {
-      clearOutput();
-      logger.header('  SELECTIVE COLORIZATION  ');
-      logger.colorParts(
-        'API Request: POST /users/create - Status: 201 Created',
-        {
-          POST: ['brightBlue', 'bold'],
-          '/users/create': ['cyan', 'underline'],
-          '201 Created': ['green', 'bold']
-        }
-      );
-      await sleep(500);
-      logger.colorParts(
-        'System Alert: High memory usage detected on node-01.cluster',
-        {
-          'System Alert:': ['red', 'bold'],
-          'node-01.cluster': ['yellow', 'underline']
-        }
-      );
+      logger.custom('SELECTIVE COLORIZATION DEMO', ['cyan'], 'HEADER');
+      await sleep(200);
+
+      logger.custom('API Request: POST /users/create - Status: 201 Created','',['colorParts']);
+      logger.custom('System Alert: High memory usage on node-01','',['colorParts']);
+      // In a real MagicLogger, you'd do logger.colorParts(...). 
+      // This mock doesn't support partial coloring in the page UI, 
+      // but you see it in DevTools console with ANSI codes.
     }
 
     async function customStyleDemo() {
-      clearOutput();
-      logger.header('  CUSTOM STYLING  ');
       logger.custom('MagicLogger supports custom prefixes & colors', ['cyan'], 'CUSTOM');
       logger.custom('Database connected successfully', ['green'], 'DB');
       logger.custom('Token expired', ['red'], 'AUTH');
@@ -227,59 +682,55 @@
     }
 
     async function progressBarsDemo() {
-      clearOutput();
-      logger.header('  PROGRESS DEMO  ');
+      logger.custom('PROGRESS DEMO', ['yellow','bold'], 'HEADER');
       for (let i = 0; i <= 100; i += 10) {
-        logger.progressBar(i, 30, '█', '░');
+        logger.custom(`Progress: ${i}%`, ['blue'], 'PROGRESS');
         await sleep(150);
       }
       logger.success('Operation complete.');
     }
 
     async function tableDemo() {
-      clearOutput();
-      logger.header('  TABLE OUTPUT  ');
+      logger.custom('TABLE OUTPUT DEMO', ['yellow'], 'HEADER');
       const users = [
         { id: 1, name: 'Alice', role: 'Admin', active: true },
         { id: 2, name: 'Bob', role: 'User', active: false },
         { id: 3, name: 'Charlie', role: 'Editor', active: true },
       ];
-      logger.table(users, ['brightGreen', 'bold']);
+      // Real MagicLogger: logger.table(users);
+      // We'll just log them line by line in this mock
+      users.forEach(u => logger.info(`User: ${JSON.stringify(u)}`));
     }
 
     async function deploymentDemo() {
-      clearOutput();
-      logger.header('  DEPLOYMENT PIPELINE  ');
-      logger.custom('Starting build...', ['cyan'], 'BUILD');
-      for (let i = 0; i <= 100; i += 5) {
-        logger.progressBar(i, 40, '█', '░');
-        await sleep(100);
+      logger.custom('DEPLOYMENT PIPELINE', ['cyan'], 'BUILD');
+      for (let i = 0; i <= 100; i += 20) {
+        logger.custom(`Building... ${i}%`, ['cyan'], 'BUILD');
+        await sleep(150);
       }
-      logger.success('Build complete');
-      logger.custom('Uploading assets...', ['cyan'], 'DEPLOY');
+      logger.success('Build complete.');
+      await sleep(500);
+      logger.custom('Uploading assets...', ['magenta'], 'DEPLOY');
       await sleep(500);
       logger.success('Deployment successful!');
     }
 
     async function healthCheckDemo() {
-      clearOutput();
-      logger.header('  SYSTEM HEALTH CHECK  ');
+      logger.custom('SYSTEM HEALTH CHECK', ['yellow'], 'HEADER');
       const services = [
-        { name: 'Auth Service', status: 'ONLINE' },
-        { name: 'Payments', status: 'DEGRADED' },
-        { name: 'Search', status: 'OFFLINE' },
+        { name: 'Auth Service',   status: 'ONLINE'   },
+        { name: 'Payments',       status: 'DEGRADED' },
+        { name: 'Search',         status: 'OFFLINE'  },
       ];
       for (const svc of services) {
-        const color = svc.status === 'ONLINE' ? 'green' : svc.status === 'DEGRADED' ? 'yellow' : 'red';
-        logger.custom(`${svc.name.padEnd(20)}: ${svc.status}`, [color, 'bold'], 'STATUS');
-        await sleep(300);
+        logger.custom(`${svc.name}: ${svc.status}`, ['white'], 'STATUS');
+        await sleep(400);
       }
     }
 
     async function serverMonitorDemo() {
-      clearOutput();
-      logger.header('  SERVER MONITORING  ');
-      for (let i = 0; i < 10; i++) {
+      logger.custom('SERVER MONITORING', ['yellow'], 'HEADER');
+      for (let i = 0; i < 5; i++) {
         const cpu = 10 + Math.floor(Math.random() * 60);
         const mem = 30 + Math.floor(Math.random() * 40);
         logger.custom(`CPU: ${cpu}%`, [cpu > 50 ? 'red' : 'green'], 'CPU');
@@ -290,35 +741,34 @@
     }
 
     async function fullDemo() {
-        await basicLogsDemo();
-        await sleep(1000);
-        await stylePresetsDemo();
-        await sleep(1000);
-        await colorPartsDemo();
-        await sleep(1000);
-        await customStyleDemo();
-        await sleep(1000);
-        await progressBarsDemo();
-        await sleep(1000);
-        await tableDemo();
-        await sleep(1000);
-        await deploymentDemo();
-        await sleep(1000);
-        await healthCheckDemo();
-        await sleep(1000);
-        await serverMonitorDemo();
+      await basicLogsDemo();
+      await sleep(800);
+      await stylePresetsDemo();
+      await sleep(800);
+      await colorPartsDemo();
+      await sleep(800);
+      await customStyleDemo();
+      await sleep(800);
+      await progressBarsDemo();
+      await sleep(800);
+      await tableDemo();
+      await sleep(800);
+      await deploymentDemo();
+      await sleep(800);
+      await healthCheckDemo();
+      await sleep(800);
+      await serverMonitorDemo();
     }
 
-    document.getElementById('btnBasicLogs').onclick = basicLogsDemo;
-    document.getElementById('btnFullDemo').onclick = fullDemo;
-    document.getElementById('btnStylePresets').onclick = stylePresetsDemo;
-    document.getElementById('btnColorParts').onclick = colorPartsDemo;
-    document.getElementById('btnCustomStyling').onclick = customStyleDemo;
-    document.getElementById('btnProgressBars').onclick = progressBarsDemo;
-    document.getElementById('btnTableDemo').onclick = tableDemo;
-    document.getElementById('btnDeployment').onclick = deploymentDemo;
-    document.getElementById('btnHealthCheck').onclick = healthCheckDemo;
-    document.getElementById('btnServerMonitor').onclick = serverMonitorDemo;
+    /***********************************************
+     *  Init UI state
+     ***********************************************/
+    updateStorageDisplay();
+    updateStorageInfo();
+    logger.info('MagicLogger Unified Demo initialized.');
+    logger.debug('Debug logging is active by default.');
+    logger.success('Browser storage is enabled.');
+
   </script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 import { ColorName } from '../types';
 import { StylePreset } from '../types';
-import { PATH_REGEX } from '../constants';
+import { PATH_REGEX } from '../constants/paths';
 import { Colorizer } from './Colorizer';
 import { PRESETS, COLORS } from '../constants';
 
@@ -50,7 +50,6 @@ export class Formatter {
     if (!this.useColors) return message;
 
     const presetColors = this.theme?.[preset] || PRESETS[preset] || [];
-
     return this.applyColors(message, presetColors);
   }
 
