@@ -1,6 +1,6 @@
 # Browser Storage in MagicLogger
 
-MagicLogger now supports persistent logging in browser environments through local storage. This guide explains how to use this feature.
+MagicLogger provides built-in support for storing logs in browser environments through localStorage. This guide explains how to use this feature to persist, retrieve, download, and manage logs in web applications.
 
 ## Basic Usage
 
@@ -21,13 +21,24 @@ logger.error('Failed to load resource');
 logger.debug('Auth token: xyz123'); // Only logged if verbose is true
 ```
 
+## Configuration Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `storeInBrowser` | boolean | `false` | Enable browser storage |
+| `maxStoredLogs` | number | `1000` | Maximum number of logs to store |
+| `storageName` | string | `'magiclogger-logs'` | Key name for localStorage |
+| `useLocalStorage` | boolean | `true` | Use localStorage instead of sessionStorage |
+
 ## Retrieving Logs
+
+Retrieve all stored logs as an array:
 
 ```javascript
 // Get all stored logs as an array
 const logs = logger.getLogs();
 
-if (logs) {
+if (logs && logs.length > 0) {
   // Display logs in the application
   const logContainer = document.getElementById('log-display');
   logContainer.innerHTML = logs.map(log => `<div>${log}</div>`).join('');
@@ -39,6 +50,8 @@ if (logs) {
 
 ## Downloading Logs
 
+MagicLogger makes it easy to download stored logs as a text file:
+
 ```javascript
 // Set up download button
 document.getElementById('download-logs').addEventListener('click', () => {
@@ -49,12 +62,16 @@ document.getElementById('download-logs').addEventListener('click', () => {
 
 ## Clearing Logs
 
+Clear all stored logs when needed:
+
 ```javascript
 // Clear all stored logs
 logger.clearLogs();
 ```
 
 ## Enabling/Disabling Storage
+
+Toggle storage at runtime:
 
 ```javascript
 // Disable log storage
@@ -63,6 +80,25 @@ logger.setStorageEnabled(false);
 // Re-enable log storage
 logger.setStorageEnabled(true);
 ```
+
+## Storage Details
+
+- **localStorage**: Logs are stored in browser's localStorage (limited to ~5MB)
+- **Automatic Rotation**: When logs exceed maxStoredLogs, oldest entries are automatically removed
+- **Persistence**: Logs persist across page refreshes and browser sessions
+- **Timestamp**: Each log entry is automatically timestamped
+- **Format**: Logs are stored with level prefixes: `[2023-01-01T12:00:00.000Z] [INFO] Message`
+
+## Browser Compatibility
+
+The browser storage feature is compatible with all modern browsers that support localStorage:
+
+- Chrome 4+
+- Firefox 3.5+
+- Safari 4+
+- Edge 12+
+- Opera 11.5+
+- Mobile browsers (iOS Safari, Android Browser, Chrome for Android)
 
 ## Cross-Environment Compatibility
 
@@ -93,34 +129,44 @@ if (typeof window !== 'undefined') {
 }
 ```
 
-## Storage Details
+## Interactive Demo
 
-- **localStorage**: Logs are stored in browser's localStorage (limited to ~5MB)
-- **Automatic Rotation**: When logs exceed maxStoredLogs, oldest entries are automatically removed
-- **Persistence**: Logs persist across page refreshes and browser sessions
-- **Timestamp**: Each log entry is automatically timestamped
-- **Format**: Logs are stored with level prefixes: `[2023-01-01T12:00:00.000Z] [INFO] Message`
+Try our interactive [Browser Storage Demo](../demos/browser-storage-demo.html) to see these features in action. The demo allows you to:
 
-## Browser Compatibility
+- Create logs with different levels
+- Store logs in browser's localStorage
+- View stored logs
+- Download logs as a text file
+- Clear stored logs
+- Configure storage settings
 
-The browser storage feature is compatible with all modern browsers that support localStorage:
+## API Reference
 
-- Chrome 4+
-- Firefox 3.5+
-- Safari 4+
-- Edge 12+
-- Opera 11.5+
-- Mobile browsers (iOS Safari, Android Browser, Chrome for Android)
+### Logger Options
 
-## Future Enhancements
+These options can be passed when creating a new Logger instance:
 
-- IndexedDB support for storing larger amounts of logs
-- Log filtering and search capabilities
-- Log level filtering
-- Remote logging transport
-- Log compression
+```javascript
+const logger = new Logger({
+  storeInBrowser: true,
+  maxStoredLogs: 500,
+  storageName: 'custom-log-key',
+  useLocalStorage: true
+});
+```
 
-## Example App
+### Browser Storage Methods
+
+| Method | Description |
+|--------|-------------|
+| `getLogs()` | Returns an array of all stored log entries |
+| `clearLogs()` | Removes all logs from storage |
+| `downloadLogs(filename)` | Downloads logs as a text file |
+| `setStorageEnabled(enabled)` | Enables or disables browser storage |
+
+## Complete Example
+
+Here's a complete example of a web application that uses MagicLogger's browser storage:
 
 ```html
 <!DOCTYPE html>
@@ -226,4 +272,15 @@ The browser storage feature is compatible with all modern browsers that support 
 </html>
 ```
 
-This example demonstrates a complete logging application that uses MagicLogger's browser storage capabilities to create, view, download, and clear logs directly in the browser.
+## Future Enhancements
+
+The browser storage feature will be expanded in future releases with:
+
+- IndexedDB support for storing larger amounts of logs
+- Log filtering and search capabilities
+- Log level filtering
+- Remote logging transport
+- Log compression
+- Log analytics and visualization
+
+For more information on other MagicLogger features, refer to the [API Reference](./api_usage.md) and [main documentation](../README.md).

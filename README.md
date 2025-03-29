@@ -4,12 +4,19 @@
 ![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)
 <!-- /VERSION_BADGE_PLACEHOLDER -->
 
-A powerful, no-config cross-platform logging library for Node.js with rich terminal styling, colors, and multiple output formats. Provides drop-in compatibility with popular logging libraries.
+A powerful, no-config cross-platform logging library for both Node.js and browsers with rich styling, colors, and multiple output formats. Provides drop-in compatibility with popular logging libraries.
+
+<p align="center">
+  <a href="https://manic.agency" target="_blank">
+    <img src="https://img.shields.io/badge/Made%20by-Manic.agency-blueviolet" alt="Made by Manic.agency">
+  </a>
+</p>
 
 ## Table of Contents
 
 - [Features](#features)
 - [Installation](#installation)
+- [Module Formats](#module-formats)
 - [Build Output Sizes](#-build-output-sizes)
 - [Test Coverage](#-test-coverage)
 - [Quick Start](#quick-start)
@@ -19,10 +26,13 @@ A powerful, no-config cross-platform logging library for Node.js with rich termi
   - [Visual Elements](#visual-elements)
   - [Custom Styling](#custom-styling)
   - [File Logging](#file-logging)
+  - [Browser Storage](#browser-storage)
+- [Cross-Environment Support](#cross-environment-support)
 - [Advanced Configuration](#advanced-configuration)
 - [Available Styles](#available-styles)
   - [Colors](#colors)
   - [Style Presets](#style-presets)
+- [Themes](#themes)
 - [Architecture](#architecture)
   - [Core Components](#core-components)
   - [Data Flow](#data-flow)
@@ -33,15 +43,17 @@ A powerful, no-config cross-platform logging library for Node.js with rich termi
 
 ## Features
 
-- 🎨 **Rich Terminal Styling** - Colors, bold, italic, underline and more with terminal capability detection
+- 🎨 **Rich Styling** - Colors, bold, italic, underline in both terminal and browser console
 - 🔄 **Universal Log Method** - Single method with flexible level support
-- 📊 **Progress Bars & Tables** - Visualize data and progress directly in your terminal
-- 📝 **File Logging** - Automatic log file rotation and retention
+- 📊 **Progress Bars & Tables** - Visualize data and progress directly in your terminal or browser
+- 📝 **Output Persistence** - File logging in Node.js and localStorage in browsers
 - 🔌 **Extensive Compatibility** - Drop-in replacement for console, Winston, Bunyan, Pino, and custom loggers
 - 🔗 **Link Preservation** - Automatically detects and preserves formatting of URLs and file paths
 - 🧩 **Custom Styling** - Apply colors and styles to specific parts of messages
 - ⚡ **Zero Config** - Works out of the box with sensible defaults
 - 📦 **Zero Dependencies** - No external packages required
+- 🌐 **Environment Awareness** - Auto-detects Node.js or browser environment
+- 🧵 **Multiple Module Formats** - ESM, CommonJS, and TypeScript declarations
 
 ## Installation
 
@@ -49,6 +61,21 @@ A powerful, no-config cross-platform logging library for Node.js with rich termi
 npm install magiclogger
 # or
 yarn add magiclogger
+```
+
+## Module Formats
+
+MagicLogger provides both ESM and CommonJS module formats to support all JavaScript environments:
+
+```javascript
+// ESM (Modern JS)
+import { Logger } from 'magiclogger';
+
+// CommonJS (Legacy)
+const { Logger } = require('magiclogger');
+
+// TypeScript
+import { Logger, ColorName, LogLevel } from 'magiclogger';
 ```
 
 <!-- BUILD_OUTPUT_SIZES_PLACEHOLDER -->
@@ -77,7 +104,7 @@ Detailed coverage report available in [test-coverage.md](./docs/test-coverage.md
 
 ## Quick Start
 
-Demos:
+Try the demos:
 
 ```sh
 # Console demo
@@ -94,7 +121,8 @@ import { Logger } from 'magiclogger';
 // Create a new logger instance
 const logger = new Logger({
   verbose: true,     // Show debug messages (default: false)
-  writeToDisk: true, // Write logs to file (default: false)
+  writeToDisk: true, // Write logs to file in Node.js (default: false)
+  storeInBrowser: true, // Store logs in browser localStorage (default: false)
   logDir: './logs',  // Directory for log files (default: './logs')
 });
 
@@ -154,26 +182,6 @@ const pinoLogger = createPinoCompatible();
 pinoLogger.info('Request received');
 ```
 
-### Custom Logger Adapters
-
-Easily create adapters for any logging library using our base compatibility layer:
-
-```javascript
-import { BaseCompatibleLogger } from 'magiclogger';
-
-// Create a custom adapter for your favorite logger
-class CustomLoggerAdapter extends BaseCompatibleLogger {
-  log(level, message) {
-    // Map to appropriate MagicLogger methods
-    switch(level) {
-      case 'info': this.logger.log(message); break;
-      case 'warn': this.logger.warn(message); break;
-      // Add custom implementations
-    }
-  }
-}
-```
-
 For detailed information on compatibility options, see our [Compatibility Guide](./docs/compatibility.md).
 
 ## Usage
@@ -229,6 +237,8 @@ logger.colorParts('File uploaded: user.json (2.4MB)', {
 
 ### File Logging
 
+In Node.js environments, MagicLogger can write logs to disk:
+
 ```javascript
 const logger = new Logger({
   writeToDisk: true,
@@ -240,13 +250,68 @@ const logger = new Logger({
 const logPath = logger.getPath();
 ```
 
+### Browser Storage
+
+In browser environments, MagicLogger can store logs in localStorage:
+
+```javascript
+const logger = new Logger({
+  storeInBrowser: true,            // Enable browser storage
+  maxStoredLogs: 1000,             // Store up to 1000 log entries
+  storageName: 'my-app-logs',      // Custom storage key name
+  useLocalStorage: true            // Use localStorage vs future alternatives
+});
+
+// Retrieve logs from browser storage
+const logs = logger.getLogs();
+
+// Download logs as a text file
+logger.downloadLogs('application-logs.txt');
+
+// Clear all stored logs
+logger.clearLogs();
+```
+
+For detailed information on browser storage features, see our [Browser Storage Guide](./docs/browser-storage.md).
+
+## Cross-Environment Support
+
+MagicLogger automatically adapts to its environment:
+
+```javascript
+// The same logger works seamlessly in both environments
+const logger = new Logger({
+  writeToDisk: true,     // Used in Node.js, ignored in browser
+  storeInBrowser: true,  // Used in browser, ignored in Node.js
+  verbose: true          // Works in both environments
+});
+
+// Log methods work the same in both environments
+logger.info('Application starting');
+logger.warn('Resource not found');
+logger.error('Operation failed');
+
+// Environment-specific features are available when needed
+if (typeof window !== 'undefined') {
+  // Browser-specific operations
+  const logs = logger.getLogs();
+  logger.downloadLogs('app-logs.txt');
+} else {
+  // Node.js-specific operations
+  const logPath = logger.getPath();
+}
+```
+
 ## Advanced Configuration
 
 Change logger settings at runtime:
 
 ```javascript
-// Change log directory
+// Change log directory (Node.js)
 logger.setLogDir('./new-logs', true);  // true to reinitialize log file
+
+// Enable/disable browser storage
+logger.setStorageEnabled(true);
 
 // Enable/disable verbose mode
 logger.setVerbose(true);
@@ -254,7 +319,7 @@ logger.setVerbose(true);
 // Enable/disable colors
 logger.setColorsEnabled(true);
 
-// Change log retention period
+// Change log retention period (Node.js)
 logger.setLogRetentionDays(14, true);  // true to clean old logs immediately
 ```
 
@@ -293,6 +358,34 @@ Type-safe presets for consistent styling:
 - `'special'` - Magenta, bold
 - `'code'` - Bright cyan
 - `'header'` - Bright white, blue background, bold
+
+## Themes
+
+### 🖌️ Theme Support
+
+MagicLogger supports dynamic theming using named presets or custom-defined themes:
+
+```javascript
+// Use a predefined theme
+const logger = new Logger({
+  theme: 'dark' // Loads the 'dark' theme from themes.json
+});
+
+// Apply a custom theme
+const customTheme = {
+  info: ['cyan', 'bold'],
+  error: ['brightRed', 'bold'],
+  success: ['green', 'bold'],
+  header: ['brightWhite', 'bgBlue', 'bold']
+};
+
+logger.setTheme(customTheme);
+logger.info('This log uses a custom theme!');
+
+// Update individual styles at runtime
+logger.setTheme({ info: ['magenta', 'bold'] });
+logger.info('Theme updated at runtime');
+```
 
 ## Architecture
 
@@ -341,7 +434,7 @@ graph TD
 #### Printer
 - Abstracts output between Node.js and browsers
 - Handles progress bars and special formatting
-- Manages console output and file writing
+- Manages console output and file/storage writing
 - Adapts to terminal capabilities
 
 #### Logger
@@ -358,7 +451,7 @@ graph TD
 
 ## Extending MagicLogger
 
-You can write your own loggers using MagicLogger.
+You can write your own loggers using MagicLogger:
 
 ```javascript
 import { BaseCompatibleLogger } from 'magiclogger';
@@ -389,62 +482,10 @@ class MyNewLogger extends BaseCompatibleLogger {
 }
 ```
 
-## Themes
-
-### 🖌️ Theme Support
-
-MagicLogger supports dynamic theming using named presets or custom-defined themes. Themes control how log levels like `info`, `error`, `success`, and `header` are styled using color/style arrays.
-
----
-
-#### 🎨 Use a Theme by Name
-
-If your project includes a `themes.json` file and you'd like to use a predefined theme (like `dark`):
-
-```ts
-const logger = new Logger({
-  theme: 'dark' // Automatically loads the 'dark' theme from ThemeManager
-});
-```
-
-Make sure your theme/themes.json file looks something like this:
-```
-{
-  "dark": {
-    "info": ["cyan", "bold"],
-    "error": ["brightRed", "bold"],
-    "success": ["green", "bold"],
-    "header": ["brightWhite", "bgBlue", "bold"]
-  }
-}
-```
-
-Switching themes:
-
-```
-const customTheme = {
-  info: ['cyan', 'bold'],
-  error: ['brightRed', 'bold'],
-  success: ['green', 'bold'],
-  header: ['brightWhite', 'bgBlue', 'bold']
-};
-
-const logger = new Logger();
-logger.setTheme(customTheme);
-logger.info('This log uses a manually applied theme!');
-```
-
-```
-logger.setTheme({ info: ['magenta', 'bold'] });
-logger.info('Theme updated at runtime');
-
-logger.setTheme({ info: ['yellow', 'italic'] });
-logger.info('Theme changed again');
-```
-
 ## Documentation
 
 - [API Reference](./docs/api_usage.md)
+- [Browser Storage Guide](./docs/browser-storage.md)
 - [Compatibility Guide](./docs/compatibility.md)
 - [Terminal Support](./docs/terminal_support.md)
 - [Contributing Guide](./docs/contributing.md)
@@ -453,3 +494,7 @@ logger.info('Theme changed again');
 ## License
 
 MIT
+
+---
+
+Created by [Manic.agency](https://manic.agency) - Mania driven development
