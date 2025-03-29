@@ -20,7 +20,7 @@ describe('EnhancedConsole', () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
-    const extended = console as EnhancedConsole;
+    const extended = console as unknown as EnhancedConsole;
     if (typeof extended.restoreOriginalConsole === 'function') {
       extended.restoreOriginalConsole();
     }
@@ -70,7 +70,7 @@ describe('EnhancedConsole', () => {
 
   it('adds extended methods to console', () => {
     const { restoreConsole } = enhanceConsole();
-    const extended = console as EnhancedConsole;
+    const extended = console as unknown as EnhancedConsole;
     expect(typeof extended.header).toBe('function');
     expect(typeof extended.success).toBe('function');
     expect(typeof extended.colorParts).toBe('function');
@@ -99,8 +99,8 @@ describe('EnhancedConsole', () => {
     const guard = symbols.find(sym => String(sym) === 'Symbol(recursionGuard)');
     expect(guard).toBeDefined();
 
-    // Use a type-safe cast with optional chaining
-    const guardValue = (console as Record<symbol, unknown>)[guard as symbol];
+    // DOUBLE-CAST console to access symbol-based index
+    const guardValue = (console as unknown as Record<symbol, unknown>)[guard as symbol];
     expect(guardValue).toBe(false);
 
     restoreConsole();
@@ -108,18 +108,18 @@ describe('EnhancedConsole', () => {
 
   it('handles multiple enhanceConsole calls safely', () => {
     const { restoreConsole: r1 } = enhanceConsole();
-    const firstHeader = (console as EnhancedConsole).header;
+    const firstHeader = (console as unknown as EnhancedConsole).header;
 
     enhanceConsole(); // r2 intentionally unused to test override layering
-    const secondHeader = (console as EnhancedConsole).header;
+    const secondHeader = (console as unknown as EnhancedConsole).header;
 
     expect(firstHeader).not.toBe(secondHeader);
 
     r1();
-    expect((console as EnhancedConsole).header).toBeUndefined();
+    expect((console as unknown as EnhancedConsole).header).toBeUndefined();
 
     const { restoreConsole: r3 } = enhanceConsole();
-    expect(typeof (console as EnhancedConsole).header).toBe('function');
+    expect(typeof (console as unknown as EnhancedConsole).header).toBe('function');
     r3();
   });
 

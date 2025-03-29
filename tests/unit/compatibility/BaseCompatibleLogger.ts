@@ -4,11 +4,13 @@ import {
   LogCompatibilityOptions,
 } from '../../../src/compatibility/BaseCompatibleLogger';
 
+import { ColorName } from '../../../src/types';
+
 class TestLogger extends BaseCompatibleLogger {
   log(level: string, message: string): void {
     switch (level) {
       case 'info':
-        this.logger.log(message);
+        this.logger.info(message);
         break;
       case 'warn':
         this.logger.warn(message);
@@ -29,6 +31,27 @@ class TestLogger extends BaseCompatibleLogger {
         if (this.strictLevels) throw new Error(`Unknown log level: ${level}`);
         this.logger.custom(message, ['white'], level.toUpperCase());
     }
+  }
+
+  // Forward additional methods to support test coverage
+  header(title: string): void {
+    this.logger.header(title);
+  }
+
+  table(data: Record<string, any>[]): void {
+    this.logger.table(data);
+  }
+
+  progress(percent: number): void {
+    this.logger.progressBar(percent);
+  }
+
+  custom(msg: string, colors: ColorName[], prefix = 'LOG'): void {
+    this.logger.custom(msg, colors, prefix);
+  }
+
+  get magicLogger(): Logger {
+    return this.logger;
   }
 }
 

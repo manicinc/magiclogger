@@ -1,4 +1,4 @@
-# MagicLogger
+# Magiclogger
 
 <!-- VERSION_BADGE_PLACEHOLDER -->
 ![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)

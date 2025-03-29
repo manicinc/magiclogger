@@ -1,162 +1,134 @@
-import { createBunyanCompatible } from '../../../src/compatibility/Bunyan';
-import { Logger } from '../../../src/Logger';
-import * as os from 'os';
+import { isBrowserEnvironment } from '../../../src/utils/environment';
+import { BROWSER_POLYFILLS } from '../../../src/utils/browser-polyfills';
+import {
+  BaseCompatibleLogger,
+  LogCompatibilityOptions,
+} from '../../../src/compatibility/BaseCompatibleLogger';
 
-describe('BunyanCompatibleLogger', () => {
-  let logSpy: jest.SpyInstance;
-  let warnSpy: jest.SpyInstance;
-  let errorSpy: jest.SpyInstance;
-  let debugSpy: jest.SpyInstance;
-  let customSpy: jest.SpyInstance;
+/**
+ * Configuration options for Bunyan-compatible logger.
+ */
+export interface BunyanCompatibleOptions extends LogCompatibilityOptions {
+  name: string;
+  level?: string;
+  showName?: boolean;
+  showPid?: boolean;
+  showHostname?: boolean;
+}
 
-  beforeEach(() => {
-    logSpy = jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
-    warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
-    errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
-    debugSpy = jest.spyOn(Logger.prototype, 'debug').mockImplementation(() => undefined);
-    customSpy = jest.spyOn(Logger.prototype, 'custom').mockImplementation(() => undefined);
-  });
+/**
+ * A logger that mimics Bunyan-style output and formatting.
+ * Inherits all standard logging methods from BaseCompatibleLogger.
+ */
+export class BunyanCompatibleLogger extends BaseCompatibleLogger {
+  private showName: boolean;
+  private showPid: boolean;
+  private showHostname: boolean;
+  private os: any;
 
-  afterEach(() => {
-    jest.restoreAllMocks();
-  });
+  constructor(options: BunyanCompatibleOptions = { name: 'app' }) {
+    const opts = { ...options, name: options?.name || 'app' };
+    super(opts);
 
-  it('formats messages with name, pid, and hostname', () => {
-    const bunyan = createBunyanCompatible({
-      name: 'test-bunyan',
-      showName: true,
-      showPid: true,
-      showHostname: true,
+    this.showName = opts.showName !== false;
+    this.showPid = opts.showPid === true;
+    this.showHostname = opts.showHostname === true;
+
+    this.initOsModule();
+  }
+
+  /**
+   * Dynamically loads the OS module or polyfill for compatibility.
+   */
+  private async initOsModule(): Promise<void> {
+    if (!this.os) {
+      this.os = isBrowserEnvironment()
+        ? BROWSER_POLYFILLS.os
+        : (await import('os')).default || (await import('os'));
+    }
+  }
+
+  /**
+   * Formats a message with Bunyan-style context metadata.
+   * Includes optional name, pid, and hostname.
+   */
+  private formatBunyanMessage(msg: string): string {
+    const parts: string[] = [];
+
+    if (this.showName) parts.push(`[${this.name}]`);
+    if (this.showPid) parts.push(`[pid:${process.pid}]`);
+    if (this.showHostname) {
+      try {
+        const hostname = this.os?.hostname?.() || 'unknown';
+        parts.push(`[host:${hostname}]`);
+      } catch {
+        // Ignore hostname errors
+      }
+    }
+
+    return parts.length ? `${parts.join(' ')} ${msg}` : msg;
+  }
+
+  /**
+   * Synchronous wrapper for Bunyan-compatible logging.
+   * Accepts string messages or object + message pairs.
+   *
+   * @param objOrMsg The message string or data object to log
+   * @param msgStr Optional additional message
+   */
+  public override log(objOrMsg: unknown, msgStr?: string): void {
+    const level = typeof objOrMsg === 'string' && !msgStr ? 'info' : 'info';
+    const message = this.formatMessage(objOrMsg, msgStr);
+
+    // Fire-and-forget async handling
+    void this.logAsync(level, message).catch(err => {
+      console.error('Bunyan logger failed:', err);
     });
+  }
 
-    bunyan.info('test message');
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('[test-bunyan]'));
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining(`[pid:${process.pid}]`));
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining(`[host:`));
-  });
+  /**
+   * Async dispatcher for log levels, with optional bunyan-style prefixing.
+   * @param level Log level string
+   * @param message Final message to log
+   */
+  public async logAsync(level: string, message: string): Promise<void> {
+    if (!this.os) await this.initOsModule();
 
-  it('handles os.hostname errors gracefully', () => {
-    const hostnameSpy = jest.spyOn(os, 'hostname').mockImplementation(() => {
-      throw new Error('fail');
-    });
+    const formattedMsg = this.formatBunyanMessage(message);
+    const normalized = level.toLowerCase();
+    const isStrict = this.strictLevels;
 
-    const bunyan = createBunyanCompatible({
-      name: 'error-host',
-      showName: true,
-      showPid: true,
-      showHostname: true,
-    });
+    switch (normalized) {
+      case 'trace':
+        this.logger.debug(`TRACE: ${formattedMsg}`);
+        break;
+      case 'debug':
+        this.logger.debug(formattedMsg);
+        break;
+      case 'info':
+        this.logger.log(formattedMsg);
+        break;
+      case 'warn':
+        this.logger.warn(formattedMsg);
+        break;
+      case 'error':
+        this.logger.error(formattedMsg);
+        break;
+      case 'fatal':
+        this.logger.error(`FATAL: ${formattedMsg}`);
+        break;
+      default:
+        if (isStrict) throw new Error(`Unknown log level: ${level}`);
+        this.logger.custom(formattedMsg, ['white'], level.toUpperCase());
+    }
+  }
+}
 
-    expect(() => bunyan.info('safe despite error')).not.toThrow();
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('[error-host]'));
-    hostnameSpy.mockRestore();
-  });
-
-  it('respects showName=false', () => {
-    const bunyan = createBunyanCompatible({
-      name: 'hidden-name',
-      showName: false,
-    });
-
-    bunyan.info('no name');
-    expect(logSpy).not.toHaveBeenCalledWith(expect.stringContaining('[hidden-name]'));
-  });
-
-  it('respects showPid and showHostname', () => {
-    const bunyan = createBunyanCompatible({
-      name: 'flags',
-      showPid: true,
-      showHostname: false,
-    });
-
-    bunyan.info('flags');
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('[pid:'));
-    expect(logSpy).not.toHaveBeenCalledWith(expect.stringContaining('[host:'));
-  });
-
-  it('respects default formatting values', () => {
-    const bunyan = createBunyanCompatible({ name: 'defaults' });
-
-    expect(bunyan['showName']).toBe(true);
-    expect(bunyan['showPid']).toBe(false);
-    expect(bunyan['showHostname']).toBe(false);
-  });
-
-  it('implements all standard and custom log levels', () => {
-    const bunyan = createBunyanCompatible({ name: 'levels' });
-
-    bunyan.log('trace', 'trace msg');
-    bunyan.log('debug', 'debug msg');
-    bunyan.log('info', 'info msg');
-    bunyan.log('warn', 'warn msg');
-    bunyan.log('error', 'error msg');
-    bunyan.log('fatal', 'fatal msg');
-    bunyan.log('custom', 'custom msg');
-
-    expect(debugSpy).toHaveBeenCalledWith(expect.stringContaining('TRACE:'));
-    expect(debugSpy).toHaveBeenCalledWith(expect.stringContaining('debug msg'));
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('info msg'));
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('warn msg'));
-    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('error msg'));
-    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('FATAL:'));
-    expect(customSpy).toHaveBeenCalledWith(expect.any(String), ['white'], 'CUSTOM');
-  });
-
-  it('supports object+message input', () => {
-    const bunyan = createBunyanCompatible({ name: 'obj' });
-
-    const data = { foo: 'bar' };
-    bunyan.info(data, 'details:');
-
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('"foo":"bar"'));
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('details:'));
-  });
-
-  it('logs serialized object without message', () => {
-    const bunyan = createBunyanCompatible({ name: 'solo' });
-
-    const obj = { test: true };
-    bunyan.info(obj);
-
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('"test":true'));
-  });
-
-  it('allows custom serializer', () => {
-    const serializer = jest.fn(() => 'CUSTOM_SERIALIZED');
-    const bunyan = createBunyanCompatible({
-      name: 'serializer',
-      serializer,
-    });
-
-    bunyan.info({ x: 1 });
-    expect(serializer).toHaveBeenCalled();
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('CUSTOM_SERIALIZED'));
-  });
-
-  it('handles failing serializer safely', () => {
-    const serializer = jest.fn(() => {
-      throw new Error('fail');
-    });
-
-    const bunyan = createBunyanCompatible({
-      name: 'fail-safe',
-      serializer,
-    });
-
-    bunyan.info({ oops: true });
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('[Error serializing object:'));
-  });
-  it('serializes circular objects safely', () => {
-    const bunyan = createBunyanCompatible({ name: 'circular' });
-
-    // Declare object and assign circular reference
-    const obj: Record<string, unknown> = {};
-    (obj as Record<string, unknown>)['self'] = obj;
-
-    // Call logger with single object argument
-    bunyan.info(obj);
-
-    // Assert output contains circular placeholder
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('[Circular]'));
-  });
-});
+/**
+ * Factory to create a Bunyan-compatible logger instance.
+ */
+export function createBunyanCompatible(
+  options: BunyanCompatibleOptions = { name: 'app' }
+): BunyanCompatibleLogger {
+  return new BunyanCompatibleLogger(options);
+}

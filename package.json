@@ -23,8 +23,8 @@
     "!dist/examples"
   ],
   "scripts": {
-    "demo:guided": "npx tsx examples/guided-animated-demo.ts",
     "demo": "npx tsx examples/animated-demo.ts",
+    "demo:guided": "npx tsx examples/guided-animated-demo.ts",
     "demo:web": "npm run build && node -e \"const fs = require('fs-extra'); fs.copySync('dist', 'examples/web-demo/dist')\" && serve examples/web-demo",
     "clean": "rimraf dist test_logs .tsbuildinfo",
     "check": "npm run format && npm run lint",

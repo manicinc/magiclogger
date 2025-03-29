@@ -126,4 +126,20 @@ describe('WinstonCompatibleLogger', () => {
     timeLogger.info('with mocked time');
     expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('[00:00:00]'));
   });
+
+  it('logs verbose messages when verbose is true', () => {
+    const spy = jest.spyOn(Logger.prototype, 'log');
+    const winston = createWinstonCompatible({ verbose: true });
+
+    winston.verbose('verbose message');
+    expect(spy).toHaveBeenCalledWith('verbose message');
+  });
+
+  it('does not log verbose messages when verbose is false', () => {
+    const spy = jest.spyOn(Logger.prototype, 'log');
+    const winston = createWinstonCompatible({ verbose: false });
+
+    winston.verbose('verbose message');
+    expect(spy).not.toHaveBeenCalled();
+  });
 });
