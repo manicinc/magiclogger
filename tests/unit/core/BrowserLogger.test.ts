@@ -2,31 +2,11 @@ import { BrowserLogger } from '../../../src/core/BrowserLogger';
 import { Printer } from '../../../src/core/Printer';
 import { ColorName } from '../../../src/types';
 
-// Mock localStorage
-const mockLocalStorage = (() => {
-  let store: Record<string, string> = {};
-  return {
-    getItem: jest.fn((key: string) => store[key] || null),
-    setItem: jest.fn((key: string, value: string) => {
-      store[key] = value.toString();
-    }),
-    removeItem: jest.fn((key: string) => {
-      delete store[key];
-    }),
-    clear: jest.fn(() => {
-      store = {};
-    }),
-    _getStore: () => ({ ...store }),
-    _resetStore: () => {
-      store = {};
-    },
-  };
-})();
-
-// Setup global mocks
-Object.defineProperty(global, 'localStorage', {
-  value: mockLocalStorage,
-});
+// Use the global localStorage mock from jest.setup.ts
+const mockLocalStorage = global.localStorage as jest.Mocked<typeof localStorage> & {
+  _getStore: () => Record<string, string>;
+  _resetStore: () => void;
+};
 
 // Mock Printer methods
 jest.mock('../../../src/core/Printer', () => ({

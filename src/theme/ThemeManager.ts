@@ -1,15 +1,24 @@
-import { fileURLToPath } from 'url';
 import * as fs from 'fs';
 import * as path from 'path';
 import type { ColorName } from '../types';
 import { COLORS } from '../constants';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Get current directory for theme path resolution
+function getCurrentDirname(): string {
+  if (typeof __dirname !== 'undefined') {
+    // CommonJS environment (e.g., Jest)
+    return __dirname;
+  } else {
+    // ESM environment - fallback to a predictable path
+    return path.resolve(process.cwd(), 'src', 'theme');
+  }
+}
+
+const currentDirname = getCurrentDirname();
 
 export class ThemeManager {
   public themes: Record<string, Record<string, ColorName[]>> = {};
-  private themePath = path.resolve(__dirname, '../../theme/themes.json');
+  private themePath = path.resolve(currentDirname, 'themes.json');
 
   constructor() {
     this.loadThemes();

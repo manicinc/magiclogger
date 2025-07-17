@@ -1,134 +1,47 @@
-import { isBrowserEnvironment } from '../../../src/utils/environment';
-import { BROWSER_POLYFILLS } from '../../../src/utils/browser-polyfills';
-import {
-  BaseCompatibleLogger,
-  LogCompatibilityOptions,
-} from '../../../src/compatibility/BaseCompatibleLogger';
+import { createBunyanCompatible, BunyanCompatibleLogger } from '../../../src/compatibility/Bunyan';
+import { Logger } from '../../../src/Logger';
 
-/**
- * Configuration options for Bunyan-compatible logger.
- */
-export interface BunyanCompatibleOptions extends LogCompatibilityOptions {
-  name: string;
-  level?: string;
-  showName?: boolean;
-  showPid?: boolean;
-  showHostname?: boolean;
-}
+describe('BunyanCompatibleLogger', () => {
+  let logger: BunyanCompatibleLogger;
 
-/**
- * A logger that mimics Bunyan-style output and formatting.
- * Inherits all standard logging methods from BaseCompatibleLogger.
- */
-export class BunyanCompatibleLogger extends BaseCompatibleLogger {
-  private showName: boolean;
-  private showPid: boolean;
-  private showHostname: boolean;
-  private os: any;
+  beforeEach(() => {
+    logger = createBunyanCompatible({ name: 'test-app' });
+  });
 
-  constructor(options: BunyanCompatibleOptions = { name: 'app' }) {
-    const opts = { ...options, name: options?.name || 'app' };
-    super(opts);
+  it('should create a Bunyan-compatible logger', () => {
+    expect(logger).toBeInstanceOf(BunyanCompatibleLogger);
+    expect(logger.name).toBe('test-app');
+  });
 
-    this.showName = opts.showName !== false;
-    this.showPid = opts.showPid === true;
-    this.showHostname = opts.showHostname === true;
+  it('should log messages with Bunyan-style format', () => {
+    const spy = jest.spyOn(Logger.prototype, 'info').mockImplementation(jest.fn());
+    logger.info('test message');
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining('test message'));
+    spy.mockRestore();
+  });
 
-    this.initOsModule();
-  }
+  it('should handle object logging', () => {
+    const spy = jest.spyOn(Logger.prototype, 'info').mockImplementation(jest.fn());
+    logger.info({ userId: 123 }, 'user action');
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining('userId'));
+    spy.mockRestore();
+  });
 
-  /**
-   * Dynamically loads the OS module or polyfill for compatibility.
-   */
-  private async initOsModule(): Promise<void> {
-    if (!this.os) {
-      this.os = isBrowserEnvironment()
-        ? BROWSER_POLYFILLS.os
-        : (await import('os')).default || (await import('os'));
-    }
-  }
+  it('should support different log levels', () => {
+    const infoSpy = jest.spyOn(Logger.prototype, 'info').mockImplementation(jest.fn());
+    const errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation(jest.fn());
+    const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation(jest.fn());
 
-  /**
-   * Formats a message with Bunyan-style context metadata.
-   * Includes optional name, pid, and hostname.
-   */
-  private formatBunyanMessage(msg: string): string {
-    const parts: string[] = [];
+    logger.info('info message');
+    logger.error('error message');
+    logger.warn('warn message');
 
-    if (this.showName) parts.push(`[${this.name}]`);
-    if (this.showPid) parts.push(`[pid:${process.pid}]`);
-    if (this.showHostname) {
-      try {
-        const hostname = this.os?.hostname?.() || 'unknown';
-        parts.push(`[host:${hostname}]`);
-      } catch {
-        // Ignore hostname errors
-      }
-    }
+    expect(infoSpy).toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalled();
 
-    return parts.length ? `${parts.join(' ')} ${msg}` : msg;
-  }
-
-  /**
-   * Synchronous wrapper for Bunyan-compatible logging.
-   * Accepts string messages or object + message pairs.
-   *
-   * @param objOrMsg The message string or data object to log
-   * @param msgStr Optional additional message
-   */
-  public override log(objOrMsg: unknown, msgStr?: string): void {
-    const level = typeof objOrMsg === 'string' && !msgStr ? 'info' : 'info';
-    const message = this.formatMessage(objOrMsg, msgStr);
-
-    // Fire-and-forget async handling
-    void this.logAsync(level, message).catch(err => {
-      console.error('Bunyan logger failed:', err);
-    });
-  }
-
-  /**
-   * Async dispatcher for log levels, with optional bunyan-style prefixing.
-   * @param level Log level string
-   * @param message Final message to log
-   */
-  public async logAsync(level: string, message: string): Promise<void> {
-    if (!this.os) await this.initOsModule();
-
-    const formattedMsg = this.formatBunyanMessage(message);
-    const normalized = level.toLowerCase();
-    const isStrict = this.strictLevels;
-
-    switch (normalized) {
-      case 'trace':
-        this.logger.debug(`TRACE: ${formattedMsg}`);
-        break;
-      case 'debug':
-        this.logger.debug(formattedMsg);
-        break;
-      case 'info':
-        this.logger.log(formattedMsg);
-        break;
-      case 'warn':
-        this.logger.warn(formattedMsg);
-        break;
-      case 'error':
-        this.logger.error(formattedMsg);
-        break;
-      case 'fatal':
-        this.logger.error(`FATAL: ${formattedMsg}`);
-        break;
-      default:
-        if (isStrict) throw new Error(`Unknown log level: ${level}`);
-        this.logger.custom(formattedMsg, ['white'], level.toUpperCase());
-    }
-  }
-}
-
-/**
- * Factory to create a Bunyan-compatible logger instance.
- */
-export function createBunyanCompatible(
-  options: BunyanCompatibleOptions = { name: 'app' }
-): BunyanCompatibleLogger {
-  return new BunyanCompatibleLogger(options);
-}
+    infoSpy.mockRestore();
+    errorSpy.mockRestore();
+    warnSpy.mockRestore();
+  });
+});
