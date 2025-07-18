@@ -112,6 +112,45 @@ export class BunyanCompatibleLogger extends BaseCompatibleLogger {
       console.error('Bunyan logger failed:', err);
     });
   }
+
+  /**
+   * Bunyan-style info logging with optional object parameter
+   */
+  public override info(msgOrObj: unknown, msg?: string): void {
+    const message = this.formatMessage(msgOrObj, msg);
+    this.log(message, 'info');
+  }
+
+  /**
+   * Bunyan-style warn logging with optional object parameter
+   */
+  public override warn(msgOrObj: unknown, msg?: string): void {
+    const message = this.formatMessage(msgOrObj, msg);
+    this.log(message, 'warn');
+  }
+
+  /**
+   * Bunyan-style error logging with optional object parameter
+   */
+  public override error(msgOrObj: unknown, msg?: string): void {
+    const message = this.formatMessage(msgOrObj, msg);
+    this.log(message, 'error');
+  }
+
+  /**
+   * Bunyan-style debug logging with optional object parameter
+   */
+  public override debug(msgOrObj: unknown, msg?: string): void {
+    const message = this.formatMessage(msgOrObj, msg);
+    this.log(message, 'debug');
+  }
+
+  /**
+   * Public getter for the logger name
+   */
+  public get loggerName(): string {
+    return this.name;
+  }
 }
 
 /**

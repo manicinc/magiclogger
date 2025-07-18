@@ -283,4 +283,4 @@ The browser storage feature will be expanded in future releases with:
 - Log compression
 - Log analytics and visualization
 
-For more information on other MagicLogger features, refer to the [API Reference](./api_usage.md) and [main documentation](../README.md).
+For more information on other MagicLogger features, refer to the [API Reference](./api_usage.md) and [main documentation](./intro.md).

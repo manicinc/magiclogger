@@ -5,20 +5,19 @@ import type * as Preset from '@docusaurus/preset-classic';
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
 const config: Config = {
-  title: 'My Site',
-  tagline: 'Dinosaurs are cool',
+  title: 'MagicLogger',
+  tagline: 'The most colorful TypeScript/JavaScript logging library 🌈',
   favicon: 'img/favicon.ico',
 
   // Set the production url of your site here
-  url: 'https://your-docusaurus-site.example.com',
+  url: 'https://manicinc.github.io',
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
-  baseUrl: '/',
+  baseUrl: '/magiclogger/',
 
   // GitHub pages deployment config.
-  // If you aren't using GitHub pages, you don't need these.
-  organizationName: 'facebook', // Usually your GitHub org/user name.
-  projectName: 'docusaurus', // Usually your repo name.
+  organizationName: 'manicinc', // Usually your GitHub org/user name.
+  projectName: 'magiclogger', // Usually your repo name.
 
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'warn',
@@ -37,10 +36,11 @@ const config: Config = {
       {
         docs: {
           sidebarPath: './sidebars.ts',
-          // Please change this to your repo.
-          // Remove this to remove the "edit this page" links.
+          // Configure to use docs from parent directory
+          path: '../docs',
+          // Edit links point to GitHub
           editUrl:
-            'https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/',
+            'https://github.com/manicinc/magiclogger/tree/main/docs/',
         },
         blog: {
           showReadingTime: true,
@@ -48,10 +48,9 @@ const config: Config = {
             type: ['rss', 'atom'],
             xslt: true,
           },
-          // Please change this to your repo.
-          // Remove this to remove the "edit this page" links.
+          // Edit links point to GitHub
           editUrl:
-            'https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/',
+            'https://github.com/manicinc/magiclogger/tree/main/website/blog/',
           // Useful options to enforce blogging best practices
           onInlineTags: 'warn',
           onInlineAuthors: 'warn',
@@ -66,11 +65,11 @@ const config: Config = {
 
   themeConfig: {
     // Replace with your project's social card
-    image: 'img/docusaurus-social-card.jpg',
+    image: 'img/magiclogger-social-card.jpg',
     navbar: {
-      title: 'My Site',
+      title: 'MagicLogger',
       logo: {
-        alt: 'My Site Logo',
+        alt: 'MagicLogger Logo',
         src: 'img/logo.svg',
       },
       items: [
@@ -78,11 +77,21 @@ const config: Config = {
           type: 'docSidebar',
           sidebarId: 'tutorialSidebar',
           position: 'left',
-          label: 'Tutorial',
+          label: '📚 Documentation',
         },
-        { to: '/blog', label: 'Blog', position: 'left' },
         {
-          href: 'https://github.com/facebook/docusaurus',
+          href: '/docs/api_usage',
+          label: '🔧 API Reference',
+          position: 'left',
+        },
+        {
+          href: 'https://github.com/manicinc/magiclogger/tree/master/examples',
+          label: '💡 Examples',
+          position: 'left',
+        },
+        { to: '/blog', label: '📝 Blog', position: 'left' },
+        {
+          href: 'https://github.com/manicinc/magiclogger',
           label: 'GitHub',
           position: 'right',
         },
@@ -92,28 +101,19 @@ const config: Config = {
       style: 'dark',
       links: [
         {
-          title: 'Docs',
+          title: 'Documentation',
           items: [
             {
-              label: 'Tutorial',
-              to: '/docs/intro',
-            },
-          ],
-        },
-        {
-          title: 'Community',
-          items: [
-            {
-              label: 'Stack Overflow',
-              href: 'https://stackoverflow.com/questions/tagged/docusaurus',
+              label: 'Getting Started',
+              to: '/docs/api_usage',
             },
             {
-              label: 'Discord',
-              href: 'https://discordapp.com/invite/docusaurus',
+              label: 'API Reference',
+              to: '/docs/api_usage',
             },
             {
-              label: 'X',
-              href: 'https://x.com/docusaurus',
+              label: 'Compatibility Guide',
+              to: '/docs/compatibility',
             },
           ],
         },
@@ -121,17 +121,30 @@ const config: Config = {
           title: 'More',
           items: [
             {
-              label: 'Blog',
-              to: '/blog',
+              label: 'GitHub',
+              href: 'https://github.com/manicinc/magiclogger',
             },
             {
-              label: 'GitHub',
-              href: 'https://github.com/facebook/docusaurus',
+              label: 'npm Package',
+              href: 'https://www.npmjs.com/package/magiclogger',
+            },
+          ],
+        },
+        {
+          title: 'Manic.agency',
+          items: [
+            {
+              label: 'Website',
+              href: 'https://manic.agency',
+            },
+            {
+              label: 'Contact',
+              href: 'mailto:team@manic.agency',
             },
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} My Project, Inc. Built with Docusaurus.`,
+      copyright: `Copyright © ${new Date().getFullYear()} Manic.agency. The most colorful logging library. Built with Docusaurus.`,
     },
     prism: {
       theme: prismThemes.github,

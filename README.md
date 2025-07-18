@@ -484,12 +484,26 @@ class MyNewLogger extends BaseCompatibleLogger {
 
 ## Documentation
 
-- [API Reference](./docs/api_usage.md)
-- [Browser Storage Guide](./docs/browser-storage.md)
-- [Compatibility Guide](./docs/compatibility.md)
-- [Terminal Support](./docs/terminal_support.md)
-- [Contributing Guide](./docs/contributing.md)
-- [Developer's Guide](./docs/development.md)
+📚 **[Full Documentation Website](https://manicinc.github.io/magiclogger/)**
+
+### Core Documentation
+- [API Reference](./docs/api_usage.md) - Complete API documentation and examples
+- [Browser Storage Guide](./docs/browser_storage.md) - Client-side logging and storage
+- [Compatibility Guide](./docs/compatibility.md) - Drop-in replacements for Winston, Bunyan, Pino
+- [Terminal Support](./docs/terminal_support.md) - Advanced terminal capabilities and ANSI support
+
+### Features & Styling
+- [Styling Guide](./docs/styling.md) - Colors, gradients, and visual formatting
+- [Test Coverage](./docs/test_coverage.md) - Comprehensive testing information
+- [Code Coverage](./docs/codecov.md) - Coverage reporting and metrics
+
+### Development
+- [Contributing Guide](./docs/contributing.md) - How to contribute to the project
+- [Developer's Guide](./docs/development.md) - Development setup and workflow
+- [Build Instructions](./docs/build_instructions.md) - Building and packaging
+- [Git Workflow](./docs/git_workflow.md) - Version control and branching
+- [Publishing Guide](./docs/publishing.md) - Release and deployment process
+- [CI/CD Setup](./docs/cicd.md) - Continuous integration and deployment
 
 ## License
 
@@ -497,4 +511,5 @@ MIT
 
 ---
 
-Created by [Manic.agency](https://manic.agency) - Mania driven development
+Created by [Manic.agency](https://manic.agency) - Mania driven development 🎨
+Contact: [team@manic.agency](mailto:team@manic.agency) | GitHub: [@manicinc](https://github.com/manicinc)

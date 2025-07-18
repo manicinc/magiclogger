@@ -34,6 +34,7 @@ const fsMockImplementation = {
   existsSync: jest.fn(),
   mkdirSync: jest.fn(),
   writeFileSync: jest.fn(),
+  readFileSync: jest.fn(),
   appendFileSync: jest.fn(),
   readdirSync: jest.fn(),
   unlinkSync: jest.fn(),
@@ -51,6 +52,22 @@ fsMockImplementation.existsSync.mockImplementation(p => {
   if (mockFileSystem.has(p)) return true;
   // Default fallback
   return fs.existsSync(p);
+});
+
+fsMockImplementation.readFileSync.mockImplementation((filepath, _encoding) => {
+  // Check if we have this file in our mock system
+  if (mockFileSystem.has(filepath)) {
+    const fileInfo = mockFileSystem.get(filepath);
+    return fileInfo.content;
+  }
+  
+  // Return default content for test files
+  if (filepath.toString().includes('themes.json')) {
+    return '{}'; // Return empty object by default
+  }
+  
+  // Default fallback
+  return '{}';
 });
 
 fsMockImplementation.readdirSync.mockImplementation(dirPath => {

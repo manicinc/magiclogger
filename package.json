@@ -26,7 +26,10 @@
     "demo": "npx tsx examples/animated-demo.ts",
     "demo:guided": "npx tsx examples/guided-animated-demo.ts",
     "demo:web": "npm run build && node -e \"const fs = require('fs-extra'); fs.copySync('dist', 'examples/web-demo/dist')\" && serve examples/web-demo",
-    "clean": "rimraf dist test_logs .tsbuildinfo",
+    "docs:api": "typedoc",
+    "docs:build": "npm run docs:api && cd website && npm run build",
+    "docs:dev": "npm run docs:api && cd website && npm start",
+    "clean": "rimraf dist test_logs .tsbuildinfo website/static/api",
     "check": "npm run format && npm run lint",
     "dev": "tsup --watch",
     "build": "npm run clean && tsup",
@@ -105,6 +108,8 @@
     "tsconfig-paths": "^4.2.0",
     "tsup": "^8.0.1",
     "tsx": "^4.7.0",
+    "typedoc": "^0.28.7",
+    "typedoc-plugin-markdown": "^4.7.0",
     "typescript": "^5.0.4"
   },
   "engines": {

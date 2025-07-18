@@ -1,0 +1,20 @@
+{
+  "entryPoints": ["src/index.ts"],
+  "out": "website/static/api",
+  "theme": "default",
+  "name": "MagicLogger API Documentation",
+  "readme": "README.md",
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "excludeInternal": true,
+  "includeVersion": true,
+  "sort": ["source-order"],
+  "gitRevision": "main",
+  "plugin": ["typedoc-plugin-markdown"],
+  "disableSources": false,
+  "sourceLinkTemplate": "https://github.com/manicinc/magiclogger/blob/{gitRevision}/{path}#L{line}",
+  "navigationLinks": {
+    "GitHub": "https://github.com/manicinc/magiclogger",
+    "NPM": "https://www.npmjs.com/package/magiclogger"
+  }
+}

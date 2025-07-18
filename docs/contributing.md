@@ -31,7 +31,7 @@ To get started with development:
    npm install
    ```
 4. **Set up your development environment** 
-   - See [Development Guide](docs/development.md) for detailed instructions
+   - See [Development Guide](./development.md) for detailed instructions
 
 ## Development Workflow
 
@@ -100,7 +100,7 @@ You can use the provided commit script for guided commit creation:
 npm run commit
 ```
 
-See [Git Workflow](docs/git_workflow.md) for more details.
+See [Git Workflow](./git_workflow.md) for more details.
 
 ## Pull Request Process
 
@@ -145,8 +145,8 @@ npm run test:coverage
 
 ## Additional Information
 
-- **CI/CD Pipeline**: See [CI/CD Documentation](docs/cicd.md)
-- **Release Process**: See [Publishing Guide](docs/publishing.md)
-- **API Documentation**: See [API Usage](docs/api_usage.md)
+- **CI/CD Pipeline**: See [CI/CD Documentation](./cicd.md)
+- **Release Process**: See [Publishing Guide](./publishing.md)
+- **API Documentation**: See [API Usage](./api_usage.md)
 
 Thank you for contributing to Magiclogger!
