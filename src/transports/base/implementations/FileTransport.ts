@@ -2,27 +2,27 @@
 
 import { Transport } from '../Transport';
 import { FileManager } from '../../../core/FileManager';
-import type { TransportOptions, LogEntry, TransportStats, FileTransportOptions } from '../../../types/transport';
+import type { LogEntry, FileTransportOptions } from '../../../types/transport';
 import * as path from 'path';
 
 /**
  * Transport that writes logs to files with rotation and management.
- * 
+ *
  * The FileTransport provides comprehensive file-based logging with:
  * - Automatic file rotation by size or time
  * - Log retention and cleanup
  * - Compression of rotated files
  * - Atomic writes for data integrity
  * - Cross-platform path handling
- * 
+ *
  * This transport is ideal for:
  * - Production environments requiring persistent logs
  * - Audit trails and compliance
  * - Long-term log storage
  * - Offline log analysis
- * 
+ *
  * @extends {Transport}
- * 
+ *
  * @example
  * ```typescript
  * const fileTransport = new FileTransport({
@@ -32,7 +32,7 @@ import * as path from 'path';
  *   maxFiles: 7,
  *   compress: true
  * });
- * 
+ *
  * await fileTransport.log({
  *   level: 'error',
  *   message: 'Database connection failed',
@@ -105,7 +105,7 @@ export class FileTransport extends Transport {
 
   /**
    * Creates a new FileTransport instance.
-   * 
+   *
    * @param {FileTransportOptions} options - Transport configuration
    */
   constructor(options: FileTransportOptions) {
@@ -133,7 +133,7 @@ export class FileTransport extends Transport {
 
   /**
    * Initialize the file transport.
-   * 
+   *
    * @returns {Promise<void>} Resolves when initialized
    * @protected
    */
@@ -149,7 +149,7 @@ export class FileTransport extends Transport {
       // Ensure directory exists
       await this.ensureDirectory(path.dirname(this.filepath));
       this.currentFile = this.filepath;
-      
+
       // Initialize file if it doesn't exist
       if (!this.append || !(await this.fileExists(this.currentFile))) {
         await this.createFile(this.currentFile);
@@ -167,13 +167,13 @@ export class FileTransport extends Transport {
 
   /**
    * Load required Node.js modules dynamically.
-   * 
+   *
    * @private
    */
   private async loadModules(): Promise<void> {
     if (typeof window === 'undefined') {
       this.fs = (await import('fs')).default;
-      
+
       if (this.compress) {
         this.zlib = (await import('zlib')).default;
       }
@@ -184,7 +184,7 @@ export class FileTransport extends Transport {
 
   /**
    * Log an entry to the file.
-   * 
+   *
    * @param {LogEntry} entry - The log entry to write
    * @returns {Promise<void>} Resolves when written
    * @protected
@@ -205,9 +205,9 @@ export class FileTransport extends Transport {
 
   /**
    * Format a log entry for file output.
-   * 
+   *
    * @param {LogEntry} entry - The log entry to format
-   * @returns {string} Formatted line for file
+   * @returns {string} Formatted log line
    * @private
    */
   private formatFileEntry(entry: LogEntry): string {
@@ -219,26 +219,26 @@ export class FileTransport extends Transport {
         line = JSON.stringify(entry);
         break;
 
-      case 'plain':
+      case 'plain': {
         // Human-readable format
         const parts: string[] = [];
-        
+
         if (this.includeTimestamp) {
           parts.push(entry.timestamp);
         }
-        
+
         parts.push(`[${entry.level.toUpperCase()}]`);
-        
+
         if (entry.loggerId) {
           parts.push(`[${entry.loggerId}]`);
         }
-        
+
         if (entry.tags && entry.tags.length > 0) {
           parts.push(`[${entry.tags.join(',')}]`);
         }
-        
+
         parts.push(entry.plainMessage || entry.message);
-        
+
         // Add error details on new lines
         if (entry.error) {
           parts.push(`\n  Error: ${entry.error.message}`);
@@ -246,22 +246,24 @@ export class FileTransport extends Transport {
             parts.push(`\n  Stack: ${entry.error.stack.replace(/\n/g, '\n  ')}`);
           }
         }
-        
+
         // Add context as JSON
         if (entry.context && Object.keys(entry.context).length > 0) {
           parts.push(`\n  Context: ${JSON.stringify(entry.context)}`);
         }
-        
+
         line = parts.join(' ');
         break;
+      }
 
-      case 'custom':
+      case 'custom': {
         if (!this.formatter) {
           throw new Error('Custom formatter not provided');
         }
         const formatted = this.formatter(entry);
         line = typeof formatted === 'string' ? formatted : formatted.toString();
         break;
+      }
 
       default:
         line = JSON.stringify(entry);
@@ -272,7 +274,7 @@ export class FileTransport extends Transport {
 
   /**
    * Schedule a batch write operation.
-   * 
+   *
    * @private
    */
   private scheduleWrite(): void {
@@ -294,7 +296,7 @@ export class FileTransport extends Transport {
 
   /**
    * Flush the write queue to disk.
-   * 
+   *
    * @private
    */
   private async flushWriteQueue(): Promise<void> {
@@ -303,7 +305,7 @@ export class FileTransport extends Transport {
     }
 
     this.writing = true;
-    
+
     if (this.writeTimer) {
       clearTimeout(this.writeTimer);
       this.writeTimer = undefined;
@@ -326,7 +328,7 @@ export class FileTransport extends Transport {
 
   /**
    * Write content to the current log file.
-   * 
+   *
    * @param {string} content - Content to write
    * @private
    */
@@ -336,11 +338,16 @@ export class FileTransport extends Transport {
     }
 
     return new Promise((resolve, reject) => {
+      if (!this.fs) {
+        reject(new Error('File system module not loaded'));
+        return;
+      }
+
       this.fs.appendFile(
         this.currentFile,
         content,
         { encoding: this.encoding },
-        (err: Error) => {
+        (err: NodeJS.ErrnoException | null) => {
           if (err) reject(err);
           else resolve();
         }
@@ -350,7 +357,7 @@ export class FileTransport extends Transport {
 
   /**
    * Check if file rotation is needed.
-   * 
+   *
    * @private
    */
   private async checkRotation(): Promise<void> {
@@ -359,7 +366,7 @@ export class FileTransport extends Transport {
     }
 
     const now = Date.now();
-    
+
     switch (this.rotation) {
       case 'size':
         if (this.currentFileSize >= this.maxFileSize) {
@@ -367,39 +374,41 @@ export class FileTransport extends Transport {
         }
         break;
 
-      case 'daily':
+      case 'daily': {
         // Check once per minute max
         if (now - this.lastRotationCheck > 60000) {
           const currentDate = new Date().toDateString();
           const fileDate = new Date(this.lastRotationCheck).toDateString();
-          
+
           if (currentDate !== fileDate) {
             await this.rotateFile();
           }
-          
+
           this.lastRotationCheck = now;
         }
         break;
+      }
 
-      case 'hourly':
+      case 'hourly': {
         // Check once per minute max
         if (now - this.lastRotationCheck > 60000) {
           const currentHour = new Date().getHours();
           const fileHour = new Date(this.lastRotationCheck).getHours();
-          
+
           if (currentHour !== fileHour) {
             await this.rotateFile();
           }
-          
+
           this.lastRotationCheck = now;
         }
         break;
+      }
     }
   }
 
   /**
    * Rotate the current log file.
-   * 
+   *
    * @private
    */
   private async rotateFile(): Promise<void> {
@@ -415,22 +424,22 @@ export class FileTransport extends Transport {
       const basename = path.basename(this.currentFile);
       const ext = path.extname(basename);
       const name = path.basename(basename, ext);
-      
+
       // Generate rotated filename with timestamp
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const rotatedFile = path.join(dir, `${name}-${timestamp}${ext}`);
-      
+
       // Rename current file
       await this.renameFile(this.currentFile, rotatedFile);
-      
+
       // Compress if configured
       if (this.compress) {
         await this.compressFile(rotatedFile);
       }
-      
+
       // Create new file
       await this.createFile(this.currentFile);
-      
+
       // Manage old files
       await this.cleanupOldFiles(dir, name, ext);
     }
@@ -441,7 +450,7 @@ export class FileTransport extends Transport {
 
   /**
    * Compress a file using gzip.
-   * 
+   *
    * @param {string} filepath - File to compress
    * @private
    */
@@ -451,12 +460,12 @@ export class FileTransport extends Transport {
     }
 
     const gzipFile = `${filepath}.gz`;
-    
+
     return new Promise((resolve, reject) => {
       const input = this.fs.createReadStream(filepath);
       const output = this.fs.createWriteStream(gzipFile);
       const gzip = this.zlib.createGzip();
-      
+
       input
         .pipe(gzip)
         .pipe(output)
@@ -473,7 +482,7 @@ export class FileTransport extends Transport {
 
   /**
    * Clean up old rotated files.
-   * 
+   *
    * @param {string} dir - Directory containing files
    * @param {string} namePattern - Base filename pattern
    * @param {string} ext - File extension
@@ -481,16 +490,18 @@ export class FileTransport extends Transport {
    */
   private async cleanupOldFiles(dir: string, namePattern: string, ext: string): Promise<void> {
     const files = await this.readDirectory(dir);
-    
+
     // Find all rotated files
-    const pattern = new RegExp(`^${namePattern}-\\d{4}-\\d{2}-\\d{2}T\\d{2}-\\d{2}-\\d{2}.*${ext}(\\.gz)?$`);
+    const pattern = new RegExp(
+      `^${namePattern}-\\d{4}-\\d{2}-\\d{2}T\\d{2}-\\d{2}-\\d{2}.*${ext}(\\.gz)?$`
+    );
     const rotatedFiles = files
       .filter(file => pattern.test(file))
       .map(file => ({
         name: file,
         path: path.join(dir, file),
       }));
-    
+
     // Sort by modification time
     const stats = await Promise.all(
       rotatedFiles.map(async file => ({
@@ -498,12 +509,12 @@ export class FileTransport extends Transport {
         mtime: (await this.getFileStats(file.path)).mtime.getTime(),
       }))
     );
-    
+
     stats.sort((a, b) => b.mtime - a.mtime);
-    
+
     // Remove old files exceeding maxFiles
     const filesToDelete = stats.slice(this.maxFiles);
-    
+
     for (const file of filesToDelete) {
       await this.deleteFile(file.path);
     }
@@ -511,7 +522,7 @@ export class FileTransport extends Transport {
 
   /**
    * Flush any pending writes.
-   * 
+   *
    * @returns {Promise<void>} Resolves when flushed
    */
   public async flush(): Promise<void> {
@@ -520,20 +531,20 @@ export class FileTransport extends Transport {
 
   /**
    * Close the file transport.
-   * 
+   *
    * @returns {Promise<void>} Resolves when closed
    * @protected
    */
   protected async doClose(): Promise<void> {
     // Flush pending writes
     await this.flush();
-    
+
     // Clear write timer
     if (this.writeTimer) {
       clearTimeout(this.writeTimer);
       this.writeTimer = undefined;
     }
-    
+
     // Close file stream if open
     if (this.fileStream) {
       await new Promise<void>((resolve, reject) => {
@@ -552,7 +563,7 @@ export class FileTransport extends Transport {
 
   private async ensureDirectory(dir: string): Promise<void> {
     if (!this.createDir) return;
-    
+
     return new Promise((resolve, reject) => {
       this.fs.mkdir(dir, { recursive: true }, (err: Error) => {
         if (err && (err as NodeJS.ErrnoException).code !== 'EEXIST') reject(err);
@@ -616,7 +627,7 @@ export class FileTransport extends Transport {
 
   private async updateFileSize(): Promise<void> {
     if (!this.currentFile) return;
-    
+
     try {
       const stats = await this.getFileStats(this.currentFile);
       this.currentFileSize = stats.size;
@@ -628,13 +639,11 @@ export class FileTransport extends Transport {
 
 /**
  * Factory function to create a file transport with common defaults.
- * 
+ *
  * @param {Partial<FileTransportOptions>} [options={}] - Transport options
  * @returns {FileTransport} Configured file transport
  */
-export function createFileTransport(
-  options: Partial<FileTransportOptions> = {}
-): FileTransport {
+export function createFileTransport(options: Partial<FileTransportOptions> = {}): FileTransport {
   return new FileTransport({
     name: 'file',
     enabled: true,
