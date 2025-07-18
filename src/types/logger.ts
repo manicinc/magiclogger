@@ -1,5 +1,7 @@
 import type { ColorName } from '../types'; // Adjust path if needed
 
+export type { ColorName };
+
 /**
  * A theme defines color/style mappings for log levels.
  *
@@ -141,3 +143,14 @@ export interface LoggerOptions {
  * Additional custom levels are allowed unless strictLevels is true.
  */
 export type LogLevel = 'info' | 'warn' | 'error' | 'debug' | 'success' | string;
+
+/**
+ * Function type for generating unique log entry IDs.
+ * Should return a unique string identifier for each log entry.
+ * 
+ * @returns {string} Unique identifier
+ * 
+ * @example
+ * const idGenerator: IdGenerator = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+ */
+export type IdGenerator = () => string;

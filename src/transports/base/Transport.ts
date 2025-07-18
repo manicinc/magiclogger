@@ -4,7 +4,6 @@ import { EventEmitter } from 'events';
 import type {
   Transport as ITransport,
   TransportOptions,
-  TransportEvents,
   TransportStats,
   LogEntry,
   LogLevel,

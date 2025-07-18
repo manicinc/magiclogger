@@ -1,67 +1,8 @@
 // File: src/transports/implementations/ConsoleTransport.ts
 
-import { Transport } from '../base/Transport';
-import { Formatter } from '../../core/Formatter';
-import { Printer } from '../../core/Printer';
-import type { TransportOptions, LogEntry } from '../../types/transport';
-
-/**
- * Console transport specific options.
- * Extends base transport options with console-specific configuration.
- */
-export interface ConsoleTransportOptions extends TransportOptions {
-  /**
-   * Whether to use colors in console output.
-   * @default true
-   */
-  useColors?: boolean;
-
-  /**
-   * Whether to include timestamp in console output.
-   * @default true
-   */
-  showTimestamp?: boolean;
-
-  /**
-   * Whether to include log level in console output.
-   * @default true
-   */
-  showLevel?: boolean;
-
-  /**
-   * Whether to include logger ID in console output.
-   * @default false
-   */
-  showLoggerId?: boolean;
-
-  /**
-   * Whether to include tags in console output.
-   * @default false
-   */
-  showTags?: boolean;
-
-  /**
-   * Whether to show metadata (context, error details).
-   * @default true
-   */
-  showMetadata?: boolean;
-
-  /**
-   * Custom prefix for all console messages.
-   */
-  prefix?: string;
-
-  /**
-   * Console method to use for different levels.
-   */
-  consoleMethods?: {
-    debug?: 'log' | 'debug' | 'info' | 'warn' | 'error';
-    info?: 'log' | 'debug' | 'info' | 'warn' | 'error';
-    warn?: 'log' | 'debug' | 'info' | 'warn' | 'error';
-    error?: 'log' | 'debug' | 'info' | 'warn' | 'error';
-    default?: 'log' | 'debug' | 'info' | 'warn' | 'error';
-  };
-}
+import { Transport } from '../Transport';
+import { Formatter } from '../../../core/Formatter';
+import type { LogEntry, TransportStats, ConsoleTransportOptions } from '../../../types/transport';
 
 /**
  * Transport that outputs logs to the console.
@@ -103,7 +44,7 @@ export class ConsoleTransport extends Transport {
    * Formatter instance for applying colors and styles.
    * @private
    */
-  private formatter: Formatter;
+  private colorFormatter: Formatter;
 
   /**
    * Console output configuration.
@@ -145,7 +86,7 @@ export class ConsoleTransport extends Transport {
     };
 
     // Initialize formatter
-    this.formatter = new Formatter(this.useColors);
+    this.colorFormatter = new Formatter(this.useColors);
   }
 
   /**
@@ -188,11 +129,27 @@ export class ConsoleTransport extends Transport {
     // Format the log entry
     const formatted = this.formatConsoleOutput(entry);
 
-    // Determine console method to use
+    // Determine console method to use and call it directly
     const method = this.getConsoleMethod(entry.level);
-
-    // Output to console
-    console[method](formatted);
+    
+    // Use type-safe console method calls
+    switch (method) {
+      case 'debug':
+        console.debug(formatted);
+        break;
+      case 'info':
+        console.info(formatted);
+        break;
+      case 'warn':
+        console.warn(formatted);
+        break;
+      case 'error':
+        console.error(formatted);
+        break;
+      default:
+        console.log(formatted);
+        break;
+    }
 
     // Log additional data if present
     if (this.showMetadata) {
@@ -254,7 +211,7 @@ export class ConsoleTransport extends Transport {
       return `[${prefix}]`;
     }
 
-    return this.formatter.colorize(`[${prefix}]`, ['magenta', 'bold']);
+        return this.colorFormatter.colorize(`[${prefix}]`, ['magenta', 'bold']);
   }
 
   /**
@@ -279,7 +236,7 @@ export class ConsoleTransport extends Transport {
       return `[${time}]`;
     }
 
-    return this.formatter.colorize(`[${time}]`, ['gray']);
+    return this.colorFormatter.colorize(`[${time}]`, ['gray']);
   }
 
   /**
@@ -307,7 +264,7 @@ export class ConsoleTransport extends Transport {
     };
 
     const colors = colorMap[level.toLowerCase()] || ['white'];
-    return this.formatter.colorize(`[${paddedLevel}]`, colors);
+    return this.colorFormatter.colorize(`[${paddedLevel}]`, colors);
   }
 
   /**
@@ -322,7 +279,7 @@ export class ConsoleTransport extends Transport {
       return `[${loggerId}]`;
     }
 
-    return this.formatter.colorize(`[${loggerId}]`, ['blue']);
+    return this.colorFormatter.colorize(`[${loggerId}]`, ['blue']);
   }
 
   /**
@@ -339,7 +296,7 @@ export class ConsoleTransport extends Transport {
       return `[${tagStr}]`;
     }
 
-    return this.formatter.colorize(`[${tagStr}]`, ['magenta']);
+    return this.colorFormatter.colorize(`[${tagStr}]`, ['magenta']);
   }
 
   /**
@@ -349,43 +306,56 @@ export class ConsoleTransport extends Transport {
    * @param {string} method - Console method to use
    * @private
    */
-  private logMetadata(entry: LogEntry, method: keyof Console): void {
+  private logMetadata(entry: LogEntry, method: string): void {
+    // Helper function to get the appropriate console method
+    const getConsoleMethod = (methodName: string) => {
+      switch (methodName) {
+        case 'debug': return console.debug;
+        case 'info': return console.info;
+        case 'warn': return console.warn;
+        case 'error': return console.error;
+        default: return console.log;
+      }
+    };
+    
+    const consoleMethod = getConsoleMethod(method);
+    
     // Log error details if present
     if (entry.error) {
       const errorLabel = this.useColors 
-        ? this.formatter.colorize('Error:', ['red', 'bold'])
+        ? this.colorFormatter.colorize('Error:', ['red', 'bold'])
         : 'Error:';
       
-      console[method](errorLabel, entry.error.message);
+      consoleMethod(errorLabel, entry.error.message);
       
       if (entry.error.stack) {
-        console[method](entry.error.stack);
+        consoleMethod(entry.error.stack);
       }
 
       // Log additional error properties
       const { name, message, stack, ...additionalProps } = entry.error;
       if (Object.keys(additionalProps).length > 0) {
         const propsLabel = this.useColors
-          ? this.formatter.colorize('Error Details:', ['red'])
+          ? this.colorFormatter.colorize('Error Details:', ['red'])
           : 'Error Details:';
-        console[method](propsLabel, additionalProps);
+        consoleMethod(propsLabel, additionalProps);
       }
     }
 
     // Log context if present and not empty
     if (entry.context && Object.keys(entry.context).length > 0) {
       const contextLabel = this.useColors
-        ? this.formatter.colorize('Context:', ['blue'])
+        ? this.colorFormatter.colorize('Context:', ['blue'])
         : 'Context:';
-      console[method](contextLabel, entry.context);
+      consoleMethod(contextLabel, entry.context);
     }
 
     // Log metadata if present
     if (entry.metadata && Object.keys(entry.metadata).length > 0) {
       const metadataLabel = this.useColors
-        ? this.formatter.colorize('Metadata:', ['gray'])
+        ? this.colorFormatter.colorize('Metadata:', ['gray'])
         : 'Metadata:';
-      console[method](metadataLabel, entry.metadata);
+      consoleMethod(metadataLabel, entry.metadata);
     }
   }
 
@@ -428,10 +398,10 @@ export class ConsoleTransport extends Transport {
         return this.formatConsoleOutput(entry);
       
       case 'custom':
-        if (!this.formatter) {
+        if (!this.colorFormatter) {
           throw new Error('Custom formatter not provided');
         }
-        return this.formatter(entry) as string;
+        return this.colorFormatter.colorize(entry.message, []) as string;
       
       default:
         return this.formatConsoleOutput(entry);

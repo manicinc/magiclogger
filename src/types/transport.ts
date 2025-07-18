@@ -2,6 +2,9 @@
 
 import type { LogLevel, ColorName } from './logger';
 
+// Re-export types for convenience
+export type { LogLevel, ColorName };
+
 /**
  * Core log entry structure that flows through the transport system.
  * This interface represents a single log message with all its metadata.
@@ -467,6 +470,140 @@ export interface WebSocketTransportOptions extends TransportOptions {
 }
 
 /**
+ * Console transport options.
+ */
+export interface ConsoleTransportOptions extends TransportOptions {
+  /**
+   * Whether to use colors in console output.
+   * @default true
+   */
+  useColors?: boolean;
+
+  /**
+   * Whether to include timestamp in console output.
+   * @default true
+   */
+  showTimestamp?: boolean;
+
+  /**
+   * Whether to include log level in console output.
+   * @default true
+   */
+  showLevel?: boolean;
+
+  /**
+   * Whether to include logger ID in console output.
+   * @default false
+   */
+  showLoggerId?: boolean;
+
+  /**
+   * Whether to include tags in console output.
+   * @default false
+   */
+  showTags?: boolean;
+
+  /**
+   * Whether to show metadata (context, error details).
+   * @default true
+   */
+  showMetadata?: boolean;
+
+  /**
+   * Custom prefix for all console messages.
+   */
+  prefix?: string;
+
+  /**
+   * Console method to use for different levels.
+   */
+  consoleMethods?: {
+    debug?: 'log' | 'debug' | 'info' | 'warn' | 'error';
+    info?: 'log' | 'debug' | 'info' | 'warn' | 'error';
+    warn?: 'log' | 'debug' | 'info' | 'warn' | 'error';
+    error?: 'log' | 'debug' | 'info' | 'warn' | 'error';
+    default?: 'log' | 'debug' | 'info' | 'warn' | 'error';
+  };
+}
+
+/**
+ * File transport options.
+ */
+export interface FileTransportOptions extends TransportOptions {
+  /**
+   * Path to the log file or directory.
+   * If a directory is provided, files will be created with timestamps.
+   */
+  filepath: string;
+
+  /**
+   * Whether filepath points to a directory (true) or specific file (false).
+   * @default true
+   */
+  isDirectory?: boolean;
+
+  /**
+   * Maximum file size in bytes before rotation.
+   * @default 10485760 (10MB)
+   */
+  maxFileSize?: number;
+
+  /**
+   * Maximum number of backup files to keep.
+   * @default 5
+   */
+  maxFiles?: number;
+
+  /**
+   * Whether to compress rotated files.
+   * @default false
+   */
+  compress?: boolean;
+
+  /**
+   * File rotation strategy.
+   * @default 'size'
+   */
+  rotation?: 'size' | 'daily' | 'hourly' | 'none';
+
+  /**
+   * Whether to append to existing file or create new.
+   * @default true
+   */
+  append?: boolean;
+
+  /**
+   * File encoding.
+   * @default 'utf8'
+   */
+  encoding?: BufferEncoding;
+
+  /**
+   * Whether to include timestamp in each log line.
+   * @default true
+   */
+  includeTimestamp?: boolean;
+
+  /**
+   * Whether to create directory if it doesn't exist.
+   * @default true
+   */
+  createDir?: boolean;
+
+  /**
+   * Log retention in days (for directory mode).
+   * @default 30
+   */
+  retentionDays?: number;
+
+  /**
+   * Line ending character.
+   * @default '\n'
+   */
+  eol?: string;
+}
+
+/**
  * Stream transport options for Node.js streams.
  */
 export interface StreamTransportOptions extends TransportOptions {
@@ -578,9 +715,9 @@ export interface Transport {
   /**
    * Event emitter methods (optional but recommended).
    */
-  on?(event: keyof TransportEvents, listener: Function): void;
-  off?(event: keyof TransportEvents, listener: Function): void;
-  emit?(event: keyof TransportEvents, ...args: any[]): void;
+  on?(event: keyof TransportEvents, listener: (...args: unknown[]) => void): void;
+  off?(event: keyof TransportEvents, listener: (...args: unknown[]) => void): void;
+  emit?(event: keyof TransportEvents, ...args: unknown[]): void;
 }
 
 /**
@@ -624,7 +761,7 @@ export interface TransportStats {
   /**
    * Transport-specific metrics.
    */
-  custom?: Record<string, any>;
+  custom?: Record<string, unknown>;
 }
 
 /**
@@ -721,5 +858,5 @@ export interface AggregationStats {
   /**
    * Custom aggregated metrics.
    */
-  custom?: Record<string, any>;
+  custom?: Record<string, unknown>;
 }

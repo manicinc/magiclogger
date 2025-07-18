@@ -1,166 +1,24 @@
-/**
- * MagicLogger Features - Modern Neumorphic Design with Custom SVG Icons
- */
-
 .features {
   display: flex;
   align-items: center;
-  padding: 4rem 0;
+  padding: 2rem 0;
   width: 100%;
-  background: var(--ifm-background-color);
-  background-image: var(--surface-gradient);
-  position: relative;
 }
 
-.features::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--rainbow-gradient);
-  opacity: 0.02;
-  z-index: 0;
-}
-
-.featureCard {
-  background: var(--ifm-background-surface-color);
-  border-radius: var(--neo-border-radius);
-  box-shadow: var(--neo-shadow-1);
-  padding: 2.5rem 1.5rem;
-  margin: 1rem;
-  height: 100%;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  overflow: hidden;
-  text-align: center;
-}
-
-.featureCard::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: var(--rainbow-gradient);
-  opacity: 0.8;
-  transition: opacity 0.3s ease;
-}
-
-.featureCard:hover {
-  box-shadow: var(--neo-shadow-hover);
-  transform: translateY(-8px) scale(1.02);
-}
-
-.featureCard:hover::before {
-  opacity: 1;
-}
-
-.iconContainer {
-  margin-bottom: 1.5rem;
-  position: relative;
-}
-
-.featureIcon {
-  width: 80px;
-  height: 80px;
-  display: block;
-  margin: 0 auto;
-  animation: float 3s ease-in-out infinite;
-  filter: drop-shadow(0 4px 8px rgba(102, 102, 255, 0.2));
-  transition: all 0.3s ease;
-  position: relative;
-  z-index: 1;
-}
-
-.featureCard:hover .featureIcon {
-  transform: scale(1.1);
-  filter: drop-shadow(0 6px 12px rgba(102, 102, 255, 0.3));
-}
-
-/* Floating animation */
-@keyframes float {
-  0%, 100% {
-    transform: translateY(0) rotate(0deg);
-  }
-  25% {
-    transform: translateY(-10px) rotate(2deg);
-  }
-  50% {
-    transform: translateY(-15px) rotate(0deg);
-  }
-  75% {
-    transform: translateY(-10px) rotate(-2deg);
-  }
-}
-
-.featureContent {
-  position: relative;
-  z-index: 1;
-}
-
-.featureTitle {
-  font-size: 1.4rem;
-  font-weight: 700;
+.featureEmoji {
+  font-size: 4rem;
   margin-bottom: 1rem;
-  color: var(--ifm-color-content);
-  background: var(--primary-gradient);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  animation: bounce 2s infinite;
 }
 
-.featureDescription {
-  font-size: 1rem;
-  line-height: 1.6;
-  color: var(--ifm-color-content-secondary);
-  margin: 0;
-  font-weight: 400;
-}
-
-/* Responsive design */
-@media (max-width: 996px) {
-  .features {
-    padding: 3rem 0;
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
   }
-  
-  .featureCard {
-    margin: 0.5rem;
-    padding: 2rem 1rem;
+  40% {
+    transform: translateY(-10px);
   }
-  
-  .featureIcon {
-    width: 60px;
-    height: 60px;
-  }
-  
-  .featureTitle {
-    font-size: 1.2rem;
-  }
-  
-  .featureDescription {
-    font-size: 0.9rem;
-  }
-}
-
-@media (max-width: 768px) {
-  .features {
-    padding: 2rem 0;
-  }
-  
-  .featureCard {
-    margin: 0.5rem 0;
-    padding: 1.5rem 1rem;
-  }
-  
-  .featureIcon {
-    width: 50px;
-    height: 50px;
-  }
-  
-  .featureTitle {
-    font-size: 1.1rem;
+  60% {
+    transform: translateY(-5px);
   }
 }

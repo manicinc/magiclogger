@@ -166,7 +166,9 @@ export class TransportManager extends EventEmitter {
 
     // Set up error handling
     if (transport.on) {
-      transport.on('error', (error: Error, entry?: LogEntry) => {
+      transport.on('error', (...args: unknown[]) => {
+        const error = args[0] as Error;
+        const entry = args[1] as LogEntry | undefined;
         this.handleTransportError(transport, error, entry);
       });
     }
@@ -299,7 +301,7 @@ export class TransportManager extends EventEmitter {
 
         // Attempt to log
         await this.withTimeout(
-          meta.transport.log(entry),
+          Promise.resolve(meta.transport.log(entry)),
           this.defaultTimeout
         );
 
@@ -342,7 +344,7 @@ export class TransportManager extends EventEmitter {
     const results = await Promise.allSettled(
       applicableTransports.map(meta =>
         this.withTimeout(
-          meta.transport.log(entry),
+          Promise.resolve(meta.transport.log(entry)),
           this.defaultTimeout
         ).then(() => meta.transport.name)
       )
@@ -623,9 +625,12 @@ export class TransportManager extends EventEmitter {
 
     // Close all transports
     const closePromises = Array.from(this.transports.values()).map(
-      meta => meta.transport.close().catch(error => {
-        console.error(`Error closing transport '${meta.transport.name}':`, error);
-      })
+      meta => {
+        const closeResult = meta.transport.close();
+        return Promise.resolve(closeResult).catch((error: unknown) => {
+          console.error(`Error closing transport '${meta.transport.name}':`, error);
+        });
+      }
     );
 
     await Promise.all(closePromises);

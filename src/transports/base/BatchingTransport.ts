@@ -5,6 +5,7 @@ import type {
   TransportOptions,
   BatchingOptions,
   LogEntry,
+  TransportStats,
 } from '../../types/transport';
 
 /**
@@ -189,7 +190,14 @@ export abstract class BatchingTransport extends Transport {
     try {
       // Send immediately if configured
       if (this.immediate) {
-        await this.sendBatch([entry]);
+        const batch: LogBatch = {
+          id: this.generateId(),
+          entries: [entry],
+          createdAt: Date.now(),
+          sizeBytes: JSON.stringify(entry).length,
+          retryCount: 0
+        };
+        await this.sendBatch([entry], batch);
         return;
       }
 

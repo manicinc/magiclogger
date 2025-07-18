@@ -1,87 +1,9 @@
 // File: src/transports/implementations/FileTransport.ts
 
-import { Transport } from '../base/Transport';
-import { FileManager } from '../../core/FileManager';
-import type { TransportOptions, LogEntry } from '../../types/transport';
+import { Transport } from '../Transport';
+import { FileManager } from '../../../core/FileManager';
+import type { TransportOptions, LogEntry, TransportStats, FileTransportOptions } from '../../../types/transport';
 import * as path from 'path';
-
-/**
- * File transport specific options.
- * Extends base transport options with file-specific configuration.
- */
-export interface FileTransportOptions extends TransportOptions {
-  /**
-   * Path to the log file or directory.
-   * If a directory is provided, files will be created with timestamps.
-   */
-  filepath: string;
-
-  /**
-   * Whether filepath points to a directory (true) or specific file (false).
-   * @default true
-   */
-  isDirectory?: boolean;
-
-  /**
-   * Maximum file size in bytes before rotation.
-   * @default 10485760 (10MB)
-   */
-  maxFileSize?: number;
-
-  /**
-   * Maximum number of backup files to keep.
-   * @default 5
-   */
-  maxFiles?: number;
-
-  /**
-   * Whether to compress rotated files.
-   * @default false
-   */
-  compress?: boolean;
-
-  /**
-   * File rotation strategy.
-   * @default 'size'
-   */
-  rotation?: 'size' | 'daily' | 'hourly' | 'none';
-
-  /**
-   * Whether to append to existing file or create new.
-   * @default true
-   */
-  append?: boolean;
-
-  /**
-   * File encoding.
-   * @default 'utf8'
-   */
-  encoding?: BufferEncoding;
-
-  /**
-   * Whether to include timestamp in each log line.
-   * @default true
-   */
-  includeTimestamp?: boolean;
-
-  /**
-   * Whether to create directory if it doesn't exist.
-   * @default true
-   */
-  createDir?: boolean;
-
-  /**
-   * Log retention in days (for directory mode).
-   * @default 30
-   */
-  retentionDays?: number;
-
-  /**
-   * Line ending character.
-   * @default '\n'
-   */
-  eol?: string;
-}
 
 /**
  * Transport that writes logs to files with rotation and management.
@@ -222,7 +144,7 @@ export class FileTransport extends Transport {
     // Initialize file manager if using directory mode
     if (this.isDirectory) {
       this.fileManager = new FileManager(this.filepath, this.retentionDays);
-      this.currentFile = await this.fileManager.initLogFile();
+      this.currentFile = (await this.fileManager.initLogFile()) || undefined;
     } else {
       // Ensure directory exists
       await this.ensureDirectory(path.dirname(this.filepath));
@@ -486,7 +408,7 @@ export class FileTransport extends Transport {
 
     if (this.isDirectory && this.fileManager) {
       // Create new file with timestamp
-      this.currentFile = await this.fileManager.initLogFile();
+      this.currentFile = (await this.fileManager.initLogFile()) || undefined;
     } else if (this.currentFile) {
       // Rotate single file
       const dir = path.dirname(this.currentFile);
@@ -633,7 +555,7 @@ export class FileTransport extends Transport {
     
     return new Promise((resolve, reject) => {
       this.fs.mkdir(dir, { recursive: true }, (err: Error) => {
-        if (err && err.code !== 'EEXIST') reject(err);
+        if (err && (err as NodeJS.ErrnoException).code !== 'EEXIST') reject(err);
         else resolve();
       });
     });
@@ -668,7 +590,7 @@ export class FileTransport extends Transport {
   private async deleteFile(filepath: string): Promise<void> {
     return new Promise((resolve, reject) => {
       this.fs.unlink(filepath, (err: Error) => {
-        if (err && err.code !== 'ENOENT') reject(err);
+        if (err && (err as NodeJS.ErrnoException).code !== 'ENOENT') reject(err);
         else resolve();
       });
     });

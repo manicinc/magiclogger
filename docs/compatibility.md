@@ -1,9 +1,10 @@
 # Drop-in Compatibility Guide
 
-Magiclogger provides seamless compatibility with existing logging libraries and patterns, allowing you to enhance your logging experience without changing your codebase.
+MagicLogger provides seamless compatibility with existing logging libraries and patterns, allowing you to enhance your logging experience without changing your codebase. All compatibility layers automatically convert simple string logs to structured data for powerful analysis.
 
 ## Table of Contents
 
+- [The Magic: Simple to Structured](#the-magic-simple-to-structured)
 - [Console Enhancement](#console-enhancement)
 - [Base Compatibility Layer](#base-compatibility-layer)
 - [Winston Compatibility](#winston-compatibility)
@@ -11,422 +12,529 @@ Magiclogger provides seamless compatibility with existing logging libraries and 
 - [Pino Compatibility](#pino-compatibility)
 - [Creating Your Own Adapter](#creating-your-own-adapter)
 - [Terminal Compatibility](#terminal-compatibility)
+- [Transport Integration](#transport-integration)
+
+## The Magic: Simple to Structured
+
+One of MagicLogger's most powerful features is **automatic conversion of simple logs to structured data**. This happens transparently across all compatibility layers:
+
+```javascript
+// You write simple logs...
+logger.info('User logged in');
+
+// But transports receive rich structured data:
+{
+  id: 'log-1642329600000-abc123',
+  timestamp: '2024-01-15T10:30:45.123Z',
+  timestampMs: 1642329600000,
+  level: 'info',
+  message: 'User logged in',
+  plainMessage: 'User logged in',
+  loggerId: 'my-app',
+  tags: ['production', 'api'],
+  context: { version: '1.0.0', region: 'us-east-1' },
+  metadata: { hostname: 'server-01', pid: 1234 }
+}
+```
+
+This means you can:
+- Keep your existing simple logging code
+- Get powerful structured logging for free
+- Query and analyze logs in your aggregation system
+- Add context and metadata when needed
+
+### Examples with Color and Style
+
+```javascript
+import { enhanceConsole } from 'magiclogger';
+
+// Enhance console with colors and structured logging
+const { logger } = enhanceConsole({ useColors: true });
+
+// Simple colored logs
+console.log('Application started'); // Default style
+console.success('Database connected'); // Green
+console.warn('Cache miss'); // Yellow
+console.error('Connection failed'); // Red
+
+// Styled logs with automatic structure
+const highlight = console.colorize('yellow', 'bold');
+const code = console.colorize('cyan');
+
+console.log(`Run ${code('npm start')} to begin`);
+console.log(`Found ${highlight('3 critical')} issues`);
+
+// Even styled logs become structured data:
+// {
+//   message: 'Run npm start to begin',
+//   plainMessage: 'Run npm start to begin', // Without ANSI codes
+//   level: 'info',
+//   ...
+// }
+```
 
 ## Console Enhancement
 
-Magiclogger can enhance the global `console` object with all its advanced features while maintaining backward compatibility with existing code.
+Enhance the global `console` object with colors, styling, and automatic structured logging:
 
 ### Basic Usage
 
-```typescript
+```javascript
 import { enhanceConsole } from 'magiclogger';
 
-// Enhance the console object
+// Enhance console with full MagicLogger features
 const { logger, restoreConsole } = enhanceConsole({
   verbose: true,
-  writeToDisk: true
+  id: 'web-app',
+  tags: ['frontend'],
+  context: { version: '2.0.0' }
 });
 
-// Your existing console.log calls now have enhanced formatting
-console.log('This message has enhanced styling');
-console.error('Error messages are more prominent');
+// Your existing console calls now have superpowers
+console.log('Starting application...'); // Styled + structured
+console.error('Failed to load config'); // Red + structured
+console.warn('Using default settings'); // Yellow + structured
 
-// New methods are available on the console object
-console.header('APPLICATION STATUS');
-console.success('Database connected successfully');
-console.progress(75); // Show a progress bar
-
-// You can access the logger instance directly for advanced features
-logger.table([
-  { service: 'API', status: 'online', uptime: '24h' },
-  { service: 'Database', status: 'degraded', latency: '250ms' }
-]);
-
-// Restore the original console if needed
-restoreConsole();
+// New colorful methods
+console.success('✓ All systems operational'); // Green
+console.header('SYSTEM STATUS'); // Bold header
+console.progress(75); // Progress bar
 ```
 
 ### Enhanced Console Methods
 
-When you enhance the console object, it gains the following new methods:
+| Method | Description | Example |
+|--------|-------------|---------|
+| `console.header(title, colors?)` | Styled section headers | `console.header('API STATUS', ['white', 'bgBlue'])` |
+| `console.success(message)` | Green success messages | `console.success('✓ Tests passed')` |
+| `console.progress(value)` | Visual progress bars | `console.progress(80)` |
+| `console.colorize(...colors)` | Create color functions | `const red = console.colorize('red', 'bold')` |
+| `console.colorParts(msg, parts)` | Color specific words | See examples below |
 
-| Method | Description |
-|--------|-------------|
-| `console.header(title, colors?)` | Prints a formatted header |
-| `console.success(message)` | Logs a success message |
-| `console.progress(value, length?, chars?)` | Displays a progress bar |
-| `console.colorize(...colors)` | Returns a function to colorize text |
-| `console.colorParts(message, parts)` | Colorizes specific parts of text |
-| `console.custom(message, colors?, prefix?)` | Logs with custom styling |
-| `console.styled(message, preset)` | Logs with a preset style |
+### Colorful Examples
 
-### Notes on Compatibility
+```javascript
+// Color specific parts of messages
+console.log(
+  console.colorParts('Processing file: data.json (1.2MB) - Status: OK', {
+    'data.json': ['yellow', 'underline'],
+    '1.2MB': ['cyan'],
+    'OK': ['green', 'bold']
+  })
+);
 
-- All existing console methods remain backward compatible
-- The enhancement is non-destructive and can be reversed
-- The enhanced console maintains all existing behavior of console.log, console.error, etc.
-- Works with existing code without modifications
+// Create reusable styles
+const user = console.colorize('cyan', 'bold');
+const action = console.colorize('magenta');
+const time = console.colorize('gray');
+
+console.log(`${user('admin')} ${action('deleted')} file at ${time('10:30:45')}`);
+
+// Tables with colors
+console.table([
+  { service: 'API', status: '🟢 healthy', uptime: '99.9%' },
+  { service: 'Database', status: '🟡 degraded', uptime: '95.2%' },
+  { service: 'Cache', status: '🟢 healthy', uptime: '99.8%' }
+]);
+```
+
+### With Transports
+
+```javascript
+import { enhanceConsole, HTTPTransport, FileTransport } from 'magiclogger';
+
+// Enhanced console with transports
+const { logger } = enhanceConsole({
+  transports: [
+    new ConsoleTransport({ useColors: true }),
+    new FileTransport({ filepath: './app.log' }),
+    new HTTPTransport({ url: 'https://logs.example.com' })
+  ]
+});
+
+// All console methods send to all transports
+console.log('User action'); // Goes to console, file, and HTTP
+console.error('Critical error', new Error('Database down')); // Structured error data
+```
 
 ## Base Compatibility Layer
 
-Magiclogger includes a robust base compatibility layer that allows for consistent implementation of various logging library adapters. This foundation ensures that all compatibility layers share common functionality while allowing for library-specific customizations.
+The foundation for all compatibility adapters, providing consistent behavior and automatic structured logging:
 
 ### BaseCompatibleLogger
 
-The `BaseCompatibleLogger` abstract class provides:
+```javascript
+import { BaseCompatibleLogger, Logger } from 'magiclogger';
 
-- Standard logging methods with consistent behavior
-- Support for different parameter patterns (string-only, object+message, etc.)
-- Unified access to Magiclogger's advanced features
-- Consistent error handling and type safety
-
-```typescript
-import { BaseCompatibleLogger, createCompatibleLogger } from 'magiclogger';
-
-// Use the factory function to create a base compatible logger
-const baseLogger = createCompatibleLogger({ verbose: true });
-
-// Or extend it for custom implementations
 class CustomLogger extends BaseCompatibleLogger {
   constructor(options) {
     super(options);
   }
   
-  // Override or add custom methods
-  customLevel(message: string): void {
-    this.logger.custom(message, ['magenta'], 'CUSTOM');
+  // Your simple API
+  notice(message) {
+    // Automatically becomes structured data
+    this.logger.custom(message, ['blue', 'bold'], 'NOTICE');
+  }
+  
+  // Support for metadata
+  audit(action, details) {
+    // Simple call...
+    this.logger.info(`Audit: ${action}`, details);
+    // Becomes rich structured log with context
   }
 }
+
+// Usage
+const logger = new CustomLogger({
+  id: 'audit-service',
+  tags: ['audit', 'compliance'],
+  context: { service: 'user-management' }
+});
+
+logger.audit('USER_DELETED', { userId: '123', deletedBy: 'admin' });
 ```
-
-### Core Architecture
-
-The base compatibility architecture consists of:
-
-1. **BaseCompatibleLogger** - Abstract class that wraps a Logger instance
-2. **LogCompatibilityOptions** - Configuration interface for all adapters
-3. **createCompatibleLogger** - Factory function for creating compatibility instances
-
-This architecture ensures that all compatibility layers:
-- Maintain consistent behavior
-- Share implementation patterns
-- Provide unified access to advanced features
-- Handle edge cases consistently
 
 ## Winston Compatibility
 
-Magiclogger provides a Winston-compatible interface that enhances the visual output while maintaining API compatibility.
+Drop-in Winston replacement with colors and automatic structured logging:
 
 ### Setup
 
-```typescript
+```javascript
 import { createWinstonCompatible } from 'magiclogger';
 
-// Create a Winston-compatible logger
 const logger = createWinstonCompatible({
-  verbose: true,
-  writeToDisk: true
+  level: 'debug',
+  transports: [
+    new ConsoleTransport({ useColors: true }),
+    new FileTransport({ filepath: './app.log' })
+  ]
 });
 
-// Use like a Winston logger
-logger.info('Server starting up');
-logger.warn('Connection pool is nearing capacity');
-logger.error('Failed to connect to database', { attempt: 3 });
-
-// Access Magiclogger features
-logger.header('SERVER STATUS');
-logger.table([
-  /* ... */
-]);
+// Use exactly like Winston
+logger.info('Server started on port 3000');
+logger.warn('Deprecation warning: Use v2 API');
+logger.error('Database connection failed', { error: 'ECONNREFUSED' });
 ```
 
-### Supported Winston Methods
+### Colorful Winston Features
 
-| Winston Method | Magiclogger Implementation |
-|----------------|----------------------------|
-| `logger.log(level, msg)` | Supports all standard log levels |
-| `logger.info(msg)` | Enhanced with Magiclogger styling |
-| `logger.warn(msg)` | Enhanced with Magiclogger styling |
-| `logger.error(msg)` | Enhanced with Magiclogger styling |
-| `logger.debug(msg)` | Enhanced with Magiclogger styling |
-| `logger.verbose(msg)` | Maps to `logger.debug()` |
+```javascript
+// Winston API with MagicLogger enhancements
+logger.info('🚀 Application started');
+logger.warn('⚠️  High memory usage detected');
+logger.error('❌ Critical error occurred');
 
-### Additional Features
+// Access MagicLogger's color features
+logger.header('DEPLOYMENT STATUS');
+logger.success('✓ All services healthy');
 
-The Winston-compatible logger also includes all Magiclogger advanced features:
+// Use color functions
+const highlight = logger.colorize('yellow', 'bold');
+logger.info(`Found ${highlight('5 warnings')} during startup`);
 
-- `logger.header()` - Print section headers
-- `logger.table()` - Format tabular data
-- `logger.progress()` - Display progress bars
-- `logger.colorize()` - Create color functions
-- `logger.colorParts()` - Colorize parts of messages
-- `logger.styled()` - Use preset styles
-- `logger.custom()` - Create custom-styled messages
-- `logger.magicLogger` - Access the underlying Magiclogger instance
+// Structured data with colors
+logger.info(
+  logger.colorParts('User john_doe performed action: DELETE', {
+    'john_doe': ['cyan', 'bold'],
+    'DELETE': ['red', 'bold']
+  }),
+  { userId: '123', timestamp: Date.now() }
+);
+```
+
+### Winston Methods Support
+
+| Winston Method | MagicLogger Enhancement |
+|----------------|------------------------|
+| `logger.log(level, msg, meta?)` | ✅ Full support + colors + structured data |
+| `logger.info/warn/error/debug()` | ✅ Enhanced with styling |
+| `logger.verbose()` | ✅ Maps to debug with styling |
+| Transport system | ✅ Use MagicLogger transports |
 
 ## Bunyan Compatibility
 
-Magiclogger provides a Bunyan-compatible interface for easy migration from Bunyan.
+Bunyan-compatible interface with automatic object serialization and colors:
 
 ### Setup
 
-```typescript
+```javascript
 import { createBunyanCompatible } from 'magiclogger';
 
-// Create a Bunyan-compatible logger
 const logger = createBunyanCompatible({
   name: 'my-app',
-  verbose: true,
-  writeToDisk: true
+  streams: [
+    { type: 'console', level: 'debug' },
+    { type: 'file', path: './app.log' }
+  ]
 });
 
-// Use like a Bunyan logger
+// Bunyan-style logging
 logger.info('Application started');
-logger.warn('Resource limit approaching');
-logger.error({ err: new Error('Connection refused') }, 'Database error');
-
-// Access Magiclogger features
-logger.header('APPLICATION METRICS');
+logger.info({ user: 'john' }, 'User logged in');
+logger.error({ err: new Error('Oops') }, 'Operation failed');
 ```
 
-### Supported Bunyan Methods
+### Bunyan with Colors
 
-| Bunyan Method | Magiclogger Implementation |
-|---------------|----------------------------|
-| `logger.info(obj, msg?)` | Supports both object and string formats |
-| `logger.warn(obj, msg?)` | Enhanced with Magiclogger styling |
-| `logger.error(obj, msg?)` | Enhanced with Magiclogger styling |
-| `logger.debug(obj, msg?)` | Enhanced with Magiclogger styling |
-| `logger.trace(obj, msg?)` | Maps to `logger.debug()` with 'TRACE:' prefix |
-| `logger.fatal(obj, msg?)` | Maps to `logger.error()` with 'FATAL:' prefix |
+```javascript
+// Object-first logging with colors
+logger.info({ 
+  action: 'deployment',
+  version: '2.0.0',
+  environment: 'production'
+}, logger.colorParts('Deploying to production', {
+  'production': ['red', 'bold']
+}));
 
-### Object Serialization
+// Error logging with structure
+try {
+  await riskyOperation();
+} catch (err) {
+  logger.error({ 
+    err,
+    operation: 'riskyOperation',
+    attemptNumber: 3
+  }, '❌ Operation failed after 3 attempts');
+}
 
-Like Bunyan, the compatible logger properly handles both strings and objects:
-
-```typescript
-// Log an object
-logger.info({ user: 'john', action: 'login' });
-
-// Log an object with a message
-logger.error({ code: 500, path: '/api/users' }, 'Server error');
+// Styled sections
+logger.header('SERVICE HEALTH CHECK');
+logger.info({ service: 'api', status: 'healthy' }, '✅ API healthy');
+logger.warn({ service: 'db', latency: 250 }, '⚠️  Database slow');
 ```
 
 ## Pino Compatibility
 
-Magiclogger provides a Pino-compatible interface to enhance the visual output while maintaining API compatibility with Pino.
+Pino-compatible logger with high-performance structured logging:
 
 ### Setup
 
-```typescript
+```javascript
 import { createPinoCompatible } from 'magiclogger';
 
-// Create a Pino-compatible logger
 const logger = createPinoCompatible({
-  verbose: true,
-  writeToDisk: true
+  level: 'debug',
+  transport: {
+    targets: [
+      { target: 'console', options: { useColors: true } },
+      { target: 'file', options: { destination: './app.log' } }
+    ]
+  }
 });
 
-// Use like a Pino logger
+// Pino-style usage
 logger.info('Server listening on port 3000');
-logger.warn('High memory usage detected');
-logger.error('Request failed with status code %d', 500);
-
-// Access Magiclogger features
-logger.header('REQUEST METRICS');
+logger.error({ err: error }, 'Request failed');
 ```
 
-### Supported Pino Methods
+### Pino with Style
 
-| Pino Method | Magiclogger Implementation |
-|-------------|----------------------------|
-| `logger.info(msgOrObj, msgStr?)` | Supports both formats |
-| `logger.warn(msgOrObj, msgStr?)` | Enhanced with Magiclogger styling |
-| `logger.error(msgOrObj, msgStr?)` | Enhanced with Magiclogger styling |
-| `logger.debug(msgOrObj, msgStr?)` | Enhanced with Magiclogger styling |
-| `logger.trace(msgOrObj, msgStr?)` | Maps to `logger.debug()` with 'TRACE:' prefix |
-| `logger.fatal(msgOrObj, msgStr?)` | Maps to `logger.error()` with 'FATAL:' prefix |
+```javascript
+// Pino API with colors
+logger.info('🚀 Starting microservice');
+logger.debug({ cache: 'hit', key: 'user:123' }, '✓ Cache hit');
+
+// Child loggers with context
+const reqLogger = logger.child({ requestId: '123' });
+reqLogger.info('Processing request');
+reqLogger.error('Request failed');
+
+// Performance logging with style
+const start = Date.now();
+// ... operation ...
+logger.info({ 
+  duration: Date.now() - start,
+  operation: 'dbQuery'
+}, logger.colorParts('Database query completed in 45ms', {
+  '45ms': ['green', 'bold']
+}));
+```
 
 ## Creating Your Own Adapter
 
-Magiclogger's architecture makes it easy to create custom adapters for any logging library. Below are step-by-step instructions for implementing your own compatibility layer.
+Build custom adapters that automatically provide structured logging:
 
-### Option 1: Extend BaseCompatibleLogger
+### Simple Adapter Example
 
-For full control and type safety, extend the `BaseCompatibleLogger` abstract class:
+```javascript
+import { BaseCompatibleLogger } from 'magiclogger';
 
-```typescript
-import { BaseCompatibleLogger, LoggerOptions } from 'magiclogger';
-
-// Custom options if needed
-interface CustomLoggerOptions extends LoggerOptions {
-  appName?: string;
-}
-
-// Create your custom adapter class
-export class CustomLoggerAdapter extends BaseCompatibleLogger {
-  private appName: string;
-  
-  constructor(options?: CustomLoggerOptions) {
-    // Pass options to the base class
-    super(options);
-    this.appName = options?.appName || 'app';
+export class GameLogger extends BaseCompatibleLogger {
+  constructor(options) {
+    super({
+      ...options,
+      tags: ['game', ...(options.tags || [])]
+    });
   }
   
-  // Implement the log method required by the abstract class
-  log(level: string, message: string): void {
-    switch (level) {
-      case 'info':
-        this.logger.log(message);
-        break;
-      case 'warn':
-        this.logger.warn(message);
-        break;
-      case 'error':
-        this.logger.error(message);
-        break;
-      default:
-        this.logger.custom(message, ['white'], level.toUpperCase());
-    }
+  // Game-specific methods
+  achievement(player, achievement) {
+    const icon = logger.color('yellow')('🏆');
+    this.logger.success(`${icon} ${player} unlocked: ${achievement}`, {
+      player,
+      achievement,
+      timestamp: Date.now()
+    });
   }
   
-  // Add custom methods for your specific library
-  logWithContext(context: Record<string, any>, message: string): void {
-    const contextStr = JSON.stringify(context);
-    this.logger.log(`[${this.appName}] ${message} ${contextStr}`);
+  damage(attacker, target, amount) {
+    const dmg = this.logger.color('red', 'bold')(amount);
+    this.logger.info(
+      `${attacker} dealt ${dmg} damage to ${target}`,
+      { attacker, target, amount, type: 'combat' }
+    );
   }
   
-  // Add methods that match your target library's API
-  // Example: For a library with emergency() method
-  emergency(message: string): void {
-    this.logger.custom(message, ['red', 'bold'], 'EMERGENCY');
+  levelUp(player, newLevel) {
+    this.logger.header(`LEVEL UP!`, ['yellow', 'bgBlue', 'bold']);
+    this.logger.success(`${player} reached level ${newLevel}!`, {
+      player,
+      level: newLevel,
+      event: 'level_up'
+    });
   }
 }
 
-// Optional factory function
-export function createCustomLogger(options?: CustomLoggerOptions) {
-  return new CustomLoggerAdapter(options);
-}
+// Usage
+const gameLog = new GameLogger({ 
+  id: 'game-server',
+  context: { server: 'us-west-1' }
+});
+
+gameLog.achievement('Player1', 'Dragon Slayer');
+gameLog.damage('Wizard', 'Goblin', 45);
+gameLog.levelUp('Player1', 10);
 ```
 
-### Option 2: Use the Factory Function
+### Advanced Custom Adapter
 
-For simpler adapters, use the `createCompatibleLogger` factory function:
+```javascript
+import { Logger, ConsoleTransport, S3Transport } from 'magiclogger';
 
-```typescript
-import { createCompatibleLogger, LoggerOptions } from 'magiclogger';
-
-// Custom options if needed
-interface CustomLoggerOptions extends LoggerOptions {
-  system?: string;
-}
-
-// Create a factory function for your adapter
-export function createCustomLogger(options?: CustomLoggerOptions) {
-  // Create a base compatible logger
-  const baseLogger = createCompatibleLogger(options);
-  const system = options?.system || 'default';
+export class MetricsLogger {
+  constructor(options = {}) {
+    this.logger = new Logger({
+      id: options.service || 'metrics',
+      tags: ['metrics', options.environment],
+      context: {
+        service: options.service,
+        version: options.version,
+        hostname: os.hostname()
+      },
+      transports: [
+        new ConsoleTransport({ 
+          useColors: true,
+          formatter: this.createFormatter()
+        }),
+        new S3Transport({
+          bucket: 'metrics-logs',
+          compress: true
+        })
+      ]
+    });
+  }
   
-  // Extend it with custom methods
-  return {
-    ...baseLogger,
+  createFormatter() {
+    return (entry) => {
+      const metric = entry.context?.metric;
+      if (metric) {
+        const value = this.logger.color('cyan', 'bold')(metric.value);
+        const unit = this.logger.color('gray')(metric.unit);
+        return `[METRIC] ${metric.name}: ${value}${unit}`;
+      }
+      return entry.message;
+    };
+  }
+  
+  metric(name, value, unit = '', tags = {}) {
+    this.logger.info(`Metric: ${name}`, {
+      metric: { name, value, unit },
+      tags,
+      timestamp: Date.now()
+    });
+  }
+  
+  gauge(name, value, unit) {
+    const arrow = value > 0 ? '↑' : '↓';
+    const color = value > 0 ? 'green' : 'red';
+    const styled = this.logger.color(color)(arrow);
     
-    // Add custom methods
-    report(category: string, message: string): void {
-      baseLogger.logger.custom(`[${system}] [${category}] ${message}`, ['cyan']);
-    },
-    
-    // Override base methods if needed
-    info(message: string): void {
-      baseLogger.logger.log(`[${system}] ${message}`);
-    }
-  };
+    this.metric(name, `${value} ${styled}`, unit);
+  }
 }
 ```
-
-### Required Implementation Details
-
-When creating a custom adapter, ensure:
-
-1. **Base Logger Access** - Always provide access to the underlying `magicLogger` instance
-2. **Method Parameter Patterns** - Support the parameter patterns of your target library (string-only, object+message, etc.)
-3. **Consistent Error Handling** - Handle edge cases like null/undefined messages consistently
-4. **Style Preservation** - Maintain Magiclogger's styling capabilities
-
-### Implementation Best Practices
-
-Follow these best practices when implementing custom adapters:
-
-- **Type Safety** - Use TypeScript interfaces to ensure parameter type compatibility
-- **Error Handling** - Add robust error handling for all edge cases
-- **Documentation** - Document parameter patterns and return values clearly
-- **Feature Parity** - Support all essential features of the target library
-- **Serialization** - Properly serialize objects with JSON.stringify but handle circular references
-- **Feature Discovery** - Make advanced Magiclogger features discoverable to users
 
 ## Terminal Compatibility
 
-Magiclogger includes intelligent terminal detection to ensure compatibility across different terminal environments.
+MagicLogger automatically detects terminal capabilities and adjusts colors:
 
-### Terminal Feature Detection
+```javascript
+import { getTerminalSupport, Logger } from 'magiclogger';
 
-The logger automatically detects terminal capabilities and adjusts its styling accordingly:
-
-```typescript
-import { getTerminalSupport } from 'magiclogger';
-
-// Check terminal capabilities
 const support = getTerminalSupport();
-console.log('Terminal support:', support);
+console.log('Terminal capabilities:', support);
 
-// Example output:
-// {
-//   basic: true,
-//   colors: true,
-//   brightColors: true,
-//   rgb: true,
-//   styles: {
-//     bold: true,
-//     italic: false,
-//     underline: true,
-//     ...
-//   },
-//   features: {
-//     hyperlinks: true,
-//     ...
-//   }
-// }
+// Logger automatically adapts
+const logger = new Logger();
+
+if (support.rgb) {
+  // Use RGB colors
+  logger.info(logger.color(255, 128, 0)('Orange text with RGB'));
+} else if (support.colors) {
+  // Fall back to basic colors
+  logger.info(logger.color('yellow')('Yellow text'));
+} else {
+  // No colors
+  logger.info('Plain text');
+}
 ```
 
-### Supported Terminals
+## Transport Integration
 
-Magiclogger has been tested and optimized for:
+All compatibility layers work seamlessly with MagicLogger's transport system:
 
-- VS Code integrated terminal
-- iTerm2
-- Windows Terminal
-- cmd.exe
-- PowerShell
-- Hyper
-- GNOME Terminal
-- Konsole
-- xterm
-- Terminal.app (macOS)
-- ConEmu
-- Git Bash
-- WSL terminals
+```javascript
+import { 
+  createWinstonCompatible,
+  ConsoleTransport,
+  FileTransport,
+  HTTPTransport,
+  MongoDBTransport
+} from 'magiclogger';
 
-### Style Fallbacks
+// Any compatibility layer can use any transport
+const logger = createWinstonCompatible({
+  transports: [
+    // Colorful console output
+    new ConsoleTransport({ 
+      useColors: true,
+      level: 'debug'
+    }),
+    
+    // Structured JSON to file
+    new FileTransport({
+      filepath: './logs/app.log',
+      formatter: 'json'
+    }),
+    
+    // Send to HTTP endpoint
+    new HTTPTransport({
+      url: 'https://logs.example.com',
+      batch: true
+    }),
+    
+    // Store in MongoDB
+    new MongoDBTransport({
+      url: 'mongodb://localhost:27017',
+      database: 'logs',
+      collection: 'app_logs'
+    })
+  ]
+});
 
-When a terminal doesn't support specific styles, Magiclogger automatically applies appropriate fallbacks:
+// Simple Winston-style logging...
+logger.info('User logged in');
 
-| Unsupported Style | Fallback |
-|-------------------|----------|
-| italic | dim or normal text |
-| strikethrough | dim or normal text |
-| blink | bold |
-| dim | gray color |
-| hidden | dim or normal text |
-| doubleUnderline | regular underline |
-
-This ensures consistent, attractive output across all terminal environments without manual configuration.
+// ...automatically becomes structured data in all transports!
