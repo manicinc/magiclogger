@@ -1,0 +1,712 @@
+// File: tests/unit/transports/base/Transport.test.ts
+
+import { Transport } from '../../../../src/transports/base/Transport';
+import { EventEmitter } from 'events';
+import type { LogEntry, TransportOptions, LogLevel } from '../../../../src/types/transport';
+
+/**
+ * Concrete implementation of Transport for testing
+ */
+class TestTransport extends Transport {
+  public initCalls = 0;
+  public logCalls: LogEntry[] = [];
+  public batchCalls: LogEntry[][] = [];
+  public closeCalls = 0;
+  public flushCalls = 0;
+
+  protected async doInit(): Promise<void> {
+    this.initCalls++;
+  }
+
+  protected async doLog(entry: LogEntry): Promise<void> {
+    this.logCalls.push(entry);
+  }
+
+  protected async doLogBatch(entries: LogEntry[]): Promise<void> {
+    this.batchCalls.push(entries);
+  }
+
+  protected async doClose(): Promise<void> {
+    this.closeCalls++;
+  }
+
+  public async flush(): Promise<void> {
+    this.flushCalls++;
+    return super.flush();
+  }
+
+  // Expose protected methods for testing
+  public testShouldLog(entry: LogEntry): boolean {
+    return this.shouldLog(entry);
+  }
+
+  public testIsLevelEnabled(level: LogLevel): boolean {
+    return this.isLevelEnabled(level);
+  }
+
+  public testFormatEntry(entry: LogEntry): string | Buffer {
+    return this.formatEntry(entry);
+  }
+
+  public testHandleError(error: Error, entry?: LogEntry): void {
+    this.handleError(error, entry);
+  }
+
+  public testWithTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+    return this.withTimeout(promise, ms);
+  }
+
+  public testGenerateId(): string {
+    return this.generateId();
+  }
+}
+
+/**
+ * Comprehensive test suite for Transport abstract base class.
+ * 
+ * Tests lifecycle, filtering, formatting, error handling, and statistics.
+ */
+describe('Transport', () => {
+  let transport: TestTransport;
+  let mockEntry: LogEntry;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    
+    transport = new TestTransport({
+      name: 'test-transport',
+      level: 'info',
+      enabled: true
+    });
+
+    mockEntry = {
+      id: 'test-123',
+      timestamp: new Date().toISOString(),
+      timestampMs: Date.now(),
+      level: 'info',
+      message: 'Test message',
+      plainMessage: 'Test message',
+      loggerId: 'test-logger',
+      tags: ['test'],
+      context: { test: true }
+    };
+  });
+
+  describe('constructor', () => {
+    it('should initialize with required options', () => {
+      const t = new TestTransport({ name: 'test' });
+      
+      expect(t.name).toBe('test');
+      expect(t.enabled).toBe(true); // Default
+      expect(t instanceof EventEmitter).toBe(true);
+    });
+
+    it('should initialize with all options', () => {
+      const options: TransportOptions = {
+        name: 'full-test',
+        enabled: false,
+        level: 'debug',
+        levels: ['error', 'warn'],
+        tags: ['production'],
+        excludeTags: ['debug'],
+        filter: (entry) => entry.level === 'error',
+        silent: false,
+        timeout: 5000,
+        format: 'plain',
+        formatter: (entry) => `Custom: ${entry.message}`
+      };
+      
+      const t = new TestTransport(options);
+      
+      expect(t.name).toBe('full-test');
+      expect(t.enabled).toBe(false);
+    });
+
+    it('should throw error if name is missing', () => {
+      expect(() => new TestTransport({} as TransportOptions))
+        .toThrow('Transport name is required');
+    });
+
+    it('should set default values', () => {
+      const t = new TestTransport({ name: 'defaults' });
+      
+      expect(t.enabled).toBe(true);
+      // Internal properties would need to be exposed or tested through behavior
+    });
+
+    it('should set max listeners to prevent warnings', () => {
+      const t = new TestTransport({ name: 'test' });
+      expect(t.getMaxListeners()).toBe(20);
+    });
+  });
+
+  describe('init', () => {
+    it('should initialize transport once', async () => {
+      await transport.init();
+      
+      expect(transport.initCalls).toBe(1);
+    });
+
+    it('should not initialize twice', async () => {
+      await transport.init();
+      await transport.init();
+      
+      expect(transport.initCalls).toBe(1);
+    });
+
+    it('should emit ready event on successful init', async () => {
+      const readySpy = jest.fn();
+      transport.on('ready', readySpy);
+      
+      await transport.init();
+      
+      expect(readySpy).toHaveBeenCalled();
+    });
+
+    it('should handle init errors', async () => {
+      const errorTransport = new TestTransport({ name: 'error' });
+      errorTransport.doInit = jest.fn().mockRejectedValue(new Error('Init failed'));
+      
+      const errorSpy = jest.fn();
+      errorTransport.on('error', errorSpy);
+      
+      await expect(errorTransport.init()).rejects.toThrow('Init failed');
+      expect(errorSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe('log', () => {
+    beforeEach(async () => {
+      await transport.init();
+    });
+
+    it('should log entry when enabled', async () => {
+      await transport.log(mockEntry);
+      
+      expect(transport.logCalls).toHaveLength(1);
+      expect(transport.logCalls[0]).toBe(mockEntry);
+    });
+
+    it('should not log when disabled', async () => {
+      transport.enabled = false;
+      await transport.log(mockEntry);
+      
+      expect(transport.logCalls).toHaveLength(0);
+    });
+
+    it('should not log when closing', async () => {
+      transport.close(); // Start closing
+      await transport.log(mockEntry);
+      
+      expect(transport.logCalls).toHaveLength(0);
+    });
+
+    it('should respect filtering', async () => {
+      transport = new TestTransport({
+        name: 'filtered',
+        level: 'warn'
+      });
+      
+      await transport.log(mockEntry); // info level
+      expect(transport.logCalls).toHaveLength(0);
+      
+      const warnEntry = { ...mockEntry, level: 'warn' as LogLevel };
+      await transport.log(warnEntry);
+      expect(transport.logCalls).toHaveLength(1);
+    });
+
+    it('should update statistics on success', async () => {
+      await transport.log(mockEntry);
+      
+      const stats = transport.getStats();
+      expect(stats.processed).toBe(1);
+      expect(stats.succeeded).toBe(1);
+      expect(stats.failed).toBe(0);
+      expect(stats.lastSuccess).toBeDefined();
+    });
+
+    it('should update statistics on failure', async () => {
+      transport.doLog = jest.fn().mockRejectedValue(new Error('Log failed'));
+      
+      await transport.log(mockEntry);
+      
+      const stats = transport.getStats();
+      expect(stats.processed).toBe(1);
+      expect(stats.succeeded).toBe(0);
+      expect(stats.failed).toBe(1);
+    });
+
+    it('should emit logged event on success', async () => {
+      const loggedSpy = jest.fn();
+      transport.on('logged', loggedSpy);
+      
+      await transport.log(mockEntry);
+      
+      expect(loggedSpy).toHaveBeenCalledWith(mockEntry);
+    });
+
+    it('should handle errors', async () => {
+      transport.doLog = jest.fn().mockRejectedValue(new Error('Transport error'));
+      const errorSpy = jest.fn();
+      transport.on('error', errorSpy);
+      
+      await transport.log(mockEntry);
+      
+      expect(errorSpy).toHaveBeenCalled();
+    });
+
+    it('should apply timeout', async () => {
+      transport = new TestTransport({
+        name: 'timeout-test',
+        timeout: 100
+      });
+      
+      transport.doLog = jest.fn().mockImplementation(() => 
+        new Promise(resolve => setTimeout(resolve, 200))
+      );
+      
+      await transport.log(mockEntry);
+      
+      const stats = transport.getStats();
+      expect(stats.failed).toBe(1);
+    });
+  });
+
+  describe('logBatch', () => {
+    beforeEach(async () => {
+      await transport.init();
+    });
+
+    it('should log batch of entries', async () => {
+      const entries = [
+        mockEntry,
+        { ...mockEntry, id: 'test-124', message: 'Second message' },
+        { ...mockEntry, id: 'test-125', message: 'Third message' }
+      ];
+      
+      await transport.logBatch(entries);
+      
+      expect(transport.batchCalls).toHaveLength(1);
+      expect(transport.batchCalls[0]).toHaveLength(3);
+    });
+
+    it('should filter entries in batch', async () => {
+      transport = new TestTransport({
+        name: 'batch-filter',
+        level: 'warn'
+      });
+      
+      const entries = [
+        { ...mockEntry, level: 'info' as LogLevel },
+        { ...mockEntry, level: 'warn' as LogLevel },
+        { ...mockEntry, level: 'error' as LogLevel }
+      ];
+      
+      await transport.logBatch(entries);
+      
+      expect(transport.batchCalls).toHaveLength(1);
+      expect(transport.batchCalls[0]).toHaveLength(2); // warn and error only
+    });
+
+    it('should fall back to individual logging if no batch method', async () => {
+      transport.doLogBatch = undefined;
+      
+      const entries = [mockEntry, { ...mockEntry, id: 'test-124' }];
+      await transport.logBatch(entries);
+      
+      expect(transport.logCalls).toHaveLength(2);
+    });
+
+    it('should handle partial failures in individual mode', async () => {
+      transport.doLogBatch = undefined;
+      let callCount = 0;
+      transport.doLog = jest.fn().mockImplementation(() => {
+        callCount++;
+        if (callCount === 2) {
+          return Promise.reject(new Error('Second failed'));
+        }
+        return Promise.resolve();
+      });
+      
+      const entries = [
+        mockEntry,
+        { ...mockEntry, id: 'fail' },
+        { ...mockEntry, id: 'test-125' }
+      ];
+      
+      await transport.logBatch(entries);
+      
+      const stats = transport.getStats();
+      expect(stats.processed).toBe(3);
+      expect(stats.succeeded).toBe(2);
+      expect(stats.failed).toBe(1);
+    });
+
+    it('should emit batch event', async () => {
+      const batchSpy = jest.fn();
+      transport.on('batch', batchSpy);
+      
+      const entries = [mockEntry];
+      await transport.logBatch(entries);
+      
+      expect(batchSpy).toHaveBeenCalledWith(entries, 1);
+    });
+
+    it('should not process empty batch', async () => {
+      await transport.logBatch([]);
+      
+      expect(transport.batchCalls).toHaveLength(0);
+      expect(transport.logCalls).toHaveLength(0);
+    });
+  });
+
+  describe('shouldLog', () => {
+    it('should check level filtering', () => {
+      transport = new TestTransport({
+        name: 'level-test',
+        level: 'warn'
+      });
+      
+      expect(transport.testShouldLog({ ...mockEntry, level: 'debug' })).toBe(false);
+      expect(transport.testShouldLog({ ...mockEntry, level: 'info' })).toBe(false);
+      expect(transport.testShouldLog({ ...mockEntry, level: 'warn' })).toBe(true);
+      expect(transport.testShouldLog({ ...mockEntry, level: 'error' })).toBe(true);
+    });
+
+    it('should check specific levels', () => {
+      transport = new TestTransport({
+        name: 'specific-levels',
+        levels: ['error', 'debug']
+      });
+      
+      expect(transport.testShouldLog({ ...mockEntry, level: 'info' })).toBe(false);
+      expect(transport.testShouldLog({ ...mockEntry, level: 'error' })).toBe(true);
+      expect(transport.testShouldLog({ ...mockEntry, level: 'debug' })).toBe(true);
+    });
+
+    it('should check tag inclusion', () => {
+      transport = new TestTransport({
+        name: 'tag-include',
+        tags: ['production', 'api']
+      });
+      
+      expect(transport.testShouldLog({ ...mockEntry, tags: ['test'] })).toBe(false);
+      expect(transport.testShouldLog({ ...mockEntry, tags: ['api'] })).toBe(true);
+      expect(transport.testShouldLog({ ...mockEntry, tags: ['other', 'production'] })).toBe(true);
+      expect(transport.testShouldLog({ ...mockEntry, tags: undefined })).toBe(false);
+    });
+
+    it('should check tag exclusion', () => {
+      transport = new TestTransport({
+        name: 'tag-exclude',
+        excludeTags: ['debug', 'verbose']
+      });
+      
+      expect(transport.testShouldLog({ ...mockEntry, tags: ['normal'] })).toBe(true);
+      expect(transport.testShouldLog({ ...mockEntry, tags: ['debug'] })).toBe(false);
+      expect(transport.testShouldLog({ ...mockEntry, tags: ['api', 'verbose'] })).toBe(false);
+    });
+
+    it('should apply custom filter', () => {
+      transport = new TestTransport({
+        name: 'custom-filter',
+        filter: (entry) => entry.context?.important === true
+      });
+      
+      expect(transport.testShouldLog(mockEntry)).toBe(false);
+      expect(transport.testShouldLog({
+        ...mockEntry,
+        context: { important: true }
+      })).toBe(true);
+    });
+
+    it('should handle filter errors', () => {
+      transport = new TestTransport({
+        name: 'error-filter',
+        filter: () => { throw new Error('Filter error'); }
+      });
+      
+      const errorSpy = jest.fn();
+      transport.on('error', errorSpy);
+      
+      expect(transport.testShouldLog(mockEntry)).toBe(false);
+      expect(errorSpy).toHaveBeenCalled();
+    });
+
+    it('should allow custom log levels', () => {
+      transport = new TestTransport({
+        name: 'custom-level',
+        level: 'info'
+      });
+      
+      // Unknown levels should be allowed
+      expect(transport.testShouldLog({ ...mockEntry, level: 'custom' as LogLevel })).toBe(true);
+    });
+  });
+
+  describe('close', () => {
+    it('should close transport', async () => {
+      await transport.init();
+      await transport.close();
+      
+      expect(transport.closeCalls).toBe(1);
+    });
+
+    it('should flush before closing', async () => {
+      await transport.close();
+      
+      expect(transport.flushCalls).toBe(1);
+    });
+
+    it('should emit closing and closed events', async () => {
+      const closingSpy = jest.fn();
+      const closedSpy = jest.fn();
+      
+      transport.on('closing', closingSpy);
+      transport.on('closed', closedSpy);
+      
+      await transport.close();
+      
+      expect(closingSpy).toHaveBeenCalled();
+      expect(closedSpy).toHaveBeenCalled();
+    });
+
+    it('should prevent multiple closes', async () => {
+      await transport.close();
+      await transport.close();
+      
+      expect(transport.closeCalls).toBe(1);
+    });
+
+    it('should disable transport when closing', async () => {
+      const closePromise = transport.close();
+      
+      expect(transport.enabled).toBe(false);
+      
+      await closePromise;
+    });
+
+    it('should remove all listeners', async () => {
+      transport.on('test', () => {});
+      expect(transport.listenerCount('test')).toBe(1);
+      
+      await transport.close();
+      
+      expect(transport.listenerCount('test')).toBe(0);
+    });
+
+    it('should handle close errors', async () => {
+      transport.doClose = jest.fn().mockRejectedValue(new Error('Close failed'));
+      
+      await expect(transport.close()).rejects.toThrow('Close failed');
+    });
+  });
+
+  describe('formatEntry', () => {
+    it('should format as JSON by default', () => {
+      const result = transport.testFormatEntry(mockEntry);
+      
+      expect(result).toBe(JSON.stringify(mockEntry));
+    });
+
+    it('should format as plain text', () => {
+      transport = new TestTransport({
+        name: 'plain',
+        format: 'plain'
+      });
+      
+      const result = transport.testFormatEntry(mockEntry);
+      
+      expect(result).toContain(mockEntry.timestamp);
+      expect(result).toContain('[INFO]');
+      expect(result).toContain('Test message');
+    });
+
+    it('should use custom formatter', () => {
+      transport = new TestTransport({
+        name: 'custom',
+        format: 'custom',
+        formatter: (entry) => `CUSTOM: ${entry.message}`
+      });
+      
+      const result = transport.testFormatEntry(mockEntry);
+      
+      expect(result).toBe('CUSTOM: Test message');
+    });
+
+    it('should throw if custom formatter not provided', () => {
+      transport = new TestTransport({
+        name: 'custom-missing',
+        format: 'custom'
+      });
+      
+      expect(() => transport.testFormatEntry(mockEntry))
+        .toThrow('Custom formatter not provided');
+    });
+
+    it('should format error details in plain text', () => {
+      transport = new TestTransport({
+        name: 'plain-error',
+        format: 'plain'
+      });
+      
+      const entryWithError = {
+        ...mockEntry,
+        error: {
+          name: 'TestError',
+          message: 'Something failed',
+          stack: 'Error: Something failed\n  at test.js:1:1'
+        }
+      };
+      
+      const result = transport.testFormatEntry(entryWithError) as string;
+      
+      expect(result).toContain('Error: Something failed');
+      expect(result).toContain('Stack:');
+    });
+
+    it('should format context in plain text', () => {
+      transport = new TestTransport({
+        name: 'plain-context',
+        format: 'plain'
+      });
+      
+      const result = transport.testFormatEntry(mockEntry) as string;
+      
+      expect(result).toContain('Context: {"test":true}');
+    });
+  });
+
+  describe('error handling', () => {
+    it('should update error statistics', () => {
+      const error = new Error('Test error');
+      transport.testHandleError(error);
+      
+      const stats = transport.getStats();
+      expect(stats.lastError).toEqual({
+        timestamp: expect.any(Date),
+        message: 'Test error',
+        count: 1
+      });
+    });
+
+    it('should increment error count for repeated errors', () => {
+      const error = new Error('Same error');
+      
+      transport.testHandleError(error);
+      transport.testHandleError(error);
+      transport.testHandleError(error);
+      
+      const stats = transport.getStats();
+      expect(stats.lastError?.count).toBe(3);
+    });
+
+    it('should emit error event', () => {
+      const errorSpy = jest.fn();
+      transport.on('error', errorSpy);
+      
+      const error = new Error('Test');
+      transport.testHandleError(error, mockEntry);
+      
+      expect(errorSpy).toHaveBeenCalledWith(error, mockEntry);
+    });
+
+    it('should log to console when not silent', () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      
+      transport = new TestTransport({
+        name: 'not-silent',
+        silent: false
+      });
+      
+      transport.testHandleError(new Error('Visible error'));
+      
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[not-silent] Transport error:',
+        'Visible error'
+      );
+      
+      consoleSpy.mockRestore();
+    });
+
+    it('should not log to console when silent', () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      
+      transport = new TestTransport({
+        name: 'silent',
+        silent: true
+      });
+      
+      transport.testHandleError(new Error('Silent error'));
+      
+      expect(consoleSpy).not.toHaveBeenCalled();
+      
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe('utility methods', () => {
+    it('should apply timeout to promises', async () => {
+      const slowPromise = new Promise(resolve => setTimeout(resolve, 200));
+      
+      await expect(transport.testWithTimeout(slowPromise, 100))
+        .rejects.toThrow('Operation timed out after 100ms');
+    });
+
+    it('should not timeout fast promises', async () => {
+      const fastPromise = Promise.resolve('fast');
+      
+      const result = await transport.testWithTimeout(fastPromise, 100);
+      expect(result).toBe('fast');
+    });
+
+    it('should check if level is enabled', () => {
+      transport = new TestTransport({
+        name: 'level-check',
+        level: 'warn'
+      });
+      
+      expect(transport.testIsLevelEnabled('debug')).toBe(false);
+      expect(transport.testIsLevelEnabled('info')).toBe(false);
+      expect(transport.testIsLevelEnabled('warn')).toBe(true);
+      expect(transport.testIsLevelEnabled('error')).toBe(true);
+      expect(transport.testIsLevelEnabled('success')).toBe(true);
+    });
+
+    it('should allow unknown levels', () => {
+      expect(transport.testIsLevelEnabled('custom' as LogLevel)).toBe(true);
+    });
+
+    it('should generate unique IDs', () => {
+      const id1 = transport.testGenerateId();
+      const id2 = transport.testGenerateId();
+      
+      expect(id1).not.toBe(id2);
+      expect(id1).toMatch(/^\d+-[a-z0-9]+$/);
+    });
+  });
+
+  describe('getStats', () => {
+    it('should return copy of statistics', async () => {
+      await transport.log(mockEntry);
+      
+      const stats1 = transport.getStats();
+      const stats2 = transport.getStats();
+      
+      expect(stats1).not.toBe(stats2); // Different objects
+      expect(stats1).toEqual(stats2); // Same content
+    });
+
+    it('should include all stat fields', () => {
+      const stats = transport.getStats();
+      
+      expect(stats).toHaveProperty('processed');
+      expect(stats).toHaveProperty('succeeded');
+      expect(stats).toHaveProperty('failed');
+      expect(stats).toHaveProperty('queued');
+      expect(stats).toHaveProperty('lastSuccess');
+      expect(stats).toHaveProperty('lastError');
+      expect(stats).toHaveProperty('custom');
+    });
+  });
+});
