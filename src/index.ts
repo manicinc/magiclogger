@@ -260,3 +260,34 @@ export const VERSION = '0.1.0';
 
 // Default export
 export default Logger;
+
+
+// Export core components
+export {
+  BrowserLogger,
+  BrowserStorageManager,
+  Colorizer,
+  ContextManager,
+  FileManager,
+  Formatter,
+  LoggerBase,
+  NodeLogger,
+  Printer,
+  TagManager
+} from './core';
+
+// Export core types
+export type {
+  ContextManagerOptions,
+  SanitizeMode,
+  ContextValidationRules,
+  ContextValidationResult,
+  ContextSnapshot,
+  TagManagerOptions,
+  TagNormalizationRules,
+  TagFilterOptions,
+  TagMatchCriteria,
+  TagExtractionOptions,
+  TagValidationRules,
+  TagValidationResult
+} from './core';

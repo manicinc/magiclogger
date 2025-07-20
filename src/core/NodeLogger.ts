@@ -1,4 +1,6 @@
 import { LoggerBase } from './LoggerBase';
+import { ContextManager } from './ContextManager';
+import { TagManager } from './TagManager';
 import type { LoggerOptions, ColorName, StylePreset } from '../types';
 import { FileManager } from './FileManager';
 import { Formatter } from './Formatter';
@@ -12,6 +14,8 @@ import { PRESETS } from '../constants';
 export class NodeLogger extends LoggerBase {
   private fileManager: FileManager | null = null;
   private formatter: Formatter;
+  private contextManager?: ContextManager;
+  private tagManager?: TagManager;
   protected logDir: string;
   protected logRetentionDays: number;
   protected writeToDisk: boolean;
@@ -27,10 +31,33 @@ export class NodeLogger extends LoggerBase {
     this.logRetentionDays = options.logRetentionDays || 30;
     this.writeToDisk = options.writeToDisk || false;
 
+    // Initialize managers if context/tags are provided
+    if (options.context) {
+      this.contextManager = new ContextManager();
+    }
+    
+    if (options.tags) {
+      this.tagManager = new TagManager();
+    }
+
     if (this.writeToDisk) {
       this.fileManager = new FileManager(this.logDir, this.logRetentionDays);
       this.fileManager.initLogFile();
     }
+  }
+
+  /**
+   * Get the context manager instance.
+   */
+  public getContextManager(): ContextManager | undefined {
+    return this.contextManager;
+  }
+
+  /**
+   * Get the tag manager instance.
+   */
+  public getTagManager(): TagManager | undefined {
+    return this.tagManager;
   }
 
   /**

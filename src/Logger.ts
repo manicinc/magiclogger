@@ -2,6 +2,8 @@
 
 import { NodeLogger } from './core/NodeLogger';
 import { BrowserLogger } from './core/BrowserLogger';
+import { ContextManager } from './core/ContextManager';
+import { TagManager } from './core/TagManager';
 import { TransportManager } from './transports/base/TransportManager';
 import { ConsoleTransport } from './transports/base/implementations/ConsoleTransport';
 import { FileTransport } from './transports/base/implementations/FileTransport';
@@ -42,6 +44,18 @@ export interface ExtendedLoggerOptions extends LoggerOptions {
    * @default () => `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
    */
   idGenerator?: IdGenerator;
+
+  /**
+   * Enable advanced context management features.
+   * @default true
+   */
+  enableContextManager?: boolean;
+
+  /**
+   * Enable advanced tag management features.
+   * @default true
+   */
+  enableTagManager?: boolean;
 }
 
 /**
@@ -81,6 +95,18 @@ export class Logger {
   private transportManager: TransportManager;
 
   /**
+   * Context manager for advanced context operations.
+   * @private
+   */
+  private contextManager?: ContextManager;
+
+  /**
+   * Tag manager for advanced tag operations.
+   * @private
+   */
+  private tagManager?: TagManager;
+
+  /**
    * Logger configuration.
    * @private
    */
@@ -107,6 +133,15 @@ export class Logger {
     this.options = options;
     this.useLegacyOutput = options.useLegacyOutput ?? false;
     this.idGenerator = options.idGenerator ?? this.defaultIdGenerator;
+
+    // Initialize context and tag managers if enabled
+    if (options.enableContextManager !== false) {
+      this.contextManager = new ContextManager();
+    }
+    
+    if (options.enableTagManager !== false) {
+      this.tagManager = new TagManager();
+    }
 
     // Initialize legacy logger instance
     if (typeof window !== 'undefined') {
@@ -223,6 +258,25 @@ export class Logger {
       delete context.error;
     }
 
+    // Merge contexts using ContextManager if available
+    let finalContext: Record<string, any> | undefined;
+    if (this.contextManager) {
+      finalContext = this.contextManager.merge(
+        this.options.context,
+        context
+      );
+    } else {
+      finalContext = context || this.options.context;
+    }
+
+    // Process tags using TagManager if available
+    let finalTags: string[] | undefined;
+    if (this.tagManager && this.options.tags) {
+      finalTags = this.tagManager.normalize(this.options.tags);
+    } else {
+      finalTags = this.options.tags;
+    }
+
     // Create log entry
     const entry: LogEntry = {
       id: this.idGenerator(),
@@ -232,8 +286,8 @@ export class Logger {
       message,
       plainMessage: this.stripAnsiCodes(message),
       loggerId: this.options.id,
-      tags: this.options.tags,
-      context: context || this.options.context,
+      tags: finalTags,
+      context: finalContext,
       error,
       metadata: this.getMetadata(),
     };
@@ -349,6 +403,66 @@ export class Logger {
    */
   public debug(msg: string, meta?: any): void {
     this.log(msg, 'debug', meta);
+  }
+
+  /**
+   * Get the context manager instance.
+   * 
+   * @returns {ContextManager | undefined} Context manager if enabled
+   */
+  public getContextManager(): ContextManager | undefined {
+    return this.contextManager;
+  }
+
+  /**
+   * Get the tag manager instance.
+   * 
+   * @returns {TagManager | undefined} Tag manager if enabled
+   */
+  public getTagManager(): TagManager | undefined {
+    return this.tagManager;
+  }
+
+  /**
+   * Add tags to a log entry using TagManager.
+   * 
+   * @param {string} msg - Log message
+   * @param {LogLevel} level - Log level
+   * @param {any} [meta] - Additional metadata
+   * @param {string[]} [additionalTags] - Additional tags for this log entry
+   */
+  public logWithTags(msg: string, level: LogLevel = 'info', meta?: any, additionalTags?: string[]): void {
+    // Temporarily merge additional tags
+    const originalTags = this.options.tags;
+    
+    if (additionalTags && this.tagManager) {
+      this.options.tags = this.tagManager.merge(originalTags || [], additionalTags);
+    }
+
+    this.log(msg, level, meta);
+
+    // Restore original tags
+    this.options.tags = originalTags;
+  }
+
+  /**
+   * Log with enhanced context using ContextManager.
+   * 
+   * @param {string} msg - Log message
+   * @param {LogLevel} level - Log level
+   * @param {Record<string, any>} [context] - Context to merge
+   * @param {any} [meta] - Additional metadata
+   */
+  public logWithContext(msg: string, level: LogLevel = 'info', context?: Record<string, any>, meta?: any): void {
+    let enhancedMeta = meta;
+
+    if (context && this.contextManager) {
+      // Merge the provided context with any existing meta context
+      const existingContext = (typeof meta === 'object' && meta !== null && !Array.isArray(meta)) ? meta : {};
+      enhancedMeta = this.contextManager.merge(existingContext, context);
+    }
+
+    this.log(msg, level, enhancedMeta);
   }
 
   /**

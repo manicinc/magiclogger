@@ -10,7 +10,7 @@ import type {
 } from '../../types/transport';
 
 /**
- * Abstract base class for all MagicLogger transports.
+ * Abstract base class for all MagicLogger transport
  * 
  * This class provides the foundational functionality that all transports share:
  * - Event emission for lifecycle management
@@ -566,3 +566,8 @@ export abstract class Transport extends EventEmitter implements ITransport {
    */
   protected abstract doClose(): Promise<void>;
 }
+
+// Examples of formatter usage for data serialization:
+// formatter: Formatters.json.compact    // Single-line JSON
+// formatter: Formatters.plain.detailed  // Structured plain text
+// formatter: (entry) => customFormat(entry)  // Custom serialization

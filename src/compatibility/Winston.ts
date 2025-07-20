@@ -22,18 +22,32 @@ export interface WinstonCompatibleOptions extends LogCompatibilityOptions {
    *   - 'HH:mm:ss' => e.g. [13:37:42] (default)
    */
   timestampFormat?: string;
+
+  /**
+   * Default tags to apply to all log entries.
+   */
+  defaultTags?: string[];
+
+  /**
+   * Default context to apply to all log entries.
+   */
+  defaultContext?: Record<string, any>;
 }
 
 export class WinstonCompatibleLogger extends BaseCompatibleLogger {
   private level: string;
   private timestamp: boolean;
   private timestampFormat: string;
+  private defaultTags?: string[];
+  private defaultContext?: Record<string, any>;
 
   constructor(options: WinstonCompatibleOptions = {}) {
     super(options || {});
     this.level = options.level || 'info';
     this.timestamp = options.timestamp || false;
     this.timestampFormat = options.timestampFormat || 'HH:mm:ss';
+    this.defaultTags = options.defaultTags;
+    this.defaultContext = options.defaultContext;
   }
 
   /**
@@ -89,10 +103,10 @@ export class WinstonCompatibleLogger extends BaseCompatibleLogger {
   }
 
   /**
-   * Main Winston-compatible log method:
-   * `logger.log('info', 'some message', {optionalMeta})`.
+   * Winston-compatible log method with context and tags support:
+   * `logger.log('info', 'some message', {optionalMeta, tags, context})`.
    */
-  public log(level: string, message: string, metadata?: WinstonMetadata): void {
+  public log(level: string, message: string, metadata?: WinstonMetadata & { tags?: string[]; context?: Record<string, any> }): void {
     // If user calls `.log('verbose', 'something')`,
     // just redirect to our dedicated .verbose() method:
     if (level.toLowerCase() === 'verbose') {
@@ -107,30 +121,49 @@ export class WinstonCompatibleLogger extends BaseCompatibleLogger {
     }
 
     let formattedMsg = this.getTimestamp() + message;
-    if (metadata && Object.keys(metadata).length > 0) {
-      formattedMsg += ` ${this.safeSerialize(metadata)}`;
+    
+    // Extract tags and context from metadata
+    const tags = metadata?.tags || this.defaultTags;
+    const context = metadata?.context || this.defaultContext;
+    
+    // Create enhanced metadata for the underlying logger
+    const enhancedMeta: any = {};
+    
+    if (metadata) {
+      // Copy all metadata except tags and context
+      const { tags: _, context: __, ...otherMeta } = metadata;
+      Object.assign(enhancedMeta, otherMeta);
+    }
+    
+    if (context) {
+      Object.assign(enhancedMeta, context);
+    }
+
+    if (Object.keys(enhancedMeta).length > 0) {
+      formattedMsg += ` ${this.safeSerialize(enhancedMeta)}`;
     }
 
     const normalized = level.toLowerCase();
     const isStrict = this.strictLevels;
 
+    // Use the underlying logger's methods with enhanced metadata
     switch (normalized) {
       case 'info':
-        this.logger.log(formattedMsg);
+        this.logger.info(formattedMsg, enhancedMeta);
         break;
       case 'warn':
       case 'warning':
-        this.logger.warn(formattedMsg);
+        this.logger.warn(formattedMsg, enhancedMeta);
         break;
       case 'error':
-        this.logger.error(formattedMsg);
+        this.logger.error(formattedMsg, enhancedMeta);
         break;
       case 'debug':
-        this.logger.debug(formattedMsg);
+        this.logger.debug(formattedMsg, enhancedMeta);
         break;
       case 'silly':
-        // Winston’s “silly” => typically the lowest level, also debug
-        this.logger.debug(`SILLY: ${formattedMsg}`);
+        // Winston's "silly" => typically the lowest level, also debug
+        this.logger.debug(`SILLY: ${formattedMsg}`, enhancedMeta);
         break;
       default:
         // If strict mode is on, throw for unknown levels
@@ -140,6 +173,13 @@ export class WinstonCompatibleLogger extends BaseCompatibleLogger {
         // Otherwise treat as custom
         this.logger.custom(formattedMsg, ['white'], level.toUpperCase());
     }
+  }
+
+  /**
+   * Log with explicit context and tags.
+   */
+  public logWithContext(level: string, message: string, context?: Record<string, any>, tags?: string[]): void {
+    this.log(level, message, { context, tags });
   }
 }
 
