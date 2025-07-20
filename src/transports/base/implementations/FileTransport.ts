@@ -466,17 +466,21 @@ export class FileTransport extends Transport {
       const output = this.fs.createWriteStream(gzipFile);
       const gzip = this.zlib.createGzip();
 
-      input
-        .pipe(gzip)
-        .pipe(output)
-        .on('finish', () => {
-          // Delete original file after compression
-          this.fs.unlink(filepath, (err: Error) => {
-            if (err) reject(err);
-            else resolve();
-          });
-        })
-        .on('error', reject);
+      // Handle errors on all streams
+      input.on('error', reject);
+      output.on('error', reject);
+      gzip.on('error', reject);
+
+      // Set up the pipe chain with proper error handling
+      input.pipe(gzip).pipe(output);
+      
+      output.on('finish', () => {
+        // Delete original file after compression
+        this.fs.unlink(filepath, (err: NodeJS.ErrnoException | null) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
     });
   }
 

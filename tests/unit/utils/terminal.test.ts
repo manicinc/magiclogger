@@ -220,6 +220,15 @@ describe('Terminal Utilities', () => {
     });
 
     it('handles getFallbackStyle with edge cases', () => {
+      // Mock the NODE_ENV to ensure it's not 'test' for this specific test
+      const originalNodeEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'production';
+      
+      // Mock isStyleSupported to return false for unknown styles
+      jest.spyOn(terminalSupport, 'isStyleSupported').mockImplementation((style: string) => {
+        return style !== 'completelyUnknownStyle';
+      });
+
       // Should not throw for empty or invalid styles
       expect(() => getFallbackStyle('')).not.toThrow();
       expect(() => getFallbackStyle(null as unknown as string)).not.toThrow();
@@ -233,6 +242,12 @@ describe('Terminal Utilities', () => {
       // Testing 'normal' fallback for unknown styles
       const unknownResult = getFallbackStyle('completelyUnknownStyle');
       expect(unknownResult).toBe('normal');
+      
+      // Restore original NODE_ENV
+      process.env.NODE_ENV = originalNodeEnv;
+      
+      // Restore mocks
+      jest.restoreAllMocks();
     });
 
     it('handles inconsistent terminal environments', () => {

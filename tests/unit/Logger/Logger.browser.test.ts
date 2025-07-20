@@ -1,27 +1,41 @@
 import { Logger } from '../../../src/Logger';
 import { BrowserLogger } from '../../../src/core/BrowserLogger';
-import { spyOnConstructor } from '../../../jest.setup';
 
-// Mock BrowserLogger methods
-jest.mock('../../../src/core/BrowserLogger', () => {
-  const originalModule = jest.requireActual('../../../src/core/BrowserLogger');
-
-  // Create a mock class that extends the original
-  class MockBrowserLogger extends originalModule.BrowserLogger {
-    getLogs = jest.fn().mockReturnValue(['Test log']);
-    clearLogs = jest.fn();
-    downloadLogs = jest.fn();
-    setStorageEnabled = jest.fn();
-  }
-
-  return {
-    ...originalModule,
-    BrowserLogger: MockBrowserLogger,
+// Create a proper mock for BrowserLogger
+const MockBrowserLogger = jest.fn().mockImplementation((_options) => {
+  const instance = {
+    getLogs: jest.fn().mockReturnValue(['Test log']),
+    clearLogs: jest.fn(),
+    downloadLogs: jest.fn(),
+    setStorageEnabled: jest.fn(),
+    // Add other methods that might be called
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn(),
+    success: jest.fn(),
+    header: jest.fn(),
+    table: jest.fn(),
+    progressBar: jest.fn(),
+    custom: jest.fn(),
+    styled: jest.fn(),
+    separator: jest.fn(),
+    close: jest.fn(),
   };
+  
+  // Make the instance appear to be an instance of BrowserLogger
+  Object.setPrototypeOf(instance, BrowserLogger.prototype);
+  
+  return instance;
 });
 
+// Mock the BrowserLogger module
+jest.mock('../../../src/core/BrowserLogger', () => ({
+  BrowserLogger: MockBrowserLogger,
+}));
+
 // Mock window detection
-let windowMock: Record<string, any> = {};
+let windowMock: Record<string, unknown> | undefined = {};
 Object.defineProperty(global, 'window', {
   get: () => windowMock,
   configurable: true,
@@ -30,11 +44,12 @@ Object.defineProperty(global, 'window', {
 describe('Logger Browser Integration', () => {
   // Helper to toggle browser environment
   const setBrowserEnvironment = (isBrowser: boolean) => {
-    windowMock = isBrowser ? { document: {} } : (undefined as any);
+    windowMock = isBrowser ? { document: {} } : undefined;
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
+    MockBrowserLogger.mockClear();
   });
 
   it('creates a BrowserLogger when in browser environment', () => {
@@ -43,6 +58,7 @@ describe('Logger Browser Integration', () => {
 
     const logger = new Logger();
     expect(logger['loggerInstance']).toBeInstanceOf(BrowserLogger);
+    expect(MockBrowserLogger).toHaveBeenCalled();
   });
 
   it('delegates browser storage methods in browser environment', () => {
@@ -50,27 +66,24 @@ describe('Logger Browser Integration', () => {
     setBrowserEnvironment(true);
 
     const logger = new Logger();
+    const browserLogger = logger['loggerInstance'] as unknown;
 
     // Test getLogs delegation
     const logs = logger.getLogs();
     expect(logs).toEqual(['Test log']);
-    expect((logger['loggerInstance'] as BrowserLogger).getLogs).toHaveBeenCalled();
+    expect((browserLogger as { getLogs: jest.Mock }).getLogs).toHaveBeenCalled();
 
     // Test clearLogs delegation
     logger.clearLogs();
-    expect((logger['loggerInstance'] as BrowserLogger).clearLogs).toHaveBeenCalled();
+    expect((browserLogger as { clearLogs: jest.Mock }).clearLogs).toHaveBeenCalled();
 
     // Test downloadLogs delegation
     logger.downloadLogs('test.txt');
-    expect((logger['loggerInstance'] as BrowserLogger).downloadLogs).toHaveBeenCalledWith(
-      'test.txt'
-    );
+    expect((browserLogger as { downloadLogs: jest.Mock }).downloadLogs).toHaveBeenCalledWith('test.txt');
 
     // Test setStorageEnabled delegation
     logger.setStorageEnabled(true);
-    expect((logger['loggerInstance'] as BrowserLogger).setStorageEnabled).toHaveBeenCalledWith(
-      true
-    );
+    expect((browserLogger as { setStorageEnabled: jest.Mock }).setStorageEnabled).toHaveBeenCalledWith(true);
   });
 
   it('returns null for getLogs in Node.js environment', () => {
@@ -98,9 +111,6 @@ describe('Logger Browser Integration', () => {
     // Set as browser environment
     setBrowserEnvironment(true);
 
-    // Create a constructor spy without using jest.spyOn
-    const constructorSpy = spyOnConstructor(BrowserLogger);
-
     // Create logger with browser options
     const options = {
       storeInBrowser: true,
@@ -112,9 +122,6 @@ describe('Logger Browser Integration', () => {
     new Logger(options);
 
     // Check if constructor was called with expected options
-    expect(constructorSpy).toHaveBeenCalledWith(expect.objectContaining(options));
-
-    // Restore original constructor
-    jest.restoreAllMocks();
+    expect(MockBrowserLogger).toHaveBeenCalledWith(expect.objectContaining(options));
   });
 });

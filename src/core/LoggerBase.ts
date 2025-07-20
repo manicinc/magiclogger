@@ -272,4 +272,18 @@ export abstract class LoggerBase {
    * @returns {string} The message with colorized parts
    */
   public abstract colorParts?(message: string, colorMap: Record<string, ColorName[]>): string;
+
+  /**
+   * Displays a visual separator line for organizing log output.
+   * @abstract
+   * @param {string} [char] - Optional character to use for the separator (default: '-')
+   * @param {number} [length] - Optional length of the separator line (default: 60)
+   * @param {ColorName[]} [colors] - Optional array of color/style names to apply
+   */
+  /**
+   * Print a separator line
+   * @param char Character to use for the separator
+   * @param length Length of the separator line
+   */
+  public abstract separator(char?: string, length?: number): void;
 }

@@ -151,11 +151,18 @@ describe('Logger Edge Case & Internal Utility Tests', () => {
       'C:\\Sys\\file.log',
     ].join('\n');
 
-    // Use the constant from our paths.ts file
-    const regex = PATH_REGEX;
+    // Create a new regex instance to avoid global state issues
+    const regex = new RegExp(PATH_REGEX.source, PATH_REGEX.flags);
 
     let matchCount = 0;
-    while (regex.exec(multiline)) matchCount++;
+    let match;
+    while ((match = regex.exec(multiline)) !== null) {
+      matchCount++;
+      // Prevent infinite loop if regex doesn't advance
+      if (match.index === regex.lastIndex) {
+        regex.lastIndex++;
+      }
+    }
     expect(matchCount).toBe(5);
   });
 

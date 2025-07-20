@@ -7,7 +7,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 const config: Config = {
   title: 'MagicLogger',
   tagline: 'The most colorful TypeScript/JavaScript logging library 🌈',
-  favicon: 'img/favicon.ico',
+  favicon: 'img/icon/favicon.ico', // Changed from 'img/favicon.ico'
 
   // Set the production url of your site here
   url: 'https://manicinc.github.io',
@@ -29,6 +29,32 @@ const config: Config = {
     defaultLocale: 'en',
     locales: ['en'],
   },
+
+  // Custom webpack configuration
+  plugins: [
+    function (_context, _options) {
+      return {
+        name: 'custom-webpack-config',
+        configureWebpack(config, isServer) {
+          if (!isServer) {
+            // Only apply polyfills, don't modify other webpack settings
+            config.resolve = config.resolve || {};
+            config.resolve.fallback = {
+              ...config.resolve.fallback,
+              "path": require.resolve("path-browserify"),
+              "os": require.resolve("os-browserify/browser"),
+              "fs": false,
+              "zlib": require.resolve("browserify-zlib"),
+              "assert": require.resolve("assert/"),
+              "stream": require.resolve("stream-browserify"),
+              "util": require.resolve("util/"),
+            };
+          }
+          return {};
+        },
+      };
+    },
+  ],
 
   presets: [
     [
@@ -65,12 +91,12 @@ const config: Config = {
 
   themeConfig: {
     // Replace with your project's social card
-    image: 'img/magiclogger-social-card.jpg',
+    image: 'img/magiclogger-primary-no-subtitle-transparent-4x.png', // Changed from generic social card
     navbar: {
       title: 'MagicLogger',
       logo: {
         alt: 'MagicLogger Logo',
-        src: 'img/logo.svg',
+        src: 'img/magiclogger-icon.svg', // This should show your logo
       },
       items: [
         {
@@ -99,6 +125,13 @@ const config: Config = {
     },
     footer: {
       style: 'dark',
+      logo: {
+        alt: 'Manic Agency Logo',
+        src: 'img/magiclogger-icon.svg',
+        href: 'https://manic.agency',
+        width: 40,
+        height: 40,
+      },
       links: [
         {
           title: 'Documentation',

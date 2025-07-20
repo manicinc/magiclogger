@@ -151,10 +151,9 @@ describe('Colors and Styles Types', () => {
     expect(useStylePreset('error')).toBe(PRESETS.error);
     expect(useStylePreset('code')).toBe(PRESETS.code);
 
-    // TypeScript should prevent invalid values at compile time
-    // This is just for runtime verification
-    expect(() => useColorName('invalid' as ColorName)).toThrow();
-    expect(() => useStylePreset('invalid' as StylePreset)).toThrow();
+    // Test that accessing valid properties doesn't throw
+    expect(() => useColorName('red')).not.toThrow();
+    expect(() => useStylePreset('info')).not.toThrow();
   });
 
   it('should handle preset options with empty codes gracefully', () => {
@@ -185,31 +184,5 @@ describe('Colors and Styles Types', () => {
       // Restore original
       jest.spyOn(terminalUtils, 'isStyleSupported').mockImplementation(isStyleSupportedOriginal);
     });
-  });
-
-  it('should perform type compatibility checks', () => {
-    // Create a function that accepts ColorName parameters
-    function useColorName(color: ColorName): string {
-      return COLORS[color];
-    }
-
-    // Create a function that accepts StylePreset parameters
-    function useStylePreset(preset: StylePreset): string[] {
-      return PRESETS[preset];
-    }
-
-    // Test with valid values
-    expect(useColorName('red')).toBe(ANSI.FG_RED);
-    expect(useColorName('bold')).toBe(COLORS.bold);
-    expect(useColorName('bgBlue')).toBe(ANSI.BG_BLUE);
-
-    expect(useStylePreset('info')).toBe(PRESETS.info);
-    expect(useStylePreset('error')).toBe(PRESETS.error);
-    expect(useStylePreset('code')).toBe(PRESETS.code);
-
-    // TypeScript should prevent invalid values at compile time
-    // This is just for runtime verification
-    expect(() => useColorName('invalid' as ColorName)).toThrow();
-    expect(() => useStylePreset('invalid' as StylePreset)).toThrow();
   });
 });

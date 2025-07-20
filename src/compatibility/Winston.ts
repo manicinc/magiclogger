@@ -84,7 +84,8 @@ export class WinstonCompatibleLogger extends BaseCompatibleLogger {
    * but included in your snippet for illustration.
    */
   public header(message: string): void {
-    this.logger.log(`HEADER: ${message}`);
+    const formattedMsg = this.getTimestamp() + `HEADER: ${message}`;
+    this.logger.header(formattedMsg);
   }
 
   /**

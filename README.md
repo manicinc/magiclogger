@@ -5,6 +5,12 @@
 <!-- /VERSION_BADGE_PLACEHOLDER -->
 
 <p align="center">
+  <a href="https://manicinc.github.io/magiclogger/">
+    <img src="https://raw.githubusercontent.com/manicinc/magiclogger/main/website/static/img/magiclogger-primary-no-subtitle.svg" alt="MagicLogger" width="400">
+  </a>
+</p>
+
+<p align="center">
   <strong>The most powerful TypeScript/JavaScript logging library</strong><br>
   <em>Simple API → Structured Data • Beautiful Output • Zero Dependencies</em>
 </p>
@@ -25,7 +31,9 @@
 </p>
 
 <p align="center">
-  <img src="https://via.placeholder.com/800x400/1a1a1a/ffffff?text=MagicLogger+Demo" alt="MagicLogger Demo">
+  <a href="https://manicinc.github.io/magiclogger/">
+    <img src="https://via.placeholder.com/800x400/1a1a1a/ffffff?text=MagicLogger+Demo" alt="MagicLogger Demo">
+  </a>
 </p>
 
 ## ✨ Why MagicLogger?
@@ -567,13 +575,10 @@ MIT License - see [LICENSE.md](./LICENSE.md) for details.
 
 <p align="center">
   <a href="https://manic.agency" target="_blank">
-    <img src="https://via.placeholder.com/200x50/blueviolet/white?text=Manic.agency" alt="Manic.agency">
-  </a>
-</p>
-
-<p align="center">
-  <strong>MagicLogger is built with ❤️ by <a href="https://manic.agency">Manic.agency</a></strong><br>
-  <em>Where mania-driven development meets beautiful code</em>
+    <img src="https://raw.githubusercontent.com/manicinc/magiclogger/main/website/static/img/magiclogger-icon.svg" alt="Manic Agency" width="32" height="32">
+  </a><br>
+  <strong>Made with ❤️ by <a href="https://manic.agency">Manic.agency</a></strong><br>
+  <em>Building the future of developer tools</em>
 </p>
 
 <p align="center">

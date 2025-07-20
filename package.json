@@ -27,7 +27,7 @@
     "demo:guided": "npx tsx examples/guided-animated-demo.ts",
     "demo:web": "npm run build && node -e \"const fs = require('fs-extra'); fs.copySync('dist', 'examples/web-demo/dist')\" && serve examples/web-demo",
     "docs": "cd website && npm start",
-    "docs:build": "cd website && npm run build",
+    "docs:build": "npm run build && cd website && npm install && npm run build",
     "docs:serve": "cd website && npm run serve",
     "docs:deploy": "cd website && npm run deploy",
     "docs:install": "cd website && npm install",
@@ -130,12 +130,5 @@
       "eslint --fix",
       "prettier --write"
     ]
-  },
-  "dependencies": {
-    "@docusaurus/core": "^3.8.1",
-    "@docusaurus/module-type-aliases": "^3.8.1",
-    "@docusaurus/preset-classic": "^3.8.1",
-    "@docusaurus/tsconfig": "^3.8.1",
-    "@docusaurus/types": "^3.8.1"
   }
 }

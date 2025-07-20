@@ -131,18 +131,39 @@ export function enhanceConsole(options: EnhanceConsoleOptions = {}): {
   const enhanced = new EnhancedConsole(options);
   const logger = new Logger(options);
 
-  const enhancedMethods = enhanced as unknown as Record<string, unknown>;
-  const globalConsole = console as unknown as Record<string, unknown>;
+  // Store original console methods
+  const originalConsole = { ...console };
 
-  for (const key in enhancedMethods) {
-    const method = enhancedMethods[key];
-    if (typeof method === 'function') {
-      globalConsole[key] = (method as (...args: unknown[]) => unknown).bind(enhanced);
-    }
-  }
+  // Explicitly add enhanced methods to console
+  (console as any).success = enhanced.success.bind(enhanced);
+  (console as any).header = enhanced.header.bind(enhanced);
+  (console as any).progress = enhanced.progress.bind(enhanced);
+  (console as any).custom = enhanced.custom.bind(enhanced);
+  (console as any).styled = enhanced.styled.bind(enhanced);
+  (console as any).color = enhanced.color.bind(enhanced);
+  (console as any).colorParts = enhanced.colorParts.bind(enhanced);
+
+  // Override existing methods with enhanced versions
+  console.log = enhanced.log.bind(enhanced);
+  console.info = enhanced.info.bind(enhanced);
+  console.warn = enhanced.warn.bind(enhanced);
+  console.error = enhanced.error.bind(enhanced);
+  console.debug = enhanced.debug.bind(enhanced);
 
   return {
     logger,
-    restoreConsole: () => enhanced.restoreOriginalConsole(),
+    restoreConsole: () => {
+      // Restore original console
+      Object.assign(console, originalConsole);
+      
+      // Remove enhanced methods
+      delete (console as any).success;
+      delete (console as any).header;
+      delete (console as any).progress;
+      delete (console as any).custom;
+      delete (console as any).styled;
+      delete (console as any).color;
+      delete (console as any).colorParts;
+    },
   };
 }

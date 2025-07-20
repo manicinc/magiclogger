@@ -84,7 +84,7 @@ describe('Magic Logger Compatibility Layer', () => {
       winston.header('My Header');
 
       // Verify the header method was called with the correct argument
-      expect(headerSpy).toHaveBeenCalledWith('My Header');
+      expect(headerSpy).toHaveBeenCalledWith('HEADER: My Header');
 
       // Restore the original method after the test
       headerSpy.mockRestore();

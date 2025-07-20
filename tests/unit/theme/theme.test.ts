@@ -49,7 +49,11 @@ describe('Logger with file-loaded theme', () => {
 
     const themeManager = new ThemeManager();
     const loadedTheme = themeManager.getTheme(testThemeName);
-    logger = new Logger({ theme: loadedTheme });
+    logger = new Logger({ 
+      theme: loadedTheme,
+      writeToDisk: false, // Ensure we're using console transport
+      useColors: true
+    });
   });
 
   it('should use loaded theme colors for info logs', () => {

@@ -224,9 +224,12 @@ describe('FileTransport', () => {
   describe('logging', () => {
     beforeEach(async () => {
       mockFs.appendFile.mockImplementation((_, __, ___, cb) => cb(null));
+      // Ensure transport is properly initialized
       await transport.init();
+      // Set currentFile to ensure writeToFile doesn't fail
+      (transport as any).currentFile = '/logs/test.log';
     });
-
+  
     it('should log entry as JSON', async () => {
       await transport.log(mockEntry);
       
@@ -241,7 +244,7 @@ describe('FileTransport', () => {
         expect.any(Function)
       );
     });
-
+  
     it('should log entry as plain text', async () => {
       transport = new FileTransport({
         name: 'plain',
@@ -250,6 +253,9 @@ describe('FileTransport', () => {
       });
       (transport as any).fs = mockFs;
       (transport as any).fileManager = mockFileManager;
+      // Initialize and set currentFile
+      await transport.init();
+      (transport as any).currentFile = '/logs/test.log';
       
       await transport.log(mockEntry);
       
@@ -260,7 +266,7 @@ describe('FileTransport', () => {
       expect(writeCall[1]).toContain('[INFO]');
       expect(writeCall[1]).toContain('Test message');
     });
-
+  
     it('should use custom formatter', async () => {
       transport = new FileTransport({
         name: 'custom',
@@ -270,6 +276,9 @@ describe('FileTransport', () => {
       });
       (transport as any).fs = mockFs;
       (transport as any).fileManager = mockFileManager;
+      // Initialize and set currentFile
+      await transport.init();
+      (transport as any).currentFile = '/logs/test.log';
       
       await transport.log(mockEntry);
       
@@ -279,11 +288,11 @@ describe('FileTransport', () => {
       expect(mockFs.appendFile).toHaveBeenCalledWith(
         expect.any(String),
         'CUSTOM: Test message\n',
-        expect.any(Function),
+        { encoding: 'utf8' },
         expect.any(Function)
       );
     });
-
+  
     it('should include error details in plain format', async () => {
       transport = new FileTransport({
         name: 'error',
@@ -292,6 +301,9 @@ describe('FileTransport', () => {
       });
       (transport as any).fs = mockFs;
       (transport as any).fileManager = mockFileManager;
+      // Initialize and set currentFile
+      await transport.init();
+      (transport as any).currentFile = '/logs/test.log';
       
       const entryWithError = {
         ...mockEntry,
@@ -311,7 +323,7 @@ describe('FileTransport', () => {
       expect(content).toContain('Error: Failed');
       expect(content).toContain('Stack:');
     });
-
+  
     it('should batch writes', async () => {
       // Log multiple entries quickly
       for (let i = 0; i < 5; i++) {
@@ -330,7 +342,7 @@ describe('FileTransport', () => {
       const content = mockFs.appendFile.mock.calls[0][1];
       expect(content.split('\n').length).toBe(6); // 5 logs + empty line
     });
-
+  
     it('should flush immediately on large batch', async () => {
       // Log many entries
       for (let i = 0; i < 100; i++) {
@@ -341,13 +353,13 @@ describe('FileTransport', () => {
       await Promise.resolve();
       expect(mockFs.appendFile).toHaveBeenCalled();
     });
-
+  
     it('should handle write errors', async () => {
       mockFs.appendFile.mockImplementation((_, __, ___, cb) => cb(new Error('Write failed')));
       
-      await expect(transport.log(mockEntry)).rejects.toThrow();
+      await expect(transport.log(mockEntry)).rejects.toThrow('Write failed');
     });
-
+  
     it('should update file size after write', async () => {
       await transport.log(mockEntry);
       

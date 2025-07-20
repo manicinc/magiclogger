@@ -267,8 +267,8 @@ export class WebSocketTransport extends Transport {
     } else {
       // Node.js WebSocket
       try {
-        // @ts-expect-error - ws is an optional dependency
-        const WebSocketLib = (await import('ws')).default;
+        // Use string-based import to avoid TypeScript module resolution
+        const WebSocketLib = (await import('ws' as any)).default;
         
         const options: any = {
           perMessageDeflate: true,

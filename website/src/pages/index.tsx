@@ -5,51 +5,83 @@ import Link from '@docusaurus/Link';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import Layout from '@theme/Layout';
 import HomepageFeatures from '@site/src/components/HomepageFeatures';
-import InteractiveDemo from '@site/src/components/InteractiveDemo';
 import Heading from '@theme/Heading';
 import CodeBlock from '@theme/CodeBlock';
 
 import styles from './index.module.css';
+import InteractiveDemo from '../components/InteractiveDemo';
 
 function HomepageHeader() {
-  const {siteConfig} = useDocusaurusContext();
   return (
     <header className={clsx('hero hero--primary', styles.heroBanner)}>
       <div className="container">
-        <Heading as="h1" className="hero__title">
-          🌈 {siteConfig.title}
-        </Heading>
-        <p className="hero__subtitle">{siteConfig.tagline}</p>
-        <div className={styles.buttons}>
-          <Link
-            className="button button--secondary button--lg"
-            to="/docs">
-            Get Started - 2min ⚡
-          </Link>
-          <Link
-            className="button button--outline button--lg"
-            to="https://github.com/manicinc/magiclogger"
-            style={{marginLeft: '1rem'}}>
-            View on GitHub 🐙
-          </Link>
-        </div>
-        
-        {/* Quick Install Commands */}
-        <div className={styles.quickInstall}>
-          <Heading as="h3" className={styles.quickInstallTitle}>
-            📦 Quick Install
-          </Heading>
-          <div className={styles.installCommands}>
-            <CodeBlock language="bash" className={styles.installCommand}>npm install magiclogger</CodeBlock>
-            <CodeBlock language="bash" className={styles.installCommand}>yarn add magiclogger</CodeBlock>
-            <CodeBlock language="bash" className={styles.installCommand}>pnpm add magiclogger</CodeBlock>
+        <div className={styles.heroContent}>
+          {/* Left side - Main content */}
+          <div className={styles.heroLeft}>
+            <Heading as="h1" className={styles.heroTitle}>
+              <span className={styles.magicText}>Magic</span>
+              <span className={styles.loggerText}>Logger</span>
+            </Heading>
+            <p className={styles.heroSubtitle}>Colorful TypeScript & JavaScript Logging</p>
+            
+            {/* Quick Install Section */}
+            <div className={styles.quickInstall}>
+              <h3 className={styles.quickInstallTitle}>🚀 Quick Install</h3>
+              <div className={styles.installCommands}>
+                <div className={styles.installCommand}>
+                  <pre className="prism-code language-bash">
+                    <code>npm install magiclogger</code>
+                  </pre>
+                </div>
+                <div className={styles.installCommand}>
+                  <pre className="prism-code language-bash">
+                    <code>yarn add magiclogger</code>
+                  </pre>
+                </div>
+              </div>
+            </div>
+
+            <div className={styles.buttons}>
+              <Link
+                className="button button--secondary button--lg"
+                to="/docs/api_usage">
+                📚 Get Started - 5min ⏱️
+              </Link>
+              <Link
+                className="button button--outline button--lg"
+                to="https://github.com/manicinc/magiclogger">
+                🔍 View on GitHub
+              </Link>
+            </div>
+          </div>
+
+          {/* Right side - Demo */}
+          <div className={styles.heroRight}>
+            <div className={styles.demoContainer}>
+              <h3 className={styles.demoTitle}>✨ See it in Action</h3>
+              {/* Placeholder for your GIF/MP4 - you can replace this */}
+              <div className={styles.demoMedia}>
+                <img 
+                  src="/img/demo-placeholder.gif" 
+                  alt="MagicLogger Demo" 
+                  className={styles.demoGif}
+                />
+                <div className={styles.logoOverlay}>
+                  <img 
+                    src="/img/magiclogger-icon.svg" 
+                    alt="MagicLogger" 
+                    className={styles.overlayLogo}
+                  />
+                </div>
+              </div>
+              {/* Interactive Demo below the media */}
+              <div className={styles.interactiveDemo}>
+                <InteractiveDemo />
+              </div>
+            </div>
           </div>
         </div>
       </div>
-      <div className={styles.sparkle}></div>
-      <div className={styles.sparkle}></div>
-      <div className={styles.sparkle}></div>
-      <div className={styles.sparkle}></div>
     </header>
   );
 }
@@ -231,44 +263,6 @@ logger.setColorsEnabled(true);
 const logPath = logger.getPath();
 logger.info(\`Logs saved to: \${logPath}\`);`,
       language: 'typescript'
-    },
-    themes: {
-      title: '🎭 Themes & Presets',
-      description: 'Beautiful predefined themes and custom configurations',
-      code: `import { Logger } from 'magiclogger';
-
-// Predefined themes
-const cyberpunkLogger = new Logger({ theme: 'cyberpunk' });
-const darkLogger = new Logger({ theme: 'dark' });
-const rainbowLogger = new Logger({ theme: 'rainbow' });
-const minimalLogger = new Logger({ theme: 'minimal' });
-
-// Theme showcase
-cyberpunkLogger.info('🔮 Cyberpunk theme active');
-darkLogger.warn('🌙 Dark theme for professionals');
-rainbowLogger.success('🌈 Rainbow theme for fun');
-minimalLogger.error('⚡ Minimal theme for focus');
-
-// Custom theme configuration
-const customLogger = new Logger({
-  theme: {
-    primary: 'magenta',
-    secondary: 'cyan', 
-    accent: 'yellow',
-    info: ['blue', 'bold'],
-    warn: ['yellow', 'italic'],
-    error: ['red', 'underline'],
-    success: ['green', 'bold'],
-    debug: ['gray', 'dim']
-  }
-});
-
-// Style presets
-customLogger.styled('Application starting', 'startup');
-customLogger.styled('Database connected', 'database');
-customLogger.styled('User authenticated', 'auth');
-customLogger.styled('Request processed', 'api');`,
-      language: 'typescript'
     }
   };
 
@@ -276,7 +270,7 @@ customLogger.styled('Request processed', 'api');`,
     <div className={styles.examplesSection}>
       <div className="text--center margin-bottom--lg">
         <Heading as="h2" className={styles.sectionTitle}>
-          📚 Comprehensive Examples
+          📚 Examples & Use Cases
         </Heading>
         <p className={styles.sectionSubtitle}>
           From basic usage to advanced features - everything you need to get started
@@ -353,7 +347,6 @@ export default function Home(): ReactNode {
       <HomepageHeader />
       <main>
         <HomepageFeatures />
-        <InteractiveDemo />
         <ExamplesSection />
       </main>
     </Layout>

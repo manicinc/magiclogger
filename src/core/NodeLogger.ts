@@ -117,8 +117,13 @@ export class NodeLogger extends LoggerBase {
    * @param data Array of row objects
    * @param headerColor Optional color styles for the header row
    */
+  /**
+   * Print a table of data with optional header styling
+   * @param data Array of key-value objects
+   * @param headerColor Optional colors for header styling
+   */
   public table(
-    data: Record<string, any>[],
+    data: Record<string, unknown>[],
     headerColor: ColorName[] = ['brightWhite', 'bold']
   ): void {
     Printer.printTable(data, headerColor);
@@ -318,5 +323,21 @@ export class NodeLogger extends LoggerBase {
    */
   private getPresetColors(preset: StylePreset): ColorName[] {
     return (PRESETS as Record<StylePreset, ColorName[]>)[preset] || ['white'];
+  }
+
+  /**
+   * Displays a visual separator line for organizing log output.
+   * @param char Character to use for the separator (default: '-')
+   * @param length Length of the separator line (default: 60)
+   * @param colors Optional array of color/style names to apply
+   */
+  /**
+   * Print a separator line
+   * @param char Character to use for the separator
+   * @param length Length of the separator line
+   */
+  public separator(char = '-', length = 50): void {
+    const separatorLine = char.repeat(length);
+    this.log(separatorLine, 'info');
   }
 }

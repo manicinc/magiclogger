@@ -10,8 +10,8 @@ export default function DashboardHeader() {
       <div className="container">
         <div className={styles.logoContainer}>
           <img 
-            src="/img/manic-logo.png" 
-            alt="Manic Agency" 
+            src="/img/magiclogger-primary-no-subtitle-transparent-4x.png" 
+            alt="MagicLogger" 
             className={styles.manicLogo}
           />
         </div>

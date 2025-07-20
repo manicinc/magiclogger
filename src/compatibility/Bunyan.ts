@@ -21,7 +21,7 @@ export class BunyanCompatibleLogger extends BaseCompatibleLogger {
   private showName: boolean;
   private showPid: boolean;
   private showHostname: boolean;
-  private os: any;
+  private os: { hostname?: () => string } | undefined;
 
   constructor(options: BunyanCompatibleOptions = { name: 'app' }) {
     const opts = { ...options, name: options?.name || 'app' };
@@ -103,12 +103,33 @@ export class BunyanCompatibleLogger extends BaseCompatibleLogger {
   }
 
   /**
-   * Synchronous wrapper for the async Bunyan-style log dispatcher.
-   * Required for compatibility with inherited methods like `info()`.
+   * Bunyan-style log method that accepts level and message/object
+   * This is the main log method for Bunyan compatibility
    */
-  public override log(msg: string, level = 'info'): void {
+  public log(level: string, msgOrObj: unknown): void {
+    let message: string;
+    
+    // Handle JSON string parsing for Bunyan-style object logging
+    if (typeof msgOrObj === 'string') {
+      try {
+        // Try to parse as JSON to extract message and other fields
+        const parsed = JSON.parse(msgOrObj);
+        if (typeof parsed === 'object' && parsed !== null) {
+          // Extract message field if it exists, otherwise stringify the whole object
+          message = parsed.message || JSON.stringify(parsed);
+        } else {
+          message = msgOrObj;
+        }
+      } catch {
+        // Not valid JSON, treat as regular string
+        message = msgOrObj;
+      }
+    } else {
+      message = this.safeSerialize(msgOrObj);
+    }
+
     // Don't await to preserve sync compatibility; fire and forget
-    void this.logAsync(level, msg).catch(err => {
+    void this.logAsync(level, message).catch(err => {
       console.error('Bunyan logger failed:', err);
     });
   }
@@ -118,7 +139,9 @@ export class BunyanCompatibleLogger extends BaseCompatibleLogger {
    */
   public override info(msgOrObj: unknown, msg?: string): void {
     const message = this.formatMessage(msgOrObj, msg);
-    this.log(message, 'info');
+    void this.logAsync('info', message).catch(err => {
+      console.error('Bunyan logger failed:', err);
+    });
   }
 
   /**
@@ -126,7 +149,9 @@ export class BunyanCompatibleLogger extends BaseCompatibleLogger {
    */
   public override warn(msgOrObj: unknown, msg?: string): void {
     const message = this.formatMessage(msgOrObj, msg);
-    this.log(message, 'warn');
+    void this.logAsync('warn', message).catch(err => {
+      console.error('Bunyan logger failed:', err);
+    });
   }
 
   /**
@@ -134,7 +159,9 @@ export class BunyanCompatibleLogger extends BaseCompatibleLogger {
    */
   public override error(msgOrObj: unknown, msg?: string): void {
     const message = this.formatMessage(msgOrObj, msg);
-    this.log(message, 'error');
+    void this.logAsync('error', message).catch(err => {
+      console.error('Bunyan logger failed:', err);
+    });
   }
 
   /**
@@ -142,7 +169,9 @@ export class BunyanCompatibleLogger extends BaseCompatibleLogger {
    */
   public override debug(msgOrObj: unknown, msg?: string): void {
     const message = this.formatMessage(msgOrObj, msg);
-    this.log(message, 'debug');
+    void this.logAsync('debug', message).catch(err => {
+      console.error('Bunyan logger failed:', err);
+    });
   }
 
   /**

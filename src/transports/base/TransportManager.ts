@@ -638,10 +638,11 @@ export class TransportManager extends EventEmitter {
     // Clear transports
     this.transports.clear();
 
+    // Emit closed event before removing listeners
+    this.emit('closed');
+
     // Remove all listeners
     this.removeAllListeners();
-
-    this.emit('closed');
   }
 
   /**
