@@ -9,6 +9,12 @@ import { ColorName } from '../types';
 export class Printer {
   private static formatter: Formatter = new Formatter();
 
+  // Store original console methods to prevent infinite recursion
+  private static originalConsole = {
+    log: console.log.bind(console),
+    table: console.table.bind(console),
+  };
+
   /**
    * Set whether to use colors in the output
    * @param useColors Whether to enable colors
@@ -24,11 +30,11 @@ export class Printer {
    */
   public static print(message: string): void {
     if (isBrowserEnvironment()) {
-      // Browser: Apply styles using CSS
-      console.log('%c' + message, 'font-family: monospace;');
+      // Browser: Apply styles using CSS - use original console.log to prevent recursion
+      this.originalConsole.log('%c' + message, 'font-family: monospace;');
     } else {
       // Node (Terminal): Output without CSS (ANSI escape codes used internally)
-      console.log(message);
+      this.originalConsole.log(message);
     }
   }
 
@@ -39,8 +45,8 @@ export class Printer {
    */
   public static printProgress(bar: string, percent: string): void {
     if (isBrowserEnvironment()) {
-      // Browser: Print directly
-      console.log(`${bar} ${percent}`);
+      // Browser: Print directly - use original console.log to prevent recursion
+      this.originalConsole.log(`${bar} ${percent}`);
     } else {
       // Node (Terminal): Use stdout for inline updates
       process.stdout.write(`\r${bar} ${percent}`);
@@ -58,12 +64,12 @@ export class Printer {
     headerColors: ColorName[] = ['brightWhite', 'bold']
   ): void {
     if (isBrowserEnvironment()) {
-      // Browser: Use console.table for better formatting
-      console.table(data);
+      // Browser: Use console.table for better formatting - use original to prevent recursion
+      this.originalConsole.table(data);
     } else {
       // Node (Terminal): Format as ASCII table
       if (data.length === 0) {
-        console.log('Empty table (no data)');
+        this.originalConsole.log('Empty table (no data)');
         return;
       }
 
@@ -82,11 +88,11 @@ export class Printer {
 
       // Calculate total table width
       const totalWidth = Object.values(columnWidths).reduce((sum, width) => sum + width + 3, 1);
-      console.log('─'.repeat(totalWidth)); // horizontal line above the table
+      this.originalConsole.log('─'.repeat(totalWidth)); // horizontal line above the table
 
       // Top border
       let border = '┌' + columns.map(col => '─'.repeat(columnWidths[col] + 2)).join('┬') + '┐';
-      console.log(border);
+      this.originalConsole.log(border);
 
       // Header row (with colors)
       let headerRow = '│';
@@ -95,11 +101,11 @@ export class Printer {
         const coloredCol = Colorizer.applyColors(paddedCol, headerColors);
         headerRow += `${coloredCol}│`;
       });
-      console.log(headerRow);
+      this.originalConsole.log(headerRow);
 
       // Separator after header
       border = '├' + columns.map(col => '─'.repeat(columnWidths[col] + 2)).join('┼') + '┤';
-      console.log(border);
+      this.originalConsole.log(border);
 
       // Data rows
       data.forEach(row => {
@@ -108,12 +114,12 @@ export class Printer {
           const value = row[col] ?? '';
           dataRow += ` ${String(value).padEnd(columnWidths[col])} │`;
         });
-        console.log(dataRow);
+        this.originalConsole.log(dataRow);
       });
 
       // Bottom border
       border = '└' + columns.map(col => '─'.repeat(columnWidths[col] + 2)).join('┴') + '┘';
-      console.log(border);
+      this.originalConsole.log(border);
     }
   }
 }

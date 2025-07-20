@@ -42,28 +42,53 @@ export class EnhancedConsole {
     }
   }
 
-  log(message: string, ..._args: unknown[]): void {
-    this.logger.info(message);
+  log(message: string, ...args: unknown[]): void {
+    // If there are additional arguments, delegate to original console
+    if (args.length > 0) {
+      this.originalConsole.log(message, ...args);
+    } else {
+      this.logger.info(message);
+    }
   }
 
-  info(message: string, ..._args: unknown[]): void {
-    this.logger.info(message);
+  info(message: string, ...args: unknown[]): void {
+    // If there are additional arguments, delegate to original console
+    if (args.length > 0) {
+      this.originalConsole.info(message, ...args);
+    } else {
+      this.logger.info(message);
+    }
   }
 
-  warn(message: string, ..._args: unknown[]): void {
-    this.logger.warn(message);
+  warn(message: string, ...args: unknown[]): void {
+    // If there are additional arguments, delegate to original console
+    if (args.length > 0) {
+      this.originalConsole.warn(message, ...args);
+    } else {
+      this.logger.warn(message);
+    }
   }
 
-  error(message: string, ..._args: unknown[]): void {
-    this.logger.error(message);
+  error(message: string, ...args: unknown[]): void {
+    // If there are additional arguments, delegate to original console
+    if (args.length > 0) {
+      this.originalConsole.error(message, ...args);
+    } else {
+      this.logger.error(message);
+    }
+  }
+
+  debug(message: string, ...args: unknown[]): void {
+    // If there are additional arguments, delegate to original console
+    if (args.length > 0) {
+      this.originalConsole.debug(message, ...args);
+    } else {
+      this.logger.debug(message);
+    }
   }
 
   success(message: string, ..._args: unknown[]): void {
     this.logger.success(message);
-  }
-
-  debug(message: string, ..._args: unknown[]): void {
-    this.logger.debug(message);
   }
 
   header(title: string): void {
@@ -134,6 +159,10 @@ export function enhanceConsole(options: EnhanceConsoleOptions = {}): {
   // Store original console methods
   const originalConsole = { ...console };
 
+  // Add recursion guard symbol
+  const recursionGuard = Symbol('recursionGuard');
+  (console as any)[recursionGuard] = false;
+
   // Explicitly add enhanced methods to console
   (console as any).success = enhanced.success.bind(enhanced);
   (console as any).header = enhanced.header.bind(enhanced);
@@ -155,7 +184,7 @@ export function enhanceConsole(options: EnhanceConsoleOptions = {}): {
     restoreConsole: () => {
       // Restore original console
       Object.assign(console, originalConsole);
-      
+
       // Remove enhanced methods
       delete (console as any).success;
       delete (console as any).header;
@@ -164,6 +193,7 @@ export function enhanceConsole(options: EnhanceConsoleOptions = {}): {
       delete (console as any).styled;
       delete (console as any).color;
       delete (console as any).colorParts;
+      delete (console as any)[recursionGuard];
     },
   };
 }

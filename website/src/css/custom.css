@@ -205,17 +205,44 @@
   transform: translateY(-4px);
 }
 
-/* Navigation neumorphic */
+/* Navigation neumorphic with logo styling */
 .navbar {
   background: var(--ifm-background-surface-color);
   box-shadow: var(--neo-shadow-1);
   backdrop-filter: blur(10px);
   border-bottom: none;
+  padding: 0.5rem 0;
 }
 
 .navbar__brand {
   font-weight: 700;
   font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* Style the navbar logo */
+.navbar__logo {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(102, 102, 255, 0.2);
+  transition: all 0.3s ease;
+}
+
+.navbar__logo:hover {
+  transform: scale(1.1) rotate(5deg);
+  box-shadow: 0 4px 16px rgba(102, 102, 255, 0.4);
+}
+
+/* Style navbar title with gradient */
+.navbar__title {
+  background: var(--rainbow-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 800;
 }
 
 .navbar__item {
@@ -223,10 +250,74 @@
   transition: all 0.3s ease;
 }
 
+.navbar__link {
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
 .navbar__link:hover {
   background: var(--ifm-background-color);
   box-shadow: var(--neo-shadow-2);
-  border-radius: 15px;
+  color: var(--ifm-color-primary);
+  text-decoration: none;
+}
+
+/* Fix hamburger menu alignment */
+.navbar__toggle {
+  margin-right: 0.5rem;
+  border: none;
+  background: transparent;
+  padding: 0.5rem;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.navbar__toggle:hover {
+  background: var(--ifm-background-color);
+  box-shadow: var(--neo-shadow-2);
+}
+
+/* Style hamburger icon */
+.navbar__toggle svg {
+  width: 24px;
+  height: 24px;
+  color: var(--ifm-color-primary);
+}
+
+/* Fix mobile menu dropdown */
+.navbar-sidebar {
+  background: var(--ifm-background-surface-color);
+  box-shadow: var(--neo-shadow-1);
+  border-right: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.navbar-sidebar__brand {
+  padding: 1rem;
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.navbar-sidebar__items {
+  padding: 1rem 0;
+}
+
+.navbar-sidebar__item {
+  margin: 0.25rem 1rem;
+}
+
+.navbar-sidebar__item .navbar__link {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  display: block;
+  color: var(--ifm-color-content);
+  font-weight: 600;
+}
+
+.navbar-sidebar__item .navbar__link:hover {
+  background: var(--ifm-color-primary);
+  color: white;
+  text-decoration: none;
 }
 
 /* Footer neumorphic */
@@ -289,5 +380,14 @@
   .button {
     padding: 0.8rem 1.5rem;
     font-size: 1rem;
+  }
+  
+  .navbar__brand {
+    font-size: 1.3rem;
+  }
+  
+  .navbar__logo {
+    width: 28px !important;
+    height: 28px !important;
   }
 }

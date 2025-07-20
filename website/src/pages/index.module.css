@@ -1,1409 +1,330 @@
-/**
- * MagicLogger Homepage - Neumorphic Design
- */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
-/* Import Inter font */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
-/* Magic gradient definitions */
+/* Color Variables */
 :root {
-  --magic-gradient: linear-gradient(135deg, #9945ff, #00d4ff, #00ff88);
-  --magic-purple: #9945ff;
-  --magic-cyan: #00d4ff;
-  --magic-green: #00ff88;
-  --magic-yellow: #ffcc00;
-  --magic-pink: #ff0080;
+  --magic-purple: #8b5cf6;
+  --magic-blue: #3b82f6;
+  --magic-cyan: #06b6d4;
+  --magic-green: #10b981;
+  --magic-yellow: #f59e0b;
+  --magic-orange: #f97316;
+  --magic-red: #ef4444;
+  --magic-pink: #ec4899;
+  
+  --primary-gradient: linear-gradient(135deg, var(--magic-purple), var(--magic-blue));
+  --rainbow-gradient: linear-gradient(135deg, var(--magic-purple), var(--magic-blue), var(--magic-cyan), var(--magic-green));
+  --surface-gradient: linear-gradient(135deg, rgba(139, 92, 246, 0.05), rgba(59, 130, 246, 0.05));
+  
+  --neo-border-radius: 16px;
+  --neo-shadow-1: 0 4px 20px rgba(0, 0, 0, 0.1);
+  --neo-shadow-hover: 0 8px 40px rgba(139, 92, 246, 0.2);
 }
 
-/* Hero title styles with new branding - Fix translucency */
+/* Typography */
 .heroTitle {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
-  font-size: 26px !important;
-  font-weight: 600 !important;
-  margin-bottom: 1rem !important;
-  position: relative;
-  z-index: 10 !important;
-  opacity: 1 !important;
-  color: #1a202c !important; /* Fallback color */
-  text-shadow: none !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: clamp(2.5rem, 8vw, 4rem);
+  font-weight: 800;
+  line-height: 1.1;
+  margin-bottom: 1.5rem;
+  text-align: left;
 }
 
 .magicText {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 26px;
-  font-weight: 600;
-  background: linear-gradient(90deg, #1a202c, #718096 50%, #a0aec0);
+  background: var(--rainbow-gradient);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  animation: shimmer 3s ease-in-out infinite;
 }
 
 .loggerText {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 26px;
-  font-weight: 600;
-  background: linear-gradient(135deg, #9945ff, #00d4ff, #00ff88);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--ifm-color-emphasis-800);
 }
 
-/* Dark mode version */
-[data-theme='dark'] .magicText {
-  background: linear-gradient(90deg, #e9ecef, #adb5bd);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-/* Hero subtitle styles - Fix translucency */
 .heroSubtitle {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
-  font-size: 11px !important;
-  font-weight: 400 !important;
-  color: #666 !important;
-  margin-bottom: 2rem !important;
-  position: relative;
-  z-index: 10 !important;
-  opacity: 1 !important;
-  text-shadow: none !important;
+  font-family: 'Inter', sans-serif;
+  font-size: clamp(1.1rem, 3vw, 1.4rem);
+  font-weight: 400;
+  line-height: 1.6;
+  color: var(--ifm-color-content-secondary);
+  margin-bottom: 2rem;
+  max-width: 500px;
+  text-align: left;
 }
 
-/* Dark mode subtitle */
-[data-theme='dark'] .heroSubtitle {
-  color: #adb5bd !important;
-}
-
+/* Hero Banner */
 .heroBanner {
-  padding: 6rem 0;
+  position: relative;
+  padding: 4rem 0 6rem;
   text-align: center;
-  position: relative;
+  background: var(--ifm-background-color);
   overflow: hidden;
-  background: var(--ifm-background-color);
-  background-image: var(--surface-gradient);
-}
-
-/* Animated background elements */
-.heroBanner::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: conic-gradient(
-    from 0deg,
-    transparent,
-    rgba(102, 102, 255, 0.1),
-    transparent,
-    rgba(255, 107, 107, 0.1),
-    transparent,
-    rgba(72, 219, 251, 0.1),
-    transparent
-  );
-  animation: rotate 20s linear infinite;
-  z-index: 0;
-}
-
-.heroBanner::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--ifm-background-color);
-  opacity: 0.8;
-  z-index: 0;
-}
-
-.heroBanner > .container {
-  position: relative;
-  z-index: 1;
-}
-
-@keyframes rotate {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.buttons {
+  min-height: 80vh;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-  margin-top: 2rem;
 }
 
-/* Quick Install Section in Hero */
-.quickInstall {
-  margin-top: 3rem;
-  padding: 2rem 0;
-}
-
-.quickInstallTitle {
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin-bottom: 1.5rem;
-  background: var(--primary-gradient);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.installCommands {
-  display: flex;
-  justify-content: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-  max-width: 800px;
-  margin: 0 auto;
-}
-
-.installCommand {
-  flex: 1;
-  min-width: 200px;
-  margin: 0 !important;
-}
-
-/* Fix code block styling */
-.installCommand .prism-code {
-  background: var(--ifm-background-surface-color) !important;
-  border: 2px solid var(--ifm-color-primary-lighter) !important;
-  border-radius: var(--neo-border-radius) !important;
-  box-shadow: var(--neo-shadow-2) !important;
-  padding: 1rem !important;
-  font-size: 0.9rem !important;
-  font-weight: 600 !important;
-  color: var(--ifm-color-primary-darker) !important;
-}
-
-.installCommand .token-line {
-  color: var(--ifm-color-primary-darker) !important;
-}
-
-/* Dark mode code blocks */
-[data-theme='dark'] .installCommand .prism-code {
-  background: var(--ifm-background-surface-color) !important;
-  border: 2px solid var(--ifm-color-primary-darker) !important;
-  color: var(--ifm-color-primary-lighter) !important;
-}
-
-[data-theme='dark'] .installCommand .token-line {
-  color: var(--ifm-color-primary-lighter) !important;
-}
-
-/* Add some sparkle elements */
-.heroBanner .sparkle {
-  position: absolute;
-  width: 4px;
-  height: 4px;
-  background: var(--rainbow-gradient);
-  border-radius: 50%;
-  animation: sparkle 2s ease-in-out infinite;
-}
-
-.heroBanner .sparkle:nth-child(1) {
-  top: 20%;
-  left: 10%;
-  animation-delay: 0s;
-}
-
-.heroBanner .sparkle:nth-child(2) {
-  top: 80%;
-  right: 15%;
-  animation-delay: 0.5s;
-}
-
-.heroBanner .sparkle:nth-child(3) {
-  top: 30%;
-  right: 20%;
-  animation-delay: 1s;
-}
-
-.heroBanner .sparkle:nth-child(4) {
-  bottom: 20%;
-  left: 20%;
-  animation-delay: 1.5s;
-}
-
-@keyframes sparkle {
-  0%, 100% {
-    opacity: 0;
-    transform: scale(0);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-/* Demo Section */
-.demoSection {
-  padding: 6rem 0;
-  background: var(--ifm-background-color);
-  background-image: var(--surface-gradient);
-}
-
-.sectionTitle {
-  font-size: 2.5rem;
-  font-weight: 800;
-  background: var(--rainbow-gradient);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  margin-bottom: 1rem;
-}
-
-.sectionSubtitle {
-  font-size: 1.3rem;
-  color: var(--ifm-color-content-secondary);
-  max-width: 600px;
-  margin: 0 auto;
-}
-
-.demoContainer {
-  margin: 3rem 0;
-  display: flex;
-  justify-content: center;
-}
-
-.liveDemo {
-  background: var(--ifm-background-surface-color);
-  border-radius: var(--neo-border-radius);
-  box-shadow: var(--neo-shadow-1);
-  max-width: 800px;
-  width: 100%;
-  position: relative;
-  overflow: hidden;
-  transition: all 0.3s ease;
-}
-
-.liveDemo::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: var(--rainbow-gradient);
-  opacity: 0.8;
-  z-index: 2;
-}
-
-.liveDemo:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--neo-shadow-hover);
-}
-
-.demoFrame {
-  border-radius: var(--neo-border-radius);
-  border: none;
-  display: block;
-  background: #1e1e1e;
-}
-
-.demoOverlay {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
-  padding: 2rem;
-  color: white;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  pointer-events: none;
-}
-
-.liveDemo:hover .demoOverlay {
-  opacity: 1;
-}
-
-.demoInfo h3 {
-  margin: 0 0 0.5rem 0;
-  font-size: 1.3rem;
-  background: var(--rainbow-gradient);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.demoInfo p {
-  margin: 0 0 1rem 0;
-  font-size: 1rem;
-  opacity: 0.9;
-}
-
-.demoFeatures {
-  display: flex;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.demoFeatures span {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  padding: 0.3rem 0.8rem;
-  font-size: 0.8rem;
-  font-weight: 500;
-  backdrop-filter: blur(10px);
-}
-
-/* Fallback for older demo placeholder styles */
-.demoPlaceholder {
-  background: var(--ifm-background-surface-color);
-  border-radius: var(--neo-border-radius);
-  box-shadow: var(--neo-shadow-1);
-  padding: 3rem 2rem;
-  text-align: center;
-  max-width: 600px;
-  width: 100%;
-  position: relative;
-  overflow: hidden;
-  transition: all 0.3s ease;
-}
-
-.demoPlaceholder::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: var(--rainbow-gradient);
-  opacity: 0.8;
-}
-
-.demoPlaceholder:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--neo-shadow-hover);
-}
-
-.demoPlaceholderContent h3 {
-  font-size: 1.5rem;
-  margin: 1rem 0;
-  background: var(--primary-gradient);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.demoPlaceholderContent p {
-  color: var(--ifm-color-content-secondary);
-  font-size: 1.1rem;
-  line-height: 1.6;
-  margin-bottom: 1.5rem;
-}
-
-.playButton {
-  margin-bottom: 1rem;
-  cursor: pointer;
-  transition: transform 0.3s ease;
-}
-
-.playButton:hover {
-  transform: scale(1.1);
-}
-
-.demoStats {
-  display: flex;
-  justify-content: center;
-  gap: 1.5rem;
-  flex-wrap: wrap;
-  margin-top: 1rem;
-}
-
-.demoStats span {
-  background: var(--ifm-background-color);
-  border-radius: 15px;
-  padding: 0.5rem 1rem;
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: var(--ifm-color-content-secondary);
-  box-shadow: var(--neo-shadow-2);
-}
-
-.exampleCard {
-  background: var(--ifm-background-surface-color);
-  border-radius: var(--neo-border-radius);
-  box-shadow: var(--neo-shadow-1);
-  padding: 2rem;
-  height: 100%;
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
-}
-
-.exampleCard::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: var(--rainbow-gradient);
-  opacity: 0.6;
-}
-
-.exampleCard:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--neo-shadow-hover);
-}
-
-.exampleTitle {
-  font-size: 1.3rem;
-  margin-bottom: 1.5rem;
-  background: var(--primary-gradient);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.exampleLinks {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding: 1rem 0;
-}
-
-.exampleLinks .button {
-  font-size: 0.9rem;
-  padding: 0.8rem 1rem;
-  border-radius: 12px;
-  font-weight: 600;
-  transition: all 0.3s ease;
-}
-
-.exampleLinks .button--primary {
-  background: var(--rainbow-gradient);
-  border: none;
-  color: white;
-}
-
-.exampleLinks .button--primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 102, 255, 0.3);
-  color: white;
-}
-
-.exampleLinks .button--outline {
-  border: 2px solid var(--ifm-color-primary-lighter);
-  color: var(--ifm-color-primary);
-  background: transparent;
-}
-
-.exampleLinks .button--outline:hover {
-  background: var(--ifm-color-primary-lighter);
-  color: var(--ifm-color-primary-darker);
-  transform: translateY(-1px);
-}
-
-.installSection {
-  margin-top: 4rem;
-  text-align: center;
-}
-
-.installTitle {
-  font-size: 2rem;
-  margin-bottom: 2rem;
-  background: var(--primary-gradient);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.installCommands {
-  display: flex;
-  justify-content: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-  max-width: 800px;
-  margin: 0 auto;
-}
-
-.installCommands > div {
-  flex: 1;
-  min-width: 200px;
-}
-
-/* Examples Section - Tabbed Interface */
-.examplesSection {
-  margin-top: 3rem;
-  padding: 2rem 0;
-}
-
-.tabNavigation {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.5rem;
-  margin-bottom: 2rem;
-  border-bottom: 2px solid var(--ifm-color-emphasis-200);
-  padding-bottom: 1rem;
-}
-
-.tabButton {
-  background: var(--ifm-background-surface-color);
-  border: 2px solid var(--ifm-color-emphasis-300);
-  border-radius: var(--neo-border-radius);
-  padding: 0.75rem 1.5rem;
-  color: var(--ifm-color-content);
-  font-weight: 600;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: var(--neo-shadow-1);
-  position: relative;
-  overflow: hidden;
-}
-
-.tabButton:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--neo-shadow-3);
-  border-color: var(--ifm-color-primary);
-}
-
-.tabButton::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
-  transition: left 0.5s;
-}
-
-.tabButton:hover::before {
-  left: 100%;
-}
-
-.tabButtonActive {
-  background: var(--ifm-color-primary) !important;
-  color: white !important;
-  border-color: var(--ifm-color-primary-dark) !important;
-  box-shadow: var(--neo-shadow-3) !important;
-  transform: translateY(-2px);
-}
-
-.tabContent {
-  background: var(--ifm-background-surface-color);
-  border-radius: var(--neo-border-radius);
-  padding: 2rem;
-  box-shadow: var(--neo-shadow-2);
-  border: 2px solid var(--ifm-color-emphasis-200);
-}
-
-.tabHeader {
-  margin-bottom: 1.5rem;
-  text-align: center;
-}
-
-.tabTitle {
-  font-size: 1.8rem;
-  font-weight: 700;
-  color: var(--ifm-color-primary);
-  margin-bottom: 0.5rem;
-  background: linear-gradient(135deg, var(--ifm-color-primary), var(--ifm-color-secondary));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.tabDescription {
-  font-size: 1.1rem;
-  color: var(--ifm-color-content-secondary);
-  margin: 0;
-  font-style: italic;
-}
-
-.codeContainer {
-  margin: 1.5rem 0;
-  border-radius: var(--neo-border-radius);
-  overflow: hidden;
-  box-shadow: var(--neo-shadow-2);
-}
-
-.exampleCode {
-  margin: 0 !important;
-  font-size: 0.9rem !important;
-  line-height: 1.5 !important;
-}
-
-.quickActions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 1rem;
-  margin-top: 1.5rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid var(--ifm-color-emphasis-200);
-}
-
-.quickActions .button {
-  box-shadow: var(--neo-shadow-1);
-  transition: all 0.3s ease;
-}
-
-.quickActions .button:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--neo-shadow-3);
-}
-
-/* Dark mode adjustments for tabs */
-[data-theme='dark'] .tabContent {
-  background: var(--ifm-color-emphasis-100);
-  border-color: var(--ifm-color-emphasis-300);
-}
-
-[data-theme='dark'] .tabButton {
-  background: var(--ifm-color-emphasis-100);
-  border-color: var(--ifm-color-emphasis-400);
-  color: var(--ifm-color-content);
-}
-
-[data-theme='dark'] .tabButton:hover {
-  border-color: var(--ifm-color-primary-lighter);
-}
-
-/* Mobile responsiveness for tabs */
-@media (max-width: 768px) {
-  .tabNavigation {
-    flex-direction: column;
-    align-items: center;
-  }
-  
-  .tabButton {
-    width: 100%;
-    max-width: 300px;
-    text-align: center;
-  }
-  
-  .tabContent {
-    padding: 1rem;
-  }
-  
-  .quickActions {
-    flex-direction: column;
-    align-items: center;
-  }
-  
-  .quickActions .button {
-    width: 100%;
-    max-width: 250px;
-  }
-}
-
-@media screen and (max-width: 996px) {
-  .heroBanner {
-    padding: 4rem 2rem;
-  }
-  
-  .buttons {
-    flex-direction: column;
-    gap: 1rem;
-  }
-  
-  .buttons .button {
-    width: 100%;
-    max-width: 300px;
-  }
-  
-  .quickInstall {
-    margin-top: 2rem;
-    padding: 1.5rem 0;
-  }
-  
-  .quickInstallTitle {
-    font-size: 1.3rem;
-  }
-  
-  .installCommands {
-    flex-direction: column;
-    gap: 0.8rem;
-  }
-  
-  .installCommand {
-    min-width: auto;
-  }
-  
-  .demoSection {
-    padding: 4rem 0;
-  }
-  
-  .sectionTitle {
-    font-size: 2rem;
-  }
-  
-  .demoPlaceholder {
-    padding: 2rem 1.5rem;
-  }
-  
-  .exampleCard {
-    padding: 1.5rem;
-    margin-bottom: 2rem;
-  }
-}
-
-@media screen and (max-width: 768px) {
-  .heroBanner {
-    padding: 3rem 1rem;
-  }
-  
-  .quickInstall {
-    margin-top: 1.5rem;
-    padding: 1rem 0;
-  }
-  
-  .quickInstallTitle {
-    font-size: 1.2rem;
-  }
-  
-  .installCommand .prism-code {
-    font-size: 0.8rem !important;
-    padding: 0.8rem !important;
-  }
-  
-  .demoSection {
-    padding: 3rem 0;
-  }
-  
-  .sectionTitle {
-    font-size: 1.8rem;
-  }
-  
-  .sectionSubtitle {
-    font-size: 1.1rem;
-  }
-  
-  .demoStats {
-    flex-direction: column;
-    align-items: center;
-  }
-}
-.heroBanner {
-  padding: 4rem 0;
-  text-align: left;
-  position: relative;
-  overflow: hidden;
-  background: var(--ifm-background-color);
-  background-image: var(--surface-gradient);
-  min-height: 600px;
-}
-
-/* Fix overlay issue - reduce opacity and ensure content is above */
-.heroBanner::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: conic-gradient(
-    from 0deg,
-    transparent,
-    rgba(102, 102, 255, 0.05),
-    transparent,
-    rgba(255, 107, 107, 0.05),
-    transparent,
-    rgba(72, 219, 251, 0.05),
-    transparent
-  );
-  animation: rotate 20s linear infinite;
-  z-index: 0;
-}
-
-.heroBanner::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--ifm-background-color);
-  opacity: 0.95;
-  z-index: 1;
-}
-
-.heroBanner > .container {
-  position: relative;
-  z-index: 10;
-}
-
-/* Two-column hero layout */
 .heroContent {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 4rem;
   align-items: center;
-  min-height: 500px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  position: relative;
+  z-index: 2;
 }
 
 .heroLeft {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+  text-align: left;
 }
 
 .heroRight {
+  position: relative;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   align-items: center;
+  gap: 2rem;
 }
 
-/* Demo container with retro terminal styling */
+/* Buttons */
+.buttons {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 2rem;
+  position: relative;
+  z-index: 10;
+}
+
+.button {
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  padding: 0.8rem 2rem;
+  border-radius: var(--neo-border-radius);
+  text-decoration: none;
+  transition: all 0.3s ease;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.button--primary {
+  background: var(--primary-gradient);
+  color: white;
+  box-shadow: var(--neo-shadow-1);
+}
+
+.button--primary:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--neo-shadow-hover);
+  color: white;
+  text-decoration: none;
+}
+
+.button--secondary {
+  background: var(--ifm-background-surface-color);
+  color: var(--ifm-color-emphasis-800);
+  border: 2px solid var(--ifm-color-emphasis-200);
+  box-shadow: var(--neo-shadow-1);
+}
+
+.button--secondary:hover {
+  transform: translateY(-2px);
+  border-color: var(--magic-purple);
+  color: var(--magic-purple);
+  text-decoration: none;
+}
+
+/* Quick Install */
+.quickInstall {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  background: var(--ifm-background-surface-color);
+  border-radius: var(--neo-border-radius);
+  border: 1px solid var(--ifm-color-emphasis-200);
+  box-shadow: var(--neo-shadow-1);
+}
+
+.installCommands {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.installCommand {
+  background: var(--ifm-color-emphasis-100);
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 8px;
+  padding: 0.8rem 1rem;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.9rem;
+  color: var(--ifm-color-emphasis-800);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.installCommand:hover {
+  background: var(--ifm-color-emphasis-200);
+  border-color: var(--magic-purple);
+}
+
+/* Demo Container */
 .demoContainer {
+  position: relative;
   width: 100%;
   max-width: 500px;
-  background: var(--ifm-background-surface-color);
-  border-radius: 16px;
-  padding: 2rem;
-  box-shadow: 
-    inset 8px 8px 16px rgba(0, 0, 0, 0.1),
-    inset -8px -8px 16px rgba(255, 255, 255, 0.1),
-    0 8px 32px rgba(0, 0, 0, 0.15);
-  border: 2px solid var(--ifm-color-emphasis-200);
-  position: relative;
-}
-
-.demoTitle {
-  font-family: 'Inter', monospace;
-  font-size: 1.2rem;
-  font-weight: 600;
-  margin-bottom: 1.5rem;
-  text-align: center;
-  background: var(--magic-gradient);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-/* Demo media container */
-.demoMedia {
-  position: relative;
-  width: 100%;
-  height: 300px;
-  background: #1a1a1a;
-  border-radius: 12px;
+  aspect-ratio: 16/10;
+  border-radius: var(--neo-border-radius);
   overflow: hidden;
-  margin-bottom: 1.5rem;
-  border: 2px solid var(--ifm-color-emphasis-300);
-  box-shadow: 
-    inset 4px 4px 8px rgba(0, 0, 0, 0.3),
-    inset -4px -4px 8px rgba(255, 255, 255, 0.05);
+  box-shadow: var(--neo-shadow-1);
+  background: #1a1a1a;
+  border: 2px solid var(--ifm-color-emphasis-200);
 }
 
-.demoGif {
+.demoMedia {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 10px;
+  border-radius: calc(var(--neo-border-radius) - 2px);
 }
 
-/* Logo overlay */
 .logoOverlay {
   position: absolute;
   top: 1rem;
-  right: 1rem;
-  background: rgba(0, 0, 0, 0.8);
+  left: 1rem;
+  width: 40px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.9);
   border-radius: 8px;
-  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 5;
 }
 
-.overlayLogo {
-  width: 32px;
-  height: 32px;
-  filter: brightness(1.2);
+.logoOverlay img {
+  width: 24px;
+  height: 24px;
 }
 
-/* Interactive demo styling */
+.buttonsOverlay {
+  position: absolute;
+  bottom: 1rem;
+  left: 1rem;
+  right: 1rem;
+  display: flex;
+  gap: 0.5rem;
+  z-index: 5;
+}
+
+.buttonsOverlay .button {
+  flex: 1;
+  justify-content: center;
+  padding: 0.6rem 1rem;
+  font-size: 0.9rem;
+  backdrop-filter: blur(10px);
+}
+
 .interactiveDemo {
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 8px;
-  padding: 1rem;
-  border: 1px solid var(--ifm-color-emphasis-200);
+  margin-top: 2rem;
+  width: 100%;
 }
 
-/* Responsive design */
+/* Animations */
+@keyframes shimmer {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+/* Responsive Design */
 @media (max-width: 996px) {
   .heroContent {
     grid-template-columns: 1fr;
-    gap: 2rem;
+    gap: 3rem;
     text-align: center;
   }
   
   .heroLeft {
-    order: 1;
+    text-align: center;
   }
   
-  .heroRight {
-    order: 2;
+  .heroTitle {
+    font-size: clamp(2rem, 6vw, 3rem);
+  }
+  
+  .heroSubtitle {
+    text-align: center;
+    max-width: 100%;
+  }
+  
+  .buttons {
+    justify-content: center;
   }
   
   .demoContainer {
     max-width: 400px;
   }
-  
-  .demoMedia {
-    height: 250px;
-  }
 }
 
 @media (max-width: 768px) {
   .heroBanner {
-    padding: 2rem 0;
+    padding: 2rem 0 4rem;
+    min-height: auto;
   }
   
   .heroContent {
-    gap: 1.5rem;
-  }
-  
-  .demoContainer {
-    padding: 1.5rem;
-  }
-  
-  .demoMedia {
-    height: 200px;
-  }
-}
-
-/* Fallback for older demo placeholder styles */
-.demoPlaceholder {
-  background: var(--ifm-background-surface-color);
-  border-radius: var(--neo-border-radius);
-  box-shadow: var(--neo-shadow-1);
-  padding: 3rem 2rem;
-  text-align: center;
-  max-width: 600px;
-  width: 100%;
-  position: relative;
-  overflow: hidden;
-  transition: all 0.3s ease;
-}
-
-.demoPlaceholder::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: var(--rainbow-gradient);
-  opacity: 0.8;
-}
-
-.demoPlaceholder:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--neo-shadow-hover);
-}
-
-.demoPlaceholderContent h3 {
-  font-size: 1.5rem;
-  margin: 1rem 0;
-  background: var(--primary-gradient);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.demoPlaceholderContent p {
-  color: var(--ifm-color-content-secondary);
-  font-size: 1.1rem;
-  line-height: 1.6;
-  margin-bottom: 1.5rem;
-}
-
-.playButton {
-  margin-bottom: 1rem;
-  cursor: pointer;
-  transition: transform 0.3s ease;
-}
-
-.playButton:hover {
-  transform: scale(1.1);
-}
-
-.demoStats {
-  display: flex;
-  justify-content: center;
-  gap: 1.5rem;
-  flex-wrap: wrap;
-  margin-top: 1rem;
-}
-
-.demoStats span {
-  background: var(--ifm-background-color);
-  border-radius: 15px;
-  padding: 0.5rem 1rem;
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: var(--ifm-color-content-secondary);
-  box-shadow: var(--neo-shadow-2);
-}
-
-.exampleCard {
-  background: var(--ifm-background-surface-color);
-  border-radius: var(--neo-border-radius);
-  box-shadow: var(--neo-shadow-1);
-  padding: 2rem;
-  height: 100%;
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
-}
-
-.exampleCard::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: var(--rainbow-gradient);
-  opacity: 0.6;
-}
-
-.exampleCard:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--neo-shadow-hover);
-}
-
-.exampleTitle {
-  font-size: 1.3rem;
-  margin-bottom: 1.5rem;
-  background: var(--primary-gradient);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.exampleLinks {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding: 1rem 0;
-}
-
-.exampleLinks .button {
-  font-size: 0.9rem;
-  padding: 0.8rem 1rem;
-  border-radius: 12px;
-  font-weight: 600;
-  transition: all 0.3s ease;
-}
-
-.exampleLinks .button--primary {
-  background: var(--rainbow-gradient);
-  border: none;
-  color: white;
-}
-
-.exampleLinks .button--primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 102, 255, 0.3);
-  color: white;
-}
-
-.exampleLinks .button--outline {
-  border: 2px solid var(--ifm-color-primary-lighter);
-  color: var(--ifm-color-primary);
-  background: transparent;
-}
-
-.exampleLinks .button--outline:hover {
-  background: var(--ifm-color-primary-lighter);
-  color: var(--ifm-color-primary-darker);
-  transform: translateY(-1px);
-}
-
-.installSection {
-  margin-top: 4rem;
-  text-align: center;
-}
-
-.installTitle {
-  font-size: 2rem;
-  margin-bottom: 2rem;
-  background: var(--primary-gradient);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.installCommands {
-  display: flex;
-  justify-content: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-  max-width: 800px;
-  margin: 0 auto;
-}
-
-.installCommands > div {
-  flex: 1;
-  min-width: 200px;
-}
-
-/* Examples Section - Tabbed Interface */
-.examplesSection {
-  margin-top: 3rem;
-  padding: 2rem 0;
-}
-
-.tabNavigation {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.5rem;
-  margin-bottom: 2rem;
-  border-bottom: 2px solid var(--ifm-color-emphasis-200);
-  padding-bottom: 1rem;
-}
-
-.tabButton {
-  background: var(--ifm-background-surface-color);
-  border: 2px solid var(--ifm-color-emphasis-300);
-  border-radius: var(--neo-border-radius);
-  padding: 0.75rem 1.5rem;
-  color: var(--ifm-color-content);
-  font-weight: 600;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: var(--neo-shadow-1);
-  position: relative;
-  overflow: hidden;
-}
-
-.tabButton:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--neo-shadow-3);
-  border-color: var(--ifm-color-primary);
-}
-
-.tabButton::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
-  transition: left 0.5s;
-}
-
-.tabButton:hover::before {
-  left: 100%;
-}
-
-.tabButtonActive {
-  background: var(--ifm-color-primary) !important;
-  color: white !important;
-  border-color: var(--ifm-color-primary-dark) !important;
-  box-shadow: var(--neo-shadow-3) !important;
-  transform: translateY(-2px);
-}
-
-.tabContent {
-  background: var(--ifm-background-surface-color);
-  border-radius: var(--neo-border-radius);
-  padding: 2rem;
-  box-shadow: var(--neo-shadow-2);
-  border: 2px solid var(--ifm-color-emphasis-200);
-}
-
-.tabHeader {
-  margin-bottom: 1.5rem;
-  text-align: center;
-}
-
-.tabTitle {
-  font-size: 1.8rem;
-  font-weight: 700;
-  color: var(--ifm-color-primary);
-  margin-bottom: 0.5rem;
-  background: linear-gradient(135deg, var(--ifm-color-primary), var(--ifm-color-secondary));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.tabDescription {
-  font-size: 1.1rem;
-  color: var(--ifm-color-content-secondary);
-  margin: 0;
-  font-style: italic;
-}
-
-.codeContainer {
-  margin: 1.5rem 0;
-  border-radius: var(--neo-border-radius);
-  overflow: hidden;
-  box-shadow: var(--neo-shadow-2);
-}
-
-.exampleCode {
-  margin: 0 !important;
-  font-size: 0.9rem !important;
-  line-height: 1.5 !important;
-}
-
-.quickActions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 1rem;
-  margin-top: 1.5rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid var(--ifm-color-emphasis-200);
-}
-
-.quickActions .button {
-  box-shadow: var(--neo-shadow-1);
-  transition: all 0.3s ease;
-}
-
-.quickActions .button:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--neo-shadow-3);
-}
-
-/* Dark mode adjustments for tabs */
-[data-theme='dark'] .tabContent {
-  background: var(--ifm-color-emphasis-100);
-  border-color: var(--ifm-color-emphasis-300);
-}
-
-[data-theme='dark'] .tabButton {
-  background: var(--ifm-color-emphasis-100);
-  border-color: var(--ifm-color-emphasis-400);
-  color: var(--ifm-color-content);
-}
-
-[data-theme='dark'] .tabButton:hover {
-  border-color: var(--ifm-color-primary-lighter);
-}
-
-/* Mobile responsiveness for tabs */
-@media (max-width: 768px) {
-  .tabNavigation {
-    flex-direction: column;
-    align-items: center;
-  }
-  
-  .tabButton {
-    width: 100%;
-    max-width: 300px;
-    text-align: center;
-  }
-  
-  .tabContent {
-    padding: 1rem;
-  }
-  
-  .quickActions {
-    flex-direction: column;
-    align-items: center;
-  }
-  
-  .quickActions .button {
-    width: 100%;
-    max-width: 250px;
-  }
-}
-
-@media screen and (max-width: 996px) {
-  .heroBanner {
-    padding: 4rem 2rem;
+    padding: 0 1rem;
+    gap: 2rem;
   }
   
   .buttons {
     flex-direction: column;
-    gap: 1rem;
+    align-items: stretch;
   }
   
-  .buttons .button {
-    width: 100%;
-    max-width: 300px;
+  .button {
+    justify-content: center;
   }
   
-  .quickInstall {
-    margin-top: 2rem;
-    padding: 1.5rem 0;
+  .demoContainer {
+    max-width: 100%;
   }
   
-  .quickInstallTitle {
-    font-size: 1.3rem;
-  }
-  
-  .installCommands {
+  .buttonsOverlay {
     flex-direction: column;
-    gap: 0.8rem;
-  }
-  
-  .installCommand {
-    min-width: auto;
-  }
-  
-  .demoSection {
-    padding: 4rem 0;
-  }
-  
-  .sectionTitle {
-    font-size: 2rem;
-  }
-  
-  .demoPlaceholder {
-    padding: 2rem 1.5rem;
-  }
-  
-  .exampleCard {
-    padding: 1.5rem;
-    margin-bottom: 2rem;
   }
 }
 
-@media screen and (max-width: 768px) {
-  .heroBanner {
-    padding: 3rem 1rem;
-  }
-  
-  .quickInstall {
-    margin-top: 1.5rem;
-    padding: 1rem 0;
-  }
-  
-  .quickInstallTitle {
-    font-size: 1.2rem;
-  }
-  
-  .installCommand .prism-code {
-    font-size: 0.8rem !important;
-    padding: 0.8rem !important;
-  }
-  
-  .demoSection {
-    padding: 3rem 0;
-  }
-  
-  .sectionTitle {
-    font-size: 1.8rem;
-  }
-  
-  .sectionSubtitle {
-    font-size: 1.1rem;
-  }
-  
-  .demoStats {
-    flex-direction: column;
-    align-items: center;
-  }
+/* Dark Mode Adjustments */
+[data-theme='dark'] .installCommand {
+  background: var(--ifm-color-emphasis-200);
+  color: var(--ifm-color-emphasis-900);
+  border-color: var(--ifm-color-emphasis-300);
+}
+
+[data-theme='dark'] .installCommand:hover {
+  background: var(--ifm-color-emphasis-300);
+}
+
+[data-theme='dark'] .quickInstall {
+  background: var(--ifm-background-surface-color);
+  border-color: var(--ifm-color-emphasis-300);
+}
+
+[data-theme='dark'] .demoContainer {
+  border-color: var(--ifm-color-emphasis-300);
 }

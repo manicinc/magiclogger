@@ -40,32 +40,22 @@ function HomepageHeader() {
                 </div>
               </div>
             </div>
-
-            <div className={styles.buttons}>
-              <Link
-                className="button button--secondary button--lg"
-                to="/docs/api_usage">
-                📚 Get Started - 5min ⏱️
-              </Link>
-              <Link
-                className="button button--outline button--lg"
-                to="https://github.com/manicinc/magiclogger">
-                🔍 View on GitHub
-              </Link>
-            </div>
           </div>
 
-          {/* Right side - Demo */}
+          {/* Right side - Demo with overlaid buttons */}
           <div className={styles.heroRight}>
             <div className={styles.demoContainer}>
               <h3 className={styles.demoTitle}>✨ See it in Action</h3>
-              {/* Placeholder for your GIF/MP4 - you can replace this */}
+              
+              {/* GIF/MP4 with overlaid buttons and logo */}
               <div className={styles.demoMedia}>
                 <img 
                   src="/img/demo-placeholder.gif" 
                   alt="MagicLogger Demo" 
                   className={styles.demoGif}
                 />
+                
+                {/* Logo overlay */}
                 <div className={styles.logoOverlay}>
                   <img 
                     src="/img/magiclogger-icon.svg" 
@@ -73,7 +63,22 @@ function HomepageHeader() {
                     className={styles.overlayLogo}
                   />
                 </div>
+                
+                {/* Buttons overlaid on GIF */}
+                <div className={styles.demoButtons}>
+                  <Link
+                    className={styles.demoButton}
+                    to="/docs/api_usage">
+                    📚 Get Started - 5min ⏱️
+                  </Link>
+                  <Link
+                    className={styles.demoButton}
+                    to="https://github.com/manicinc/magiclogger">
+                    🔍 View on GitHub
+                  </Link>
+                </div>
               </div>
+              
               {/* Interactive Demo below the media */}
               <div className={styles.interactiveDemo}>
                 <InteractiveDemo />

@@ -21,22 +21,22 @@ interface TransportMeta {
 
 /**
  * Manages multiple transport instances and coordinates log distribution.
- * 
+ *
  * The TransportManager is the central orchestrator for MagicLogger's transport system:
  * - Manages lifecycle of multiple transports
  * - Routes logs to appropriate transports based on configuration
  * - Handles transport failures and fallbacks
  * - Provides aggregation and statistics across all transports
  * - Ensures proper cleanup and resource management
- * 
+ *
  * This class enables sophisticated logging strategies like:
  * - Sending errors to different destinations than info logs
  * - Load balancing across multiple endpoints
  * - Automatic failover when transports fail
  * - Centralized monitoring and statistics
- * 
+ *
  * @extends {EventEmitter}
- * 
+ *
  * @example
  * ```typescript
  * const manager = new TransportManager({
@@ -46,11 +46,11 @@ interface TransportMeta {
  *     targets: ['monitoring-transport']
  *   }
  * });
- * 
+ *
  * manager.add(s3Transport);
  * manager.add(httpTransport);
  * manager.add(consoleTransport);
- * 
+ *
  * await manager.log(logEntry);
  * ```
  */
@@ -116,7 +116,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Creates a new TransportManager instance.
-   * 
+   *
    * @param {TransportManagerOptions} [options={}] - Configuration options
    */
   constructor(options: TransportManagerOptions = {}) {
@@ -144,7 +144,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Add a transport to the manager.
-   * 
+   *
    * @param {Transport} transport - The transport to add
    * @param {number} [priority=0] - Priority for transport ordering (higher = first)
    * @returns {Promise<void>} Resolves when transport is added and initialized
@@ -191,7 +191,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Remove a transport from the manager.
-   * 
+   *
    * @param {string} name - Name of the transport to remove
    * @returns {Promise<void>} Resolves when transport is removed and closed
    * @throws {Error} If transport not found
@@ -213,7 +213,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Get a transport by name.
-   * 
+   *
    * @param {string} name - Name of the transport
    * @returns {Transport | undefined} The transport if found
    */
@@ -223,7 +223,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Get all transport names.
-   * 
+   *
    * @returns {string[]} Array of transport names
    */
   public list(): string[] {
@@ -232,7 +232,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Enable or disable a transport.
-   * 
+   *
    * @param {string} name - Name of the transport
    * @param {boolean} enabled - Whether to enable or disable
    * @throws {Error} If transport not found
@@ -251,7 +251,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Log an entry to all applicable transports.
-   * 
+   *
    * @param {LogEntry} entry - The log entry to send
    * @returns {Promise<void>} Resolves when logging is complete
    */
@@ -283,7 +283,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Log to transports with failover (stop on first success).
-   * 
+   *
    * @param {LogEntry} entry - The log entry
    * @param {TransportMeta[]} transports - Ordered list of transports
    * @returns {Promise<void>} Resolves when logged or all transports fail
@@ -300,13 +300,10 @@ export class TransportManager extends EventEmitter {
         }
 
         // Attempt to log
-        await this.withTimeout(
-          Promise.resolve(meta.transport.log(entry)),
-          this.defaultTimeout
-        );
+        await this.withTimeout(Promise.resolve(meta.transport.log(entry)), this.defaultTimeout);
 
-        // Success - stop here
-        this.emit('logged', entry, meta.transport.name);
+        // Success - stop here and emit with array format (consistent with logToAll)
+        this.emit('logged', entry, [meta.transport.name]);
         return;
       } catch (error) {
         errors.push({
@@ -324,7 +321,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Log to all applicable transports in parallel.
-   * 
+   *
    * @param {LogEntry} entry - The log entry
    * @param {TransportMeta[]} transports - List of transports
    * @returns {Promise<void>} Resolves when all transports have been attempted
@@ -332,9 +329,7 @@ export class TransportManager extends EventEmitter {
    */
   private async logToAll(entry: LogEntry, transports: TransportMeta[]): Promise<void> {
     // Filter transports that should handle this log
-    const applicableTransports = transports.filter(
-      meta => meta.transport.shouldLog(entry)
-    );
+    const applicableTransports = transports.filter(meta => meta.transport.shouldLog(entry));
 
     if (applicableTransports.length === 0) {
       return;
@@ -343,10 +338,9 @@ export class TransportManager extends EventEmitter {
     // Log to all transports in parallel
     const results = await Promise.allSettled(
       applicableTransports.map(meta =>
-        this.withTimeout(
-          Promise.resolve(meta.transport.log(entry)),
-          this.defaultTimeout
-        ).then(() => meta.transport.name)
+        this.withTimeout(Promise.resolve(meta.transport.log(entry)), this.defaultTimeout).then(
+          () => meta.transport.name
+        )
       )
     );
 
@@ -356,7 +350,7 @@ export class TransportManager extends EventEmitter {
 
     results.forEach((result, index) => {
       const transportName = applicableTransports[index].transport.name;
-      
+
       if (result.status === 'fulfilled') {
         successes.push(transportName);
       } else {
@@ -379,7 +373,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Get active (enabled) transports sorted by priority.
-   * 
+   *
    * @returns {TransportMeta[]} Sorted list of active transports
    * @private
    */
@@ -391,13 +385,14 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Sort transports by priority.
-   * 
+   *
    * @private
    */
   private sortTransports(): void {
     // Convert to array, sort, and rebuild map
-    const sorted = Array.from(this.transports.entries())
-      .sort((a, b) => b[1].priority - a[1].priority);
+    const sorted = Array.from(this.transports.entries()).sort(
+      (a, b) => b[1].priority - a[1].priority
+    );
 
     this.transports.clear();
     sorted.forEach(([name, meta]) => {
@@ -407,7 +402,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Handle errors from individual transports.
-   * 
+   *
    * @param {Transport} transport - The transport that errored
    * @param {Error} error - The error that occurred
    * @param {LogEntry} [entry] - The log entry that caused the error
@@ -429,7 +424,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Initialize aggregation system.
-   * 
+   *
    * @private
    */
   private initializeAggregation(): void {
@@ -439,7 +434,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Reset aggregation statistics.
-   * 
+   *
    * @private
    */
   private resetAggregationStats(): void {
@@ -460,7 +455,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Start the aggregation timer.
-   * 
+   *
    * @private
    */
   private startAggregationTimer(): void {
@@ -471,7 +466,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Add a log entry to aggregation statistics.
-   * 
+   *
    * @param {LogEntry} entry - The log entry to aggregate
    * @private
    */
@@ -484,26 +479,25 @@ export class TransportManager extends EventEmitter {
     this.aggregationStats.total++;
 
     // Update level counts
-    this.aggregationStats.byLevel[entry.level] = 
+    this.aggregationStats.byLevel[entry.level] =
       (this.aggregationStats.byLevel[entry.level] || 0) + 1;
 
     // Update logger counts if tracking
     if (this.aggregationFields.includes('loggerId') && entry.loggerId) {
-      this.aggregationStats.byLogger![entry.loggerId] = 
+      this.aggregationStats.byLogger![entry.loggerId] =
         (this.aggregationStats.byLogger![entry.loggerId] || 0) + 1;
     }
 
     // Update tag counts if tracking
     if (this.aggregationFields.includes('tags') && entry.tags) {
       entry.tags.forEach(tag => {
-        this.aggregationStats!.byTags![tag] = 
-          (this.aggregationStats!.byTags![tag] || 0) + 1;
+        this.aggregationStats!.byTags![tag] = (this.aggregationStats!.byTags![tag] || 0) + 1;
       });
     }
 
     // Update error rate
     if (entry.level === 'error') {
-      this.aggregationStats.errorRate = 
+      this.aggregationStats.errorRate =
         this.aggregationStats.byLevel.error / this.aggregationStats.total;
     }
 
@@ -518,7 +512,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Flush aggregation statistics to target transports.
-   * 
+   *
    * @private
    */
   private async flushAggregation(): Promise<void> {
@@ -576,7 +570,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Get statistics for all transports.
-   * 
+   *
    * @returns {Record<string, any>} Map of transport name to statistics
    */
   public getStats(): Record<string, any> {
@@ -601,7 +595,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Close all transports and clean up resources.
-   * 
+   *
    * @returns {Promise<void>} Resolves when all transports are closed
    */
   public async close(): Promise<void> {
@@ -624,14 +618,12 @@ export class TransportManager extends EventEmitter {
     }
 
     // Close all transports
-    const closePromises = Array.from(this.transports.values()).map(
-      meta => {
-        const closeResult = meta.transport.close();
-        return Promise.resolve(closeResult).catch((error: unknown) => {
-          console.error(`Error closing transport '${meta.transport.name}':`, error);
-        });
-      }
-    );
+    const closePromises = Array.from(this.transports.values()).map(meta => {
+      const closeResult = meta.transport.close();
+      return Promise.resolve(closeResult).catch((error: unknown) => {
+        console.error(`Error closing transport '${meta.transport.name}':`, error);
+      });
+    });
 
     await Promise.all(closePromises);
 
@@ -647,7 +639,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Apply timeout to an async operation.
-   * 
+   *
    * @param {Promise<T>} promise - The promise to timeout
    * @param {number} ms - Timeout in milliseconds
    * @returns {Promise<T>} The original promise with timeout
@@ -663,7 +655,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Generate a unique ID.
-   * 
+   *
    * @returns {string} Unique identifier
    * @private
    */
