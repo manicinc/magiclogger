@@ -596,12 +596,12 @@ export class Printer {
    * @static
    */
   private static buildDataRow(
-    row: Record<string, any>,
+    row: Record<string, unknown>,
     columns: string[],
     widths: Record<string, number>,
     vertical: string,
     colors: ColorName[] = [],
-    truncate: boolean = true
+    truncate = true
   ): string {
     const cells = columns.map(col => {
       let value = this.formatCellValue(row[col]);

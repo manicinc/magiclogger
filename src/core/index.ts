@@ -1,5 +1,6 @@
 // File: src/core/index.ts
 
+// Export all core components
 export { BrowserLogger } from './BrowserLogger';
 export { BrowserStorageManager } from './BrowserStorageManager';
 export { Colorizer } from './Colorizer';
@@ -11,15 +12,16 @@ export { NodeLogger } from './NodeLogger';
 export { Printer } from './Printer';
 export { TagManager } from './TagManager';
 
-// Export types
+// Export types from ContextManager
 export type {
   ContextManagerOptions,
   SanitizeMode,
   ContextValidationRules,
   ContextValidationResult,
-  ContextSnapshot
+  ContextSnapshot,
 } from './ContextManager';
 
+// Export types from TagManager  
 export type {
   TagManagerOptions,
   TagNormalizationRules,
@@ -27,5 +29,5 @@ export type {
   TagMatchCriteria,
   TagExtractionOptions,
   TagValidationRules,
-  TagValidationResult
+  TagValidationResult,
 } from './TagManager';

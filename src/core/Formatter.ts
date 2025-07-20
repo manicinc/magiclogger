@@ -1,6 +1,6 @@
 // File: src/core/Formatter.ts
 
-import { COLORS, ANSI_CODES } from '../constants/colors';
+import { ANSI_CODES } from '../constants/colors';
 import type { ColorName } from '../types';
 
 /**
@@ -40,7 +40,7 @@ export class Formatter {
    * Regex for detecting URLs.
    * @private
    */
-  private readonly urlRegex = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/gi;
+  private readonly urlRegex = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/gi;
 
   /**
    * Regex for detecting file paths.
@@ -52,6 +52,7 @@ export class Formatter {
    * Regex for stripping ANSI codes.
    * @private
    */
+  // eslint-disable-next-line no-control-regex
   private readonly ansiRegex = /\x1b\[[0-9;]*m/g;
 
   /**
@@ -95,32 +96,23 @@ export class Formatter {
 
     // Check cache
     const cacheKey = `${text}:${colors.join(',')}`;
-    if (this.cache.has(cacheKey)) {
-      return this.cache.get(cacheKey)!;
+    const cached = this.cache.get(cacheKey);
+    if (cached) {
+      return cached;
     }
 
     // Build ANSI codes
     const codes: string[] = [];
-    const resetCodes: string[] = [];
 
     for (const color of colors) {
       if (ANSI_CODES[color]) {
         codes.push(ANSI_CODES[color]);
-        
-        // Determine reset code
-        if (color.startsWith('bg')) {
-          resetCodes.push(ANSI_CODES.bgReset);
-        } else if (['bold', 'dim', 'italic', 'underline', 'inverse', 'hidden', 'strikethrough'].includes(color)) {
-          resetCodes.push(ANSI_CODES[`${color}Reset` as ColorName] || ANSI_CODES.reset);
-        } else {
-          resetCodes.push(ANSI_CODES.reset);
-        }
       }
     }
 
     // Apply codes
     const prefix = codes.join('');
-    const suffix = Array.from(new Set(resetCodes)).join('');
+    const suffix = ANSI_CODES.reset;
     const result = `${prefix}${text}${suffix}`;
 
     // Cache result
@@ -209,10 +201,10 @@ export class Formatter {
    * Format a template string with variables.
    * 
    * @param {string} template - Template string with {variables}
-   * @param {Record<string, any>} variables - Variable values
+   * @param {Record<string, unknown>} variables - Variable values
    * @returns {string} Formatted string
    */
-  public format(template: string, variables: Record<string, any>): string {
+  public format(template: string, variables: Record<string, unknown>): string {
     return template.replace(this.templateRegex, (match, key) => {
       const value = this.getNestedValue(variables, key.trim());
       return value !== undefined ? String(value) : match;
@@ -224,16 +216,16 @@ export class Formatter {
    * 
    * @param {object} obj - Object to search
    * @param {string} path - Dot-separated path
-   * @returns {any} Value at path
+   * @returns {unknown} Value at path
    * @private
    */
-  private getNestedValue(obj: any, path: string): any {
+  private getNestedValue(obj: Record<string, unknown>, path: string): unknown {
     const parts = path.split('.');
-    let current = obj;
+    let current: unknown = obj;
 
     for (const part of parts) {
       if (current && typeof current === 'object' && part in current) {
-        current = current[part];
+        current = (current as Record<string, unknown>)[part];
       } else {
         return undefined;
       }
@@ -453,7 +445,6 @@ export class Formatter {
 
     // Content lines
     for (const line of lines) {
-      const plainLength = this.stripAnsi(line).length;
       const paddedLine = this.pad(line, maxLength, ' ', align);
       
       result.push(
@@ -498,7 +489,9 @@ export class Formatter {
     if (this.cache.size >= this.maxCacheSize) {
       // Remove oldest entry
       const firstKey = this.cache.keys().next().value;
-      this.cache.delete(firstKey);
+      if (firstKey) {
+        this.cache.delete(firstKey);
+      }
     }
 
     this.cache.set(key, value);

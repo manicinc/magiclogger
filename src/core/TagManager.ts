@@ -1,297 +1,686 @@
 // File: src/core/TagManager.ts
 
+import { EventEmitter } from 'events';
+
 /**
- * Tag management utilities for log categorization.
+ * Tag manager configuration options.
  * 
- * The TagManager provides comprehensive tag manipulation:
+ * @interface TagManagerOptions
+ */
+export interface TagManagerOptions {
+  /**
+   * Maximum number of tags allowed.
+   * @default 50
+   */
+  maxTags?: number;
+
+  /**
+   * Maximum tag length.
+   * @default 50
+   */
+  maxTagLength?: number;
+
+  /**
+   * Whether to normalize tags automatically.
+   * @default true
+   */
+  autoNormalize?: boolean;
+
+  /**
+   * Tag separator for parsing.
+   * @default ','
+   */
+  separator?: string;
+
+  /**
+   * Whether to validate tags.
+   * @default true
+   */
+  enableValidation?: boolean;
+}
+
+/**
+ * Tag normalization rules.
+ * 
+ * @interface TagNormalizationRules
+ */
+export interface TagNormalizationRules {
+  /**
+   * Convert to lowercase.
+   * @default true
+   */
+  toLowerCase?: boolean;
+
+  /**
+   * Trim whitespace.
+   * @default true
+   */
+  trim?: boolean;
+
+  /**
+   * Replace spaces with hyphens.
+   * @default true
+   */
+  replaceSpaces?: boolean;
+
+  /**
+   * Remove special characters.
+   * @default true
+   */
+  removeSpecialChars?: boolean;
+
+  /**
+   * Custom normalization function.
+   */
+  custom?: (tag: string) => string;
+}
+
+/**
+ * Tag filter options.
+ * 
+ * @interface TagFilterOptions
+ */
+export interface TagFilterOptions {
+  /**
+   * Include tags.
+   */
+  include?: string[];
+
+  /**
+   * Exclude tags.
+   */
+  exclude?: string[];
+
+  /**
+   * Pattern to match.
+   */
+  pattern?: RegExp;
+
+  /**
+   * Custom filter function.
+   */
+  custom?: (tag: string) => boolean;
+}
+
+/**
+ * Tag match criteria.
+ * 
+ * @interface TagMatchCriteria
+ */
+export interface TagMatchCriteria {
+  /**
+   * Match mode.
+   * @default 'any'
+   */
+  mode?: 'any' | 'all' | 'exact';
+
+  /**
+   * Tags to match.
+   */
+  tags: string[];
+
+  /**
+   * Case sensitive matching.
+   * @default false
+   */
+  caseSensitive?: boolean;
+}
+
+/**
+ * Tag extraction options.
+ * 
+ * @interface TagExtractionOptions
+ */
+export interface TagExtractionOptions {
+  /**
+   * Source field to extract from.
+   * @default 'message'
+   */
+  source?: string;
+
+  /**
+   * Pattern to extract tags.
+   * @default /#(\w+)/g
+   */
+  pattern?: RegExp;
+
+  /**
+   * Prefix to look for.
+   * @default '#'
+   */
+  prefix?: string;
+
+  /**
+   * Maximum tags to extract.
+   * @default 10
+   */
+  maxExtract?: number;
+}
+
+/**
+ * Tag validation rules.
+ * 
+ * @interface TagValidationRules
+ */
+export interface TagValidationRules {
+  /**
+   * Minimum tag length.
+   * @default 2
+   */
+  minLength?: number;
+
+  /**
+   * Maximum tag length.
+   * @default 50
+   */
+  maxLength?: number;
+
+  /**
+   * Allowed characters pattern.
+   * @default /^[a-zA-Z0-9-_]+$/
+   */
+  pattern?: RegExp;
+
+  /**
+   * Reserved tags that cannot be used.
+   */
+  reserved?: string[];
+
+  /**
+   * Custom validation function.
+   */
+  custom?: (tag: string) => boolean;
+}
+
+/**
+ * Tag validation result.
+ * 
+ * @interface TagValidationResult
+ */
+export interface TagValidationResult {
+  /**
+   * Whether validation passed.
+   */
+  valid: boolean;
+
+  /**
+   * Invalid tags.
+   */
+  invalid?: string[];
+
+  /**
+   * Validation errors.
+   */
+  errors?: Record<string, string[]>;
+}
+
+/**
+ * Tag statistics structure.
+ * 
+ * @interface TagStats
+ */
+export interface TagStats {
+  /**
+   * Total number of tags processed.
+   */
+  totalTags: number;
+
+  /**
+   * Number of unique tags.
+   */
+  uniqueTags: number;
+
+  /**
+   * Most used tags.
+   */
+  mostUsed: Array<[string, number]>;
+
+  /**
+   * Least used tags.
+   */
+  leastUsed: Array<[string, number]>;
+}
+
+/**
+ * TagManager handles tag operations for logging.
+ * 
+ * Features:
  * - Tag normalization and validation
- * - Hierarchical tag support (parent.child)
- * - Tag aliasing and synonyms
- * - Tag rules and constraints
- * - Tag statistics and analytics
- * - Performance-optimized operations
+ * - Tag extraction from text
+ * - Tag filtering and matching
+ * - Tag hierarchy support
+ * - Tag statistics
+ * - Performance optimization
  * 
  * @class TagManager
+ * @extends {EventEmitter}
  * 
  * @example
  * ```typescript
  * const tagManager = new TagManager({
- *   aliases: {
- *     'err': 'error',
- *     'warn': 'warning'
- *   },
- *   rules: {
- *     maxTags: 10,
- *     maxLength: 50,
- *     pattern: /^[a-z0-9-_.]+$/
- *   }
+ *   maxTags: 20,
+ *   autoNormalize: true
  * });
  * 
  * // Normalize tags
- * const tags = tagManager.normalize(['ERR', 'user.action', 'api']);
- * // Result: ['error', 'user.action', 'api']
+ * const normalized = tagManager.normalize(['API', 'User Login', 'v2.0']);
+ * // Result: ['api', 'user-login', 'v2-0']
  * 
- * // Check hierarchy
- * tagManager.isChildOf('user.action.login', 'user'); // true
+ * // Extract tags from text
+ * const extracted = tagManager.extract('Fixed #bug in #authentication flow');
+ * // Result: ['bug', 'authentication']
  * ```
  */
-export class TagManager {
+export class TagManager extends EventEmitter {
   /**
-   * Tag aliases mapping.
+   * Configuration options.
    * @private
    */
-  private aliases: Map<string, string>;
+  private options: Required<TagManagerOptions>;
 
   /**
-   * Reverse alias mapping for lookups.
+   * Normalization rules.
    * @private
    */
-  private reverseAliases: Map<string, Set<string>>;
+  private normalizationRules: TagNormalizationRules;
 
   /**
-   * Tag validation rules.
+   * Validation rules.
    * @private
    */
-  private rules: {
-    maxTags: number;
-    maxLength: number;
-    minLength: number;
-    pattern?: RegExp;
-    required?: string[];
-    forbidden?: string[];
-    lowercase: boolean;
-    trim: boolean;
-  };
+  private validationRules: TagValidationRules;
 
   /**
-   * Tag statistics.
+   * Tag usage statistics (tag -> count).
    * @private
    */
-  private stats: Map<string, {
-    count: number;
-    firstSeen: Date;
-    lastSeen: Date;
-  }>;
+  private stats: Map<string, number> = new Map();
 
   /**
-   * Hierarchical tag index.
+   * Current set of unique tags.
    * @private
    */
-  private hierarchy: Map<string, Set<string>>;
+  private tags: Set<string> = new Set();
 
   /**
-   * Tag metadata storage.
+   * Tag aliases.
    * @private
    */
-  private metadata: Map<string, Record<string, any>>;
+  private aliases: Map<string, string> = new Map();
+
+  /**
+   * Tag hierarchy.
+   * @private
+   */
+  private hierarchy: Map<string, Set<string>> = new Map();
 
   /**
    * Creates a new TagManager instance.
    * 
-   * @param {object} options - Configuration options
+   * @param {TagManagerOptions} options - Configuration options
    */
-  constructor(options: {
-    aliases?: Record<string, string>;
-    rules?: Partial<TagManager['rules']>;
-    metadata?: Record<string, Record<string, any>>;
-  } = {}) {
-    this.aliases = new Map(Object.entries(options.aliases || {}));
-    this.reverseAliases = new Map();
-    this.stats = new Map();
+  constructor(options: TagManagerOptions = {}) {
+    super();
+    
+    this.options = {
+      maxTags: options.maxTags ?? 50,
+      maxTagLength: options.maxTagLength ?? 50,
+      autoNormalize: options.autoNormalize ?? true,
+      separator: options.separator ?? ',',
+      enableValidation: options.enableValidation ?? true,
+    };
+
+    this.tags = new Set();
+    this.aliases = new Map();
     this.hierarchy = new Map();
-    this.metadata = new Map(Object.entries(options.metadata || {}));
+    this.stats = new Map();
 
-    // Build reverse aliases
-    for (const [alias, canonical] of this.aliases) {
-      if (!this.reverseAliases.has(canonical)) {
-        this.reverseAliases.set(canonical, new Set());
-      }
-      this.reverseAliases.get(canonical)!.add(alias);
-    }
-
-    // Set default rules
-    this.rules = {
-      maxTags: 20,
-      maxLength: 100,
-      minLength: 1,
-      pattern: /^[a-zA-Z0-9-_.:/]+$/,
-      required: [],
-      forbidden: [],
-      lowercase: true,
+    this.normalizationRules = {
+      toLowerCase: true,
       trim: true,
-      ...options.rules,
+      replaceSpaces: true,
+      removeSpecialChars: true,
+      custom: undefined,
+    };
+
+    this.validationRules = {
+      minLength: 2,
+      maxLength: this.options.maxTagLength,
+      pattern: /^[a-zA-Z0-9-_]+$/,
+      reserved: [],
     };
   }
 
   /**
-   * Normalize an array of tags.
+   * Set normalization rules.
    * 
-   * @param {string[]} tags - Tags to normalize
+   * @param {TagNormalizationRules} rules - Normalization rules
+   */
+  public setNormalizationRules(rules: TagNormalizationRules): void {
+    this.normalizationRules = { ...this.normalizationRules, ...rules };
+    this.emit('normalizationRulesUpdated', this.normalizationRules);
+  }
+
+  /**
+   * Set validation rules.
+   * 
+   * @param {TagValidationRules} rules - Validation rules
+   */
+  public setValidationRules(rules: TagValidationRules): void {
+    this.validationRules = { ...this.validationRules, ...rules };
+    this.emit('validationRulesUpdated', this.validationRules);
+  }
+
+  /**
+   * Normalize tags according to rules.
+   * 
+   * @param {string | string[]} tags - Tags to normalize
    * @returns {string[]} Normalized tags
    */
-  public normalize(tags: string[]): string[] {
-    if (!Array.isArray(tags)) return [];
-
-    const normalized = new Set<string>();
+  public normalize(tags: string | string[]): string[] {
+    const tagArray = this.toArray(tags);
     
-    for (let tag of tags) {
-      if (typeof tag !== 'string') continue;
-
-      // Apply basic normalization
-      if (this.rules.trim) {
-        tag = tag.trim();
-      }
-
-      if (this.rules.lowercase) {
-        tag = tag.toLowerCase();
-      }
-
-      // Skip empty tags
-      if (!tag) continue;
-
-      // Apply alias
-      tag = this.resolveAlias(tag);
-
-      // Validate tag
-      if (!this.isValid(tag)) continue;
-
-      // Check forbidden
-      if (this.rules.forbidden?.includes(tag)) continue;
-
-      normalized.add(tag);
-
-      // Update hierarchy
-      this.updateHierarchy(tag);
+    if (!this.options.autoNormalize) {
+      return tagArray;
     }
 
-    // Add required tags
-    for (const required of this.rules.required || []) {
-      normalized.add(required);
+    const normalized = tagArray.map(tag => this.normalizeTag(tag));
+    
+    // Remove duplicates
+    const unique = [...new Set(normalized)];
+    
+    // Apply max tags limit
+    if (unique.length > this.options.maxTags) {
+      this.emit('tagsLimitExceeded', {
+        original: unique.length,
+        limited: this.options.maxTags,
+      });
+      return unique.slice(0, this.options.maxTags);
+    }
+    
+    return unique;
+  }
+
+  /**
+   * Normalize a single tag.
+   * 
+   * @param {string} tag - Tag to normalize
+   * @returns {string} Normalized tag
+   * @private
+   */
+  private normalizeTag(tag: string): string {
+    let normalized = tag;
+
+    if (this.normalizationRules.trim) {
+      normalized = normalized.trim();
     }
 
-    // Apply max limit
-    const result = Array.from(normalized);
-    if (result.length > this.rules.maxTags) {
-      return result.slice(0, this.rules.maxTags);
+    if (this.normalizationRules.toLowerCase) {
+      normalized = normalized.toLowerCase();
+    }
+
+    if (this.normalizationRules.replaceSpaces) {
+      normalized = normalized.replace(/\s+/g, '-');
+    }
+
+    if (this.normalizationRules.removeSpecialChars) {
+      normalized = normalized.replace(/[^a-zA-Z0-9-_]/g, '');
+    }
+
+    if (this.normalizationRules.custom) {
+      normalized = this.normalizationRules.custom(normalized);
+    }
+
+    // Apply max length
+    if (normalized.length > this.options.maxTagLength) {
+      normalized = normalized.substring(0, this.options.maxTagLength);
+    }
+
+    // Check aliases
+    if (this.aliases.has(normalized)) {
+      const aliasValue = this.aliases.get(normalized);
+      if (aliasValue) {
+        normalized = aliasValue;
+      }
+    }
+
+    return normalized;
+  }
+
+  /**
+   * Validate tags against rules.
+   * 
+   * @param {string | string[]} tags - Tags to validate
+   * @returns {TagValidationResult} Validation result
+   */
+  public validate(tags: string | string[]): TagValidationResult {
+    if (!this.options.enableValidation) {
+      return { valid: true };
+    }
+
+    const tagArray = this.toArray(tags);
+    const invalid: string[] = [];
+    const errors: Record<string, string[]> = {};
+
+    for (const tag of tagArray) {
+      const tagErrors: string[] = [];
+
+      // Check min length
+      if (this.validationRules.minLength && tag.length < this.validationRules.minLength) {
+        tagErrors.push(`Tag too short (min: ${this.validationRules.minLength})`);
+      }
+
+      // Check max length
+      if (this.validationRules.maxLength && tag.length > this.validationRules.maxLength) {
+        tagErrors.push(`Tag too long (max: ${this.validationRules.maxLength})`);
+      }
+
+      // Check pattern
+      if (this.validationRules.pattern && !this.validationRules.pattern.test(tag)) {
+        tagErrors.push('Tag contains invalid characters');
+      }
+
+      // Check reserved
+      if (this.validationRules.reserved && this.validationRules.reserved.includes(tag)) {
+        tagErrors.push('Tag is reserved');
+      }
+
+      // Custom validation
+      if (this.validationRules.custom) {
+        try {
+          if (!this.validationRules.custom(tag)) {
+            tagErrors.push('Custom validation failed');
+          }
+        } catch (error) {
+          tagErrors.push(`Validation error: ${error}`);
+        }
+      }
+
+      if (tagErrors.length > 0) {
+        invalid.push(tag);
+        errors[tag] = tagErrors;
+      }
+    }
+
+    const result: TagValidationResult = {
+      valid: invalid.length === 0,
+    };
+
+    if (invalid.length > 0) {
+      result.invalid = invalid;
+      result.errors = errors;
     }
 
     return result;
   }
 
   /**
-   * Validate a single tag.
+   * Extract tags from text.
    * 
-   * @param {string} tag - Tag to validate
-   * @returns {boolean} True if valid
+   * @param {string} text - Text to extract from
+   * @param {TagExtractionOptions} options - Extraction options
+   * @returns {string[]} Extracted tags
    */
-  public isValid(tag: string): boolean {
-    if (typeof tag !== 'string') return false;
-    
-    if (tag.length < this.rules.minLength || tag.length > this.rules.maxLength) {
-      return false;
+  public extract(text: string, options: TagExtractionOptions = {}): string[] {
+    const {
+      pattern = /#(\w+)/g,
+      maxExtract = 10,
+    } = options;
+
+    const matches: string[] = [];
+    let match;
+
+    // Reset regex state
+    pattern.lastIndex = 0;
+
+    while ((match = pattern.exec(text)) !== null && matches.length < maxExtract) {
+      // Get the captured group or the full match
+      const tag = match[1] || match[0];
+      matches.push(tag);
     }
 
-    if (this.rules.pattern && !this.rules.pattern.test(tag)) {
-      return false;
+    // Normalize if auto-normalize is enabled
+    if (this.options.autoNormalize) {
+      return this.normalize(matches);
     }
 
-    return true;
+    return matches;
   }
 
   /**
-   * Resolve tag alias to canonical form.
+   * Filter tags based on criteria.
    * 
-   * @param {string} tag - Tag to resolve
-   * @returns {string} Canonical tag
+   * @param {string[]} tags - Tags to filter
+   * @param {TagFilterOptions} options - Filter options
+   * @returns {string[]} Filtered tags
    */
-  public resolveAlias(tag: string): string {
-    return this.aliases.get(tag) || tag;
-  }
+  public filter(tags: string[], options: TagFilterOptions): string[] {
+    let filtered = [...tags];
 
-  /**
-   * Get all aliases for a canonical tag.
-   * 
-   * @param {string} tag - Canonical tag
-   * @returns {string[]} Array of aliases
-   */
-  public getAliases(tag: string): string[] {
-    const aliases = this.reverseAliases.get(tag);
-    return aliases ? Array.from(aliases) : [];
-  }
-
-  /**
-   * Add or update a tag alias.
-   * 
-   * @param {string} alias - Alias tag
-   * @param {string} canonical - Canonical tag
-   */
-  public addAlias(alias: string, canonical: string): void {
-    // Remove old alias if exists
-    const oldCanonical = this.aliases.get(alias);
-    if (oldCanonical) {
-      this.reverseAliases.get(oldCanonical)?.delete(alias);
+    // Apply include filter
+    if (options.include && options.include.length > 0) {
+      filtered = filtered.filter(tag => options.include!.includes(tag));
     }
 
-    // Add new alias
-    this.aliases.set(alias, canonical);
-    
-    if (!this.reverseAliases.has(canonical)) {
-      this.reverseAliases.set(canonical, new Set());
+    // Apply exclude filter
+    if (options.exclude && options.exclude.length > 0) {
+      filtered = filtered.filter(tag => !options.exclude!.includes(tag));
     }
-    this.reverseAliases.get(canonical)!.add(alias);
+
+    // Apply pattern filter
+    if (options.pattern) {
+      filtered = filtered.filter(tag => options.pattern!.test(tag));
+    }
+
+    // Apply custom filter
+    if (options.custom) {
+      filtered = filtered.filter(options.custom);
+    }
+
+    return filtered;
   }
 
   /**
-   * Remove a tag alias.
+   * Check if tags match criteria.
    * 
-   * @param {string} alias - Alias to remove
+   * @param {string[]} tags - Tags to check
+   * @param {TagMatchCriteria} criteria - Match criteria
+   * @returns {boolean} Whether tags match
    */
-  public removeAlias(alias: string): void {
-    const canonical = this.aliases.get(alias);
-    if (canonical) {
-      this.aliases.delete(alias);
-      this.reverseAliases.get(canonical)?.delete(alias);
+  public matches(tags: string[], criteria: TagMatchCriteria): boolean {
+    const { mode = 'any', tags: matchTags, caseSensitive = false } = criteria;
+
+    // Normalize for comparison if not case sensitive
+    const normalizedTags = caseSensitive ? tags : tags.map(t => t.toLowerCase());
+    const normalizedMatch = caseSensitive ? matchTags : matchTags.map(t => t.toLowerCase());
+
+    switch (mode) {
+      case 'any':
+        return normalizedMatch.some(tag => normalizedTags.includes(tag));
+      
+      case 'all':
+        return normalizedMatch.every(tag => normalizedTags.includes(tag));
+      
+      case 'exact':
+        return normalizedTags.length === normalizedMatch.length &&
+               normalizedTags.every(tag => normalizedMatch.includes(tag));
+      
+      default:
+        return false;
     }
   }
 
   /**
    * Merge multiple tag arrays.
    * 
-   * @param {...string[][]} tagArrays - Arrays of tags to merge
-   * @returns {string[]} Merged and normalized tags
+   * @param {...(string[] | undefined)[]} tagArrays - Tag arrays to merge
+   * @returns {string[]} Merged tags
    */
-  public merge(...tagArrays: string[][]): string[] {
-    const allTags = new Set<string>();
+  public merge(...tagArrays: (string[] | undefined)[]): string[] {
+    const merged = new Set<string>();
     
     for (const tags of tagArrays) {
-      if (!Array.isArray(tags)) continue;
-      
-      const normalized = this.normalize(tags);
-      for (const tag of normalized) {
-        allTags.add(tag);
+      if (tags) {
+        for (const tag of tags) {
+          merged.add(tag);
+        }
       }
     }
-
-    return Array.from(allTags);
-  }
-
-  /**
-   * Check if a tag is a child of another tag (hierarchical).
-   * 
-   * @param {string} child - Child tag
-   * @param {string} parent - Parent tag
-   * @returns {boolean} True if child of parent
-   */
-  public isChildOf(child: string, parent: string): boolean {
-    if (!child.startsWith(parent)) return false;
     
-    // Check if it's a proper hierarchy separator
-    const separator = child[parent.length];
-    return separator === '.' || separator === ':' || separator === '/';
+    const result = Array.from(merged);
+    
+    // Apply normalization if enabled
+    if (this.options.autoNormalize) {
+      return this.normalize(result);
+    }
+    
+    return result;
   }
 
   /**
-   * Get all children of a tag.
+   * Add tag alias.
+   * 
+   * @param {string} alias - Alias tag
+   * @param {string} target - Target tag
+   */
+  public addAlias(alias: string, target: string): void {
+    this.aliases.set(alias, target);
+    this.emit('aliasAdded', { alias, target });
+  }
+
+  /**
+   * Remove tag alias.
+   * 
+   * @param {string} alias - Alias to remove
+   */
+  public removeAlias(alias: string): void {
+    if (this.aliases.delete(alias)) {
+      this.emit('aliasRemoved', alias);
+    }
+  }
+
+  /**
+   * Get all aliases.
+   * 
+   * @returns {Map<string, string>} All aliases
+   */
+  public getAliases(): Map<string, string> {
+    return new Map(this.aliases);
+  }
+
+  /**
+   * Set tag hierarchy.
+   * 
+   * @param {string} parent - Parent tag
+   * @param {string[]} children - Child tags
+   */
+  public setHierarchy(parent: string, children: string[]): void {
+    this.hierarchy.set(parent, new Set(children));
+    this.emit('hierarchyUpdated', { parent, children });
+  }
+
+  /**
+   * Get tag children.
    * 
    * @param {string} parent - Parent tag
    * @returns {string[]} Child tags
@@ -302,308 +691,186 @@ export class TagManager {
   }
 
   /**
-   * Get parent tags from a hierarchical tag.
+   * Get tag parents.
    * 
-   * @param {string} tag - Hierarchical tag
+   * @param {string} child - Child tag
    * @returns {string[]} Parent tags
    */
-  public getParents(tag: string): string[] {
+  public getParents(child: string): string[] {
     const parents: string[] = [];
-    const separators = ['.', ':', '/'];
     
-    for (const sep of separators) {
-      const parts = tag.split(sep);
-      if (parts.length > 1) {
-        for (let i = 1; i < parts.length; i++) {
-          parents.push(parts.slice(0, i).join(sep));
-        }
-        break;
+    for (const [parent, children] of this.hierarchy) {
+      if (children.has(child)) {
+        parents.push(parent);
       }
     }
-
+    
     return parents;
   }
 
   /**
-   * Update hierarchical index.
+   * Get tag with hierarchy.
    * 
-   * @param {string} tag - Tag to index
-   * @private
+   * @param {string} tag - Tag to expand
+   * @param {boolean} includeParents - Include parent tags
+   * @param {boolean} includeChildren - Include child tags
+   * @returns {string[]} Expanded tags
    */
-  private updateHierarchy(tag: string): void {
-    const parents = this.getParents(tag);
+  public expandHierarchy(
+    tag: string,
+    includeParents = true,
+    includeChildren = true
+  ): string[] {
+    const expanded = new Set<string>([tag]);
     
-    for (const parent of parents) {
-      if (!this.hierarchy.has(parent)) {
-        this.hierarchy.set(parent, new Set());
-      }
-      this.hierarchy.get(parent)!.add(tag);
+    if (includeParents) {
+      const parents = this.getParents(tag);
+      parents.forEach(parent => expanded.add(parent));
     }
-  }
-
-  /**
-   * Filter tags by pattern.
-   * 
-   * @param {string[]} tags - Tags to filter
-   * @param {string | RegExp} pattern - Pattern to match
-   * @returns {string[]} Filtered tags
-   */
-  public filter(tags: string[], pattern: string | RegExp): string[] {
-    const regex = typeof pattern === 'string' ? new RegExp(pattern) : pattern;
-    return tags.filter(tag => regex.test(tag));
-  }
-
-  /**
-   * Group tags by prefix.
-   * 
-   * @param {string[]} tags - Tags to group
-   * @returns {Record<string, string[]>} Grouped tags
-   */
-  public groupByPrefix(tags: string[]): Record<string, string[]> {
-    const groups: Record<string, string[]> = {};
     
+    if (includeChildren) {
+      const children = this.getChildren(tag);
+      children.forEach(child => expanded.add(child));
+    }
+    
+    return Array.from(expanded);
+  }
+
+  /**
+   * Update tag statistics.
+   * 
+   * @param {string[]} tags - Tags to count
+   */
+  public updateStats(tags: string[]): void {
     for (const tag of tags) {
-      const firstSep = tag.search(/[.:/]/);
-      const prefix = firstSep > 0 ? tag.substring(0, firstSep) : '_root';
-      
-      if (!groups[prefix]) {
-        groups[prefix] = [];
-      }
-      groups[prefix].push(tag);
+      const count = this.stats.get(tag) || 0;
+      this.stats.set(tag, count + 1);
+      this.tags.add(tag);
     }
-
-    return groups;
-  }
-
-  /**
-   * Record tag usage for statistics.
-   * 
-   * @param {string[]} tags - Tags that were used
-   */
-  public recordUsage(tags: string[]): void {
-    const now = new Date();
     
-    for (const tag of tags) {
-      let stat = this.stats.get(tag);
-      
-      if (!stat) {
-        stat = {
-          count: 0,
-          firstSeen: now,
-          lastSeen: now,
-        };
-        this.stats.set(tag, stat);
-      }
-
-      stat.count++;
-      stat.lastSeen = now;
-    }
+    this.emit('statsUpdated', tags);
   }
 
   /**
    * Get tag statistics.
    * 
-   * @param {string} tag - Tag to get stats for
-   * @returns {object | null} Tag statistics
+   * @param {number} [limit] - Limit results
+   * @returns {Array<[string, number]>} Tag counts
    */
-  public getStats(tag: string): TagManager['stats'] extends Map<string, infer T> ? T | null : null {
-    return this.stats.get(tag) || null;
-  }
-
-  /**
-   * Get most used tags.
-   * 
-   * @param {number} limit - Number of tags to return
-   * @returns {Array<{tag: string; count: number}>} Top tags
-   */
-  public getTopTags(limit = 10): Array<{ tag: string; count: number }> {
+  public getStats(limit?: number): Array<[string, number]> {
     const sorted = Array.from(this.stats.entries())
-      .map(([tag, stat]) => ({ tag, count: stat.count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, limit);
-
+      .sort((a, b) => b[1] - a[1]);
+    
+    if (limit) {
+      return sorted.slice(0, limit);
+    }
+    
     return sorted;
   }
 
   /**
-   * Get or set tag metadata.
+   * Get comprehensive tag statistics.
    * 
-   * @param {string} tag - Tag name
-   * @param {Record<string, any>} [metadata] - Metadata to set
-   * @returns {Record<string, any> | undefined} Tag metadata
+   * @returns {TagStats} Tag statistics
    */
-  public metadata(tag: string, metadata?: Record<string, any>): Record<string, any> | undefined {
-    if (metadata !== undefined) {
-      this.metadata.set(tag, metadata);
-      return metadata;
-    }
-    return this.metadata.get(tag);
-  }
-
-  /**
-   * Suggest tags based on partial input.
-   * 
-   * @param {string} partial - Partial tag string
-   * @param {number} limit - Maximum suggestions
-   * @returns {string[]} Suggested tags
-   */
-  public suggest(partial: string, limit = 5): string[] {
-    const normalizedPartial = this.rules.lowercase ? partial.toLowerCase() : partial;
-    const suggestions: Array<{ tag: string; score: number }> = [];
-
-    // Check all known tags
-    for (const [tag, stat] of this.stats) {
-      if (tag.startsWith(normalizedPartial)) {
-        // Exact prefix match gets highest score
-        suggestions.push({ tag, score: 1000 + stat.count });
-      } else if (tag.includes(normalizedPartial)) {
-        // Contains match gets lower score
-        suggestions.push({ tag, score: 500 + stat.count });
-      }
-    }
-
-    // Check aliases
-    for (const [alias, canonical] of this.aliases) {
-      if (alias.startsWith(normalizedPartial) && !suggestions.some(s => s.tag === canonical)) {
-        const stat = this.stats.get(canonical);
-        suggestions.push({ tag: canonical, score: 800 + (stat?.count || 0) });
-      }
-    }
-
-    // Sort by score and return top suggestions
-    return suggestions
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit)
-      .map(s => s.tag);
-  }
-
-  /**
-   * Validate a set of tags against rules.
-   * 
-   * @param {string[]} tags - Tags to validate
-   * @returns {object} Validation result
-   */
-  public validateSet(tags: string[]): {
-    valid: boolean;
-    errors: string[];
-    warnings: string[];
-  } {
-    const errors: string[] = [];
-    const warnings: string[] = [];
-
-    if (!Array.isArray(tags)) {
-      errors.push('Tags must be an array');
-      return { valid: false, errors, warnings };
-    }
-
-    // Check max tags
-    if (tags.length > this.rules.maxTags) {
-      errors.push(`Too many tags: ${tags.length} > ${this.rules.maxTags}`);
-    }
-
-    // Check required tags
-    for (const required of this.rules.required || []) {
-      if (!tags.includes(required)) {
-        errors.push(`Missing required tag: ${required}`);
-      }
-    }
-
-    // Validate each tag
-    const seen = new Set<string>();
-    for (const tag of tags) {
-      if (!this.isValid(tag)) {
-        warnings.push(`Invalid tag format: ${tag}`);
-      }
-
-      if (this.rules.forbidden?.includes(tag)) {
-        errors.push(`Forbidden tag: ${tag}`);
-      }
-
-      if (seen.has(tag)) {
-        warnings.push(`Duplicate tag: ${tag}`);
-      }
-      seen.add(tag);
-    }
-
+  public getComprehensiveStats(): TagStats {
+    const sorted = this.getStats();
+    
     return {
-      valid: errors.length === 0,
-      errors,
-      warnings,
+      totalTags: Array.from(this.stats.values()).reduce((sum, count) => sum + count, 0),
+      uniqueTags: this.tags.size,
+      mostUsed: sorted.slice(0, 10),
+      leastUsed: sorted.slice(-10).reverse(),
     };
   }
 
   /**
-   * Export tag configuration.
-   * 
-   * @returns {object} Exportable configuration
+   * Clear tag statistics.
    */
-  public export(): {
-    aliases: Record<string, string>;
-    rules: TagManager['rules'];
-    metadata: Record<string, Record<string, any>>;
-    stats: Array<{ tag: string; count: number; firstSeen: string; lastSeen: string }>;
-  } {
-    return {
-      aliases: Object.fromEntries(this.aliases),
-      rules: { ...this.rules },
-      metadata: Object.fromEntries(this.metadata),
-      stats: Array.from(this.stats.entries()).map(([tag, stat]) => ({
-        tag,
-        count: stat.count,
-        firstSeen: stat.firstSeen.toISOString(),
-        lastSeen: stat.lastSeen.toISOString(),
-      })),
-    };
+  public clearStats(): void {
+    this.stats.clear();
+    this.tags.clear();
+    this.emit('statsCleared');
   }
 
   /**
-   * Import tag configuration.
+   * Parse tags from string.
    * 
-   * @param {object} config - Configuration to import
+   * @param {string} text - Text to parse
+   * @param {string} [separator] - Separator to use
+   * @returns {string[]} Parsed tags
    */
-  public import(config: ReturnType<TagManager['export']>): void {
-    // Import aliases
-    if (config.aliases) {
-      this.aliases = new Map(Object.entries(config.aliases));
-      this.rebuildReverseAliases();
+  public parse(text: string, separator?: string): string[] {
+    const sep = separator || this.options.separator;
+    const tags = text.split(sep).map(tag => tag.trim()).filter(tag => tag.length > 0);
+    
+    if (this.options.autoNormalize) {
+      return this.normalize(tags);
     }
-
-    // Import rules
-    if (config.rules) {
-      Object.assign(this.rules, config.rules);
-    }
-
-    // Import metadata
-    if (config.metadata) {
-      this.metadata = new Map(Object.entries(config.metadata));
-    }
-
-    // Import stats
-    if (config.stats) {
-      this.stats.clear();
-      for (const stat of config.stats) {
-        this.stats.set(stat.tag, {
-          count: stat.count,
-          firstSeen: new Date(stat.firstSeen),
-          lastSeen: new Date(stat.lastSeen),
-        });
-      }
-    }
+    
+    return tags;
   }
 
   /**
-   * Rebuild reverse alias mapping.
+   * Format tags to string.
    * 
+   * @param {string[]} tags - Tags to format
+   * @param {string} [separator] - Separator to use
+   * @returns {string} Formatted string
+   */
+  public format(tags: string[], separator?: string): string {
+    const sep = separator || this.options.separator;
+    return tags.join(sep);
+  }
+
+  /**
+   * Convert to array helper.
+   * 
+   * @param {string | string[]} value - Value to convert
+   * @returns {string[]} Array of strings
    * @private
    */
-  private rebuildReverseAliases(): void {
-    this.reverseAliases.clear();
-    
-    for (const [alias, canonical] of this.aliases) {
-      if (!this.reverseAliases.has(canonical)) {
-        this.reverseAliases.set(canonical, new Set());
-      }
-      this.reverseAliases.get(canonical)!.add(alias);
+  private toArray(value: string | string[]): string[] {
+    if (typeof value === 'string') {
+      return [value];
     }
+    return value;
+  }
+
+  /**
+   * Get suggested tags based on partial input.
+   * 
+   * @param {string} partial - Partial tag
+   * @param {number} [limit=10] - Maximum suggestions
+   * @returns {string[]} Suggested tags
+   */
+  public suggest(partial: string, limit = 10): string[] {
+    const normalized = this.options.autoNormalize 
+      ? this.normalizeTag(partial)
+      : partial.toLowerCase();
+    
+    const suggestions: Array<[string, number]> = [];
+    
+    for (const [tag, count] of this.stats) {
+      if (tag.toLowerCase().startsWith(normalized)) {
+        suggestions.push([tag, count]);
+      }
+    }
+    
+    // Sort by frequency
+    suggestions.sort((a, b) => b[1] - a[1]);
+    
+    return suggestions.slice(0, limit).map(s => s[0]);
+  }
+
+  /**
+   * Clean up resources.
+   */
+  public destroy(): void {
+    this.stats.clear();
+    this.tags.clear();
+    this.aliases.clear();
+    this.hierarchy.clear();
+    this.removeAllListeners();
   }
 }

@@ -1,6 +1,6 @@
 // File: src/constants/themes.ts
 
-import type { ColorName, ThemeDefinition } from '../types';
+import type { ThemeDefinition } from '../types';
 import { getTheme as getThemeFromFile, listThemes as listThemesFromFile, loadThemes } from '../theme';
 
 /**
@@ -118,6 +118,7 @@ export const THEMES = {
   get DARK() { return getTheme('dark') || DEFAULT_THEME; },
   get SOLARIZED() { return getTheme('solarized') || DEFAULT_THEME; },
   get MATRIX() { return getTheme('matrix') || DEFAULT_THEME; },
+  // cSpell:disable-next-line
   get VAPORWAVE() { return getTheme('vaporwave') || DEFAULT_THEME; },
   get CYBERPUNK() { return getTheme('cyberpunk') || DEFAULT_THEME; },
   get MIDNIGHT() { return getTheme('midnight') || DEFAULT_THEME; },
@@ -134,6 +135,7 @@ export const THEME_NAMES = {
   dark: 'dark',
   solarized: 'solarized',
   matrix: 'matrix',
+  // cSpell:disable-next-line
   vaporwave: 'vaporwave',
   cyberpunk: 'cyberpunk',
   midnight: 'midnight',

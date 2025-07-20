@@ -1,7 +1,7 @@
 // File: src/constants/presets.ts
 
 import type { StylePreset, ColorName } from '../types';
-import { getTheme, listThemes } from '../theme';
+import { getTheme } from '../theme';
 
 /**
  * Get preset colors from the current theme.
@@ -56,19 +56,19 @@ export function getPreset(name: string, themeName = 'default'): ColorName[] | un
  * 
  * @const PRESETS
  */
-export const PRESETS: Record<StylePreset, ColorName[]> = {
-  get info() { return getPresetColors('info'); },
-  get success() { return getPresetColors('success'); },
-  get warning() { return getPresetColors('warning'); },
-  get error() { return getPresetColors('error'); },
-  get debug() { return getPresetColors('debug'); },
-  get important() { return getPresetColors('important'); },
-  get highlight() { return getPresetColors('highlight'); },
-  get muted() { return getPresetColors('muted'); },
-  get special() { return getPresetColors('special'); },
-  get code() { return getPresetColors('code'); },
-  get header() { return getPresetColors('header'); },
-};
+export const PRESETS = {
+  info: ['cyan', 'bold'] as ColorName[],
+  success: ['green', 'bold'] as ColorName[],
+  warning: ['yellow', 'bold'] as ColorName[],
+  error: ['brightRed', 'bold'] as ColorName[],
+  debug: ['gray', 'italic'] as ColorName[],
+  important: ['magenta', 'bold', 'underline'] as ColorName[],
+  highlight: ['brightYellow', 'bold'] as ColorName[],
+  muted: ['dim'] as ColorName[],
+  special: ['brightCyan', 'bold'] as ColorName[],
+  code: ['brightGreen'] as ColorName[],
+  header: ['brightWhite', 'bgBlue', 'bold'] as ColorName[],
+} as const;
 
 /**
  * Extended presets for additional use cases.
@@ -117,8 +117,19 @@ export const EXTENDED_PRESETS: Record<string, ColorName[]> = {
  */
 export function getAllPresets(themeName = 'default'): Record<string, ColorName[]> {
   const theme = getTheme(themeName);
-  return {
-    ...theme,
-    ...EXTENDED_PRESETS,
-  };
+  const allPresets: Record<string, ColorName[]> = {};
+  
+  // Add theme presets
+  for (const [key, value] of Object.entries(theme)) {
+    if (value) {
+      allPresets[key] = value;
+    }
+  }
+  
+  // Add extended presets
+  for (const [key, value] of Object.entries(EXTENDED_PRESETS)) {
+    allPresets[key] = value;
+  }
+  
+  return allPresets;
 }

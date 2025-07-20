@@ -1,164 +1,695 @@
 // File: src/core/ContextManager.ts
 
+import { EventEmitter } from 'events';
+
 /**
- * Context management utilities for structured logging.
+ * Sanitization modes for context values.
  * 
- * The ContextManager provides advanced context manipulation capabilities:
+ * @enum {string}
+ */
+export type SanitizeMode = 'none' | 'basic' | 'strict' | 'custom';
+
+/**
+ * Context manager configuration options.
+ * 
+ * @interface ContextManagerOptions
+ */
+export interface ContextManagerOptions {
+  /**
+   * Maximum depth for nested objects.
+   * @default 10
+   */
+  maxDepth?: number;
+
+  /**
+   * Maximum number of properties per object.
+   * @default 100
+   */
+  maxProperties?: number;
+
+  /**
+   * Sanitization mode for context values.
+   * @default 'basic'
+   */
+  sanitizeMode?: SanitizeMode;
+
+  /**
+   * Custom sanitization function.
+   */
+  sanitize?: (value: unknown) => unknown;
+
+  /**
+   * Whether to freeze context objects.
+   * @default false
+   */
+  freezeContext?: boolean;
+
+  /**
+   * Whether to enable validation.
+   * @default true
+   */
+  enableValidation?: boolean;
+}
+
+/**
+ * Context validation rules.
+ * 
+ * @interface ContextValidationRules
+ */
+export interface ContextValidationRules {
+  /**
+   * Required fields.
+   */
+  required?: string[];
+
+  /**
+   * Field type definitions.
+   */
+  types?: Record<string, string>;
+
+  /**
+   * Custom validation function.
+   */
+  custom?: (context: Record<string, unknown>) => boolean;
+}
+
+/**
+ * Context validation result.
+ * 
+ * @interface ContextValidationResult
+ */
+export interface ContextValidationResult {
+  /**
+   * Whether validation passed.
+   */
+  valid: boolean;
+
+  /**
+   * Validation errors.
+   */
+  errors?: string[];
+
+  /**
+   * Warnings.
+   */
+  warnings?: string[];
+}
+
+/**
+ * Context snapshot for state management.
+ * 
+ * @interface ContextSnapshot
+ */
+export interface ContextSnapshot {
+  /**
+   * Snapshot timestamp.
+   */
+  timestamp: Date;
+
+  /**
+   * Context data.
+   */
+  data: Record<string, unknown>;
+
+  /**
+   * Metadata.
+   */
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * ContextManager handles context data for logging.
+ * 
+ * Features:
  * - Deep merging of context objects
  * - Circular reference detection
- * - Context validation and sanitization
- * - Path-based context updates
- * - Context diffing for minimal updates
- * - Immutable context operations
+ * - Value sanitization
+ * - Context validation
+ * - Snapshot management
+ * - Performance optimization
  * 
  * @class ContextManager
+ * @extends {EventEmitter}
  * 
  * @example
  * ```typescript
- * const contextManager = new ContextManager();
+ * const contextManager = new ContextManager({
+ *   maxDepth: 5,
+ *   sanitizeMode: 'strict'
+ * });
  * 
- * // Merge contexts
- * const merged = contextManager.merge(
- *   { user: { id: 123 } },
- *   { user: { name: 'John' }, request: { id: 'abc' } }
- * );
- * // Result: { user: { id: 123, name: 'John' }, request: { id: 'abc' } }
+ * // Set global context
+ * contextManager.set({
+ *   app: 'my-app',
+ *   version: '1.0.0'
+ * });
  * 
- * // Update nested values
- * const updated = contextManager.set(context, 'user.preferences.theme', 'dark');
- * 
- * // Extract subset
- * const subset = contextManager.pick(context, ['user', 'request']);
+ * // Merge additional context
+ * const merged = contextManager.merge(globalContext, localContext);
  * ```
  */
-export class ContextManager {
+export class ContextManager extends EventEmitter {
   /**
-   * Maximum depth for context objects to prevent stack overflow.
+   * Configuration options.
    * @private
    */
-  private readonly maxDepth = 10;
+  private options: Required<ContextManagerOptions>;
 
   /**
-   * Maximum number of keys per object level.
+   * Global context storage.
    * @private
    */
-  private readonly maxKeys = 100;
+  private globalContext: Record<string, unknown> = {};
 
   /**
-   * Maximum string length for context values.
+   * Context snapshots.
    * @private
    */
-  private readonly maxStringLength = 1000;
+  private snapshots: ContextSnapshot[] = [];
 
   /**
-   * Set to track circular references during operations.
+   * Maximum number of snapshots to keep.
    * @private
    */
-  private seen: WeakSet<object>;
+  private readonly maxSnapshots = 10;
+
+  /**
+   * Validation rules.
+   * @private
+   */
+  private validationRules?: ContextValidationRules;
 
   /**
    * Creates a new ContextManager instance.
+   * 
+   * @param {ContextManagerOptions} options - Configuration options
    */
-  constructor() {
-    this.seen = new WeakSet();
+  constructor(options: ContextManagerOptions = {}) {
+    super();
+    
+    this.options = {
+      maxDepth: options.maxDepth ?? 10,
+      maxProperties: options.maxProperties ?? 100,
+      sanitizeMode: options.sanitizeMode ?? 'basic',
+      sanitize: options.sanitize ?? this.defaultSanitize.bind(this),
+      freezeContext: options.freezeContext ?? false,
+      enableValidation: options.enableValidation ?? true,
+    };
   }
 
   /**
-   * Deep merge multiple context objects.
+   * Set global context.
    * 
-   * @param {...Record<string, any>} contexts - Context objects to merge
-   * @returns {Record<string, any>} Merged context
+   * @param {Record<string, unknown>} context - Context to set
    */
-  public merge(...contexts: Array<Record<string, any> | undefined>): Record<string, any> {
-    const result: Record<string, any> = {};
+  public set(context: Record<string, unknown>): void {
+    this.globalContext = this.processContext(context);
+    this.emit('contextSet', this.globalContext);
+  }
+
+  /**
+   * Get global context.
+   * 
+   * @returns {Record<string, unknown>} Global context
+   */
+  public get(): Record<string, unknown> {
+    return this.options.freezeContext 
+      ? Object.freeze({ ...this.globalContext })
+      : { ...this.globalContext };
+  }
+
+  /**
+   * Clear global context.
+   */
+  public clear(): void {
+    this.globalContext = {};
+    this.emit('contextCleared');
+  }
+
+  /**
+   * Merge multiple context objects.
+   * 
+   * @param {...Record<string, unknown>[]} contexts - Contexts to merge
+   * @returns {Record<string, unknown>} Merged context
+   */
+  public merge(...contexts: (Record<string, unknown> | undefined)[]): Record<string, unknown> {
+    const result: Record<string, unknown> = {};
+    const seenObjects = new WeakSet();
     
     for (const context of contexts) {
-      if (!context || typeof context !== 'object') continue;
-      
-      this.seen = new WeakSet();
-      this.deepMerge(result, context, 0);
+      if (context) {
+        this.deepMerge(result, context, 0, seenObjects);
+      }
     }
-
-    return result;
+    
+    return this.processContext(result);
   }
 
   /**
-   * Deep merge helper with circular reference detection.
+   * Deep merge two objects.
    * 
-   * @param {Record<string, any>} target - Target object
-   * @param {Record<string, any>} source - Source object
+   * @param {object} target - Target object
+   * @param {object} source - Source object
    * @param {number} depth - Current depth
+   * @param {WeakSet} seen - Seen objects for circular reference detection
    * @private
    */
   private deepMerge(
-    target: Record<string, any>,
-    source: Record<string, any>,
-    depth: number
+    target: Record<string, unknown>, 
+    source: Record<string, unknown>, 
+    depth: number,
+    seen: WeakSet<object>
   ): void {
-    if (depth > this.maxDepth) {
-      console.warn('[ContextManager] Max depth reached, stopping merge');
+    if (depth > this.options.maxDepth) {
       return;
     }
 
-    if (this.seen.has(source)) {
-      console.warn('[ContextManager] Circular reference detected, skipping');
+    // Check for circular reference
+    if (seen.has(source)) {
       return;
     }
-
+    
     if (typeof source === 'object' && source !== null) {
-      this.seen.add(source);
+      seen.add(source);
     }
 
-    const keys = Object.keys(source);
-    if (keys.length > this.maxKeys) {
-      console.warn(`[ContextManager] Too many keys (${keys.length}), truncating to ${this.maxKeys}`);
-    }
+    for (const key in source) {
+      if (!Object.prototype.hasOwnProperty.call(source, key)) {
+        continue;
+      }
 
-    for (let i = 0; i < Math.min(keys.length, this.maxKeys); i++) {
-      const key = keys[i];
       const sourceValue = source[key];
+      const targetValue = target[key];
 
-      if (sourceValue === undefined) continue;
-
-      if (sourceValue === null || this.isPrimitive(sourceValue)) {
-        target[key] = this.sanitizeValue(sourceValue);
-      } else if (Array.isArray(sourceValue)) {
-        target[key] = this.mergeArrays(target[key], sourceValue, depth + 1);
-      } else if (this.isPlainObject(sourceValue)) {
-        if (!this.isPlainObject(target[key])) {
-          target[key] = {};
-        }
-        this.deepMerge(target[key], sourceValue, depth + 1);
+      if (this.isObject(sourceValue) && this.isObject(targetValue)) {
+        target[key] = target[key] || {};
+        this.deepMerge(target[key] as Record<string, unknown>, sourceValue as Record<string, unknown>, depth + 1, seen);
       } else {
-        // Handle special objects (Date, RegExp, etc.)
-        target[key] = this.cloneSpecialObject(sourceValue);
+        target[key] = this.cloneValue(sourceValue, depth + 1, seen);
       }
     }
   }
 
   /**
-   * Merge arrays with deduplication.
+   * Check if value is a plain object.
    * 
-   * @param {any} targetArray - Target array
-   * @param {any[]} sourceArray - Source array
-   * @param {number} depth - Current depth
-   * @returns {any[]} Merged array
+   * @param {unknown} value - Value to check
+   * @returns {boolean} True if plain object
    * @private
    */
-  private mergeArrays(targetArray: any, sourceArray: any[], depth: number): any[] {
-    if (!Array.isArray(targetArray)) {
-      return [...sourceArray];
+  private isObject(value: unknown): boolean {
+    return value !== null && 
+           typeof value === 'object' && 
+           (value as object).constructor === Object;
+  }
+
+  /**
+   * Clone a value safely.
+   * 
+   * @param {unknown} value - Value to clone
+   * @param {number} depth - Current depth
+   * @param {WeakSet} seen - Seen objects
+   * @returns {unknown} Cloned value
+   * @private
+   */
+  private cloneValue(value: unknown, depth: number, seen: WeakSet<object>): unknown {
+    if (value === null || typeof value !== 'object') {
+      return value;
     }
 
-    const result = [...targetArray];
-    
-    for (const item of sourceArray) {
-      if (this.isPrimitive(item)) {
-        if (!result.includes(item)) {
-          result.push(item);
+    if (depth > this.options.maxDepth) {
+      return '[Max Depth Exceeded]';
+    }
+
+    if (seen.has(value)) {
+      return '[Circular Reference]';
+    }
+
+    if (value instanceof Date) {
+      return new Date(value.getTime());
+    }
+
+    if (value instanceof RegExp) {
+      return new RegExp(value.source, value.flags);
+    }
+
+    if (Array.isArray(value)) {
+      seen.add(value);
+      return value.map(item => this.cloneValue(item, depth + 1, seen));
+    }
+
+    if (this.isObject(value)) {
+      seen.add(value);
+      const cloned: Record<string, unknown> = {};
+      
+      let propCount = 0;
+      for (const key in value) {
+        if (Object.prototype.hasOwnProperty.call(value, key)) {
+          if (propCount >= this.options.maxProperties) {
+            cloned['...'] = `[${Object.keys(value as object).length - propCount} more properties]`;
+            break;
+          }
+          cloned[key] = this.cloneValue((value as Record<string, unknown>)[key], depth + 1, seen);
+          propCount++;
         }
+      }
+      
+      return cloned;
+    }
+
+    // For other object types, convert to string
+    return String(value);
+  }
+
+  /**
+   * Process context through sanitization and validation.
+   * 
+   * @param {Record<string, unknown>} context - Context to process
+   * @returns {Record<string, unknown>} Processed context
+   * @private
+   */
+  private processContext(context: Record<string, unknown>): Record<string, unknown> {
+    // Sanitize
+    const sanitized = this.sanitize(context);
+    
+    // Validate
+    if (this.options.enableValidation && this.validationRules) {
+      const validation = this.validate(sanitized);
+      if (!validation.valid) {
+        this.emit('validationFailed', validation);
+      }
+    }
+    
+    // Freeze if required
+    if (this.options.freezeContext) {
+      return this.deepFreeze(sanitized) as Record<string, unknown>;
+    }
+    
+    return sanitized;
+  }
+
+  /**
+   * Sanitize context based on mode.
+   * 
+   * @param {Record<string, unknown>} context - Context to sanitize
+   * @returns {Record<string, unknown>} Sanitized context
+   * @private
+   */
+  private sanitize(context: Record<string, unknown>): Record<string, unknown> {
+    switch (this.options.sanitizeMode) {
+      case 'none':
+        return context;
+      
+      case 'basic':
+        return this.basicSanitize(context) as Record<string, unknown>;
+      
+      case 'strict':
+        return this.strictSanitize(context) as Record<string, unknown>;
+      
+      case 'custom':
+        return this.options.sanitize(context) as Record<string, unknown>;
+      
+      default:
+        return context;
+    }
+  }
+
+  /**
+   * Default sanitization function.
+   * 
+   * @param {unknown} value - Value to sanitize
+   * @returns {unknown} Sanitized value
+   * @private
+   */
+  private defaultSanitize(value: unknown): unknown {
+    return this.basicSanitize(value);
+  }
+
+  /**
+   * Basic sanitization.
+   * 
+   * @param {unknown} value - Value to sanitize
+   * @returns {unknown} Sanitized value
+   * @private
+   */
+  private basicSanitize(value: unknown): unknown {
+    if (typeof value === 'string') {
+      // Remove ANSI codes
+      // eslint-disable-next-line no-control-regex
+      return value.replace(/\x1b\[[0-9;]*m/g, '');
+    }
+    
+    if (Array.isArray(value)) {
+      return value.map(item => this.basicSanitize(item));
+    }
+    
+    if (this.isObject(value)) {
+      const sanitized: Record<string, unknown> = {};
+      const objValue = value as Record<string, unknown>;
+      for (const key in objValue) {
+        if (Object.prototype.hasOwnProperty.call(objValue, key)) {
+          sanitized[key] = this.basicSanitize(objValue[key]);
+        }
+      }
+      return sanitized;
+    }
+    
+    return value;
+  }
+
+  /**
+   * Strict sanitization.
+   * Removes ANSI codes, control characters, and redacts sensitive keys.
+   * 
+   * @param {unknown} value - Value to sanitize
+   * @returns {unknown} Sanitized value
+   * @private
+   */
+  private strictSanitize(value: unknown): unknown {
+    if (typeof value === 'string') {
+      // Remove ANSI codes and control characters
+      return value
+      // eslint-disable-next-line no-control-regex
+        .replace(/\x1b\[[0-9;]*m/g, '')
+        // eslint-disable-next-line no-control-regex
+        .replace(/[\x00-\x1F\x7F]/g, '');
+    }
+    
+    if (Array.isArray(value)) {
+      return value.map(item => this.strictSanitize(item));
+    }
+    
+    if (this.isObject(value)) {
+      const sanitized: Record<string, unknown> = {};
+      const objValue = value as Record<string, unknown>;
+      for (const key in objValue) {
+        if (Object.prototype.hasOwnProperty.call(objValue, key)) {
+          // Skip sensitive keys
+          if (this.isSensitiveKey(key)) {
+            sanitized[key] = '[REDACTED]';
+          } else {
+            sanitized[key] = this.strictSanitize(objValue[key]);
+          }
+        }
+      }
+      return sanitized;
+    }
+    
+    return value;
+  }
+
+  /**
+   * Deep freeze an object.
+   * 
+   * @param {object} obj - Object to freeze
+   * @returns {object} Frozen object
+   * @private
+   */
+  private deepFreeze(obj: unknown): unknown {
+    if (typeof obj !== 'object' || obj === null) {
+      return obj;
+    }
+    
+    Object.freeze(obj);
+    
+    Object.getOwnPropertyNames(obj).forEach(prop => {
+      const value = (obj as Record<string, unknown>)[prop];
+      if (value !== null && 
+          (typeof value === 'object' || typeof value === 'function') && 
+          !Object.isFrozen(value)) {
+        this.deepFreeze(value);
+      }
+    });
+    
+    return obj;
+  }
+
+  /**
+   * Check if a key is sensitive.
+   * 
+   * @param {string} key - Key to check
+   * @returns {boolean} True if sensitive
+   * @private
+   */
+  private isSensitiveKey(key: string): boolean {
+    const sensitivePatterns = [
+      /password/i,
+      /secret/i,
+      /token/i,
+      /key/i,
+      /auth/i,
+      /credential/i,
+      /private/i,
+    ];
+    
+    return sensitivePatterns.some(pattern => pattern.test(key));
+  }
+
+  /**
+   * Set validation rules.
+   * 
+   * @param {ContextValidationRules} rules - Validation rules
+   */
+  public setValidationRules(rules: ContextValidationRules): void {
+    this.validationRules = rules;
+    this.emit('validationRulesSet', rules);
+  }
+
+  /**
+   * Validate context against rules.
+   * 
+   * @param {Record<string, unknown>} context - Context to validate
+   * @returns {ContextValidationResult} Validation result
+   */
+  public validate(context: Record<string, unknown>): ContextValidationResult {
+    if (!this.validationRules) {
+      return { valid: true };
+    }
+
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    // Check required fields
+    if (this.validationRules.required) {
+      for (const field of this.validationRules.required) {
+        if (!(field in context)) {
+          errors.push(`Required field missing: ${field}`);
+        }
+      }
+    }
+
+    // Check types
+    if (this.validationRules.types) {
+      for (const [field, expectedType] of Object.entries(this.validationRules.types)) {
+        if (field in context) {
+          const actualType = typeof context[field];
+          if (actualType !== expectedType) {
+            errors.push(`Field ${field} has wrong type: expected ${expectedType}, got ${actualType}`);
+          }
+        }
+      }
+    }
+
+    // Custom validation
+    if (this.validationRules.custom) {
+      try {
+        if (!this.validationRules.custom(context)) {
+          errors.push('Custom validation failed');
+        }
+      } catch (error) {
+        warnings.push(`Custom validation error: ${error}`);
+      }
+    }
+
+    const result: ContextValidationResult = {
+      valid: errors.length === 0,
+    };
+
+    if (errors.length > 0) {
+      result.errors = errors;
+    }
+
+    if (warnings.length > 0) {
+      result.warnings = warnings;
+    }
+
+    return result;
+  }
+
+  /**
+   * Create a snapshot of current context.
+   * 
+   * @param {Record<string, unknown>} [metadata] - Optional metadata
+   * @returns {ContextSnapshot} Created snapshot
+   */
+  public snapshot(metadata?: Record<string, unknown>): ContextSnapshot {
+    const snapshot: ContextSnapshot = {
+      timestamp: new Date(),
+      data: this.cloneValue(this.globalContext, 0, new WeakSet()) as Record<string, unknown>,
+      metadata,
+    };
+
+    this.snapshots.push(snapshot);
+
+    // Trim old snapshots
+    if (this.snapshots.length > this.maxSnapshots) {
+      this.snapshots.shift();
+    }
+
+    this.emit('snapshotCreated', snapshot);
+
+    return snapshot;
+  }
+
+  /**
+   * Restore from a snapshot.
+   * 
+   * @param {ContextSnapshot} snapshot - Snapshot to restore
+   */
+  public restore(snapshot: ContextSnapshot): void {
+    this.globalContext = this.cloneValue(snapshot.data, 0, new WeakSet()) as Record<string, unknown>;
+    this.emit('snapshotRestored', snapshot);
+  }
+
+  /**
+   * Get all snapshots.
+   * 
+   * @returns {ContextSnapshot[]} All snapshots
+   */
+  public getSnapshots(): ContextSnapshot[] {
+    return [...this.snapshots];
+  }
+
+  /**
+   * Clear all snapshots.
+   */
+  public clearSnapshots(): void {
+    this.snapshots = [];
+    this.emit('snapshotsCleared');
+  }
+
+  /**
+   * Flatten nested context to dot notation.
+   * 
+   * @param {Record<string, unknown>} context - Context to flatten
+   * @param {string} [prefix=''] - Key prefix
+   * @returns {Record<string, unknown>} Flattened context
+   */
+  public flatten(context: Record<string, unknown>, prefix = ''): Record<string, unknown> {
+    const result: Record<string, unknown> = {};
+
+    for (const key in context) {
+      if (!Object.prototype.hasOwnProperty.call(context, key)) {
+        continue;
+      }
+
+      const value = context[key];
+      const newKey = prefix ? `${prefix}.${key}` : key;
+
+      if (this.isObject(value) && Object.keys(value as object).length > 0) {
+        Object.assign(result, this.flatten(value as Record<string, unknown>, newKey));
       } else {
-        result.push(item);
+        result[newKey] = value;
       }
     }
 
@@ -166,498 +697,161 @@ export class ContextManager {
   }
 
   /**
-   * Set a value at a specific path in the context.
+   * Unflatten dot notation to nested object.
+   * Converts a flat object with dot-notation keys into a nested object structure.
    * 
-   * @param {Record<string, any>} context - Context object
-   * @param {string} path - Dot-separated path
-   * @param {any} value - Value to set
-   * @returns {Record<string, any>} New context with value set
+   * @param {Record<string, unknown>} flattened - Flattened context
+   * @returns {Record<string, unknown>} Nested context
    */
-  public set(
-    context: Record<string, any>,
-    path: string,
-    value: any
-  ): Record<string, any> {
-    const result = this.clone(context);
-    const parts = path.split('.');
-    let current = result;
+  public unflatten(flattened: Record<string, unknown>): Record<string, unknown> {
+    const result: Record<string, unknown> = {};
 
-    for (let i = 0; i < parts.length - 1; i++) {
-      const part = parts[i];
-      
-      if (!current[part] || typeof current[part] !== 'object') {
-        current[part] = {};
+    for (const key in flattened) {
+      if (!Object.prototype.hasOwnProperty.call(flattened, key)) {
+        continue;
       }
-      
-      current = current[part];
+
+      const parts = key.split('.');
+      let current: Record<string, unknown> = result;
+
+      for (let i = 0; i < parts.length - 1; i++) {
+        const part = parts[i];
+        if (!(part in current)) {
+          current[part] = {};
+        }
+        current = current[part] as Record<string, unknown>;
+      }
+
+      current[parts[parts.length - 1]] = flattened[key];
     }
 
-    current[parts[parts.length - 1]] = this.sanitizeValue(value);
     return result;
   }
 
   /**
-   * Get a value at a specific path in the context.
+   * Extract specific fields from context.
    * 
-   * @param {Record<string, any>} context - Context object
-   * @param {string} path - Dot-separated path
-   * @param {any} defaultValue - Default value if path not found
-   * @returns {any} Value at path or default
+   * @param {Record<string, unknown>} context - Source context
+   * @param {string[]} fields - Fields to extract
+   * @returns {Record<string, unknown>} Extracted context
    */
-  public get(
-    context: Record<string, any>,
-    path: string,
-    defaultValue?: any
-  ): any {
+  public extract(context: Record<string, unknown>, fields: string[]): Record<string, unknown> {
+    const result: Record<string, unknown> = {};
+
+    for (const field of fields) {
+      if (field.includes('.')) {
+        // Handle nested fields
+        const value = this.getNestedValue(context, field);
+        if (value !== undefined) {
+          this.setNestedValue(result, field, value);
+        }
+      } else if (field in context) {
+        result[field] = context[field];
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Get nested value using dot notation.
+   * 
+   * @param {object} obj - Source object
+   * @param {string} path - Dot notation path
+   * @returns {unknown} Value at path
+   * @private
+   */
+  private getNestedValue(obj: unknown, path: string): unknown {
     const parts = path.split('.');
-    let current = context;
+    let current = obj;
 
     for (const part of parts) {
-      if (!current || typeof current !== 'object' || !(part in current)) {
-        return defaultValue;
+      if (current && typeof current === 'object' && part in current) {
+        current = (current as Record<string, unknown>)[part];
+      } else {
+        return undefined;
       }
-      current = current[part];
     }
 
     return current;
   }
 
   /**
-   * Remove a value at a specific path.
+   * Set nested value using dot notation.
    * 
-   * @param {Record<string, any>} context - Context object
-   * @param {string} path - Dot-separated path
-   * @returns {Record<string, any>} New context with value removed
+   * @param {object} obj - Target object
+   * @param {string} path - Dot notation path
+   * @param {unknown} value - Value to set
+   * @private
    */
-  public unset(
-    context: Record<string, any>,
-    path: string
-  ): Record<string, any> {
-    const result = this.clone(context);
+  private setNestedValue(obj: Record<string, unknown>, path: string, value: unknown): void {
     const parts = path.split('.');
-    let current = result;
+    let current = obj;
 
     for (let i = 0; i < parts.length - 1; i++) {
       const part = parts[i];
-      
-      if (!current[part] || typeof current[part] !== 'object') {
-        return result;
+      if (!(part in current)) {
+        current[part] = {};
       }
-      
-      current = current[part];
+      current = current[part] as Record<string, unknown>;
     }
 
-    delete current[parts[parts.length - 1]];
-    return result;
+    current[parts[parts.length - 1]] = value;
   }
 
   /**
-   * Pick specific keys from context.
+   * Get context statistics.
    * 
-   * @param {Record<string, any>} context - Context object
-   * @param {string[]} keys - Keys to pick
-   * @returns {Record<string, any>} New context with only specified keys
+   * @returns {object} Context statistics
    */
-  public pick(
-    context: Record<string, any>,
-    keys: string[]
-  ): Record<string, any> {
-    const result: Record<string, any> = {};
-
-    for (const key of keys) {
-      if (key.includes('.')) {
-        // Handle nested paths
-        const value = this.get(context, key);
-        if (value !== undefined) {
-          this.set(result, key, value);
-        }
-      } else if (key in context) {
-        result[key] = context[key];
-      }
-    }
-
-    return result;
-  }
-
-  /**
-   * Omit specific keys from context.
-   * 
-   * @param {Record<string, any>} context - Context object
-   * @param {string[]} keys - Keys to omit
-   * @returns {Record<string, any>} New context without specified keys
-   */
-  public omit(
-    context: Record<string, any>,
-    keys: string[]
-  ): Record<string, any> {
-    const result = this.clone(context);
-
-    for (const key of keys) {
-      if (key.includes('.')) {
-        // Handle nested paths
-        this.unset(result, key);
-      } else {
-        delete result[key];
-      }
-    }
-
-    return result;
-  }
-
-  /**
-   * Flatten nested context to single level with dot notation.
-   * 
-   * @param {Record<string, any>} context - Context object
-   * @param {string} prefix - Prefix for keys
-   * @returns {Record<string, any>} Flattened context
-   */
-  public flatten(
-    context: Record<string, any>,
-    prefix = ''
-  ): Record<string, any> {
-    const result: Record<string, any> = {};
-    
-    this.flattenHelper(context, result, prefix, 0);
-    
-    return result;
-  }
-
-  /**
-   * Flatten helper with depth tracking.
-   * 
-   * @param {any} obj - Object to flatten
-   * @param {Record<string, any>} result - Result object
-   * @param {string} prefix - Current prefix
-   * @param {number} depth - Current depth
-   * @private
-   */
-  private flattenHelper(
-    obj: any,
-    result: Record<string, any>,
-    prefix: string,
-    depth: number
-  ): void {
-    if (depth > this.maxDepth) return;
-
-    for (const [key, value] of Object.entries(obj)) {
-      const newKey = prefix ? `${prefix}.${key}` : key;
-
-      if (value === null || this.isPrimitive(value)) {
-        result[newKey] = value;
-      } else if (Array.isArray(value)) {
-        result[newKey] = value;
-      } else if (this.isPlainObject(value)) {
-        this.flattenHelper(value, result, newKey, depth + 1);
-      } else {
-        result[newKey] = String(value);
-      }
-    }
-  }
-
-  /**
-   * Unflatten dot notation to nested object.
-   * 
-   * @param {Record<string, any>} context - Flattened context
-   * @returns {Record<string, any>} Nested context
-   */
-  public unflatten(context: Record<string, any>): Record<string, any> {
-    const result: Record<string, any> = {};
-
-    for (const [key, value] of Object.entries(context)) {
-      this.set(result, key, value);
-    }
-
-    return result;
-  }
-
-  /**
-   * Calculate diff between two contexts.
-   * 
-   * @param {Record<string, any>} oldContext - Old context
-   * @param {Record<string, any>} newContext - New context
-   * @returns {object} Diff object with added, removed, and changed keys
-   */
-  public diff(
-    oldContext: Record<string, any>,
-    newContext: Record<string, any>
-  ): {
-    added: Record<string, any>;
-    removed: string[];
-    changed: Record<string, { old: any; new: any }>;
+  public getStats(): {
+    size: number;
+    depth: number;
+    propertyCount: number;
+    snapshotCount: number;
   } {
-    const oldFlat = this.flatten(oldContext);
-    const newFlat = this.flatten(newContext);
-    
-    const added: Record<string, any> = {};
-    const removed: string[] = [];
-    const changed: Record<string, { old: any; new: any }> = {};
-
-    // Find added and changed
-    for (const [key, value] of Object.entries(newFlat)) {
-      if (!(key in oldFlat)) {
-        added[key] = value;
-      } else if (oldFlat[key] !== value) {
-        changed[key] = { old: oldFlat[key], new: value };
-      }
-    }
-
-    // Find removed
-    for (const key of Object.keys(oldFlat)) {
-      if (!(key in newFlat)) {
-        removed.push(key);
-      }
-    }
-
-    return { added, removed, changed };
-  }
-
-  /**
-   * Validate context against schema.
-   * 
-   * @param {Record<string, any>} context - Context to validate
-   * @param {Record<string, any>} schema - Validation schema
-   * @returns {object} Validation result
-   */
-  public validate(
-    context: Record<string, any>,
-    schema: Record<string, any>
-  ): {
-    valid: boolean;
-    errors: string[];
-  } {
-    const errors: string[] = [];
-    
-    this.validateHelper(context, schema, '', errors);
+    const flattened = this.flatten(this.globalContext);
     
     return {
-      valid: errors.length === 0,
-      errors,
+      size: JSON.stringify(this.globalContext).length,
+      depth: this.getMaxDepth(this.globalContext),
+      propertyCount: Object.keys(flattened).length,
+      snapshotCount: this.snapshots.length,
     };
   }
 
   /**
-   * Validation helper.
+   * Get maximum depth of object.
    * 
-   * @param {any} value - Value to validate
-   * @param {any} schema - Schema for validation
-   * @param {string} path - Current path
-   * @param {string[]} errors - Error array
+   * @param {object} obj - Object to measure
+   * @param {number} currentDepth - Current depth
+   * @returns {number} Maximum depth
    * @private
    */
-  private validateHelper(
-    value: any,
-    schema: any,
-    path: string,
-    errors: string[]
-  ): void {
-    if (schema.type) {
-      const actualType = Array.isArray(value) ? 'array' : typeof value;
-      if (actualType !== schema.type) {
-        errors.push(`${path}: expected ${schema.type}, got ${actualType}`);
-        return;
+  private getMaxDepth(obj: unknown, currentDepth = 0): number {
+    if (!this.isObject(obj) || currentDepth > this.options.maxDepth) {
+      return currentDepth;
+    }
+
+    let maxDepth = currentDepth;
+    const objValue = obj as Record<string, unknown>;
+
+    for (const key in objValue) {
+      if (Object.prototype.hasOwnProperty.call(objValue, key)) {
+        const depth = this.getMaxDepth(objValue[key], currentDepth + 1);
+        maxDepth = Math.max(maxDepth, depth);
       }
     }
 
-    if (schema.required && value === undefined) {
-      errors.push(`${path}: required field missing`);
-      return;
-    }
-
-    if (schema.properties && typeof value === 'object' && value !== null) {
-      for (const [key, subSchema] of Object.entries(schema.properties)) {
-        const newPath = path ? `${path}.${key}` : key;
-        this.validateHelper(value[key], subSchema, newPath, errors);
-      }
-    }
+    return maxDepth;
   }
 
   /**
-   * Deep clone a context object.
-   * 
-   * @param {Record<string, any>} context - Context to clone
-   * @returns {Record<string, any>} Cloned context
+   * Clean up resources.
    */
-  public clone(context: Record<string, any>): Record<string, any> {
-    this.seen = new WeakSet();
-    return this.cloneHelper(context, 0);
-  }
-
-  /**
-   * Clone helper with circular reference detection.
-   * 
-   * @param {any} obj - Object to clone
-   * @param {number} depth - Current depth
-   * @returns {any} Cloned object
-   * @private
-   */
-  private cloneHelper(obj: any, depth: number): any {
-    if (depth > this.maxDepth) {
-      console.warn('[ContextManager] Max depth reached during clone');
-      return obj;
-    }
-
-    if (obj === null || this.isPrimitive(obj)) {
-      return obj;
-    }
-
-    if (this.seen.has(obj)) {
-      return '[Circular]';
-    }
-
-    this.seen.add(obj);
-
-    if (Array.isArray(obj)) {
-      return obj.map(item => this.cloneHelper(item, depth + 1));
-    }
-
-    if (this.isPlainObject(obj)) {
-      const result: Record<string, any> = {};
-      
-      for (const [key, value] of Object.entries(obj)) {
-        result[key] = this.cloneHelper(value, depth + 1);
-      }
-      
-      return result;
-    }
-
-    return this.cloneSpecialObject(obj);
-  }
-
-  /**
-   * Check if value is a primitive.
-   * 
-   * @param {any} value - Value to check
-   * @returns {boolean} True if primitive
-   * @private
-   */
-  private isPrimitive(value: any): boolean {
-    return (
-      typeof value === 'string' ||
-      typeof value === 'number' ||
-      typeof value === 'boolean' ||
-      typeof value === 'symbol' ||
-      typeof value === 'bigint'
-    );
-  }
-
-  /**
-   * Check if value is a plain object.
-   * 
-   * @param {any} value - Value to check
-   * @returns {boolean} True if plain object
-   * @private
-   */
-  private isPlainObject(value: any): boolean {
-    if (!value || typeof value !== 'object') {
-      return false;
-    }
-
-    const proto = Object.getPrototypeOf(value);
-    return proto === null || proto === Object.prototype;
-  }
-
-  /**
-   * Clone special objects (Date, RegExp, etc.).
-   * 
-   * @param {any} obj - Object to clone
-   * @returns {any} Cloned object
-   * @private
-   */
-  private cloneSpecialObject(obj: any): any {
-    if (obj instanceof Date) {
-      return new Date(obj.getTime());
-    }
-
-    if (obj instanceof RegExp) {
-      return new RegExp(obj.source, obj.flags);
-    }
-
-    if (obj instanceof Map) {
-      return new Map(obj);
-    }
-
-    if (obj instanceof Set) {
-      return new Set(obj);
-    }
-
-    if (obj instanceof Buffer) {
-      return Buffer.from(obj);
-    }
-
-    // For other objects, convert to string representation
-    return String(obj);
-  }
-
-  /**
-   * Sanitize a value for safe storage.
-   * 
-   * @param {any} value - Value to sanitize
-   * @returns {any} Sanitized value
-   * @private
-   */
-  private sanitizeValue(value: any): any {
-    if (typeof value === 'string' && value.length > this.maxStringLength) {
-      return value.substring(0, this.maxStringLength) + '...[truncated]';
-    }
-
-    if (typeof value === 'number') {
-      if (!isFinite(value)) {
-        return String(value);
-      }
-    }
-
-    return value;
-  }
-
-  /**
-   * Minify context for network transmission.
-   * 
-   * @param {Record<string, any>} context - Context to minify
-   * @param {Record<string, string>} rules - Minification rules (long key -> short key)
-   * @returns {Record<string, any>} Minified context
-   */
-  public minify(
-    context: Record<string, any>,
-    rules: Record<string, string>
-  ): Record<string, any> {
-    const result: Record<string, any> = {};
-
-    for (const [key, value] of Object.entries(context)) {
-      const minifiedKey = rules[key] || key;
-
-      if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-        result[minifiedKey] = this.minify(value, rules);
-      } else {
-        result[minifiedKey] = value;
-      }
-    }
-
-    return result;
-  }
-
-  /**
-   * Expand minified context.
-   * 
-   * @param {Record<string, any>} context - Minified context
-   * @param {Record<string, string>} rules - Expansion rules (short key -> long key)
-   * @returns {Record<string, any>} Expanded context
-   */
-  public expand(
-    context: Record<string, any>,
-    rules: Record<string, string>
-  ): Record<string, any> {
-    const result: Record<string, any> = {};
-
-    for (const [key, value] of Object.entries(context)) {
-      const expandedKey = rules[key] || key;
-
-      if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-        result[expandedKey] = this.expand(value, rules);
-      } else {
-        result[expandedKey] = value;
-      }
-    }
-
-    return result;
+  public destroy(): void {
+    this.clear();
+    this.clearSnapshots();
+    this.removeAllListeners();
   }
 }

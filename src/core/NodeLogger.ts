@@ -1,3 +1,5 @@
+// File: src/core/NodeLogger.ts
+
 import { LoggerBase } from './LoggerBase';
 import { ContextManager } from './ContextManager';
 import { TagManager } from './TagManager';
@@ -139,11 +141,6 @@ export class NodeLogger extends LoggerBase {
     this.writeFile(`=== ${title} ${'='.repeat(padding)} ===`);
   }
 
-  /**
-   * Logs a visual data table in console and writes metadata to file.
-   * @param data Array of row objects
-   * @param headerColor Optional color styles for the header row
-   */
   /**
    * Print a table of data with optional header styling
    * @param data Array of key-value objects
@@ -340,24 +337,27 @@ export class NodeLogger extends LoggerBase {
    */
   public setTheme(theme: Record<string, ColorName[]>): void {
     super.setTheme(theme);
-    this.formatter.setTheme?.(theme); // Pass to formatter if needed
+    // Update formatter colors if needed
+    this.formatter.setUseColors(this.useColors);
   }
 
   /**
    * Resolves a list of colors for the given preset style.
+   * Changed from private to protected to match base class.
    * @param preset The preset name (e.g. 'info', 'error')
    * @returns Array of ColorName styles
+   * @protected
    */
-  private getPresetColors(preset: StylePreset): ColorName[] {
-    return (PRESETS as Record<StylePreset, ColorName[]>)[preset] || ['white'];
+  protected getPresetColors(preset: StylePreset | string): ColorName[] {
+    // First check if it's in the theme
+    if (this.theme[preset]) {
+      return this.theme[preset];
+    }
+    
+    // Then check built-in PRESETS
+    return (PRESETS as Record<string, ColorName[]>)[preset] || ['white'];
   }
 
-  /**
-   * Displays a visual separator line for organizing log output.
-   * @param char Character to use for the separator (default: '-')
-   * @param length Length of the separator line (default: 60)
-   * @param colors Optional array of color/style names to apply
-   */
   /**
    * Print a separator line
    * @param char Character to use for the separator

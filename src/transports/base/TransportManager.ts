@@ -223,6 +223,36 @@ export class TransportManager extends EventEmitter {
   }
 
   /**
+   * Register an already instantiated transport with the manager.
+   * 
+   * @param {Transport} transport - Transport instance to register
+   * @returns {Promise<void>} Resolves when transport is registered
+   */
+  public async registerTransport(transport: Transport): Promise<void> {
+    const name = transport.name;
+
+    if (this.transports.has(name)) {
+      throw new Error(`Transport '${name}' already exists`);
+    }
+
+    this.setupTransportHandlers(transport);
+
+    if (typeof transport.init === 'function') {
+      await transport.init();
+    }
+
+    this.transports.set(name, transport);
+
+    this.performanceData.set(name, {
+      count: 0,
+      totalTime: 0,
+      errors: 0,
+    });
+
+    this.emit('transportAdded', { name, type: 'custom' });
+  }
+
+  /**
    * Remove a transport from the manager.
    * 
    * @param {string} name - Transport name

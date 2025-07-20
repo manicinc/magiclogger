@@ -1,17 +1,24 @@
 // File: src/constants/colors.ts
 
-import type { ColorName } from '../types';
-
 /**
- * ANSI escape codes for terminal colors and styles.
- * 
- * @const ANSI_CODES
+ * ANSI escape codes for colors and styles.
+ * This provides the actual escape sequences for terminal formatting.
  */
-export const ANSI_CODES: Record<ColorName | string, string> = {
+export const COLORS = {
   // Reset
   reset: '\x1b[0m',
   
-  // Text colors
+  // Text styles
+  bold: '\x1b[1m',
+  dim: '\x1b[2m',
+  italic: '\x1b[3m',
+  underline: '\x1b[4m',
+  inverse: '\x1b[7m',
+  hidden: '\x1b[8m',
+  strikethrough: '\x1b[9m',
+  blink: '\x1b[5m',
+  
+  // Foreground colors
   black: '\x1b[30m',
   red: '\x1b[31m',
   green: '\x1b[32m',
@@ -23,7 +30,7 @@ export const ANSI_CODES: Record<ColorName | string, string> = {
   gray: '\x1b[90m',
   grey: '\x1b[90m', // Alias
   
-  // Bright text colors
+  // Bright foreground colors
   brightRed: '\x1b[91m',
   brightGreen: '\x1b[92m',
   brightYellow: '\x1b[93m',
@@ -52,111 +59,25 @@ export const ANSI_CODES: Record<ColorName | string, string> = {
   bgBrightMagenta: '\x1b[105m',
   bgBrightCyan: '\x1b[106m',
   bgBrightWhite: '\x1b[107m',
-  
-  // Styles
-  bold: '\x1b[1m',
-  dim: '\x1b[2m',
-  italic: '\x1b[3m',
-  underline: '\x1b[4m',
-  inverse: '\x1b[7m',
-  hidden: '\x1b[8m',
-  strikethrough: '\x1b[9m',
-  
-  // Style resets
-  boldReset: '\x1b[22m',
-  dimReset: '\x1b[22m',
-  italicReset: '\x1b[23m',
-  underlineReset: '\x1b[24m',
-  inverseReset: '\x1b[27m',
-  hiddenReset: '\x1b[28m',
-  strikethroughReset: '\x1b[29m',
-  
-  // Background reset
-  bgReset: '\x1b[49m',
-};
-
-/**
- * Available colors for terminal output.
- * 
- * @const COLORS
- */
-export const COLORS = {
-  // Standard colors
-  black: 'black',
-  red: 'red',
-  green: 'green',
-  yellow: 'yellow',
-  blue: 'blue',
-  magenta: 'magenta',
-  cyan: 'cyan',
-  white: 'white',
-  gray: 'gray',
-  
-  // Bright colors
-  brightRed: 'brightRed',
-  brightGreen: 'brightGreen',
-  brightYellow: 'brightYellow',
-  brightBlue: 'brightBlue',
-  brightMagenta: 'brightMagenta',
-  brightCyan: 'brightCyan',
-  brightWhite: 'brightWhite',
 } as const;
 
 /**
- * Color names for browser console CSS.
- * Maps color names to CSS color values.
- * 
- * @const BROWSER_COLORS
+ * ANSI_CODES is an alias for COLORS for backward compatibility
  */
-export const BROWSER_COLORS: Record<ColorName, string> = {
-  // Text colors
-  black: 'color: #000000',
-  red: 'color: #ff0000',
-  green: 'color: #00ff00',
-  yellow: 'color: #ffff00',
-  blue: 'color: #0000ff',
-  magenta: 'color: #ff00ff',
-  cyan: 'color: #00ffff',
-  white: 'color: #ffffff',
-  gray: 'color: #808080',
-  grey: 'color: #808080',
-  
-  // Bright colors
-  brightRed: 'color: #ff6666',
-  brightGreen: 'color: #66ff66',
-  brightYellow: 'color: #ffff66',
-  brightBlue: 'color: #6666ff',
-  brightMagenta: 'color: #ff66ff',
-  brightCyan: 'color: #66ffff',
-  brightWhite: 'color: #ffffff',
-  
-  // Background colors
-  bgBlack: 'background-color: #000000',
-  bgRed: 'background-color: #ff0000',
-  bgGreen: 'background-color: #00ff00',
-  bgYellow: 'background-color: #ffff00',
-  bgBlue: 'background-color: #0000ff',
-  bgMagenta: 'background-color: #ff00ff',
-  bgCyan: 'background-color: #00ffff',
-  bgWhite: 'background-color: #ffffff',
-  bgGray: 'background-color: #808080',
-  bgGrey: 'background-color: #808080',
-  
-  // Bright background colors
-  bgBrightRed: 'background-color: #ff6666',
-  bgBrightGreen: 'background-color: #66ff66',
-  bgBrightYellow: 'background-color: #ffff66',
-  bgBrightBlue: 'background-color: #6666ff',
-  bgBrightMagenta: 'background-color: #ff66ff',
-  bgBrightCyan: 'background-color: #66ffff',
-  bgBrightWhite: 'background-color: #ffffff',
-  
-  // Styles
-  bold: 'font-weight: bold',
-  dim: 'opacity: 0.7',
-  italic: 'font-style: italic',
-  underline: 'text-decoration: underline',
-  inverse: 'filter: invert(1)',
-  hidden: 'visibility: hidden',
-  strikethrough: 'text-decoration: line-through',
-} as any;
+export const ANSI_CODES = COLORS;
+
+/**
+ * Style reset codes for specific styles
+ */
+export const RESET_CODES: Record<string, string> = {
+  bold: '\x1b[22m',
+  dim: '\x1b[22m',
+  italic: '\x1b[23m',
+  underline: '\x1b[24m',
+  blink: '\x1b[25m',
+  inverse: '\x1b[27m',
+  hidden: '\x1b[28m',
+  strikethrough: '\x1b[29m',
+  bgReset: '\x1b[49m',
+  fgReset: '\x1b[39m',
+};

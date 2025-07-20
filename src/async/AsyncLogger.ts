@@ -1,4 +1,4 @@
-// File: src/core/AsyncLogger.ts
+// File: src/async/AsyncLogger.ts
 
 import { AsyncBuffer } from './AsyncBuffer';
 import type { LogEntry, LogLevel } from '../types';
@@ -14,8 +14,8 @@ export interface AsyncLoggerOptions {
    */
   buffer?: {
     /**
-     * Size of the ring buffer.
-     * @default 10000
+     * Size of the ring buffer (will be rounded to next power of 2).
+     * @default 8192
      */
     size?: number;
 
@@ -46,6 +46,7 @@ export interface AsyncLoggerOptions {
 
   /**
    * Path to worker script.
+   * @default './workers/log-processor.worker.js'
    */
   workerPath?: string;
 
@@ -54,36 +55,62 @@ export interface AsyncLoggerOptions {
    * This function processes the log entries.
    */
   onFlush: (entries: LogEntry[]) => void | Promise<void>;
+
+  /**
+   * Enable performance metrics.
+   * @default true
+   */
+  enableMetrics?: boolean;
+}
+
+/**
+ * Worker state tracking interface.
+ * @interface
+ */
+interface TrackedWorker {
+  worker: Worker;
+  active: boolean;
+  processing: number;
 }
 
 /**
  * Async logging interface for high-performance logging.
  * 
- * This class provides async logging methods that use a ring buffer
- * for zero-allocation logging. It's designed to work with the main
- * Logger class to provide both sync and async APIs.
+ * This class provides async logging methods that use a lock-free ring buffer
+ * for zero-allocation logging. It's designed to work with the main Logger
+ * class to provide both sync and async APIs.
  * 
- * The async logger is optimized for:
- * - High-frequency logging scenarios
- * - Minimal impact on application performance
- * - Zero allocations in the hot path
+ * Features:
+ * - Zero allocation in the hot path
+ * - Lock-free ring buffer for single producer
  * - Optional worker thread processing
+ * - Automatic batching and flushing
+ * - Backpressure handling
+ * - Performance metrics
  * 
  * @class AsyncLogger
  * 
  * @example
  * ```typescript
  * const asyncLogger = new AsyncLogger({
- *   buffer: { size: 10000 },
+ *   buffer: { 
+ *     size: 8192,
+ *     flushInterval: 100 
+ *   },
  *   useWorkers: true,
- *   onFlush: (entries) => {
+ *   workerCount: 4,
+ *   onFlush: async (entries) => {
  *     // Process entries
- *     entries.forEach(entry => console.log(entry));
+ *     await transport.sendBatch(entries);
  *   }
  * }, createLogEntry);
  * 
- * // Log without blocking
- * asyncLogger.info('High frequency log');
+ * // Log without blocking - returns immediately
+ * asyncLogger.info('High frequency log', { data: 'value' });
+ * 
+ * // Get performance stats
+ * const stats = asyncLogger.getStats();
+ * console.log(`Processed: ${stats.buffer.metrics.totalFlushed} logs`);
  * ```
  */
 export class AsyncLogger {
@@ -97,13 +124,13 @@ export class AsyncLogger {
    * Function to create log entries.
    * @private
    */
-  private createEntry: (level: LogLevel, message: string, meta?: any) => LogEntry;
+  private createEntry: (level: LogLevel, message: string, meta?: Record<string, unknown>) => LogEntry;
 
   /**
    * Worker threads for processing logs.
    * @private
    */
-  private workers: Worker[] = [];
+  private workers: TrackedWorker[] = [];
 
   /**
    * Current worker index for round-robin distribution.
@@ -115,13 +142,31 @@ export class AsyncLogger {
    * Number of worker threads.
    * @private
    */
-  private workerCount: number;
+  private readonly workerCount: number;
 
   /**
    * Whether workers are enabled.
    * @private
    */
-  private useWorkers: boolean;
+  private readonly useWorkers: boolean;
+
+  /**
+   * Path to worker script.
+   * @private
+   */
+  private readonly workerPath: string;
+
+  /**
+   * Whether metrics are enabled.
+   * @private
+   */
+  private readonly enableMetrics: boolean;
+
+  /**
+   * Original flush handler from options.
+   * @private
+   */
+  private readonly originalFlushHandler: (entries: LogEntry[]) => void | Promise<void>;
 
   /**
    * Creates a new AsyncLogger instance.
@@ -131,25 +176,28 @@ export class AsyncLogger {
    */
   constructor(
     options: AsyncLoggerOptions,
-    createEntry: (level: LogLevel, message: string, meta?: any) => LogEntry
+    createEntry: (level: LogLevel, message: string, meta?: Record<string, unknown>) => LogEntry
   ) {
     this.createEntry = createEntry;
     this.useWorkers = options.useWorkers || false;
     this.workerCount = options.workerCount || 2;
+    this.workerPath = options.workerPath || './workers/log-processor.worker.js';
+    this.enableMetrics = options.enableMetrics ?? true;
+    this.originalFlushHandler = options.onFlush;
 
     // Initialize buffer with appropriate flush handler
     this.buffer = new AsyncBuffer({
-      size: options.buffer?.size || 10000,
+      size: options.buffer?.size || 8192,
       flushInterval: options.buffer?.flushInterval || 100,
       flushSize: options.buffer?.flushSize || 1000,
       onFlush: this.useWorkers ? this.sendToWorker.bind(this) : options.onFlush,
       overflowStrategy: 'drop-oldest',
-      enableMetrics: true,
+      enableMetrics: this.enableMetrics,
     });
 
     // Initialize workers if enabled
     if (this.useWorkers && typeof Worker !== 'undefined') {
-      this.initializeWorkers(options.workerPath);
+      this.initializeWorkers();
     }
   }
 
@@ -157,9 +205,9 @@ export class AsyncLogger {
    * Log an info message asynchronously.
    * 
    * @param {string} message - The message to log
-   * @param {any} [meta] - Optional metadata
+   * @param {Record<string, unknown>} [meta] - Optional metadata
    */
-  public info(message: string, meta?: any): void {
+  public info(message: string, meta?: Record<string, unknown>): void {
     const entry = this.createEntry('info', message, meta);
     this.buffer.add(entry);
   }
@@ -168,9 +216,9 @@ export class AsyncLogger {
    * Log a warning message asynchronously.
    * 
    * @param {string} message - The message to log
-   * @param {any} [meta] - Optional metadata
+   * @param {Record<string, unknown>} [meta] - Optional metadata
    */
-  public warn(message: string, meta?: any): void {
+  public warn(message: string, meta?: Record<string, unknown>): void {
     const entry = this.createEntry('warn', message, meta);
     this.buffer.add(entry);
   }
@@ -179,9 +227,9 @@ export class AsyncLogger {
    * Log an error message asynchronously.
    * 
    * @param {string} message - The message to log
-   * @param {any} [meta] - Optional metadata
+   * @param {Record<string, unknown>} [meta] - Optional metadata
    */
-  public error(message: string, meta?: any): void {
+  public error(message: string, meta?: Record<string, unknown>): void {
     const entry = this.createEntry('error', message, meta);
     this.buffer.add(entry);
   }
@@ -190,9 +238,9 @@ export class AsyncLogger {
    * Log a debug message asynchronously.
    * 
    * @param {string} message - The message to log
-   * @param {any} [meta] - Optional metadata
+   * @param {Record<string, unknown>} [meta] - Optional metadata
    */
-  public debug(message: string, meta?: any): void {
+  public debug(message: string, meta?: Record<string, unknown>): void {
     const entry = this.createEntry('debug', message, meta);
     this.buffer.add(entry);
   }
@@ -201,9 +249,9 @@ export class AsyncLogger {
    * Log a success message asynchronously.
    * 
    * @param {string} message - The message to log
-   * @param {any} [meta] - Optional metadata
+   * @param {Record<string, unknown>} [meta] - Optional metadata
    */
-  public success(message: string, meta?: any): void {
+  public success(message: string, meta?: Record<string, unknown>): void {
     const entry = this.createEntry('success', message, meta);
     this.buffer.add(entry);
   }
@@ -213,9 +261,9 @@ export class AsyncLogger {
    * 
    * @param {string} message - The message to log
    * @param {LogLevel} [level='info'] - The log level
-   * @param {any} [meta] - Optional metadata
+   * @param {Record<string, unknown>} [meta] - Optional metadata
    */
-  public log(message: string, level: LogLevel = 'info', meta?: any): void {
+  public log(message: string, level: LogLevel = 'info', meta?: Record<string, unknown>): void {
     const entry = this.createEntry(level, message, meta);
     this.buffer.add(entry);
   }
@@ -249,6 +297,7 @@ export class AsyncLogger {
       enabled: boolean;
       count: number;
       active: number;
+      totalProcessing: number;
     };
   } {
     return {
@@ -256,7 +305,8 @@ export class AsyncLogger {
       workers: {
         enabled: this.useWorkers,
         count: this.workers.length,
-        active: this.workers.filter(w => w.state === 'running').length,
+        active: this.workers.filter(w => w.active).length,
+        totalProcessing: this.workers.reduce((sum, w) => sum + w.processing, 0),
       },
     };
   }
@@ -273,7 +323,7 @@ export class AsyncLogger {
     // Terminate workers
     if (this.workers.length > 0) {
       await Promise.all(
-        this.workers.map(worker => this.terminateWorker(worker))
+        this.workers.map(({ worker }) => this.terminateWorker(worker))
       );
       this.workers = [];
     }
@@ -281,25 +331,13 @@ export class AsyncLogger {
 
   /**
    * Initialize worker threads for log processing.
-   * 
-   * @param {string} [workerPath] - Path to worker script
    * @private
    */
-  private initializeWorkers(workerPath?: string): void {
-    // Check if we're in a Node.js environment with Worker support
-    if (typeof Worker === 'undefined') {
-      console.warn('[AsyncLogger] Worker threads not available in this environment');
-      this.useWorkers = false;
-      return;
-    }
-
-    // Default worker script if not provided
-    const scriptPath = workerPath || this.getDefaultWorkerScript();
-
+  private initializeWorkers(): void {
     try {
       // Create worker threads
       for (let i = 0; i < this.workerCount; i++) {
-        const worker = new Worker(scriptPath);
+        const worker = new Worker(this.workerPath);
         
         // Set up worker event handlers
         worker.addEventListener('message', (event) => {
@@ -310,43 +348,28 @@ export class AsyncLogger {
           this.handleWorkerError(worker, error);
         });
 
-        this.workers.push(worker);
+        this.workers.push({
+          worker,
+          active: true,
+          processing: 0,
+        });
       }
 
       console.log(`[AsyncLogger] Initialized ${this.workers.length} worker threads`);
     } catch (error) {
       console.error('[AsyncLogger] Failed to initialize workers:', error);
-      this.useWorkers = false;
-    }
-  }
-
-  /**
-   * Get default worker script path.
-   * 
-   * @returns {string} Worker script path
-   * @private
-   */
-  private getDefaultWorkerScript(): string {
-    // In a real implementation, this would return the path to a bundled worker script
-    // For now, we'll use inline worker code
-    const workerCode = `
-      self.addEventListener('message', (event) => {
-        const { type, entries } = event.data;
-        
-        if (type === 'logs') {
-          // Process logs in worker thread
-          // In a real implementation, this would handle formatting, serialization, etc.
-          console.log('[Worker] Processing', entries.length, 'log entries');
-          
-          // Send acknowledgment
-          self.postMessage({ type: 'processed', count: entries.length });
-        }
+      console.log('[AsyncLogger] Falling back to main thread processing');
+      
+      // Recreate buffer with direct flush handler
+      this.buffer = new AsyncBuffer({
+        size: this.buffer.getStats().capacity,
+        flushInterval: 100,
+        flushSize: 1000,
+        onFlush: this.originalFlushHandler,
+        overflowStrategy: 'drop-oldest',
+        enableMetrics: this.enableMetrics,
       });
-    `;
-
-    // Create blob URL for inline worker
-    const blob = new Blob([workerCode], { type: 'application/javascript' });
-    return URL.createObjectURL(blob);
+    }
   }
 
   /**
@@ -357,21 +380,43 @@ export class AsyncLogger {
    */
   private sendToWorker(entries: LogEntry[]): void {
     if (this.workers.length === 0) {
-      // Fallback if no workers available
-      console.error('[AsyncLogger] No workers available');
+      console.error('[AsyncLogger] No workers available, falling back to direct processing');
+      // Fallback to direct processing
+      const result = this.originalFlushHandler(entries);
+      if (result && typeof result.then === 'function') {
+        result.catch(error => {
+          console.error('[AsyncLogger] Flush handler error:', error);
+        });
+      }
       return;
     }
 
-    // Round-robin distribution to workers
-    const worker = this.workers[this.workerIndex];
-    this.workerIndex = (this.workerIndex + 1) % this.workers.length;
+    // Find worker with least load
+    let selectedWorker = this.workers[0];
+    let minLoad = selectedWorker.processing;
+
+    for (const worker of this.workers) {
+      if (worker.active && worker.processing < minLoad) {
+        selectedWorker = worker;
+        minLoad = worker.processing;
+      }
+    }
 
     // Send entries to worker
     try {
-      worker.postMessage({ type: 'logs', entries });
+      selectedWorker.processing++;
+      selectedWorker.worker.postMessage({ type: 'logs', entries });
     } catch (error) {
+      selectedWorker.processing--;
       console.error('[AsyncLogger] Failed to send to worker:', error);
-      // Could implement fallback here
+      
+      // Fallback to direct processing
+      const result = this.originalFlushHandler(entries);
+      if (result && typeof result.then === 'function') {
+        result.catch(err => {
+          console.error('[AsyncLogger] Fallback flush handler error:', err);
+        });
+      }
     }
   }
 
@@ -385,12 +430,22 @@ export class AsyncLogger {
   private handleWorkerMessage(worker: Worker, event: MessageEvent): void {
     const { type, ...data } = event.data;
 
+    // Find tracked worker
+    const trackedWorker = this.workers.find(w => w.worker === worker);
+    if (!trackedWorker) return;
+
     switch (type) {
       case 'processed':
         // Worker successfully processed logs
-        if (data.count) {
-          // Could track metrics here
+        trackedWorker.processing = Math.max(0, trackedWorker.processing - 1);
+        if (data.metrics && this.enableMetrics) {
+          // Could aggregate worker metrics here
         }
+        break;
+
+      case 'ready':
+        // Worker is ready
+        trackedWorker.active = true;
         break;
 
       case 'error':
@@ -413,16 +468,23 @@ export class AsyncLogger {
   private handleWorkerError(worker: Worker, error: ErrorEvent): void {
     console.error('[AsyncLogger] Worker error:', error);
 
+    // Find and mark worker as inactive
+    const trackedWorker = this.workers.find(w => w.worker === worker);
+    if (trackedWorker) {
+      trackedWorker.active = false;
+      trackedWorker.processing = 0;
+    }
+
     // Remove failed worker
-    const index = this.workers.indexOf(worker);
+    const index = this.workers.findIndex(w => w.worker === worker);
     if (index >= 0) {
       this.workers.splice(index, 1);
     }
 
-    // Attempt to restart worker if we're below minimum count
+    // Attempt to restart worker
     if (this.workers.length < this.workerCount && this.useWorkers) {
       console.log('[AsyncLogger] Attempting to restart worker');
-      this.initializeWorkers();
+      setTimeout(() => this.initializeWorkers(), 1000);
     }
   }
 
@@ -435,7 +497,10 @@ export class AsyncLogger {
    */
   private async terminateWorker(worker: Worker): Promise<void> {
     return new Promise((resolve) => {
-      // Give worker time to finish current work
+      // Send shutdown message
+      worker.postMessage({ type: 'shutdown' });
+      
+      // Give worker time to cleanup
       setTimeout(() => {
         worker.terminate();
         resolve();
@@ -449,7 +514,7 @@ export class AsyncLogger {
    * @returns {boolean} True if logger is ready
    */
   public isReady(): boolean {
-    return !this.buffer.isEmpty() || this.workers.length > 0;
+    return !this.buffer.isEmpty() || this.workers.some(w => w.active);
   }
 
   /**
@@ -457,5 +522,15 @@ export class AsyncLogger {
    */
   public resetMetrics(): void {
     this.buffer.resetMetrics();
+  }
+
+  /**
+   * Get buffer utilization percentage.
+   * 
+   * @returns {number} Utilization from 0 to 100
+   */
+  public getUtilization(): number {
+    const stats = this.buffer.getStats();
+    return Math.round(stats.utilization * 100);
   }
 }

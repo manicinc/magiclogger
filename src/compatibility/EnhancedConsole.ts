@@ -1,5 +1,7 @@
+// File: src/compatibility/EnhancedConsole.ts
+
 import { Logger } from '../Logger';
-import { ColorName } from '../types';
+import { ColorName, StylePreset } from '../types';
 import { Colorizer } from '../core/Colorizer';
 import type { LoggerOptions } from '../types';
 
@@ -11,17 +13,14 @@ export interface EnhanceConsoleOptions extends LoggerOptions {
 }
 
 /**
- * Interface defining the extended methods added to the console
+ * Type guard to check if a string is a valid StylePreset
  */
-export interface EnhancedConsoleMethods {
-  header(title: string, colors?: ColorName[]): void;
-  success(message: string, ...args: unknown[]): void;
-  progress(progress: number, length?: number, completeChar?: string, incompleteChar?: string): void;
-  custom(msg: string, colors?: ColorName[], prefix?: string): void;
-  styled(msg: string, preset: string): void;
-  color(...colors: ColorName[]): (text: string) => string;
-  colorParts(parts: Array<{ text: string; color: ColorName }>): string;
-  restoreOriginalConsole(): void;
+function isStylePreset(value: string): value is StylePreset {
+  const validPresets: StylePreset[] = [
+    'info', 'success', 'warning', 'error', 'debug',
+    'important', 'highlight', 'muted', 'special', 'code', 'header'
+  ];
+  return validPresets.includes(value as StylePreset);
 }
 
 /**
@@ -91,8 +90,8 @@ export class EnhancedConsole {
     this.logger.success(message);
   }
 
-  header(title: string): void {
-    this.logger.header(title);
+  header(title: string, colors?: ColorName[]): void {
+    this.logger.header(title, colors || ['brightWhite', 'bgBlue', 'bold']);
   }
 
   progress(value: number, length?: number, completeChar?: string, incompleteChar?: string): void {
@@ -108,7 +107,13 @@ export class EnhancedConsole {
   }
 
   styled(msg: string, preset: string): void {
-    this.logger.styled(msg, preset as unknown as keyof typeof Colorizer); // TODO: tighten typing if needed
+    // Validate and convert preset string to StylePreset
+    if (isStylePreset(preset)) {
+      this.logger.styled(msg, preset);
+    } else {
+      // Fallback to default style if invalid preset
+      this.logger.styled(msg, 'info');
+    }
   }
 
   customFormat(message: string, options: { color?: ColorName; prefix?: string } = {}): string {
@@ -133,8 +138,8 @@ export class EnhancedConsole {
     return (text: string) => Colorizer.applyColors(text, colors, this.useColors);
   }
 
-  colorParts(parts: Array<{ text: string; color: ColorName }>): string {
-    return Colorizer.colorParts(parts, this.useColors);
+  colorParts(message: string, colorMap: Record<string, ColorName[]>): string {
+    return this.logger.colorParts(message, colorMap);
   }
 
   restoreOriginalConsole(): void {
@@ -145,6 +150,26 @@ export class EnhancedConsole {
     }
   }
 }
+
+/**
+ * Enhanced methods to add to console
+ */
+interface EnhancedMethods {
+  success?: (message: string, ...args: unknown[]) => void;
+  header?: (title: string, colors?: ColorName[]) => void;
+  progress?: (value: number, length?: number, completeChar?: string, incompleteChar?: string) => void;
+  custom?: (msg: string, colors?: ColorName[], prefix?: string) => void;
+  styled?: (msg: string, preset: string) => void;
+  color?: (...colors: ColorName[]) => (text: string) => string;
+  colorParts?: (message: string, colorMap: Record<string, ColorName[]>) => string;
+}
+
+/**
+ * Type for the enhanced console - Console with our additional methods
+ */
+type ExtendedConsole = Console & EnhancedMethods & {
+  [key: string]: unknown;
+};
 
 /**
  * Enhance the global console object with Magic Logger's functionality
@@ -161,16 +186,22 @@ export function enhanceConsole(options: EnhanceConsoleOptions = {}): {
 
   // Add recursion guard symbol
   const recursionGuard = Symbol('recursionGuard');
-  (console as any)[recursionGuard] = false;
+  const extendedConsole = console as ExtendedConsole;
+  extendedConsole[recursionGuard as unknown as string] = false;
+
+  // Store references to our enhanced methods for cleanup
+  const enhancedMethods: (keyof EnhancedMethods)[] = [
+    'success', 'header', 'progress', 'custom', 'styled', 'color', 'colorParts'
+  ];
 
   // Explicitly add enhanced methods to console
-  (console as any).success = enhanced.success.bind(enhanced);
-  (console as any).header = enhanced.header.bind(enhanced);
-  (console as any).progress = enhanced.progress.bind(enhanced);
-  (console as any).custom = enhanced.custom.bind(enhanced);
-  (console as any).styled = enhanced.styled.bind(enhanced);
-  (console as any).color = enhanced.color.bind(enhanced);
-  (console as any).colorParts = enhanced.colorParts.bind(enhanced);
+  extendedConsole.success = enhanced.success.bind(enhanced);
+  extendedConsole.header = enhanced.header.bind(enhanced);
+  extendedConsole.progress = enhanced.progress.bind(enhanced);
+  extendedConsole.custom = enhanced.custom.bind(enhanced);
+  extendedConsole.styled = enhanced.styled.bind(enhanced);
+  extendedConsole.color = enhanced.color.bind(enhanced);
+  extendedConsole.colorParts = enhanced.colorParts.bind(enhanced);
 
   // Override existing methods with enhanced versions
   console.log = enhanced.log.bind(enhanced);
@@ -186,14 +217,11 @@ export function enhanceConsole(options: EnhanceConsoleOptions = {}): {
       Object.assign(console, originalConsole);
 
       // Remove enhanced methods
-      delete (console as any).success;
-      delete (console as any).header;
-      delete (console as any).progress;
-      delete (console as any).custom;
-      delete (console as any).styled;
-      delete (console as any).color;
-      delete (console as any).colorParts;
-      delete (console as any)[recursionGuard];
+      enhancedMethods.forEach(method => {
+        delete (console as any)[method];
+      });
+      
+      delete extendedConsole[recursionGuard as unknown as string];
     },
   };
 }

@@ -2,7 +2,6 @@
 
 import { LoggerBase } from './LoggerBase';
 import { Formatter } from './Formatter';
-import { BROWSER_POLYFILLS } from '../utils/browser-polyfills';
 import type { LoggerOptions, ColorName, StylePreset } from '../types';
 
 /**
@@ -239,86 +238,91 @@ export class BrowserLogger extends LoggerBase {
   /**
    * Log an info message.
    * 
-   * @param {string} msg - Message to log
+   * @param {string} message - Message to log
+   * @param {Record<string, unknown>} [meta] - Additional metadata
    */
-  public info(msg: string): void {
-    this.print('INFO', msg, 'info');
+  public info(message: string, meta?: Record<string, unknown>): void {
+    this.print('INFO', message, 'info', meta);
   }
 
   /**
    * Log a warning message.
    * 
-   * @param {string} msg - Message to log
+   * @param {string} message - Message to log
+   * @param {Record<string, unknown>} [meta] - Additional metadata
    */
-  public warn(msg: string): void {
-    this.print('WARN', msg, 'warning');
+  public warn(message: string, meta?: Record<string, unknown>): void {
+    this.print('WARN', message, 'warning', meta);
   }
 
   /**
    * Log an error message.
    * 
-   * @param {string} msg - Message to log
+   * @param {string} message - Message to log
+   * @param {Record<string, unknown>} [meta] - Additional metadata
    */
-  public error(msg: string): void {
-    this.print('ERROR', msg, 'error');
+  public error(message: string, meta?: Record<string, unknown>): void {
+    this.print('ERROR', message, 'error', meta);
   }
 
   /**
    * Log a debug message.
    * 
-   * @param {string} msg - Message to log
+   * @param {string} message - Message to log
+   * @param {Record<string, unknown>} [meta] - Additional metadata
    */
-  public debug(msg: string): void {
+  public debug(message: string, meta?: Record<string, unknown>): void {
     if (!this.verbose) return;
-    this.print('DEBUG', msg, 'debug');
+    this.print('DEBUG', message, 'debug', meta);
   }
 
   /**
    * Log a success message.
    * 
-   * @param {string} msg - Message to log
+   * @param {string} message - Message to log
+   * @param {Record<string, unknown>} [meta] - Additional metadata
    */
-  public success(msg: string): void {
-    this.print('SUCCESS', msg, 'success');
+  public success(message: string, meta?: Record<string, unknown>): void {
+    this.print('SUCCESS', message, 'success', meta);
   }
 
   /**
    * Log with custom styling.
    * 
-   * @param {string} msg - Message to log
+   * @param {string} message - Message to log
    * @param {ColorName[]} colors - CSS styles to apply
    * @param {string} prefix - Prefix label
    */
-  public custom(msg: string, colors: ColorName[] = ['white'], prefix = 'LOG'): void {
+  public custom(message: string, colors: ColorName[] = ['white'], prefix = 'LOG'): void {
     const styles = this.getConsoleStyles(colors);
-    const formattedMessage = `%c[${prefix}]%c ${msg}`;
+    const formattedMessage = `%c[${prefix}]%c ${message}`;
     
     console.log(formattedMessage, styles.prefix, styles.message);
     
     if (this.storeInBrowser) {
-      this.storeLog(`[${prefix}] ${msg}`);
+      this.storeLog(`[${prefix}] ${message}`);
     }
   }
 
   /**
    * Log with preset style.
    * 
-   * @param {string} msg - Message to log
+   * @param {string} message - Message to log
    * @param {StylePreset} preset - Style preset
    */
-  public styled(msg: string, preset: StylePreset): void {
+  public styled(message: string, preset: StylePreset): void {
     const presetColors = this.getPresetColors(preset);
     const prefix = preset.toUpperCase();
     
     if (this.useColors) {
       const styles = this.getConsoleStyles(presetColors);
-      console.log(`%c[${prefix}]%c ${msg}`, styles.prefix, styles.message);
+      console.log(`%c[${prefix}]%c ${message}`, styles.prefix, styles.message);
     } else {
-      console.log(`[${prefix}] ${msg}`);
+      console.log(`[${prefix}] ${message}`);
     }
 
     if (this.storeInBrowser) {
-      this.storeLog(`[${prefix}] ${msg}`);
+      this.storeLog(`[${prefix}] ${message}`);
     }
   }
 
@@ -330,9 +334,9 @@ export class BrowserLogger extends LoggerBase {
    */
   public header(title: string, colors: ColorName[] = ['brightWhite', 'bgBlue', 'bold']): void {
     if (this.useColors) {
+      const styles = this.getConsoleStyles(colors);
       const padding = 60 - title.length;
       const paddedTitle = ` ${title} ${' '.repeat(Math.max(0, padding))}`;
-      const styles = this.getConsoleStyles(colors);
       
       console.log(`%c${paddedTitle}`, styles.header);
     } else {
@@ -348,10 +352,15 @@ export class BrowserLogger extends LoggerBase {
   /**
    * Display a table.
    * 
-   * @param {Record<string, any>[]} data - Table data
-   * @param {ColorName[]} headerColor - Header colors
+   * @param {Record<string, unknown>[]} data - Table data
+   * @param {ColorName[]} _headerColor - Header color (unused in browser)
    */
-  public table(data: Record<string, any>[], headerColor: ColorName[] = ['brightWhite', 'bold']): void {
+  public table(data: Record<string, unknown>[], _headerColor: ColorName[] = ['brightWhite', 'bold']): void {
+    if (!data || data.length === 0) {
+      console.log('No data to display');
+      return;
+    }
+
     // Use native console.table for best browser support
     console.table(data);
     
@@ -424,14 +433,13 @@ export class BrowserLogger extends LoggerBase {
   /**
    * Create a color function.
    * 
-   * @param {...ColorName[]} colors - Colors to apply
+   * @param {...ColorName[]} _colors - Colors to apply (unused in browser implementation)
    * @returns {Function} Color function
    */
-  public color(...colors: ColorName[]): (text: string) => string {
+  public color(..._colors: ColorName[]): (text: string) => string {
     return (text: string) => {
       if (!this.useColors) return text;
       
-      const styles = this.getConsoleStyles(colors);
       // Return formatted string for console
       return text; // Browser console handles styling differently
     };
@@ -441,10 +449,10 @@ export class BrowserLogger extends LoggerBase {
    * Apply colors to parts of a message.
    * 
    * @param {string} message - Message with parts to color
-   * @param {Record<string, ColorName[]>} colorMap - Color mappings
+   * @param {Record<string, ColorName[]>} _colorMap - Color mappings (unused in browser)
    * @returns {string} Colored message
    */
-  public colorParts(message: string, colorMap: Record<string, ColorName[]>): string {
+  public colorParts(message: string, _colorMap: Record<string, ColorName[]>): string {
     // Browser console doesn't support inline styling well
     // Return the message as-is
     return message;
@@ -469,29 +477,46 @@ export class BrowserLogger extends LoggerBase {
    * Internal print method.
    * 
    * @param {string} level - Log level
-   * @param {string} msg - Message
+   * @param {string} message - Message
    * @param {StylePreset} preset - Style preset
+   * @param {Record<string, unknown>} [meta] - Additional metadata
    * @private
    */
-  private print(level: string, msg: string, preset: StylePreset): void {
+  private print(level: string, message: string, preset: StylePreset, meta?: Record<string, unknown>): void {
     const timestamp = new Date().toISOString();
-    const formattedMsg = `[${timestamp}] [${level}] ${msg}`;
+    const formattedMsg = `[${timestamp}] [${level}] ${message}`;
 
     if (this.useColors) {
       const colors = this.getPresetColors(preset);
       const styles = this.getConsoleStyles(colors);
       
-      console.log(
-        `%c[${level}]%c ${msg}`,
-        styles.prefix,
-        styles.message
-      );
+      if (meta && Object.keys(meta).length > 0) {
+        console.log(
+          `%c[${level}]%c ${message}`,
+          styles.prefix,
+          styles.message,
+          meta
+        );
+      } else {
+        console.log(
+          `%c[${level}]%c ${message}`,
+          styles.prefix,
+          styles.message
+        );
+      }
     } else {
-      console.log(`[${level}] ${msg}`);
+      if (meta && Object.keys(meta).length > 0) {
+        console.log(`[${level}] ${message}`, meta);
+      } else {
+        console.log(`[${level}] ${message}`);
+      }
     }
 
     if (this.storeInBrowser) {
-      this.storeLog(formattedMsg);
+      const logEntry = meta 
+        ? `${formattedMsg} ${JSON.stringify(meta)}`
+        : formattedMsg;
+      this.storeLog(logEntry);
     }
 
     // Measure performance
@@ -522,13 +547,13 @@ export class BrowserLogger extends LoggerBase {
     header: string;
   } {
     const cacheKey = colors.join(',');
+    const cached = this.styleCache.get(cacheKey);
     
-    if (this.styleCache.has(cacheKey)) {
-      const cached = this.styleCache.get(cacheKey)!;
+    if (cached) {
       return {
         prefix: cached,
         message: 'color: inherit',
-        header: cached,
+        header: cached + '; padding: 4px 8px',
       };
     }
 
@@ -538,33 +563,45 @@ export class BrowserLogger extends LoggerBase {
       switch (color) {
         // Text colors
         case 'black': styles.push('color: #000000'); break;
-        case 'red': styles.push('color: #ff0000'); break;
-        case 'green': styles.push('color: #00ff00'); break;
-        case 'yellow': styles.push('color: #ffff00'); break;
-        case 'blue': styles.push('color: #0000ff'); break;
-        case 'magenta': styles.push('color: #ff00ff'); break;
-        case 'cyan': styles.push('color: #00ffff'); break;
-        case 'white': styles.push('color: #ffffff'); break;
-        case 'gray': styles.push('color: #808080'); break;
+        case 'red': styles.push('color: #cc0000'); break;
+        case 'green': styles.push('color: #4e9a06'); break;
+        case 'yellow': styles.push('color: #c4a000'); break;
+        case 'blue': styles.push('color: #3465a4'); break;
+        case 'magenta': styles.push('color: #75507b'); break;
+        case 'cyan': styles.push('color: #06989a'); break;
+        case 'white': styles.push('color: #d3d7cf'); break;
+        case 'gray':
+        case 'grey': styles.push('color: #555753'); break;
         
         // Bright colors
-        case 'brightRed': styles.push('color: #ff6666'); break;
-        case 'brightGreen': styles.push('color: #66ff66'); break;
-        case 'brightYellow': styles.push('color: #ffff66'); break;
-        case 'brightBlue': styles.push('color: #6666ff'); break;
-        case 'brightMagenta': styles.push('color: #ff66ff'); break;
-        case 'brightCyan': styles.push('color: #66ffff'); break;
-        case 'brightWhite': styles.push('color: #ffffff'); break;
+        case 'brightRed': styles.push('color: #ef2929'); break;
+        case 'brightGreen': styles.push('color: #8ae234'); break;
+        case 'brightYellow': styles.push('color: #fce94f'); break;
+        case 'brightBlue': styles.push('color: #729fcf'); break;
+        case 'brightMagenta': styles.push('color: #ad7fa8'); break;
+        case 'brightCyan': styles.push('color: #34e2e2'); break;
+        case 'brightWhite': styles.push('color: #eeeeec'); break;
         
         // Background colors
         case 'bgBlack': styles.push('background-color: #000000'); break;
-        case 'bgRed': styles.push('background-color: #ff0000'); break;
-        case 'bgGreen': styles.push('background-color: #00ff00'); break;
-        case 'bgYellow': styles.push('background-color: #ffff00'); break;
-        case 'bgBlue': styles.push('background-color: #0000ff'); break;
-        case 'bgMagenta': styles.push('background-color: #ff00ff'); break;
-        case 'bgCyan': styles.push('background-color: #00ffff'); break;
-        case 'bgWhite': styles.push('background-color: #ffffff'); break;
+        case 'bgRed': styles.push('background-color: #cc0000'); break;
+        case 'bgGreen': styles.push('background-color: #4e9a06'); break;
+        case 'bgYellow': styles.push('background-color: #c4a000'); break;
+        case 'bgBlue': styles.push('background-color: #3465a4'); break;
+        case 'bgMagenta': styles.push('background-color: #75507b'); break;
+        case 'bgCyan': styles.push('background-color: #06989a'); break;
+        case 'bgWhite': styles.push('background-color: #d3d7cf'); break;
+        case 'bgGray':
+        case 'bgGrey': styles.push('background-color: #555753'); break;
+        
+        // Bright background colors
+        case 'bgBrightRed': styles.push('background-color: #ef2929'); break;
+        case 'bgBrightGreen': styles.push('background-color: #8ae234'); break;
+        case 'bgBrightYellow': styles.push('background-color: #fce94f'); break;
+        case 'bgBrightBlue': styles.push('background-color: #729fcf'); break;
+        case 'bgBrightMagenta': styles.push('background-color: #ad7fa8'); break;
+        case 'bgBrightCyan': styles.push('background-color: #34e2e2'); break;
+        case 'bgBrightWhite': styles.push('background-color: #eeeeec'); break;
         
         // Styles
         case 'bold': styles.push('font-weight: bold'); break;
@@ -574,6 +611,7 @@ export class BrowserLogger extends LoggerBase {
         case 'inverse': styles.push('filter: invert(1)'); break;
         case 'hidden': styles.push('visibility: hidden'); break;
         case 'strikethrough': styles.push('text-decoration: line-through'); break;
+        case 'blink': styles.push('animation: blink 1s linear infinite'); break;
       }
     }
 
@@ -583,14 +621,15 @@ export class BrowserLogger extends LoggerBase {
     }
     
     styles.push('font-family: monospace');
+    styles.push('line-height: 1.4');
 
     const styleString = styles.join('; ');
     this.styleCache.set(cacheKey, styleString);
 
     return {
       prefix: styleString,
-      message: 'color: inherit',
-      header: styleString + '; padding: 4px 8px',
+      message: 'color: inherit; font-family: monospace',
+      header: styleString + '; padding: 4px 8px; border-radius: 4px',
     };
   }
 
@@ -688,6 +727,7 @@ export class BrowserLogger extends LoggerBase {
       store.add({
         timestamp: new Date().toISOString(),
         log,
+        level: this.extractLevelFromLog(log),
       });
     }
 
@@ -711,6 +751,18 @@ export class BrowserLogger extends LoggerBase {
       transaction.oncomplete = () => resolve();
       transaction.onerror = () => reject(transaction.error);
     });
+  }
+
+  /**
+   * Extract log level from log string.
+   * 
+   * @param {string} log - Log string
+   * @returns {string} Log level
+   * @private
+   */
+  private extractLevelFromLog(log: string): string {
+    const match = log.match(/\[(\w+)\]/);
+    return match ? match[1] : 'LOG';
   }
 
   /**
@@ -775,7 +827,12 @@ export class BrowserLogger extends LoggerBase {
     if (!this.db) return [];
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction(['logs'], 'readonly');
+      if (!this.db) {
+        resolve([]);
+        return;
+      }
+      
+      const transaction = this.db.transaction(['logs'], 'readonly');
       const store = transaction.objectStore('logs');
       const request = store.getAll();
 
@@ -804,6 +861,8 @@ export class BrowserLogger extends LoggerBase {
         const store = transaction.objectStore('logs');
         store.clear();
       }
+      
+      this.emit('logsCleared');
     } catch (error) {
       console.error('[BrowserLogger] Failed to clear logs:', error);
     }
@@ -837,6 +896,8 @@ export class BrowserLogger extends LoggerBase {
       document.body.removeChild(link);
 
       URL.revokeObjectURL(url);
+      
+      this.emit('logsDownloaded', { filename, count: logs.length });
     } catch (error) {
       console.error('[BrowserLogger] Failed to download logs:', error);
     }
@@ -941,5 +1002,35 @@ export class BrowserLogger extends LoggerBase {
       default:
         return logs.join('\n');
     }
+  }
+
+  /**
+   * Clean up resources.
+   */
+  public destroy(): void {
+    // Stop performance observer
+    if (this.performanceObserver) {
+      this.performanceObserver.disconnect();
+      this.performanceObserver = undefined;
+    }
+
+    // Flush remaining logs
+    this.flushStorageSync();
+
+    // Close IndexedDB
+    if (this.db) {
+      this.db.close();
+      this.db = undefined;
+    }
+
+    // Clear caches
+    this.styleCache.clear();
+    this.storageQueue = [];
+
+    // Remove event listeners
+    this.removeAllListeners();
+
+    // Call parent destroy
+    super.destroy();
   }
 }

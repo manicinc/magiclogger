@@ -5,11 +5,9 @@ import type {
   LoggerOptions, 
   LogLevel, 
   ColorName, 
-  StylePreset,
-  ThemeDefinition 
+  StylePreset
 } from '../types';
-import { COLORS } from '../constants/colors';
-import { PRESETS } from '../constants/presets';
+import { PRESETS } from '../constants/preset';
 import { DEFAULT_THEME } from '../constants/themes';
 
 /**
@@ -56,7 +54,7 @@ export abstract class LoggerBase extends EventEmitter {
    * Global context data.
    * @protected
    */
-  protected context?: Record<string, any>;
+  protected context?: Record<string, unknown>;
 
   /**
    * Whether verbose (debug) mode is enabled.
@@ -202,7 +200,7 @@ export abstract class LoggerBase extends EventEmitter {
    * Abstract method for tables.
    * @abstract
    */
-  public abstract table(data: Record<string, any>[], headerColor: ColorName[]): void;
+  public abstract table(data: Record<string, unknown>[], headerColor: ColorName[]): void;
 
   /**
    * Abstract method for progress bars.
@@ -381,8 +379,8 @@ export abstract class LoggerBase extends EventEmitter {
     }
 
     // Check built-in presets
-    if (PRESETS[preset as StylePreset]) {
-      return PRESETS[preset as StylePreset];
+    if (PRESETS[preset as keyof typeof PRESETS]) {
+      return PRESETS[preset as keyof typeof PRESETS];
     }
 
     // Check theme
@@ -489,7 +487,12 @@ export abstract class LoggerBase extends EventEmitter {
     minTime: number;
     maxTime: number;
   }> {
-    const stats: Record<string, any> = {};
+    const stats: Record<string, {
+      count: number;
+      avgTime: number;
+      minTime: number;
+      maxTime: number;
+    }> = {};
 
     for (const [level, data] of this.performanceData) {
       stats[level] = {
@@ -542,7 +545,7 @@ export abstract class LoggerBase extends EventEmitter {
   public getConfig(): {
     id?: string;
     tags?: string[];
-    context?: Record<string, any>;
+    context?: Record<string, unknown>;
     verbose: boolean;
     useColors: boolean;
     strictLevels: boolean;
@@ -562,22 +565,14 @@ export abstract class LoggerBase extends EventEmitter {
   /**
    * Create a child logger with merged configuration.
    * 
-   * @param {Partial<LoggerOptions>} options - Child logger options
+   * @param {Partial<LoggerOptions>} _options - Child logger options (unused in base implementation)
    * @returns {LoggerBase} Child logger instance
+   * @throws {Error} Always throws as this method must be implemented by concrete classes
    */
-  public child(options: Partial<LoggerOptions>): LoggerBase {
-    const ChildClass = this.constructor as typeof LoggerBase;
-    
-    const childOptions: LoggerOptions = {
-      ...this.getConfig(),
-      ...options,
-      // Merge arrays
-      tags: [...(this.tags || []), ...(options.tags || [])],
-      // Deep merge context
-      context: { ...this.context, ...options.context },
-    };
-
-    return new (ChildClass as any)(childOptions);
+  public child(_options: Partial<LoggerOptions>): LoggerBase {
+    // This is an abstract class, so we can't instantiate it directly
+    // Child classes should override this method
+    throw new Error('child() method must be implemented by concrete logger class');
   }
 
   /**
