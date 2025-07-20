@@ -1,36 +1,28 @@
-// File: src/transports/implementations/HTTPTransport.ts
+// File: src/transports/base/implementations/HTTPTransport.ts
 
 import { NetworkTransport } from '../NetworkTransport';
-import type { HTTPTransportOptions, LogEntry, TransportStats } from '../../../types/transport';
+import * as https from 'https';
+import * as http from 'http';
+import { URL } from 'url';
+import type { 
+  HTTPTransportOptions, 
+  LogEntry,
+  NetworkTransportOptions 
+} from '../../../types/transport';
 
 /**
- * Interface for HTTP request configuration.
- */
-interface HTTPRequestConfig {
-  url: string;
-  method: string;
-  headers: Record<string, string>;
-  body: string | Buffer;
-  timeout: number;
-}
-
-/**
- * Transport that sends logs to HTTP/HTTPS endpoints.
+ * HTTP transport for sending logs to HTTP endpoints.
  * 
- * The HTTPTransport provides flexible HTTP-based log delivery with:
+ * Features:
  * - Multiple authentication methods (Basic, Bearer, API Key, Custom)
- * - Configurable request formats (JSON, NDJSON, Form data)
- * - Request/response transformation hooks
+ * - Request transformation and batching
  * - Automatic retry with exponential backoff
- * - Connection pooling and keep-alive
- * - Custom header support
+ * - Connection pooling for performance
+ * - Multiple body formats (JSON, NDJSON, Form)
+ * - Custom headers and request options
+ * - Circuit breaker for failing endpoints
  * 
- * This transport is ideal for:
- * - Sending logs to log aggregation services
- * - Custom logging endpoints
- * - Webhooks and notifications
- * - Real-time log streaming services
- * 
+ * @class HTTPTransport
  * @extends {NetworkTransport}
  * 
  * @example
@@ -41,49 +33,69 @@ interface HTTPRequestConfig {
  *   method: 'POST',
  *   auth: {
  *     type: 'bearer',
- *     token: 'your-api-token'
+ *     token: process.env.LOG_API_TOKEN
  *   },
  *   bodyFormat: 'json',
- *   compress: true
- * });
- * 
- * await httpTransport.log({
- *   level: 'error',
- *   message: 'Database connection failed',
- *   error: { code: 'ECONNREFUSED' }
+ *   headers: {
+ *     'X-Service-Name': 'my-app'
+ *   }
  * });
  * ```
  */
 export class HTTPTransport extends NetworkTransport {
   /**
-   * HTTP configuration.
+   * Target URL for log delivery.
    * @private
    */
-  private readonly url: string;
-  private readonly method: 'POST' | 'PUT' | 'PATCH';
+  private readonly url: URL;
+
+  /**
+   * HTTP method to use.
+   * @private
+   */
+  private readonly method: HTTPTransportOptions['method'];
+
+  /**
+   * Authentication configuration.
+   * @private
+   */
   private readonly auth?: HTTPTransportOptions['auth'];
-  private readonly bodyFormat: 'json' | 'ndjson' | 'form' | 'custom';
-  private readonly transformRequest?: (logs: LogEntry[]) => any;
 
   /**
-   * HTTP client instance.
+   * Request body format.
    * @private
    */
-  private httpAgent?: any;
-  private httpsAgent?: any;
+  private readonly bodyFormat: HTTPTransportOptions['bodyFormat'];
 
   /**
-   * Dynamic imports for HTTP libraries.
+   * Custom request transformer.
    * @private
    */
-  private axios?: any;
-  private FormData?: any;
+  private readonly transformRequest?: HTTPTransportOptions['transformRequest'];
 
   /**
-   * Parsed URL components.
+   * HTTP/HTTPS agent for connection pooling.
    * @private
    */
-  private urlParts: URL;
+  private agent: http.Agent | https.Agent;
+
+  /**
+   * Cached auth headers.
+   * @private
+   */
+  private authHeaders?: Record<string, string>;
+
+  /**
+   * Last auth refresh time.
+   * @private
+   */
+  private lastAuthRefresh = 0;
+
+  /**
+   * Auth refresh interval (5 minutes).
+   * @private
+   */
+  private readonly authRefreshInterval = 5 * 60 * 1000;
 
   /**
    * Creates a new HTTPTransport instance.
@@ -91,250 +103,99 @@ export class HTTPTransport extends NetworkTransport {
    * @param {HTTPTransportOptions} options - Transport configuration
    */
   constructor(options: HTTPTransportOptions) {
-    super(options);
+    const networkOptions: NetworkTransportOptions = {
+      ...options,
+      // HTTP specific defaults
+      maxBatchSize: options.maxBatchSize || 100,
+      maxBatchTime: options.maxBatchTime || 5000,
+      maxBatchBytes: options.maxBatchBytes || 1024 * 1024, // 1MB
+    };
 
-    // Validate required options
-    if (!options.url) {
-      throw new Error('HTTPTransport requires url option');
-    }
+    super(networkOptions);
 
-    // Parse and validate URL
-    try {
-      this.urlParts = new URL(options.url);
-    } catch (error) {
-      throw new Error(`Invalid URL: ${options.url}`);
-    }
-
-    // Initialize HTTP configuration
-    this.url = options.url;
+    this.url = new URL(options.url);
     this.method = options.method || 'POST';
     this.auth = options.auth;
     this.bodyFormat = options.bodyFormat || 'json';
     this.transformRequest = options.transformRequest;
+
+    // Create appropriate agent
+    const isHttps = this.url.protocol === 'https:';
+    const AgentClass = isHttps ? https.Agent : http.Agent;
+    
+    this.agent = new AgentClass({
+      keepAlive: true,
+      keepAliveMsecs: 1000,
+      maxSockets: 100,
+      maxFreeSockets: 10,
+      timeout: this.timeout,
+      // Add TLS options for HTTPS
+      ...(isHttps && this.tls ? {
+        rejectUnauthorized: this.tls.rejectUnauthorized ?? true,
+        cert: this.tls.cert,
+        key: this.tls.key,
+        ca: this.tls.ca,
+      } : {}),
+    });
   }
 
   /**
-   * Initialize HTTP client and verify configuration.
+   * Initialize HTTP transport.
    * 
    * @returns {Promise<void>} Resolves when initialized
    * @protected
    */
   protected async initializeNetwork(): Promise<void> {
-    // Load HTTP client library
-    await this.loadHTTPClient();
-
-    // Create HTTP agents for connection pooling
-    await this.createHTTPAgents();
-
-    // Verify endpoint connectivity (optional)
-    if (process.env.NODE_ENV !== 'production') {
-      await this.verifyEndpoint();
-    }
-  }
-
-  /**
-   * Load HTTP client library dynamically.
-   * 
-   * @private
-   */
-  private async loadHTTPClient(): Promise<void> {
-    if (typeof window !== 'undefined') {
-      // Browser environment - use fetch API
-      // No additional imports needed
-    } else {
-      // Node.js environment - use axios
-      // Use dynamic imports with proper error handling
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore - axios is an optional dependency loaded at runtime
-      const axiosModule = await import('axios').catch(() => {
-        throw new Error('axios package is required for HTTPTransport in Node.js. Install with: npm install axios');
-      });
-      this.axios = axiosModule.default || axiosModule;
-      
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore - form-data is an optional dependency loaded at runtime
-      const formDataModule = await import('form-data').catch(() => {
-        throw new Error('form-data package is required for HTTPTransport in Node.js. Install with: npm install form-data');
-      });
-      this.FormData = formDataModule.default || formDataModule;
-    }
-  }
-
-  /**
-   * Create HTTP/HTTPS agents for connection pooling.
-   * 
-   * @private
-   */
-  private async createHTTPAgents(): Promise<void> {
-    if (typeof window !== 'undefined') {
-      return; // Not needed in browser
-    }
-
-    const http = await import('http');
-    const https = await import('https');
-
-    // HTTP agent
-    this.httpAgent = new http.Agent({
-      keepAlive: true,
-      keepAliveMsecs: 1000,
-      maxSockets: 50,
-      maxFreeSockets: 10,
-      timeout: this.timeout,
-    });
-
-    // HTTPS agent with TLS options
-    this.httpsAgent = new https.Agent({
-      keepAlive: true,
-      keepAliveMsecs: 1000,
-      maxSockets: 50,
-      maxFreeSockets: 10,
-      timeout: this.timeout,
-      rejectUnauthorized: this.tls?.rejectUnauthorized !== false,
-      cert: this.tls?.cert,
-      key: this.tls?.key,
-      ca: this.tls?.ca,
-    });
-  }
-
-  /**
-   * Verify endpoint connectivity.
-   * 
-   * @private
-   */
-  private async verifyEndpoint(): Promise<void> {
-    try {
-      const testConfig: HTTPRequestConfig = {
-        url: this.url,
-        method: 'OPTIONS',
-        headers: await this.buildRequestHeaders(),
-        body: '',
-        timeout: 5000,
-      };
-
-      await this.executeRequest(testConfig);
-    } catch (error: any) {
-      // OPTIONS might not be supported, which is okay
-      if (error.response?.status === 405) {
-        return; // Method not allowed is fine
-      }
-      
-      // Log warning but don't fail initialization
-      console.warn(`HTTPTransport: Unable to verify endpoint ${this.url}:`, error.message);
-    }
-  }
-
-  /**
-   * Send a batch of logs to the HTTP endpoint.
-   * 
-   * @param {any} data - Prepared batch data
-   * @param {any} batch - Original batch object
-   * @returns {Promise<void>} Resolves when sent
-   * @protected
-   */
-  protected async performNetworkRequest(data: any, batch: any): Promise<void> {
-    // Build request configuration
-    const config: HTTPRequestConfig = {
-      url: this.url,
-      method: this.method,
-      headers: await this.buildRequestHeaders(),
-      body: await this.buildRequestBody(batch.entries),
-      timeout: this.timeout,
-    };
-
-    // Execute HTTP request
-    const response = await this.executeRequest(config);
-
-    // Validate response
-    this.validateResponse(response);
-
-    // Emit success event
-    this.emit('httpSuccess', {
-      url: this.url,
-      method: this.method,
-      status: response.status,
-      entryCount: batch.entries.length,
-    });
-  }
-
-  /**
-   * Log a single entry (required by Transport base class).
-   * HTTPTransport uses batching, so this method adds the entry to the batch.
-   * 
-   * @param {LogEntry} _entry - Log entry to process
-   * @returns {Promise<void>} Resolves when entry is queued
-   * @protected
-   */
-  protected async doLog(_entry: LogEntry): Promise<void> {
-    // HTTPTransport uses batching - individual entries are handled by the batch system
-    // This method is required by the Transport interface but not used directly
-    throw new Error('HTTPTransport uses batching. Use the batch system instead of calling doLog directly.');
-  }
-
-  /**
-   * Build headers for HTTP request.
-   * 
-   * @returns {Promise<Record<string, string>>} Headers object
-   * @private
-   */
-  private async buildRequestHeaders(): Promise<Record<string, string>> {
-    const headers = await this.buildHeaders();
-
-    // Add content type based on body format
-    switch (this.bodyFormat) {
-      case 'json':
-        headers['Content-Type'] = 'application/json';
-        break;
-      case 'ndjson':
-        headers['Content-Type'] = 'application/x-ndjson';
-        break;
-      case 'form':
-        // Content-Type set by FormData
-        break;
-      case 'custom':
-        // User must set Content-Type in headers
-        break;
-    }
-
-    // Add authentication headers
+    // Initialize auth headers
     if (this.auth) {
-      const authHeaders = await this.buildAuthHeaders();
-      Object.assign(headers, authHeaders);
+      await this.refreshAuthHeaders();
     }
 
-    // Add compression header if needed
-    if (this.compress) {
-      headers['Content-Encoding'] = 'gzip';
-    }
-
-    return headers;
+    // Test endpoint connectivity
+    await this.testEndpoint();
   }
 
   /**
-   * Build authentication headers.
+   * Test endpoint connectivity.
    * 
-   * @returns {Promise<Record<string, string>>} Auth headers
+   * @returns {Promise<void>} Resolves if endpoint is reachable
    * @private
    */
-  private async buildAuthHeaders(): Promise<Record<string, string>> {
-    const headers: Record<string, string> = {};
+  private async testEndpoint(): Promise<void> {
+    try {
+      // Make a lightweight request to test connectivity
+      const testUrl = new URL(this.url.toString());
+      testUrl.pathname = testUrl.pathname.replace(/\/$/, '') + '/health';
 
-    if (!this.auth) {
-      return headers;
+      await this.makeHttpRequest('GET', testUrl, {});
+    } catch (error: any) {
+      // Only warn, don't fail initialization
+      console.warn(`[HTTPTransport] Health check failed for ${this.url.hostname}: ${error.message}`);
     }
+  }
+
+  /**
+   * Refresh authentication headers.
+   * 
+   * @returns {Promise<void>} Resolves when headers are refreshed
+   * @private
+   */
+  private async refreshAuthHeaders(): Promise<void> {
+    if (!this.auth) return;
+
+    const headers: Record<string, string> = {};
 
     switch (this.auth.type) {
       case 'basic':
         if (this.auth.username && this.auth.password) {
-          const credentials = Buffer.from(
-            `${this.auth.username}:${this.auth.password}`
-          ).toString('base64');
-          headers['Authorization'] = `Basic ${credentials}`;
+          const credentials = Buffer.from(`${this.auth.username}:${this.auth.password}`).toString('base64');
+          headers.Authorization = `Basic ${credentials}`;
         }
         break;
 
       case 'bearer':
         if (this.auth.token) {
-          headers['Authorization'] = `Bearer ${this.auth.token}`;
+          headers.Authorization = `Bearer ${this.auth.token}`;
         }
         break;
 
@@ -353,347 +214,249 @@ export class HTTPTransport extends NetworkTransport {
         break;
     }
 
+    this.authHeaders = headers;
+    this.lastAuthRefresh = Date.now();
+  }
+
+  /**
+   * Perform the network request to send logs.
+   * 
+   * @param {any} data - Prepared log data
+   * @param {any} batch - Batch metadata
+   * @returns {Promise<void>} Resolves when sent
+   * @protected
+   */
+  protected async performNetworkRequest(data: any, batch: any): Promise<void> {
+    // Refresh auth if needed
+    if (this.auth && Date.now() - this.lastAuthRefresh > this.authRefreshInterval) {
+      await this.refreshAuthHeaders();
+    }
+
+    // Transform data if transformer provided
+    const body = this.transformRequest ? this.transformRequest(data) : this.formatBody(data);
+
+    // Build headers
+    const headers = await this.buildRequestHeaders(body);
+
+    // Make request
+    const response = await this.makeHttpRequest(this.method!, this.url, headers, body);
+
+    // Validate response
+    if (response.statusCode && response.statusCode >= 400) {
+      throw new Error(`HTTP ${response.statusCode}: ${response.statusMessage}`);
+    }
+
+    this.emit('sent', {
+      url: this.url.toString(),
+      count: batch.entries.length,
+      size: Buffer.byteLength(body),
+      statusCode: response.statusCode,
+    });
+  }
+
+  /**
+   * Format request body based on bodyFormat.
+   * 
+   * @param {LogEntry[]} entries - Log entries
+   * @returns {string | Buffer} Formatted body
+   * @private
+   */
+  private formatBody(entries: LogEntry[]): string | Buffer {
+    switch (this.bodyFormat) {
+      case 'json':
+        return JSON.stringify({
+          logs: entries,
+          count: entries.length,
+          timestamp: new Date().toISOString(),
+        });
+
+      case 'ndjson':
+        return entries.map(e => JSON.stringify(e)).join('\n') + '\n';
+
+      case 'form': {
+        const params = new URLSearchParams();
+        entries.forEach((entry, i) => {
+          params.append(`log[${i}]`, JSON.stringify(entry));
+        });
+        return params.toString();
+      }
+
+      case 'custom':
+        // Should use transformRequest
+        throw new Error('Custom body format requires transformRequest function');
+
+      default:
+        return JSON.stringify(entries);
+    }
+  }
+
+  /**
+   * Build request headers.
+   * 
+   * @param {string | Buffer} body - Request body
+   * @returns {Promise<Record<string, string>>} Headers
+   * @private
+   */
+  private async buildRequestHeaders(body: string | Buffer): Promise<Record<string, string>> {
+    const headers: Record<string, string> = {
+      ...await this.buildHeaders(),
+      'Content-Length': String(Buffer.byteLength(body)),
+      'Content-Type': this.getContentType(),
+      'Accept': 'application/json',
+      'Accept-Encoding': 'gzip, deflate',
+      'Connection': 'keep-alive',
+    };
+
+    // Add auth headers
+    if (this.authHeaders) {
+      Object.assign(headers, this.authHeaders);
+    }
+
+    // Add custom headers
+    if (this.headers) {
+      Object.assign(headers, this.headers);
+    }
+
     return headers;
   }
 
   /**
-   * Build request body from log entries.
+   * Get content type for request.
    * 
-   * @param {LogEntry[]} entries - Log entries to send
-   * @returns {Promise<string | Buffer>} Request body
+   * @returns {string} Content type
    * @private
    */
-  private async buildRequestBody(entries: LogEntry[]): Promise<string | Buffer> {
-    let body: any;
-
-    // Apply custom transform if provided
-    if (this.transformRequest) {
-      body = this.transformRequest(entries);
-    } else {
-      body = entries;
-    }
-
-    // Format body based on configuration
-    let formatted: string | Buffer;
-
+  private getContentType(): string {
     switch (this.bodyFormat) {
       case 'json':
-        formatted = JSON.stringify(body);
-        break;
-
+        return 'application/json; charset=utf-8';
       case 'ndjson':
-        if (Array.isArray(body)) {
-          formatted = body.map(item => JSON.stringify(item)).join('\n') + '\n';
-        } else {
-          formatted = JSON.stringify(body) + '\n';
-        }
-        break;
-
+        return 'application/x-ndjson; charset=utf-8';
       case 'form':
-        formatted = await this.buildFormData(body);
-        break;
-
-      case 'custom':
-        // Assume transform returns properly formatted body
-        formatted = typeof body === 'string' || Buffer.isBuffer(body) 
-          ? body 
-          : JSON.stringify(body);
-        break;
-
+        return 'application/x-www-form-urlencoded';
       default:
-        formatted = JSON.stringify(body);
-    }
-
-    // Compress if enabled
-    if (this.compress && typeof formatted === 'string') {
-      formatted = await this.compressContent(Buffer.from(formatted, 'utf8'));
-    }
-
-    return formatted;
-  }
-
-  /**
-   * Build form data from body.
-   * 
-   * @param {any} body - Body data
-   * @returns {Promise<any>} Form data
-   * @private
-   */
-  private async buildFormData(body: any): Promise<any> {
-    if (typeof window !== 'undefined') {
-      // Browser FormData
-      const formData = new FormData();
-      
-      if (Array.isArray(body)) {
-        formData.append('logs', JSON.stringify(body));
-      } else {
-        for (const [key, value] of Object.entries(body)) {
-          formData.append(key, String(value));
-        }
-      }
-      
-      return formData;
-    } else {
-      // Node.js form-data
-      const formData = new this.FormData();
-      
-      if (Array.isArray(body)) {
-        formData.append('logs', JSON.stringify(body));
-      } else {
-        for (const [key, value] of Object.entries(body)) {
-          formData.append(key, String(value));
-        }
-      }
-      
-      return formData;
+        return 'application/json; charset=utf-8';
     }
   }
 
   /**
-   * Compress content using gzip.
+   * Make HTTP/HTTPS request.
    * 
-   * @param {Buffer} content - Content to compress
-   * @returns {Promise<Buffer>} Compressed content
+   * @param {string} method - HTTP method
+   * @param {URL} url - Request URL
+   * @param {Record<string, string>} headers - Request headers
+   * @param {string | Buffer} body - Request body
+   * @returns {Promise<any>} Response
    * @private
    */
-  private async compressContent(content: Buffer): Promise<Buffer> {
-    if (typeof window !== 'undefined') {
-      // Browser environment
-      if ('CompressionStream' in window) {
-        const cs = new (window as any).CompressionStream('gzip');
-        const writer = cs.writable.getWriter();
-        writer.write(content);
-        writer.close();
-        
-        const chunks: Uint8Array[] = [];
-        const reader = cs.readable.getReader();
-        
-        // eslint-disable-next-line no-constant-condition
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          chunks.push(value);
-        }
-        
-        return Buffer.concat(chunks);
-      }
-      return content; // No compression available
-    } else {
-      // Node.js environment
-      const zlib = await import('zlib');
-      return new Promise((resolve, reject) => {
-        zlib.gzip(content, (err, compressed) => {
-          if (err) reject(err);
-          else resolve(compressed);
-        });
-      });
-    }
-  }
+  private async makeHttpRequest(
+    method: string,
+    url: URL,
+    headers: Record<string, string>,
+    body?: string | Buffer
+  ): Promise<any> {
+    return new Promise((resolve, reject) => {
+      const isHttps = url.protocol === 'https:';
+      const lib = isHttps ? https : http;
 
-  /**
-   * Execute HTTP request with appropriate client.
-   * 
-   * @param {HTTPRequestConfig} config - Request configuration
-   * @returns {Promise<any>} Response object
-   * @private
-   */
-  private async executeRequest(config: HTTPRequestConfig): Promise<any> {
-    if (typeof window !== 'undefined') {
-      // Browser - use fetch API
-      return this.executeFetchRequest(config);
-    } else {
-      // Node.js - use axios
-      return this.executeAxiosRequest(config);
-    }
-  }
-
-  /**
-   * Execute request using fetch API (browser).
-   * 
-   * @param {HTTPRequestConfig} config - Request configuration
-   * @returns {Promise<any>} Response object
-   * @private
-   */
-  private async executeFetchRequest(config: HTTPRequestConfig): Promise<any> {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), config.timeout);
-
-    try {
-      const response = await fetch(config.url, {
-        method: config.method,
-        headers: config.headers,
-        body: config.body,
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      return {
-        status: response.status,
-        statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries()),
-        data: await response.text(),
+      const options = {
+        method,
+        hostname: url.hostname,
+        port: url.port || (isHttps ? 443 : 80),
+        path: url.pathname + url.search,
+        headers,
+        agent: this.agent,
+        timeout: this.timeout,
       };
-    } catch (error: any) {
-      clearTimeout(timeoutId);
-      
-      if (error.name === 'AbortError') {
-        throw new Error(`Request timeout after ${config.timeout}ms`);
-      }
-      
-      throw error;
-    }
-  }
 
-  /**
-   * Execute request using axios (Node.js).
-   * 
-   * @param {HTTPRequestConfig} config - Request configuration
-   * @returns {Promise<any>} Response object
-   * @private
-   */
-  private async executeAxiosRequest(config: HTTPRequestConfig): Promise<any> {
-    const isHTTPS = this.urlParts.protocol === 'https:';
-    
-    const axiosConfig: any = {
-      url: config.url,
-      method: config.method,
-      headers: config.headers,
-      data: config.body,
-      timeout: config.timeout,
-      maxRedirects: 5,
-      validateStatus: () => true, // Don't throw on any status
-      httpAgent: isHTTPS ? undefined : this.httpAgent,
-      httpsAgent: isHTTPS ? this.httpsAgent : undefined,
-    };
-
-    // Handle form data - check if it's actually FormData with getHeaders method
-    if (this.bodyFormat === 'form' && this.FormData && config.body instanceof this.FormData) {
-      // Only call getHeaders if the body is actually a FormData instance
-      if (typeof (config.body as any).getHeaders === 'function') {
-        Object.assign(axiosConfig.headers, (config.body as any).getHeaders());
-      }
-    }
-
-    const response = await this.axios.request(axiosConfig);
-
-    return {
-      status: response.status,
-      statusText: response.statusText,
-      headers: response.headers,
-      data: response.data,
-    };
-  }
-
-  /**
-   * Validate HTTP response.
-   * 
-   * @param {any} response - Response object
-   * @throws {Error} If response indicates failure
-   * @private
-   */
-  private validateResponse(response: any): void {
-    if (response.status >= 200 && response.status < 300) {
-      return; // Success
-    }
-
-    // Build error message
-    let errorMessage = `HTTP ${response.status} ${response.statusText}`;
-    
-    // Try to extract error details from response
-    if (response.data) {
-      try {
-        const errorData = typeof response.data === 'string' 
-          ? JSON.parse(response.data) 
-          : response.data;
+      const req = lib.request(options, (res) => {
+        let data = '';
         
-        if (errorData.error) {
-          errorMessage += `: ${errorData.error}`;
-        } else if (errorData.message) {
-          errorMessage += `: ${errorData.message}`;
+        // Handle compression
+        let stream: NodeJS.ReadableStream = res;
+        if (res.headers['content-encoding'] === 'gzip') {
+          const zlib = require('zlib');
+          stream = res.pipe(zlib.createGunzip());
+        } else if (res.headers['content-encoding'] === 'deflate') {
+          const zlib = require('zlib');
+          stream = res.pipe(zlib.createInflate());
         }
-      } catch {
-        // If not JSON, include raw response
-        if (typeof response.data === 'string' && response.data.length < 200) {
-          errorMessage += `: ${response.data}`;
-        }
-      }
-    }
 
-    const error = new Error(errorMessage);
-    (error as any).status = response.status;
-    (error as any).response = response;
-    
-    throw error;
+        stream.on('data', (chunk) => {
+          data += chunk.toString();
+        });
+
+        stream.on('end', () => {
+          const response = {
+            statusCode: res.statusCode,
+            statusMessage: res.statusMessage,
+            headers: res.headers,
+            body: data,
+          };
+
+          if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+            resolve(response);
+          } else {
+            const error: any = new Error(`HTTP ${res.statusCode}: ${res.statusMessage}`);
+            error.statusCode = res.statusCode;
+            error.response = response;
+            reject(error);
+          }
+        });
+
+        stream.on('error', reject);
+      });
+
+      req.on('error', (error) => {
+        reject(error);
+      });
+
+      req.on('timeout', () => {
+        req.destroy();
+        reject(new Error(`Request timeout after ${this.timeout}ms`));
+      });
+
+      if (body) {
+        req.write(body);
+      }
+
+      req.end();
+    });
   }
 
   /**
-   * Clean up HTTP client resources.
+   * Close the HTTP transport.
    * 
-   * @returns {Promise<void>} Resolves when cleaned up
+   * @returns {Promise<void>} Resolves when closed
    * @protected
    */
   protected async closeNetwork(): Promise<void> {
-    // Destroy HTTP agents to close connections
-    if (this.httpAgent) {
-      this.httpAgent.destroy();
-      this.httpAgent = undefined;
-    }
-
-    if (this.httpsAgent) {
-      this.httpsAgent.destroy();
-      this.httpsAgent = undefined;
-    }
+    this.agent.destroy();
   }
 
   /**
-   * Get transport statistics with HTTP-specific metrics.
+   * Override retry condition for HTTP-specific errors.
    * 
-   * @returns {TransportStats} Current statistics
+   * @param {Error} error - The error to check
+   * @returns {boolean} Whether to retry
+   * @protected
    */
-  public getStats(): TransportStats {
-    const stats = super.getStats();
+  protected defaultRetryCondition(error: Error): boolean {
+    // Check base conditions first
+    if (super.defaultRetryCondition(error)) {
+      return true;
+    }
 
-    // Add HTTP-specific stats
-    stats.custom = {
-      ...stats.custom,
-      url: this.url,
-      method: this.method,
-      authType: this.auth?.type || 'none',
-      bodyFormat: this.bodyFormat,
-      compressed: this.compress,
-    };
+    // HTTP specific retry conditions
+    const message = error.message.toLowerCase();
+    
+    // Retry on specific HTTP errors
+    if (message.includes('request timeout') ||
+        message.includes('socket hang up') ||
+        message.includes('econnreset')) {
+      return true;
+    }
 
-    return stats;
+    return false;
   }
-}
-
-/**
- * Factory function to create an HTTP transport with common defaults.
- * 
- * @param {Partial<HTTPTransportOptions>} options - Transport options
- * @returns {HTTPTransport} Configured HTTP transport
- */
-export function createHTTPTransport(options: Partial<HTTPTransportOptions>): HTTPTransport {
-  if (!options.url) {
-    throw new Error('HTTPTransport requires url option');
-  }
-
-  return new HTTPTransport({
-    name: 'http',
-    enabled: true,
-    level: 'info',
-    maxBatchSize: 100,
-    maxBatchTime: 5000,
-    maxBatchBytes: 1024 * 1024, // 1MB
-    compress: false,
-    retry: {
-      maxRetries: 3,
-      initialDelay: 1000,
-      maxDelay: 30000,
-      backoffFactor: 2,
-    },
-    ...options,
-    url: options.url,
-  } as HTTPTransportOptions);
 }

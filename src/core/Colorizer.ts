@@ -185,3 +185,491 @@ export class Colorizer {
     return PATH_REGEX.test(text);
   }
 }
+// File: src/core/Colorizer.ts
+
+import { ANSI_CODES } from '../constants/colors';
+import type { ColorName } from '../types';
+
+/**
+ * Static utility class for applying ANSI color codes.
+ * 
+ * This class provides low-level color application functionality
+ * used by other components. It handles:
+ * - ANSI escape code generation
+ * - Color validation
+ * - Terminal capability detection
+ * - Performance optimizations
+ * 
+ * @class Colorizer
+ * 
+ * @example
+ * ```typescript
+ * // Apply single color
+ * const red = Colorizer.applyColor('Error', 'red');
+ * 
+ * // Apply multiple colors
+ * const styled = Colorizer.applyColors('Important', ['yellow', 'bold', 'underline']);
+ * 
+ * // Check if colors are supported
+ * if (Colorizer.supportsColor()) {
+ *   console.log(Colorizer.red('Error message'));
+ * }
+ * ```
+ */
+export class Colorizer {
+  /**
+   * Cache for color code combinations.
+   * @private
+   * @static
+   */
+  private static codeCache: Map<string, string> = new Map();
+
+  /**
+   * Whether the terminal supports colors.
+   * @private
+   * @static
+   */
+  private static _supportsColor?: boolean;
+
+  /**
+   * Maximum cache size.
+   * @private
+   * @static
+   */
+  private static readonly MAX_CACHE_SIZE = 500;
+
+  /**
+   * Apply a single color to text.
+   * 
+   * @param {string} text - Text to colorize
+   * @param {ColorName} color - Color to apply
+   * @returns {string} Colorized text
+   * @static
+   */
+  public static applyColor(text: string, color: ColorName): string {
+    if (!this.supportsColor()) {
+      return text;
+    }
+
+    const code = ANSI_CODES[color];
+    if (!code) {
+      return text;
+    }
+
+    const resetCode = this.getResetCode(color);
+    return `${code}${text}${resetCode}`;
+  }
+
+  /**
+   * Apply multiple colors to text.
+   * 
+   * @param {string} text - Text to colorize
+   * @param {ColorName[]} colors - Colors to apply
+   * @returns {string} Colorized text
+   * @static
+   */
+  public static applyColors(text: string, colors: ColorName[]): string {
+    if (!this.supportsColor() || colors.length === 0) {
+      return text;
+    }
+
+    // Check cache
+    const cacheKey = colors.join(',');
+    let codes = this.codeCache.get(cacheKey);
+
+    if (!codes) {
+      // Build codes
+      const startCodes: string[] = [];
+      const endCodes: Set<string> = new Set();
+
+      for (const color of colors) {
+        const code = ANSI_CODES[color];
+        if (code) {
+          startCodes.push(code);
+          endCodes.add(this.getResetCode(color));
+        }
+      }
+
+      codes = startCodes.join('') + '{}' + Array.from(endCodes).join('');
+      
+      // Add to cache
+      this.addToCache(cacheKey, codes);
+    }
+
+    // Apply codes
+    return codes.replace('{}', text);
+  }
+
+  /**
+   * Get the appropriate reset code for a color.
+   * 
+   * @param {ColorName} color - Color to get reset for
+   * @returns {string} Reset code
+   * @private
+   * @static
+   */
+  private static getResetCode(color: ColorName): string {
+    // Background colors
+    if (color.startsWith('bg')) {
+      return ANSI_CODES.bgReset;
+    }
+
+    // Style modifiers
+    switch (color) {
+      case 'bold':
+        return ANSI_CODES.boldReset;
+      case 'dim':
+        return ANSI_CODES.dimReset;
+      case 'italic':
+        return ANSI_CODES.italicReset;
+      case 'underline':
+        return ANSI_CODES.underlineReset;
+      case 'inverse':
+        return ANSI_CODES.inverseReset;
+      case 'hidden':
+        return ANSI_CODES.hiddenReset;
+      case 'strikethrough':
+        return ANSI_CODES.strikethroughReset;
+      default:
+        // Foreground colors
+        return ANSI_CODES.reset;
+    }
+  }
+
+  /**
+   * Check if the terminal supports color.
+   * 
+   * @returns {boolean} True if colors are supported
+   * @static
+   */
+  public static supportsColor(): boolean {
+    if (this._supportsColor !== undefined) {
+      return this._supportsColor;
+    }
+
+    // Check various environment conditions
+    if (typeof process === 'undefined') {
+      // Browser environment
+      this._supportsColor = false;
+      return false;
+    }
+
+    // Check for explicit disable
+    if (process.env.NO_COLOR) {
+      this._supportsColor = false;
+      return false;
+    }
+
+    // Check for explicit enable
+    if (process.env.FORCE_COLOR) {
+      this._supportsColor = true;
+      return true;
+    }
+
+    // Check if stdout is a TTY
+    if (process.stdout && !process.stdout.isTTY) {
+      this._supportsColor = false;
+      return false;
+    }
+
+    // Check TERM environment variable
+    const term = process.env.TERM;
+    if (term === 'dumb') {
+      this._supportsColor = false;
+      return false;
+    }
+
+    // Check platform-specific conditions
+    if (process.platform === 'win32') {
+      // Windows 10 build 14931+ supports ANSI
+      const osRelease = require('os').release().split('.');
+      const major = parseInt(osRelease[0], 10);
+      const build = parseInt(osRelease[2], 10);
+      this._supportsColor = major >= 10 && build >= 14931;
+    } else {
+      // Unix-like systems generally support colors
+      this._supportsColor = true;
+    }
+
+    return this._supportsColor;
+  }
+
+  /**
+   * Force color support on or off.
+   * 
+   * @param {boolean} supported - Whether colors are supported
+   * @static
+   */
+  public static setColorSupport(supported: boolean): void {
+    this._supportsColor = supported;
+  }
+
+  /**
+   * Add to cache with size management.
+   * 
+   * @param {string} key - Cache key
+   * @param {string} value - Cache value
+   * @private
+   * @static
+   */
+  private static addToCache(key: string, value: string): void {
+    if (this.codeCache.size >= this.MAX_CACHE_SIZE) {
+      // Remove oldest entry
+      const firstKey = this.codeCache.keys().next().value;
+      this.codeCache.delete(firstKey);
+    }
+
+    this.codeCache.set(key, value);
+  }
+
+  /**
+   * Clear the code cache.
+   * @static
+   */
+  public static clearCache(): void {
+    this.codeCache.clear();
+  }
+
+  /**
+   * Strip ANSI codes from text.
+   * 
+   * @param {string} text - Text with ANSI codes
+   * @returns {string} Plain text
+   * @static
+   */
+  public static stripAnsi(text: string): string {
+    return text.replace(/\x1b\[[0-9;]*m/g, '');
+  }
+
+  /**
+   * Get color level support.
+   * 
+   * @returns {number} Color level (0, 1, 2, or 3)
+   * @static
+   */
+  public static getColorLevel(): number {
+    if (!this.supportsColor()) {
+      return 0;
+    }
+
+    if (process.env.TERM === 'dumb') {
+      return 0;
+    }
+
+    // True color support
+    if (process.env.COLORTERM === 'truecolor' || process.env.TERM_PROGRAM === 'iTerm.app') {
+      return 3;
+    }
+
+    // 256 color support
+    if (/^screen|^xterm|^vt100|^vt220|^rxvt|color|ansi|cygwin|linux/i.test(process.env.TERM || '')) {
+      return 2;
+    }
+
+    // Basic color support
+    return 1;
+  }
+
+  // Convenience methods for common colors
+
+  /**
+   * Apply red color.
+   * @static
+   */
+  public static red(text: string): string {
+    return this.applyColor(text, 'red');
+  }
+
+  /**
+   * Apply green color.
+   * @static
+   */
+  public static green(text: string): string {
+    return this.applyColor(text, 'green');
+  }
+
+  /**
+   * Apply yellow color.
+   * @static
+   */
+  public static yellow(text: string): string {
+    return this.applyColor(text, 'yellow');
+  }
+
+  /**
+   * Apply blue color.
+   * @static
+   */
+  public static blue(text: string): string {
+    return this.applyColor(text, 'blue');
+  }
+
+  /**
+   * Apply magenta color.
+   * @static
+   */
+  public static magenta(text: string): string {
+    return this.applyColor(text, 'magenta');
+  }
+
+  /**
+   * Apply cyan color.
+   * @static
+   */
+  public static cyan(text: string): string {
+    return this.applyColor(text, 'cyan');
+  }
+
+  /**
+   * Apply white color.
+   * @static
+   */
+  public static white(text: string): string {
+    return this.applyColor(text, 'white');
+  }
+
+  /**
+   * Apply gray color.
+   * @static
+   */
+  public static gray(text: string): string {
+    return this.applyColor(text, 'gray');
+  }
+
+  /**
+   * Apply bright red color.
+   * @static
+   */
+  public static brightRed(text: string): string {
+    return this.applyColor(text, 'brightRed');
+  }
+
+  /**
+   * Apply bright green color.
+   * @static
+   */
+  public static brightGreen(text: string): string {
+    return this.applyColor(text, 'brightGreen');
+  }
+
+  /**
+   * Apply bright yellow color.
+   * @static
+   */
+  public static brightYellow(text: string): string {
+    return this.applyColor(text, 'brightYellow');
+  }
+
+  /**
+   * Apply bright blue color.
+   * @static
+   */
+  public static brightBlue(text: string): string {
+    return this.applyColor(text, 'brightBlue');
+  }
+
+  /**
+   * Apply bright magenta color.
+   * @static
+   */
+  public static brightMagenta(text: string): string {
+    return this.applyColor(text, 'brightMagenta');
+  }
+
+  /**
+   * Apply bright cyan color.
+   * @static
+   */
+  public static brightCyan(text: string): string {
+    return this.applyColor(text, 'brightCyan');
+  }
+
+  /**
+   * Apply bright white color.
+   * @static
+   */
+  public static brightWhite(text: string): string {
+    return this.applyColor(text, 'brightWhite');
+  }
+
+  /**
+   * Apply bold style.
+   * @static
+   */
+  public static bold(text: string): string {
+    return this.applyColor(text, 'bold');
+  }
+
+  /**
+   * Apply dim style.
+   * @static
+   */
+  public static dim(text: string): string {
+    return this.applyColor(text, 'dim');
+  }
+
+  /**
+   * Apply italic style.
+   * @static
+   */
+  public static italic(text: string): string {
+    return this.applyColor(text, 'italic');
+  }
+
+  /**
+   * Apply underline style.
+   * @static
+   */
+  public static underline(text: string): string {
+    return this.applyColor(text, 'underline');
+  }
+
+  /**
+   * Apply inverse style.
+   * @static
+   */
+  public static inverse(text: string): string {
+    return this.applyColor(text, 'inverse');
+  }
+
+  /**
+   * Apply strikethrough style.
+   * @static
+   */
+  public static strikethrough(text: string): string {
+    return this.applyColor(text, 'strikethrough');
+  }
+
+  /**
+   * Create a color function for repeated use.
+   * 
+   * @param {...ColorName[]} colors - Colors to apply
+   * @returns {Function} Color function
+   * @static
+   */
+  public static createColorFunction(...colors: ColorName[]): (text: string) => string {
+    return (text: string) => this.applyColors(text, colors);
+  }
+
+  /**
+   * Check if text has ANSI codes.
+   * 
+   * @param {string} text - Text to check
+   * @returns {boolean} True if has ANSI codes
+   * @static
+   */
+  public static hasAnsi(text: string): boolean {
+    return /\x1b\[[0-9;]*m/.test(text);
+  }
+
+  /**
+   * Get visible length of text (excluding ANSI codes).
+   * 
+   * @param {string} text - Text to measure
+   * @returns {number} Visible length
+   * @static
+   */
+  public static visibleLength(text: string): number {
+    return this.stripAnsi(text).length;
+  }
+}

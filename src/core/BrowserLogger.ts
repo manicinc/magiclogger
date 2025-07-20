@@ -1,324 +1,945 @@
+// File: src/core/BrowserLogger.ts
+
 import { LoggerBase } from './LoggerBase';
 import { Formatter } from './Formatter';
-import { Printer } from './Printer';
-import { BrowserStorageManager } from './BrowserStorageManager';
-
+import { BROWSER_POLYFILLS } from '../utils/browser-polyfills';
 import type { LoggerOptions, ColorName, StylePreset } from '../types';
 
 /**
- * Logger implementation for browser environments.
- * Uses CSS-style output with shared Formatter and Printer modules.
- * Optionally supports storing logs in browser storage.
+ * Browser-specific logger implementation.
+ * 
+ * Features:
+ * - Console styling with CSS
+ * - LocalStorage and IndexedDB support
+ * - Log persistence and retrieval
+ * - Download logs functionality
+ * - Browser performance monitoring
+ * - DevTools integration
+ * 
+ * @class BrowserLogger
+ * @extends {LoggerBase}
+ * 
+ * @example
+ * ```typescript
+ * const logger = new BrowserLogger({
+ *   storeInBrowser: true,
+ *   storageName: 'app-logs',
+ *   maxStoredLogs: 5000,
+ *   useLocalStorage: false // Use IndexedDB
+ * });
+ * 
+ * // Logs are automatically persisted
+ * logger.info('User logged in', { userId: 123 });
+ * 
+ * // Download logs later
+ * logger.downloadLogs('debug-logs.txt');
+ * ```
  */
 export class BrowserLogger extends LoggerBase {
+  /**
+   * Formatter instance for browser output.
+   * @private
+   */
   private formatter: Formatter;
-  private storageManager: BrowserStorageManager | null = null;
+
+  /**
+   * Whether to store logs in browser storage.
+   * @private
+   */
   private storeInBrowser: boolean;
 
   /**
-   * Creates a new browser logger instance.
-   * @param options Configuration for the logger
+   * Browser storage key name.
+   * @private
+   */
+  private storageName: string;
+
+  /**
+   * Maximum number of logs to store.
+   * @private
+   */
+  private maxStoredLogs: number;
+
+  /**
+   * Whether to use localStorage (vs IndexedDB).
+   * @private
+   */
+  private useLocalStorage: boolean;
+
+  /**
+   * IndexedDB database instance.
+   * @private
+   */
+  private db?: IDBDatabase;
+
+  /**
+   * Queue for logs pending storage.
+   * @private
+   */
+  private storageQueue: string[] = [];
+
+  /**
+   * Whether storage is being processed.
+   * @private
+   */
+  private processingStorage = false;
+
+  /**
+   * Performance observer for monitoring.
+   * @private
+   */
+  private performanceObserver?: PerformanceObserver;
+
+  /**
+   * Console styles cache.
+   * @private
+   */
+  private styleCache: Map<string, string> = new Map();
+
+  /**
+   * Creates a new BrowserLogger instance.
+   * 
+   * @param {LoggerOptions} options - Logger configuration
    */
   constructor(options: LoggerOptions = {}) {
     super(options);
+    
     this.formatter = new Formatter(this.useColors);
     this.storeInBrowser = options.storeInBrowser || false;
+    this.storageName = options.storageName || 'logger_logs';
+    this.maxStoredLogs = options.maxStoredLogs || 1000;
+    this.useLocalStorage = options.useLocalStorage !== false;
 
-    // Initialize storage manager if enabled
+    // Initialize storage if enabled
     if (this.storeInBrowser) {
-      this.storageManager = new BrowserStorageManager({
-        storageName: options.storageName,
-        maxEntries: options.maxStoredLogs,
-        useLocalStorage: options.useLocalStorage,
+      this.initializeStorage().catch(err => {
+        console.error('[BrowserLogger] Failed to initialize storage:', err);
+        this.storeInBrowser = false;
+      });
+    }
+
+    // Set up performance monitoring
+    this.setupPerformanceMonitoring();
+
+    // Set up unload handler to save logs
+    this.setupUnloadHandler();
+  }
+
+  /**
+   * Initialize browser storage (localStorage or IndexedDB).
+   * 
+   * @returns {Promise<void>} Resolves when storage is ready
+   * @private
+   */
+  private async initializeStorage(): Promise<void> {
+    if (this.useLocalStorage) {
+      // Test localStorage availability
+      try {
+        localStorage.setItem('__test__', 'test');
+        localStorage.removeItem('__test__');
+      } catch {
+        console.warn('[BrowserLogger] localStorage not available');
+        this.storeInBrowser = false;
+      }
+    } else {
+      // Initialize IndexedDB
+      await this.initializeIndexedDB();
+    }
+  }
+
+  /**
+   * Initialize IndexedDB for log storage.
+   * 
+   * @returns {Promise<void>} Resolves when IndexedDB is ready
+   * @private
+   */
+  private async initializeIndexedDB(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.storageName, 1);
+
+      request.onerror = () => {
+        reject(new Error('Failed to open IndexedDB'));
+      };
+
+      request.onsuccess = () => {
+        this.db = request.result;
+        resolve();
+      };
+
+      request.onupgradeneeded = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result;
+        
+        if (!db.objectStoreNames.contains('logs')) {
+          const store = db.createObjectStore('logs', { 
+            keyPath: 'id',
+            autoIncrement: true 
+          });
+          
+          // Create indexes
+          store.createIndex('timestamp', 'timestamp', { unique: false });
+          store.createIndex('level', 'level', { unique: false });
+        }
+      };
+    });
+  }
+
+  /**
+   * Set up performance monitoring.
+   * 
+   * @private
+   */
+  private setupPerformanceMonitoring(): void {
+    if (typeof PerformanceObserver === 'undefined') return;
+
+    try {
+      this.performanceObserver = new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) {
+          if (entry.entryType === 'measure' && entry.name.startsWith('logger-')) {
+            this.emit('performance', {
+              name: entry.name,
+              duration: entry.duration,
+              startTime: entry.startTime,
+            });
+          }
+        }
+      });
+
+      this.performanceObserver.observe({ entryTypes: ['measure'] });
+    } catch (error) {
+      console.warn('[BrowserLogger] Performance monitoring not available');
+    }
+  }
+
+  /**
+   * Set up unload handler to save pending logs.
+   * 
+   * @private
+   */
+  private setupUnloadHandler(): void {
+    const saveLogsBeforeUnload = () => {
+      if (this.storageQueue.length > 0) {
+        // Use sendBeacon if available for reliable delivery
+        if (navigator.sendBeacon && this.storageQueue.length > 0) {
+          const blob = new Blob(
+            [JSON.stringify(this.storageQueue)],
+            { type: 'application/json' }
+          );
+          navigator.sendBeacon('/logs', blob);
+        }
+
+        // Also try to save to storage synchronously
+        this.flushStorageSync();
+      }
+    };
+
+    window.addEventListener('beforeunload', saveLogsBeforeUnload);
+    window.addEventListener('pagehide', saveLogsBeforeUnload);
+  }
+
+  /**
+   * Log an info message.
+   * 
+   * @param {string} msg - Message to log
+   */
+  public info(msg: string): void {
+    this.print('INFO', msg, 'info');
+  }
+
+  /**
+   * Log a warning message.
+   * 
+   * @param {string} msg - Message to log
+   */
+  public warn(msg: string): void {
+    this.print('WARN', msg, 'warning');
+  }
+
+  /**
+   * Log an error message.
+   * 
+   * @param {string} msg - Message to log
+   */
+  public error(msg: string): void {
+    this.print('ERROR', msg, 'error');
+  }
+
+  /**
+   * Log a debug message.
+   * 
+   * @param {string} msg - Message to log
+   */
+  public debug(msg: string): void {
+    if (!this.verbose) return;
+    this.print('DEBUG', msg, 'debug');
+  }
+
+  /**
+   * Log a success message.
+   * 
+   * @param {string} msg - Message to log
+   */
+  public success(msg: string): void {
+    this.print('SUCCESS', msg, 'success');
+  }
+
+  /**
+   * Log with custom styling.
+   * 
+   * @param {string} msg - Message to log
+   * @param {ColorName[]} colors - CSS styles to apply
+   * @param {string} prefix - Prefix label
+   */
+  public custom(msg: string, colors: ColorName[] = ['white'], prefix = 'LOG'): void {
+    const styles = this.getConsoleStyles(colors);
+    const formattedMessage = `%c[${prefix}]%c ${msg}`;
+    
+    console.log(formattedMessage, styles.prefix, styles.message);
+    
+    if (this.storeInBrowser) {
+      this.storeLog(`[${prefix}] ${msg}`);
+    }
+  }
+
+  /**
+   * Log with preset style.
+   * 
+   * @param {string} msg - Message to log
+   * @param {StylePreset} preset - Style preset
+   */
+  public styled(msg: string, preset: StylePreset): void {
+    const presetColors = this.getPresetColors(preset);
+    const prefix = preset.toUpperCase();
+    
+    if (this.useColors) {
+      const styles = this.getConsoleStyles(presetColors);
+      console.log(`%c[${prefix}]%c ${msg}`, styles.prefix, styles.message);
+    } else {
+      console.log(`[${prefix}] ${msg}`);
+    }
+
+    if (this.storeInBrowser) {
+      this.storeLog(`[${prefix}] ${msg}`);
+    }
+  }
+
+  /**
+   * Display a header.
+   * 
+   * @param {string} title - Header title
+   * @param {ColorName[]} colors - Header colors
+   */
+  public header(title: string, colors: ColorName[] = ['brightWhite', 'bgBlue', 'bold']): void {
+    if (this.useColors) {
+      const padding = 60 - title.length;
+      const paddedTitle = ` ${title} ${' '.repeat(Math.max(0, padding))}`;
+      const styles = this.getConsoleStyles(colors);
+      
+      console.log(`%c${paddedTitle}`, styles.header);
+    } else {
+      const line = '='.repeat(60);
+      console.log(`${line}\n${title}\n${line}`);
+    }
+
+    if (this.storeInBrowser) {
+      this.storeLog(`=== ${title} ===`);
+    }
+  }
+
+  /**
+   * Display a table.
+   * 
+   * @param {Record<string, any>[]} data - Table data
+   * @param {ColorName[]} headerColor - Header colors
+   */
+  public table(data: Record<string, any>[], headerColor: ColorName[] = ['brightWhite', 'bold']): void {
+    // Use native console.table for best browser support
+    console.table(data);
+    
+    if (this.storeInBrowser) {
+      this.storeLog(`[TABLE] ${JSON.stringify(data)}`);
+    }
+  }
+
+  /**
+   * Display a progress bar.
+   * 
+   * @param {number} progress - Progress percentage (0-100)
+   * @param {number} length - Bar length
+   * @param {string} completeChar - Complete character
+   * @param {string} incompleteChar - Incomplete character
+   */
+  public progressBar(
+    progress: number, 
+    length = 20, 
+    completeChar = '█', 
+    incompleteChar = '░'
+  ): void {
+    const safe = Math.max(0, Math.min(100, progress));
+    const filled = Math.round((safe / 100) * length);
+    const complete = completeChar.repeat(filled);
+    const incomplete = incompleteChar.repeat(length - filled);
+    
+    const bar = complete + incomplete;
+    const percent = `${safe.toFixed(1)}%`;
+    
+    if (this.useColors) {
+      console.log(
+        `%c${complete}%c${incomplete} ${percent}`,
+        'color: #00ff00',
+        'color: #666666'
+      );
+    } else {
+      console.log(`${bar} ${percent}`);
+    }
+
+    if (this.storeInBrowser && safe >= 100) {
+      this.storeLog(`[PROGRESS] 100% complete`);
+    }
+  }
+
+  /**
+   * Display a clickable link.
+   * 
+   * @param {string} url - URL to link
+   * @param {string} [description] - Link description
+   */
+  public link(url: string, description?: string): void {
+    const label = description || url;
+    
+    if (this.useColors) {
+      console.log(
+        `%c[${label}]%c: ${url}`,
+        'color: #00ccff; text-decoration: underline; cursor: pointer',
+        'color: inherit'
+      );
+    } else {
+      console.log(`[${label}]: ${url}`);
+    }
+
+    if (this.storeInBrowser) {
+      this.storeLog(`[LINK] ${label}: ${url}`);
+    }
+  }
+
+  /**
+   * Create a color function.
+   * 
+   * @param {...ColorName[]} colors - Colors to apply
+   * @returns {Function} Color function
+   */
+  public color(...colors: ColorName[]): (text: string) => string {
+    return (text: string) => {
+      if (!this.useColors) return text;
+      
+      const styles = this.getConsoleStyles(colors);
+      // Return formatted string for console
+      return text; // Browser console handles styling differently
+    };
+  }
+
+  /**
+   * Apply colors to parts of a message.
+   * 
+   * @param {string} message - Message with parts to color
+   * @param {Record<string, ColorName[]>} colorMap - Color mappings
+   * @returns {string} Colored message
+   */
+  public colorParts(message: string, colorMap: Record<string, ColorName[]>): string {
+    // Browser console doesn't support inline styling well
+    // Return the message as-is
+    return message;
+  }
+
+  /**
+   * Display a separator line.
+   * 
+   * @param {string} char - Separator character
+   * @param {number} length - Line length
+   */
+  public separator(char = '-', length = 50): void {
+    const line = char.repeat(length);
+    console.log(line);
+    
+    if (this.storeInBrowser) {
+      this.storeLog(line);
+    }
+  }
+
+  /**
+   * Internal print method.
+   * 
+   * @param {string} level - Log level
+   * @param {string} msg - Message
+   * @param {StylePreset} preset - Style preset
+   * @private
+   */
+  private print(level: string, msg: string, preset: StylePreset): void {
+    const timestamp = new Date().toISOString();
+    const formattedMsg = `[${timestamp}] [${level}] ${msg}`;
+
+    if (this.useColors) {
+      const colors = this.getPresetColors(preset);
+      const styles = this.getConsoleStyles(colors);
+      
+      console.log(
+        `%c[${level}]%c ${msg}`,
+        styles.prefix,
+        styles.message
+      );
+    } else {
+      console.log(`[${level}] ${msg}`);
+    }
+
+    if (this.storeInBrowser) {
+      this.storeLog(formattedMsg);
+    }
+
+    // Measure performance
+    if (this.performanceObserver) {
+      performance.mark(`logger-${level}-end`);
+      try {
+        performance.measure(
+          `logger-${level}`,
+          `logger-${level}-start`,
+          `logger-${level}-end`
+        );
+      } catch {
+        // Ignore if start mark doesn't exist
+      }
+    }
+  }
+
+  /**
+   * Get console styles for colors.
+   * 
+   * @param {ColorName[]} colors - Colors to convert
+   * @returns {object} Style strings
+   * @private
+   */
+  private getConsoleStyles(colors: ColorName[]): {
+    prefix: string;
+    message: string;
+    header: string;
+  } {
+    const cacheKey = colors.join(',');
+    
+    if (this.styleCache.has(cacheKey)) {
+      const cached = this.styleCache.get(cacheKey)!;
+      return {
+        prefix: cached,
+        message: 'color: inherit',
+        header: cached,
+      };
+    }
+
+    const styles: string[] = [];
+
+    for (const color of colors) {
+      switch (color) {
+        // Text colors
+        case 'black': styles.push('color: #000000'); break;
+        case 'red': styles.push('color: #ff0000'); break;
+        case 'green': styles.push('color: #00ff00'); break;
+        case 'yellow': styles.push('color: #ffff00'); break;
+        case 'blue': styles.push('color: #0000ff'); break;
+        case 'magenta': styles.push('color: #ff00ff'); break;
+        case 'cyan': styles.push('color: #00ffff'); break;
+        case 'white': styles.push('color: #ffffff'); break;
+        case 'gray': styles.push('color: #808080'); break;
+        
+        // Bright colors
+        case 'brightRed': styles.push('color: #ff6666'); break;
+        case 'brightGreen': styles.push('color: #66ff66'); break;
+        case 'brightYellow': styles.push('color: #ffff66'); break;
+        case 'brightBlue': styles.push('color: #6666ff'); break;
+        case 'brightMagenta': styles.push('color: #ff66ff'); break;
+        case 'brightCyan': styles.push('color: #66ffff'); break;
+        case 'brightWhite': styles.push('color: #ffffff'); break;
+        
+        // Background colors
+        case 'bgBlack': styles.push('background-color: #000000'); break;
+        case 'bgRed': styles.push('background-color: #ff0000'); break;
+        case 'bgGreen': styles.push('background-color: #00ff00'); break;
+        case 'bgYellow': styles.push('background-color: #ffff00'); break;
+        case 'bgBlue': styles.push('background-color: #0000ff'); break;
+        case 'bgMagenta': styles.push('background-color: #ff00ff'); break;
+        case 'bgCyan': styles.push('background-color: #00ffff'); break;
+        case 'bgWhite': styles.push('background-color: #ffffff'); break;
+        
+        // Styles
+        case 'bold': styles.push('font-weight: bold'); break;
+        case 'dim': styles.push('opacity: 0.7'); break;
+        case 'italic': styles.push('font-style: italic'); break;
+        case 'underline': styles.push('text-decoration: underline'); break;
+        case 'inverse': styles.push('filter: invert(1)'); break;
+        case 'hidden': styles.push('visibility: hidden'); break;
+        case 'strikethrough': styles.push('text-decoration: line-through'); break;
+      }
+    }
+
+    // Add some defaults for better visibility
+    if (styles.length === 0) {
+      styles.push('color: inherit');
+    }
+    
+    styles.push('font-family: monospace');
+
+    const styleString = styles.join('; ');
+    this.styleCache.set(cacheKey, styleString);
+
+    return {
+      prefix: styleString,
+      message: 'color: inherit',
+      header: styleString + '; padding: 4px 8px',
+    };
+  }
+
+  /**
+   * Store a log entry in browser storage.
+   * 
+   * @param {string} log - Log entry to store
+   * @private
+   */
+  private storeLog(log: string): void {
+    if (!this.storeInBrowser) return;
+
+    this.storageQueue.push(log);
+
+    if (!this.processingStorage) {
+      this.processStorageQueue();
+    }
+  }
+
+  /**
+   * Process the storage queue asynchronously.
+   * 
+   * @private
+   */
+  private async processStorageQueue(): Promise<void> {
+    if (this.processingStorage || this.storageQueue.length === 0) return;
+
+    this.processingStorage = true;
+
+    try {
+      if (this.useLocalStorage) {
+        await this.storeInLocalStorage();
+      } else {
+        await this.storeInIndexedDB();
+      }
+    } catch (error) {
+      console.error('[BrowserLogger] Storage error:', error);
+    } finally {
+      this.processingStorage = false;
+
+      // Process more if needed
+      if (this.storageQueue.length > 0) {
+        setTimeout(() => this.processStorageQueue(), 10);
+      }
+    }
+  }
+
+  /**
+   * Store logs in localStorage.
+   * 
+   * @returns {Promise<void>} Resolves when stored
+   * @private
+   */
+  private async storeInLocalStorage(): Promise<void> {
+    const batch = this.storageQueue.splice(0, 100);
+    
+    try {
+      const existing = localStorage.getItem(this.storageName);
+      const logs = existing ? JSON.parse(existing) : [];
+      
+      logs.push(...batch);
+
+      // Trim if exceeds max
+      if (logs.length > this.maxStoredLogs) {
+        logs.splice(0, logs.length - this.maxStoredLogs);
+      }
+
+      localStorage.setItem(this.storageName, JSON.stringify(logs));
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+        // Clear old logs and retry
+        localStorage.removeItem(this.storageName);
+        localStorage.setItem(this.storageName, JSON.stringify(batch));
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  /**
+   * Store logs in IndexedDB.
+   * 
+   * @returns {Promise<void>} Resolves when stored
+   * @private
+   */
+  private async storeInIndexedDB(): Promise<void> {
+    if (!this.db) return;
+
+    const batch = this.storageQueue.splice(0, 100);
+    const transaction = this.db.transaction(['logs'], 'readwrite');
+    const store = transaction.objectStore('logs');
+
+    // Add all logs
+    for (const log of batch) {
+      store.add({
+        timestamp: new Date().toISOString(),
+        log,
+      });
+    }
+
+    // Clean up old logs if needed
+    const countRequest = store.count();
+    countRequest.onsuccess = () => {
+      const count = countRequest.result;
+      if (count > this.maxStoredLogs) {
+        // Delete oldest logs
+        const deleteCount = count - this.maxStoredLogs;
+        const getAllRequest = store.getAllKeys(undefined, deleteCount);
+        
+        getAllRequest.onsuccess = () => {
+          const keysToDelete = getAllRequest.result;
+          keysToDelete.forEach(key => store.delete(key));
+        };
+      }
+    };
+
+    return new Promise((resolve, reject) => {
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+    });
+  }
+
+  /**
+   * Flush storage synchronously (for beforeunload).
+   * 
+   * @private
+   */
+  private flushStorageSync(): void {
+    if (!this.useLocalStorage || this.storageQueue.length === 0) return;
+
+    try {
+      const existing = localStorage.getItem(this.storageName);
+      const logs = existing ? JSON.parse(existing) : [];
+      logs.push(...this.storageQueue);
+      
+      if (logs.length > this.maxStoredLogs) {
+        logs.splice(0, logs.length - this.maxStoredLogs);
+      }
+
+      localStorage.setItem(this.storageName, JSON.stringify(logs));
+      this.storageQueue = [];
+    } catch {
+      // Ignore errors during unload
+    }
+  }
+
+  /**
+   * Get all stored logs.
+   * 
+   * @returns {string[] | null} Array of logs or null
+   */
+  public getLogs(): string[] | null {
+    if (!this.storeInBrowser) return null;
+
+    try {
+      if (this.useLocalStorage) {
+        const stored = localStorage.getItem(this.storageName);
+        return stored ? JSON.parse(stored) : [];
+      } else {
+        // For IndexedDB, return null as it's async
+        console.warn('[BrowserLogger] Use getLogsAsync() for IndexedDB logs');
+        return null;
+      }
+    } catch (error) {
+      console.error('[BrowserLogger] Failed to get logs:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get all stored logs asynchronously (for IndexedDB).
+   * 
+   * @returns {Promise<string[]>} Array of logs
+   */
+  public async getLogsAsync(): Promise<string[]> {
+    if (!this.storeInBrowser) return [];
+
+    if (this.useLocalStorage) {
+      return this.getLogs() || [];
+    }
+
+    if (!this.db) return [];
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(['logs'], 'readonly');
+      const store = transaction.objectStore('logs');
+      const request = store.getAll();
+
+      request.onsuccess = () => {
+        const results = request.result.map(entry => entry.log);
+        resolve(results);
+      };
+
+      request.onerror = () => {
+        reject(request.error);
+      };
+    });
+  }
+
+  /**
+   * Clear all stored logs.
+   */
+  public clearLogs(): void {
+    if (!this.storeInBrowser) return;
+
+    try {
+      if (this.useLocalStorage) {
+        localStorage.removeItem(this.storageName);
+      } else if (this.db) {
+        const transaction = this.db.transaction(['logs'], 'readwrite');
+        const store = transaction.objectStore('logs');
+        store.clear();
+      }
+    } catch (error) {
+      console.error('[BrowserLogger] Failed to clear logs:', error);
+    }
+  }
+
+  /**
+   * Download logs as a text file.
+   * 
+   * @param {string} filename - Filename for download
+   */
+  public async downloadLogs(filename = 'logs.txt'): Promise<void> {
+    try {
+      const logs = await this.getLogsAsync();
+      
+      if (!logs || logs.length === 0) {
+        console.warn('[BrowserLogger] No logs to download');
+        return;
+      }
+
+      const content = logs.join('\n');
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.style.display = 'none';
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('[BrowserLogger] Failed to download logs:', error);
+    }
+  }
+
+  /**
+   * Enable or disable browser storage.
+   * 
+   * @param {boolean} enabled - Whether to enable storage
+   */
+  public setStorageEnabled(enabled: boolean): void {
+    this.storeInBrowser = enabled;
+
+    if (enabled && !this.db && !this.useLocalStorage) {
+      this.initializeStorage().catch(err => {
+        console.error('[BrowserLogger] Failed to enable storage:', err);
+        this.storeInBrowser = false;
       });
     }
   }
 
   /**
-   * Store a log entry in browser storage if enabled
-   * @param level Log level
-   * @param msg Log message
+   * Search logs with a query.
+   * 
+   * @param {string} query - Search query
+   * @param {object} options - Search options
+   * @returns {Promise<string[]>} Matching logs
    */
-  private storeLog(level: string, msg: string): void {
-    if (this.storeInBrowser && this.storageManager) {
-      this.storageManager.addLog(`[${level}] ${msg}`);
+  public async searchLogs(
+    query: string,
+    options: {
+      caseSensitive?: boolean;
+      regex?: boolean;
+      limit?: number;
+    } = {}
+  ): Promise<string[]> {
+    const logs = await this.getLogsAsync();
+    if (!logs) return [];
+
+    let pattern: RegExp;
+    
+    if (options.regex) {
+      try {
+        pattern = new RegExp(query, options.caseSensitive ? 'g' : 'gi');
+      } catch {
+        console.error('[BrowserLogger] Invalid regex pattern');
+        return [];
+      }
+    } else {
+      const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      pattern = new RegExp(escaped, options.caseSensitive ? 'g' : 'gi');
     }
-  }
 
-  /** Log an info-level message */
-  public info(msg: string): void {
-    const prefix = this.formatter.colorize('[INFO]', ['cyan', 'bold']);
-    Printer.print(`${prefix} ${this.formatter.preserveLinks(msg)}`);
-    this.storeLog('INFO', msg);
-  }
+    const results = logs.filter(log => pattern.test(log));
 
-  /** Log a warning-level message */
-  public warn(msg: string): void {
-    const prefix = this.formatter.colorize('[WARN]', ['yellow', 'bold']);
-    Printer.print(`${prefix} ${this.formatter.preserveLinks(msg)}`);
-    this.storeLog('WARN', msg);
-  }
-
-  /** Log an error-level message */
-  public error(msg: string): void {
-    const prefix = this.formatter.colorize('[ERROR]', ['brightRed', 'bold']);
-    Printer.print(`${prefix} ${this.formatter.preserveLinks(msg)}`);
-    this.storeLog('ERROR', msg);
-  }
-
-  /** Log a debug-level message (only if verbose is true) */
-  public debug(msg: string): void {
-    if (!this.verbose) return;
-    const prefix = this.formatter.colorize('[DEBUG]', ['gray', 'italic']);
-    Printer.print(`${prefix} ${this.formatter.preserveLinks(msg)}`);
-    this.storeLog('DEBUG', msg);
-  }
-
-  /** Log a success message */
-  public success(msg: string): void {
-    const prefix = this.formatter.colorize('[SUCCESS]', ['green', 'bold']);
-    Printer.print(`${prefix} ${this.formatter.preserveLinks(msg)}`);
-    this.storeLog('SUCCESS', msg);
-  }
-
-  /**
-   * Log a custom-styled message.
-   * @param msg The log message
-   * @param colors Colors/styles to apply to the prefix
-   * @param prefix Optional prefix (default: LOG)
-   */
-  public custom(msg: string, colors: ColorName[] = ['white'], prefix = 'LOG'): void {
-    const formattedPrefix = this.formatter.colorize(`[${prefix}]`, colors);
-    Printer.print(`${formattedPrefix} ${this.formatter.preserveLinks(msg)}`);
-    this.storeLog(prefix, msg);
-  }
-
-  /**
-   * Log a message using a preset style.
-   * @param msg The message to log
-   * @param preset The style preset to apply
-   */
-  public styled(msg: string, preset: StylePreset): void {
-    const formattedPrefix = this.formatter.applyPreset(`[${preset.toUpperCase()}]`, preset);
-    Printer.print(`${formattedPrefix} ${this.formatter.preserveLinks(msg)}`);
-    this.storeLog(preset.toUpperCase(), msg);
-  }
-
-  /**
-   * Print a styled header
-   * @param title Header title
-   * @param colors Optional color array
-   */
-  public header(title: string, colors: ColorName[] = ['brightWhite', 'bgBlue', 'bold']): void {
-    const padded = ` ${title} ${' '.repeat(Math.max(0, 60 - title.length))}`;
-    Printer.print(this.formatter.colorize(padded, colors));
-    this.storeLog('HEADER', title);
-  }
-
-  /**
-   * Print a table of structured data.
-   * @param data Array of key-value objects
-   * @param headerColor Optional colors for header styling
-   */
-  public table(
-    data: Record<string, unknown>[],
-    headerColor: ColorName[] = ['brightWhite', 'bold']
-  ): void {
-    // Use the improved table printing function
-    Printer.printTable(data, headerColor);
-
-    // Store table summary in browser storage
-    if (this.storeInBrowser && this.storageManager) {
-      this.storageManager.addLog(`[TABLE] ${data.length} rows: ${JSON.stringify(data)}`);
+    if (options.limit && options.limit > 0) {
+      return results.slice(0, options.limit);
     }
+
+    return results;
   }
 
   /**
-   * Create a reusable colorizing function
-   * @param colors The styles to apply
+   * Export logs in various formats.
+   * 
+   * @param {string} format - Export format
+   * @returns {Promise<string>} Exported content
    */
-  public color(...colors: ColorName[]): (text: string) => string {
-    return (text: string) => this.formatter.colorize(text, colors);
-  }
+  public async exportLogs(format: 'json' | 'csv' | 'txt' = 'txt'): Promise<string> {
+    const logs = await this.getLogsAsync();
+    if (!logs) return '';
 
-  /**
-   * Apply different colors to specific parts of a message
-   * @param message The message to colorize
-   * @param colorMap Object mapping string parts to color arrays
-   * @returns The colorized message
-   */
-  public colorParts(message: string, colorMap: Record<string, ColorName[]>): string {
-    if (!this.useColors) return message;
+    switch (format) {
+      case 'json':
+        return JSON.stringify(logs, null, 2);
 
-    let result = message;
-    for (const [part, colors] of Object.entries(colorMap)) {
-      const colorFn = this.color(...colors);
-      // Use a regex that escapes special characters in the part string
-      const regex = new RegExp(part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
-      result = result.replace(regex, colorFn(part));
+      case 'csv': {
+        // Parse logs and convert to CSV
+        const parsed = logs.map(log => {
+          const match = log.match(/^\[([\d-T:.Z]+)\] \[(\w+)\] (.+)$/);
+          if (match) {
+            return {
+              timestamp: match[1],
+              level: match[2],
+              message: match[3].replace(/"/g, '""'),
+            };
+          }
+          return {
+            timestamp: new Date().toISOString(),
+            level: 'LOG',
+            message: log.replace(/"/g, '""'),
+          };
+        });
+
+        const csv = 'timestamp,level,message\n' +
+          parsed.map(row => `"${row.timestamp}","${row.level}","${row.message}"`).join('\n');
+        
+        return csv;
+      }
+
+      case 'txt':
+      default:
+        return logs.join('\n');
     }
-    return result;
-  }
-
-  /**
-   * Log a link with optional label
-   * @param url The URL or path
-   * @param description Optional display text
-   */
-  public link(url: string, description?: string): void {
-    const text = description ?? url;
-    Printer.print(
-      `${this.formatter.colorize(text, ['brightCyan', 'underline'])}: ${this.formatter.colorize(
-        url,
-        ['brightCyan', 'underline']
-      )}`
-    );
-    this.storeLog('LINK', `${text}: ${url}`);
-  }
-
-  /**
-   * Print a progress bar in browser (simplified)
-   * @param progress A value from 0 to 100
-   * @param length Total characters in bar (unused in browser)
-   * @param completeChar Symbol for completed
-   * @param incompleteChar Symbol for remaining
-   */
-  public progressBar(
-    progress: number,
-    length = 20,
-    completeChar = '█',
-    incompleteChar = '░'
-  ): void {
-    const safeProgress = Math.max(0, Math.min(progress, 100));
-    const filled = completeChar.repeat(Math.round((safeProgress / 100) * length));
-    const empty = incompleteChar.repeat(length - filled.length);
-    const bar =
-      this.formatter.colorize(filled, ['green']) + this.formatter.colorize(empty, ['gray']);
-    const percent = this.formatter.colorize(`${safeProgress.toFixed(1)}%`, ['bold']);
-    Printer.print(`${bar} ${percent}`);
-
-    if (safeProgress >= 100) {
-      this.storeLog('PROGRESS', '100% complete');
-    }
-  }
-
-  /**
-   * Sets a new theme for dynamic styling.
-   * @param theme Object mapping log levels and labels to color arrays
-   */
-  public setTheme(theme: Record<string, ColorName[]>): void {
-    super.setTheme(theme);
-    this.formatter.setTheme?.(theme); // if formatter supports theme
-  }
-
-  /**
-   * Gets all stored logs (if browser storage is enabled)
-   * @returns Array of log entries or null if storage is disabled
-   */
-  public getLogs(): string[] | null {
-    return this.storageManager?.getLogs() || null;
-  }
-
-  /**
-   * Clears all stored logs (if browser storage is enabled)
-   */
-  public clearLogs(): void {
-    this.storageManager?.clearLogs();
-  }
-
-  /**
-   * Downloads stored logs as a text file (browser only)
-   * @param filename The filename to use for the download
-   */
-  public downloadLogs(filename = 'logs.txt'): void {
-    this.storageManager?.downloadLogs(filename);
-  }
-
-  /**
-   * Enable or disable browser storage
-   * @param enabled Whether to enable browser storage
-   */
-  public setStorageEnabled(enabled: boolean): void {
-    this.storeInBrowser = enabled;
-
-    // Initialize storage manager if newly enabled
-    if (enabled && !this.storageManager) {
-      this.storageManager = new BrowserStorageManager();
-    }
-  }
-
-  /**
-   * Gets the current log file path - not applicable in browser environments.
-   * Implemented for API compatibility with NodeLogger.
-   * @returns Always returns null in browser environments
-   */
-  public getLogFilePath(): string | null {
-    return null; // No file system in browser
-  }
-
-  /**
-   * No-op method for API compatibility with NodeLogger.
-   * Browser environments don't support direct file system access.
-   * @param enabled Has no effect in browser environments
-   */
-  public setFileLogging(enabled: boolean): void {
-    // If enabled is true, we'll use browser storage instead
-    if (enabled && !this.storeInBrowser) {
-      this.setStorageEnabled(true);
-    }
-  }
-
-  /**
-   * Gets the log directory path - not applicable in browser environments.
-   * Implemented for API compatibility with NodeLogger.
-   * @returns Returns 'browser' as a placeholder
-   */
-  public getLogDirectory(): string {
-    return 'browser'; // No file system in browser
-  }
-
-  /**
-   * No-op method for API compatibility with NodeLogger.
-   * Browser environments don't support direct file system access.
-   * @param dir Has no effect in browser environments
-   * @param reinitialize Has no effect in browser environments
-   */
-  public setLogDirectory(dir: string, _reinitialize = false): void {
-    // No-op in browser environment
-  }
-
-  /**
-   * Gets the log retention period - not applicable in browser environments.
-   * Implemented for API compatibility with NodeLogger.
-   * @returns Returns 0 as this doesn't apply to browser environments
-   */
-  public getLogRetentionDays(): number {
-    return 0; // Not applicable in browser
-  }
-
-  /**
-   * No-op method for API compatibility with NodeLogger.
-   * Browser environments don't support direct file system access.
-   * @param days Has no effect in browser environments
-   * @param cleanNow Has no effect in browser environments
-   */
-  public setLogRetentionDays(_days: number, _cleanNow = false): void {
-    // No-op in browser environment
-  }
-
-  /**
-   * Displays a visual separator line for organizing log output.
-   * @param char Character to use for the separator (default: '-')
-   * @param length Length of the separator line (default: 60)
-   * @param colors Optional array of color/style names to apply
-   */
-  /**
-   * Print a separator line
-   * @param char Character to use for the separator
-   * @param length Length of the separator line
-   */
-  public separator(char = '-', length = 50): void {
-    const separatorLine = char.repeat(length);
-    this.log(separatorLine, 'info');
   }
 }

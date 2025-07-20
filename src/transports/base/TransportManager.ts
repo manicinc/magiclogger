@@ -1,665 +1,733 @@
-// File: src/transports/base/TransportManager.ts
+// File: src/core/TransportManager.ts
 
 import { EventEmitter } from 'events';
-import type {
-  Transport,
-  TransportManagerOptions,
-  LogEntry,
-  AggregationStats,
-  LogLevel,
-} from '../../types/transport';
+import { Transport } from '../transports/base/Transport';
+import { ConsoleTransport } from '../transports/ConsoleTransport';
+import { FileTransport } from '../transports/FileTransport';
+import { HTTPTransport } from '../transports/HTTPTransport';
+import { StreamTransport } from '../transports/StreamTransport';
+import { S3Transport } from '../transports/S3Transport';
+import { MongoDBTransport } from '../transports/MongoDBTransport';
+import { WebSocketTransport } from '../transports/WebSocketTransport';
+import type { 
+  TransportConfig, 
+  LogEntry, 
+  TransportType,
+  TransportStats 
+} from '../types/transport';
 
 /**
- * Internal structure for tracking transport metadata.
+ * Transport factory function type.
  */
-interface TransportMeta {
-  transport: Transport;
-  addedAt: Date;
-  enabled: boolean;
-  priority: number;
-}
+type TransportFactory = (config: TransportConfig) => Transport;
 
 /**
- * Manages multiple transport instances and coordinates log distribution.
- *
- * The TransportManager is the central orchestrator for MagicLogger's transport system:
- * - Manages lifecycle of multiple transports
- * - Routes logs to appropriate transports based on configuration
- * - Handles transport failures and fallbacks
- * - Provides aggregation and statistics across all transports
- * - Ensures proper cleanup and resource management
- *
- * This class enables sophisticated logging strategies like:
- * - Sending errors to different destinations than info logs
- * - Load balancing across multiple endpoints
- * - Automatic failover when transports fail
- * - Centralized monitoring and statistics
- *
+ * TransportManager handles all transport operations for the logger.
+ * 
+ * Features:
+ * - Dynamic transport loading and management
+ * - Transport lifecycle management
+ * - Parallel and sequential log dispatching
+ * - Transport health monitoring
+ * - Performance tracking
+ * - Error handling and recovery
+ * - Transport plugin system
+ * 
+ * @class TransportManager
  * @extends {EventEmitter}
- *
+ * 
  * @example
  * ```typescript
- * const manager = new TransportManager({
- *   enableAggregation: true,
- *   aggregation: {
- *     interval: 60000,
- *     targets: ['monitoring-transport']
- *   }
+ * const manager = new TransportManager();
+ * 
+ * // Add transports
+ * await manager.addTransport({
+ *   type: 'console',
+ *   level: 'info'
  * });
- *
- * manager.add(s3Transport);
- * manager.add(httpTransport);
- * manager.add(consoleTransport);
- *
+ * 
+ * await manager.addTransport({
+ *   type: 'file',
+ *   filename: 'app.log',
+ *   level: 'debug'
+ * });
+ * 
+ * // Log to all transports
  * await manager.log(logEntry);
  * ```
  */
 export class TransportManager extends EventEmitter {
   /**
-   * Map of transport name to metadata.
+   * Map of active transports.
    * @private
    */
-  private transports: Map<string, TransportMeta> = new Map();
+  private transports: Map<string, Transport> = new Map();
 
   /**
-   * Configuration options for the manager.
+   * Transport factories registry.
    * @private
    */
-  private readonly options: TransportManagerOptions;
+  private factories: Map<TransportType | string, TransportFactory> = new Map();
 
   /**
-   * Default timeout for transport operations.
+   * Whether manager is initialized.
    * @private
    */
-  private readonly defaultTimeout: number;
+  private initialized = false;
 
   /**
-   * Whether to stop on first successful transport.
+   * Whether logging is paused.
    * @private
    */
-  private readonly stopOnSuccess: boolean;
+  private paused = false;
 
   /**
-   * Global error handler for all transports.
+   * Queue for logs when paused.
    * @private
    */
-  private readonly errorHandler?: (error: Error, transport: Transport, entry?: LogEntry) => void;
+  private pauseQueue: LogEntry[] = [];
 
   /**
-   * Aggregation configuration.
+   * Maximum pause queue size.
    * @private
    */
-  private readonly aggregationEnabled: boolean;
-  private readonly aggregationInterval: number;
-  private readonly aggregationTargets: string[];
-  private readonly aggregationFields: Array<'level' | 'tags' | 'loggerId' | 'custom'>;
+  private readonly maxPauseQueueSize = 10000;
 
   /**
-   * Aggregation state.
+   * Performance tracking data.
    * @private
    */
-  private aggregationStats: AggregationStats | null = null;
-  private aggregationTimer: NodeJS.Timeout | null = null;
-  private aggregationStartTime: Date = new Date();
+  private performanceData: Map<string, {
+    count: number;
+    totalTime: number;
+    errors: number;
+    lastError?: Error;
+  }> = new Map();
 
   /**
-   * Log entry buffer for aggregation.
+   * Global transport filters.
    * @private
    */
-  private logBuffer: LogEntry[] = [];
+  private globalFilters: Array<(entry: LogEntry) => boolean> = [];
 
   /**
-   * Flag to track if manager is closing.
+   * Global transport transformers.
    * @private
    */
-  private closing = false;
+  private globalTransformers: Array<(entry: LogEntry) => LogEntry> = [];
+
+  /**
+   * Health check interval.
+   * @private
+   */
+  private healthCheckInterval?: NodeJS.Timeout;
+
+  /**
+   * Health check interval in ms.
+   * @private
+   */
+  private readonly healthCheckIntervalMs = 60000; // 1 minute
 
   /**
    * Creates a new TransportManager instance.
-   *
-   * @param {TransportManagerOptions} [options={}] - Configuration options
    */
-  constructor(options: TransportManagerOptions = {}) {
+  constructor() {
     super();
+    this.registerDefaultFactories();
+  }
 
-    this.options = options;
-    this.defaultTimeout = options.defaultTimeout || 30000;
-    this.stopOnSuccess = options.stopOnSuccess || false;
-    this.errorHandler = options.errorHandler;
+  /**
+   * Register default transport factories.
+   * @private
+   */
+  private registerDefaultFactories(): void {
+    this.registerFactory('console', (config) => new ConsoleTransport(config));
+    this.registerFactory('file', (config) => new FileTransport(config));
+    this.registerFactory('http', (config) => new HTTPTransport(config));
+    this.registerFactory('stream', (config) => new StreamTransport(config));
+    this.registerFactory('s3', (config) => new S3Transport(config));
+    this.registerFactory('mongodb', (config) => new MongoDBTransport(config));
+    this.registerFactory('websocket', (config) => new WebSocketTransport(config));
+  }
 
-    // Aggregation configuration
-    this.aggregationEnabled = options.enableAggregation || false;
-    this.aggregationInterval = options.aggregation?.interval || 60000;
-    this.aggregationTargets = options.aggregation?.targets || [];
-    this.aggregationFields = options.aggregation?.fields || ['level', 'tags', 'loggerId'];
+  /**
+   * Initialize the transport manager.
+   * 
+   * @returns {Promise<void>} Resolves when initialized
+   */
+  public async initialize(): Promise<void> {
+    if (this.initialized) return;
 
-    // Initialize aggregation if enabled
-    if (this.aggregationEnabled) {
-      this.initializeAggregation();
-    }
+    // Start health monitoring
+    this.startHealthMonitoring();
 
-    // Set max listeners
-    this.setMaxListeners(50);
+    this.initialized = true;
+    this.emit('initialized');
+  }
+
+  /**
+   * Register a transport factory.
+   * 
+   * @param {string} type - Transport type
+   * @param {TransportFactory} factory - Factory function
+   */
+  public registerFactory(type: TransportType | string, factory: TransportFactory): void {
+    this.factories.set(type, factory);
+    this.emit('factoryRegistered', { type });
   }
 
   /**
    * Add a transport to the manager.
-   *
-   * @param {Transport} transport - The transport to add
-   * @param {number} [priority=0] - Priority for transport ordering (higher = first)
-   * @returns {Promise<void>} Resolves when transport is added and initialized
-   * @throws {Error} If transport with same name already exists
+   * 
+   * @param {TransportConfig} config - Transport configuration
+   * @returns {Promise<Transport>} The added transport
    */
-  public async add(transport: Transport, priority = 0): Promise<void> {
-    if (this.closing) {
-      throw new Error('Cannot add transport: manager is closing');
+  public async addTransport(config: TransportConfig): Promise<Transport> {
+    // Get or generate transport name
+    const name = config.name || `${config.type}-${Date.now()}`;
+
+    // Check if transport already exists
+    if (this.transports.has(name)) {
+      throw new Error(`Transport '${name}' already exists`);
     }
 
-    if (this.transports.has(transport.name)) {
-      throw new Error(`Transport '${transport.name}' already exists`);
+    // Get factory
+    const factory = this.factories.get(config.type);
+    if (!factory) {
+      throw new Error(`Unknown transport type: ${config.type}`);
     }
 
-    // Initialize transport if needed
-    if (transport.init) {
-      await transport.init();
-    }
+    // Create transport with name
+    const transportConfig = { ...config, name };
+    const transport = factory(transportConfig);
 
-    // Set up error handling
-    if (transport.on) {
-      transport.on('error', (...args: unknown[]) => {
-        const error = args[0] as Error;
-        const entry = args[1] as LogEntry | undefined;
-        this.handleTransportError(transport, error, entry);
-      });
-    }
+    // Set up transport event handlers
+    this.setupTransportHandlers(transport);
 
-    // Store transport metadata
-    const meta: TransportMeta = {
-      transport,
-      addedAt: new Date(),
-      enabled: transport.enabled,
-      priority,
-    };
+    // Initialize transport
+    await transport.initialize();
 
-    this.transports.set(transport.name, meta);
+    // Add to transports map
+    this.transports.set(name, transport);
 
-    // Sort transports by priority
-    this.sortTransports();
+    // Initialize performance tracking
+    this.performanceData.set(name, {
+      count: 0,
+      totalTime: 0,
+      errors: 0,
+    });
 
-    this.emit('transportAdded', transport.name);
+    this.emit('transportAdded', { name, type: config.type });
+
+    return transport;
   }
 
   /**
    * Remove a transport from the manager.
-   *
-   * @param {string} name - Name of the transport to remove
-   * @returns {Promise<void>} Resolves when transport is removed and closed
-   * @throws {Error} If transport not found
+   * 
+   * @param {string} name - Transport name
+   * @returns {Promise<void>} Resolves when removed
    */
-  public async remove(name: string): Promise<void> {
-    const meta = this.transports.get(name);
-    if (!meta) {
+  public async removeTransport(name: string): Promise<void> {
+    const transport = this.transports.get(name);
+    if (!transport) {
       throw new Error(`Transport '${name}' not found`);
     }
 
-    // Close the transport
-    await meta.transport.close();
+    // Close transport
+    await transport.close();
 
-    // Remove from map
+    // Remove from maps
     this.transports.delete(name);
+    this.performanceData.delete(name);
 
-    this.emit('transportRemoved', name);
+    this.emit('transportRemoved', { name });
   }
 
   /**
    * Get a transport by name.
-   *
-   * @param {string} name - Name of the transport
-   * @returns {Transport | undefined} The transport if found
+   * 
+   * @param {string} name - Transport name
+   * @returns {Transport | undefined} Transport instance
    */
-  public get(name: string): Transport | undefined {
-    return this.transports.get(name)?.transport;
+  public getTransport(name: string): Transport | undefined {
+    return this.transports.get(name);
   }
 
   /**
-   * Get all transport names.
-   *
-   * @returns {string[]} Array of transport names
+   * Get all transports.
+   * 
+   * @returns {Transport[]} Array of transports
    */
-  public list(): string[] {
+  public getTransports(): Transport[] {
+    return Array.from(this.transports.values());
+  }
+
+  /**
+   * Get transport names.
+   * 
+   * @returns {string[]} Transport names
+   */
+  public getTransportNames(): string[] {
     return Array.from(this.transports.keys());
   }
 
   /**
-   * Enable or disable a transport.
-   *
-   * @param {string} name - Name of the transport
-   * @param {boolean} enabled - Whether to enable or disable
-   * @throws {Error} If transport not found
+   * Check if a transport exists.
+   * 
+   * @param {string} name - Transport name
+   * @returns {boolean} Whether transport exists
    */
-  public setEnabled(name: string, enabled: boolean): void {
-    const meta = this.transports.get(name);
-    if (!meta) {
-      throw new Error(`Transport '${name}' not found`);
-    }
-
-    meta.enabled = enabled;
-    meta.transport.enabled = enabled;
-
-    this.emit('transportToggled', name, enabled);
+  public hasTransport(name: string): boolean {
+    return this.transports.has(name);
   }
 
   /**
-   * Log an entry to all applicable transports.
-   *
-   * @param {LogEntry} entry - The log entry to send
-   * @returns {Promise<void>} Resolves when logging is complete
+   * Log an entry to all transports.
+   * 
+   * @param {LogEntry} entry - Log entry
+   * @returns {Promise<void>} Resolves when logged
    */
   public async log(entry: LogEntry): Promise<void> {
-    if (this.closing) {
+    // Check if paused
+    if (this.paused) {
+      this.queueEntry(entry);
       return;
     }
 
-    // Add to aggregation buffer if enabled
-    if (this.aggregationEnabled) {
-      this.addToAggregation(entry);
-    }
-
-    // Get enabled transports sorted by priority
-    const activeTransports = this.getActiveTransports();
-
-    if (activeTransports.length === 0) {
-      this.emit('noTransports', entry);
-      return;
-    }
-
-    // Log to transports based on configuration
-    if (this.stopOnSuccess) {
-      await this.logWithFailover(entry, activeTransports);
-    } else {
-      await this.logToAll(entry, activeTransports);
-    }
-  }
-
-  /**
-   * Log to transports with failover (stop on first success).
-   *
-   * @param {LogEntry} entry - The log entry
-   * @param {TransportMeta[]} transports - Ordered list of transports
-   * @returns {Promise<void>} Resolves when logged or all transports fail
-   * @private
-   */
-  private async logWithFailover(entry: LogEntry, transports: TransportMeta[]): Promise<void> {
-    const errors: Array<{ transport: string; error: Error }> = [];
-
-    for (const meta of transports) {
-      try {
-        // Check if transport should handle this log
-        if (!meta.transport.shouldLog(entry)) {
-          continue;
-        }
-
-        // Attempt to log
-        await this.withTimeout(Promise.resolve(meta.transport.log(entry)), this.defaultTimeout);
-
-        // Success - stop here and emit with array format (consistent with logToAll)
-        this.emit('logged', entry, [meta.transport.name]);
-        return;
-      } catch (error) {
-        errors.push({
-          transport: meta.transport.name,
-          error: error as Error,
-        });
+    // Apply global filters
+    for (const filter of this.globalFilters) {
+      if (!filter(entry)) {
+        return; // Skip this entry
       }
     }
 
-    // All transports failed
-    if (errors.length > 0) {
-      this.emit('allTransportsFailed', entry, errors);
+    // Apply global transformers
+    let transformedEntry = entry;
+    for (const transformer of this.globalTransformers) {
+      transformedEntry = transformer(transformedEntry);
     }
-  }
 
-  /**
-   * Log to all applicable transports in parallel.
-   *
-   * @param {LogEntry} entry - The log entry
-   * @param {TransportMeta[]} transports - List of transports
-   * @returns {Promise<void>} Resolves when all transports have been attempted
-   * @private
-   */
-  private async logToAll(entry: LogEntry, transports: TransportMeta[]): Promise<void> {
-    // Filter transports that should handle this log
-    const applicableTransports = transports.filter(meta => meta.transport.shouldLog(entry));
+    // Get enabled transports
+    const enabledTransports = Array.from(this.transports.values())
+      .filter(transport => transport.isEnabled());
 
-    if (applicableTransports.length === 0) {
+    if (enabledTransports.length === 0) {
+      this.emit('noTransports', { entry: transformedEntry });
       return;
     }
 
     // Log to all transports in parallel
-    const results = await Promise.allSettled(
-      applicableTransports.map(meta =>
-        this.withTimeout(Promise.resolve(meta.transport.log(entry)), this.defaultTimeout).then(
-          () => meta.transport.name
-        )
-      )
+    const promises = enabledTransports.map(transport => 
+      this.logToTransport(transport, transformedEntry)
     );
 
-    // Track successes and failures
-    const successes: string[] = [];
-    const failures: Array<{ transport: string; error: Error }> = [];
+    // Wait for all transports
+    const results = await Promise.allSettled(promises);
 
-    results.forEach((result, index) => {
-      const transportName = applicableTransports[index].transport.name;
+    // Check for errors
+    const errors = results
+      .filter(result => result.status === 'rejected')
+      .map(result => (result as PromiseRejectedResult).reason);
 
-      if (result.status === 'fulfilled') {
-        successes.push(transportName);
-      } else {
-        failures.push({
-          transport: transportName,
-          error: result.reason,
-        });
+    if (errors.length > 0) {
+      this.emit('logErrors', { errors, entry: transformedEntry });
+    }
+  }
+
+  /**
+   * Log to a specific transport with performance tracking.
+   * 
+   * @param {Transport} transport - Transport to log to
+   * @param {LogEntry} entry - Log entry
+   * @returns {Promise<void>} Resolves when logged
+   * @private
+   */
+  private async logToTransport(transport: Transport, entry: LogEntry): Promise<void> {
+    const startTime = process.hrtime.bigint();
+    const perfData = this.performanceData.get(transport.name);
+
+    try {
+      await transport.log(entry);
+      
+      // Update performance data
+      if (perfData) {
+        const duration = Number(process.hrtime.bigint() - startTime) / 1000000; // Convert to ms
+        perfData.count++;
+        perfData.totalTime += duration;
       }
-    });
-
-    // Emit events
-    if (successes.length > 0) {
-      this.emit('logged', entry, successes);
-    }
-
-    if (failures.length > 0) {
-      this.emit('partialFailure', entry, successes, failures);
-    }
-  }
-
-  /**
-   * Get active (enabled) transports sorted by priority.
-   *
-   * @returns {TransportMeta[]} Sorted list of active transports
-   * @private
-   */
-  private getActiveTransports(): TransportMeta[] {
-    return Array.from(this.transports.values())
-      .filter(meta => meta.enabled && meta.transport.enabled)
-      .sort((a, b) => b.priority - a.priority);
-  }
-
-  /**
-   * Sort transports by priority.
-   *
-   * @private
-   */
-  private sortTransports(): void {
-    // Convert to array, sort, and rebuild map
-    const sorted = Array.from(this.transports.entries()).sort(
-      (a, b) => b[1].priority - a[1].priority
-    );
-
-    this.transports.clear();
-    sorted.forEach(([name, meta]) => {
-      this.transports.set(name, meta);
-    });
-  }
-
-  /**
-   * Handle errors from individual transports.
-   *
-   * @param {Transport} transport - The transport that errored
-   * @param {Error} error - The error that occurred
-   * @param {LogEntry} [entry] - The log entry that caused the error
-   * @private
-   */
-  private handleTransportError(transport: Transport, error: Error, entry?: LogEntry): void {
-    // Call global error handler if configured
-    if (this.errorHandler) {
-      try {
-        this.errorHandler(error, transport, entry);
-      } catch (handlerError) {
-        console.error('Error in error handler:', handlerError);
+    } catch (error) {
+      // Update error count
+      if (perfData) {
+        perfData.errors++;
+        perfData.lastError = error as Error;
       }
+
+      // Re-throw to be handled by caller
+      throw error;
     }
-
-    // Emit error event
-    this.emit('transportError', transport.name, error, entry);
   }
 
   /**
-   * Initialize aggregation system.
-   *
-   * @private
+   * Log multiple entries efficiently.
+   * 
+   * @param {LogEntry[]} entries - Log entries
+   * @returns {Promise<void>} Resolves when all logged
    */
-  private initializeAggregation(): void {
-    this.resetAggregationStats();
-    this.startAggregationTimer();
-  }
+  public async logBatch(entries: LogEntry[]): Promise<void> {
+    if (entries.length === 0) return;
 
-  /**
-   * Reset aggregation statistics.
-   *
-   * @private
-   */
-  private resetAggregationStats(): void {
-    this.aggregationStats = {
-      period: {
-        start: this.aggregationStartTime,
-        end: new Date(),
-      },
-      total: 0,
-      byLevel: {} as Record<LogLevel, number>,
-      byLogger: {},
-      byTags: {},
-      errorRate: 0,
-      avgSize: 0,
-      custom: {},
-    };
-  }
-
-  /**
-   * Start the aggregation timer.
-   *
-   * @private
-   */
-  private startAggregationTimer(): void {
-    this.aggregationTimer = setInterval(() => {
-      this.flushAggregation();
-    }, this.aggregationInterval);
-  }
-
-  /**
-   * Add a log entry to aggregation statistics.
-   *
-   * @param {LogEntry} entry - The log entry to aggregate
-   * @private
-   */
-  private addToAggregation(entry: LogEntry): void {
-    if (!this.aggregationStats) {
+    // Check if paused
+    if (this.paused) {
+      entries.forEach(entry => this.queueEntry(entry));
       return;
     }
 
-    // Update total count
-    this.aggregationStats.total++;
-
-    // Update level counts
-    this.aggregationStats.byLevel[entry.level] =
-      (this.aggregationStats.byLevel[entry.level] || 0) + 1;
-
-    // Update logger counts if tracking
-    if (this.aggregationFields.includes('loggerId') && entry.loggerId) {
-      this.aggregationStats.byLogger![entry.loggerId] =
-        (this.aggregationStats.byLogger![entry.loggerId] || 0) + 1;
-    }
-
-    // Update tag counts if tracking
-    if (this.aggregationFields.includes('tags') && entry.tags) {
-      entry.tags.forEach(tag => {
-        this.aggregationStats!.byTags![tag] = (this.aggregationStats!.byTags![tag] || 0) + 1;
-      });
-    }
-
-    // Update error rate
-    if (entry.level === 'error') {
-      this.aggregationStats.errorRate =
-        this.aggregationStats.byLevel.error / this.aggregationStats.total;
-    }
-
-    // Store entry for potential batch operations
-    this.logBuffer.push(entry);
-
-    // Limit buffer size to prevent memory issues
-    if (this.logBuffer.length > 10000) {
-      this.logBuffer = this.logBuffer.slice(-5000);
-    }
-  }
-
-  /**
-   * Flush aggregation statistics to target transports.
-   *
-   * @private
-   */
-  private async flushAggregation(): Promise<void> {
-    if (!this.aggregationStats || this.aggregationStats.total === 0) {
-      return;
-    }
-
-    // Finalize stats
-    this.aggregationStats.period.end = new Date();
-
-    // Calculate average size if we have entries
-    if (this.logBuffer.length > 0) {
-      const totalSize = this.logBuffer.reduce(
-        (sum, entry) => sum + JSON.stringify(entry).length,
-        0
-      );
-      this.aggregationStats.avgSize = Math.round(totalSize / this.logBuffer.length);
-    }
-
-    // Create aggregation log entry
-    const aggregationEntry: LogEntry = {
-      id: this.generateId(),
-      timestamp: new Date().toISOString(),
-      timestampMs: Date.now(),
-      level: 'info',
-      message: `Aggregation report: ${this.aggregationStats.total} logs in ${this.aggregationInterval}ms`,
-      plainMessage: undefined,
-      loggerId: 'transport-manager',
-      tags: ['aggregation', 'statistics'],
-      context: {
-        stats: this.aggregationStats,
-      },
-    };
-
-    // Send to target transports
-    for (const targetName of this.aggregationTargets) {
-      const transport = this.get(targetName);
-      if (transport && transport.enabled) {
-        try {
-          await transport.log(aggregationEntry);
-        } catch (error) {
-          this.handleTransportError(transport, error as Error, aggregationEntry);
+    // Apply filters and transformers
+    const processedEntries = entries
+      .filter(entry => this.globalFilters.every(filter => filter(entry)))
+      .map(entry => {
+        let transformed = entry;
+        for (const transformer of this.globalTransformers) {
+          transformed = transformer(transformed);
         }
+        return transformed;
+      });
+
+    if (processedEntries.length === 0) return;
+
+    // Get enabled transports that support batching
+    const transports = Array.from(this.transports.values())
+      .filter(transport => transport.isEnabled());
+
+    // Group by batching support
+    const batchingTransports = transports.filter(t => t.supportsBatching());
+    const nonBatchingTransports = transports.filter(t => !t.supportsBatching());
+
+    const promises: Promise<void>[] = [];
+
+    // Send to batching transports
+    for (const transport of batchingTransports) {
+      promises.push(transport.logBatch(processedEntries));
+    }
+
+    // Send to non-batching transports individually
+    for (const transport of nonBatchingTransports) {
+      for (const entry of processedEntries) {
+        promises.push(this.logToTransport(transport, entry));
       }
     }
 
-    // Emit aggregation event
-    this.emit('aggregation', this.aggregationStats);
+    // Wait for all
+    await Promise.allSettled(promises);
+  }
 
-    // Reset for next period
-    this.aggregationStartTime = new Date();
-    this.resetAggregationStats();
-    this.logBuffer = [];
+  /**
+   * Set up event handlers for a transport.
+   * 
+   * @param {Transport} transport - Transport to set up
+   * @private
+   */
+  private setupTransportHandlers(transport: Transport): void {
+    transport.on('error', (error) => {
+      this.emit('transportError', {
+        transport: transport.name,
+        error,
+      });
+    });
+
+    transport.on('ready', () => {
+      this.emit('transportReady', {
+        transport: transport.name,
+      });
+    });
+
+    transport.on('closed', () => {
+      this.emit('transportClosed', {
+        transport: transport.name,
+      });
+    });
+  }
+
+  /**
+   * Pause all logging.
+   */
+  public pause(): void {
+    this.paused = true;
+    this.emit('paused');
+  }
+
+  /**
+   * Resume logging and flush queue.
+   * 
+   * @returns {Promise<void>} Resolves when queue is flushed
+   */
+  public async resume(): Promise<void> {
+    this.paused = false;
+
+    // Flush queued entries
+    const queue = [...this.pauseQueue];
+    this.pauseQueue = [];
+
+    for (const entry of queue) {
+      await this.log(entry);
+    }
+
+    this.emit('resumed', { flushedCount: queue.length });
+  }
+
+  /**
+   * Queue an entry when paused.
+   * 
+   * @param {LogEntry} entry - Entry to queue
+   * @private
+   */
+  private queueEntry(entry: LogEntry): void {
+    if (this.pauseQueue.length >= this.maxPauseQueueSize) {
+      // Drop oldest entry
+      this.pauseQueue.shift();
+      this.emit('queueOverflow');
+    }
+
+    this.pauseQueue.push(entry);
+  }
+
+  /**
+   * Add a global filter.
+   * 
+   * @param {Function} filter - Filter function
+   */
+  public addGlobalFilter(filter: (entry: LogEntry) => boolean): void {
+    this.globalFilters.push(filter);
+  }
+
+  /**
+   * Remove a global filter.
+   * 
+   * @param {Function} filter - Filter function
+   */
+  public removeGlobalFilter(filter: (entry: LogEntry) => boolean): void {
+    const index = this.globalFilters.indexOf(filter);
+    if (index !== -1) {
+      this.globalFilters.splice(index, 1);
+    }
+  }
+
+  /**
+   * Add a global transformer.
+   * 
+   * @param {Function} transformer - Transformer function
+   */
+  public addGlobalTransformer(transformer: (entry: LogEntry) => LogEntry): void {
+    this.globalTransformers.push(transformer);
+  }
+
+  /**
+   * Remove a global transformer.
+   * 
+   * @param {Function} transformer - Transformer function
+   */
+  public removeGlobalTransformer(transformer: (entry: LogEntry) => LogEntry): void {
+    const index = this.globalTransformers.indexOf(transformer);
+    if (index !== -1) {
+      this.globalTransformers.splice(index, 1);
+    }
+  }
+
+  /**
+   * Clear all global filters and transformers.
+   */
+  public clearGlobalProcessors(): void {
+    this.globalFilters = [];
+    this.globalTransformers = [];
+  }
+
+  /**
+   * Flush all transports.
+   * 
+   * @returns {Promise<void>} Resolves when all flushed
+   */
+  public async flush(): Promise<void> {
+    const promises = Array.from(this.transports.values())
+      .map(transport => transport.flush());
+
+    await Promise.allSettled(promises);
+  }
+
+  /**
+   * Close all transports and clean up.
+   * 
+   * @returns {Promise<void>} Resolves when closed
+   */
+  public async close(): Promise<void> {
+    // Stop health monitoring
+    this.stopHealthMonitoring();
+
+    // Close all transports
+    const promises = Array.from(this.transports.values())
+      .map(transport => transport.close());
+
+    await Promise.allSettled(promises);
+
+    // Clear maps
+    this.transports.clear();
+    this.performanceData.clear();
+
+    this.initialized = false;
+    this.emit('closed');
   }
 
   /**
    * Get statistics for all transports.
-   *
-   * @returns {Record<string, any>} Map of transport name to statistics
+   * 
+   * @returns {Record<string, TransportStats>} Transport statistics
    */
-  public getStats(): Record<string, any> {
+  public getStats(): Record<string, TransportStats & { performance: any }> {
     const stats: Record<string, any> = {};
 
-    this.transports.forEach((meta, name) => {
-      if (meta.transport.getStats) {
-        stats[name] = meta.transport.getStats();
-      }
-    });
+    for (const [name, transport] of this.transports) {
+      const perfData = this.performanceData.get(name);
+      const transportStats = transport.getStats();
 
-    // Add manager stats
-    stats._manager = {
-      transportCount: this.transports.size,
-      activeTransports: this.getActiveTransports().length,
-      aggregationEnabled: this.aggregationEnabled,
-      currentAggregation: this.aggregationStats,
-    };
+      stats[name] = {
+        ...transportStats,
+        performance: perfData ? {
+          count: perfData.count,
+          avgTime: perfData.count > 0 ? perfData.totalTime / perfData.count : 0,
+          totalTime: perfData.totalTime,
+          errors: perfData.errors,
+          lastError: perfData.lastError?.message,
+        } : null,
+      };
+    }
 
     return stats;
   }
 
   /**
-   * Close all transports and clean up resources.
-   *
-   * @returns {Promise<void>} Resolves when all transports are closed
+   * Reset statistics for all transports.
    */
-  public async close(): Promise<void> {
-    if (this.closing) {
-      return;
+  public resetStats(): void {
+    // Reset transport stats
+    for (const transport of this.transports.values()) {
+      transport.resetStats();
     }
 
-    this.closing = true;
-    this.emit('closing');
-
-    // Stop aggregation timer
-    if (this.aggregationTimer) {
-      clearInterval(this.aggregationTimer);
-      this.aggregationTimer = null;
+    // Reset performance data
+    for (const data of this.performanceData.values()) {
+      data.count = 0;
+      data.totalTime = 0;
+      data.errors = 0;
+      data.lastError = undefined;
     }
-
-    // Flush final aggregation
-    if (this.aggregationEnabled) {
-      await this.flushAggregation();
-    }
-
-    // Close all transports
-    const closePromises = Array.from(this.transports.values()).map(meta => {
-      const closeResult = meta.transport.close();
-      return Promise.resolve(closeResult).catch((error: unknown) => {
-        console.error(`Error closing transport '${meta.transport.name}':`, error);
-      });
-    });
-
-    await Promise.all(closePromises);
-
-    // Clear transports
-    this.transports.clear();
-
-    // Emit closed event before removing listeners
-    this.emit('closed');
-
-    // Remove all listeners
-    this.removeAllListeners();
   }
 
   /**
-   * Apply timeout to an async operation.
-   *
-   * @param {Promise<T>} promise - The promise to timeout
-   * @param {number} ms - Timeout in milliseconds
-   * @returns {Promise<T>} The original promise with timeout
-   * @private
+   * Enable a transport.
+   * 
+   * @param {string} name - Transport name
    */
-  private async withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-    const timeout = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error(`Operation timed out after ${ms}ms`)), ms);
-    });
-
-    return Promise.race([promise, timeout]);
+  public enableTransport(name: string): void {
+    const transport = this.transports.get(name);
+    if (transport) {
+      transport.enable();
+    }
   }
 
   /**
-   * Generate a unique ID.
-   *
-   * @returns {string} Unique identifier
+   * Disable a transport.
+   * 
+   * @param {string} name - Transport name
+   */
+  public disableTransport(name: string): void {
+    const transport = this.transports.get(name);
+    if (transport) {
+      transport.disable();
+    }
+  }
+
+  /**
+   * Check health of all transports.
+   * 
+   * @returns {Promise<Record<string, boolean>>} Health status
+   */
+  public async checkHealth(): Promise<Record<string, boolean>> {
+    const health: Record<string, boolean> = {};
+
+    for (const [name, transport] of this.transports) {
+      try {
+        health[name] = await transport.isHealthy();
+      } catch {
+        health[name] = false;
+      }
+    }
+
+    return health;
+  }
+
+  /**
+   * Start health monitoring.
    * @private
    */
-  private generateId(): string {
-    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  private startHealthMonitoring(): void {
+    this.healthCheckInterval = setInterval(async () => {
+      const health = await this.checkHealth();
+      
+      // Check for unhealthy transports
+      const unhealthy = Object.entries(health)
+        .filter(([_, isHealthy]) => !isHealthy)
+        .map(([name]) => name);
+
+      if (unhealthy.length > 0) {
+        this.emit('unhealthyTransports', { transports: unhealthy });
+      }
+    }, this.healthCheckIntervalMs);
+  }
+
+  /**
+   * Stop health monitoring.
+   * @private
+   */
+  private stopHealthMonitoring(): void {
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval);
+      this.healthCheckInterval = undefined;
+    }
+  }
+
+  /**
+   * Create a child manager with shared transports.
+   * 
+   * @param {object} options - Child options
+   * @returns {TransportManager} Child manager
+   */
+  public child(options: {
+    filters?: Array<(entry: LogEntry) => boolean>;
+    transformers?: Array<(entry: LogEntry) => LogEntry>;
+  } = {}): TransportManager {
+    const child = new TransportManager();
+
+    // Share transports
+    for (const [name, transport] of this.transports) {
+      child.transports.set(name, transport);
+    }
+
+    // Copy factories
+    for (const [type, factory] of this.factories) {
+      child.factories.set(type, factory);
+    }
+
+    // Add filters and transformers
+    if (options.filters) {
+      options.filters.forEach(filter => child.addGlobalFilter(filter));
+    }
+
+    if (options.transformers) {
+      options.transformers.forEach(transformer => child.addGlobalTransformer(transformer));
+    }
+
+    child.initialized = true;
+
+    return child;
   }
 }

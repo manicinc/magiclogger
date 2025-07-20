@@ -1,613 +1,563 @@
 // File: src/transports/base/NetworkTransport.ts
 
-import { BatchingTransport } from './BatchingTransport';
-import { FileManager } from '../../core/FileManager';
-import type {
-  NetworkTransportOptions,
-  RetryOptions,
+import { Transport } from './Transport';
+import type { 
+  NetworkTransportOptions, 
   LogEntry,
-  Transport as ITransport,
-  TransportStats,
-  TransportOptions,
+  ConnectionState 
 } from '../../types/transport';
 
 /**
- * Represents a batch with additional network-specific metadata.
- */
-interface NetworkBatch {
-  id: string;
-  entries: LogEntry[];
-  sizeBytes: number;
-  createdAt: number;
-  retryCount: number;
-  lastError?: Error;
-  backoffUntil?: number;
-}
-
-/**
- * Abstract base class for network-based transports (HTTP, S3, etc.).
+ * Abstract base class for network-based transports.
  * 
- * This class extends BatchingTransport to add:
- * - Intelligent retry logic with exponential backoff
- * - Dead Letter Queue (DLQ) for failed logs
- * - Fallback transport support
- * - Network-specific error handling
- * - Connection health monitoring
- * 
- * Network transports face unique challenges like connectivity issues,
- * rate limiting, and service outages. This class provides robust
- * handling for these scenarios while maintaining data integrity.
+ * Features:
+ * - Connection management and pooling
+ * - Automatic reconnection with backoff
+ * - Network error handling
+ * - Connection state tracking
+ * - Request queuing during disconnection
+ * - Health checking
  * 
  * @abstract
- * @extends {BatchingTransport}
+ * @class NetworkTransport
+ * @extends {Transport}
  * 
  * @example
  * ```typescript
- * class S3Transport extends NetworkTransport {
- *   protected async performNetworkRequest(data: any): Promise<void> {
- *     await s3Client.putObject({
- *       Bucket: this.bucket,
- *       Key: this.generateKey(),
- *       Body: data
- *     });
+ * class MyNetworkTransport extends NetworkTransport {
+ *   protected async connect(): Promise<void> {
+ *     this.connection = await createConnection(this.url);
+ *   }
+ *   
+ *   protected async disconnect(): Promise<void> {
+ *     await this.connection.close();
+ *   }
+ *   
+ *   protected async sendData(data: any): Promise<void> {
+ *     await this.connection.send(data);
  *   }
  * }
  * ```
  */
-export abstract class NetworkTransport extends BatchingTransport {
+export abstract class NetworkTransport extends Transport {
   /**
-   * Retry configuration for failed requests.
+   * Network endpoint URL.
    * @protected
    */
-  protected readonly retryOptions: Required<RetryOptions>;
+  protected url: string;
 
   /**
-   * Dead Letter Queue configuration.
+   * Connection timeout in milliseconds.
    * @protected
    */
-  protected readonly dlqEnabled: boolean;
-  protected readonly dlqPath?: string;
-  protected readonly dlqMaxSize: number;
-  protected readonly dlqMaxAge: number;
+  protected connectionTimeout: number;
 
   /**
-   * Fallback transport for when this transport fails.
+   * Request timeout in milliseconds.
    * @protected
    */
-  protected fallbackTransport?: ITransport;
-  protected readonly fallbackConfig?: string | ITransport | TransportOptions;
+  protected requestTimeout: number;
 
   /**
-   * File manager for DLQ operations.
+   * Maximum reconnection attempts.
    * @protected
    */
-  protected dlqFileManager?: FileManager;
+  protected maxReconnectAttempts: number;
 
   /**
-   * Headers to include with all network requests.
+   * Reconnection delay in milliseconds.
    * @protected
    */
-  protected readonly headers: Record<string, string>;
+  protected reconnectDelay: number;
 
   /**
-   * TLS/SSL configuration.
+   * Current connection state.
    * @protected
    */
-  protected readonly tls?: NetworkTransportOptions['tls'];
+  protected connectionState: ConnectionState = 'disconnected';
 
   /**
-   * Track consecutive failures for circuit breaker pattern.
+   * Active connection instance.
    * @protected
    */
-  protected consecutiveFailures = 0;
-  protected circuitBreakerOpen = false;
-  protected circuitBreakerOpenUntil = 0;
+  protected connection: any;
 
   /**
-   * Maximum consecutive failures before opening circuit breaker.
-   * @protected
+   * Current reconnection attempt.
+   * @private
    */
-  protected readonly maxConsecutiveFailures = 5;
+  private reconnectAttempt = 0;
 
   /**
-   * Circuit breaker cool-down period in milliseconds.
+   * Reconnection timer.
+   * @private
+   */
+  private reconnectTimer?: NodeJS.Timeout;
+
+  /**
+   * Queue for entries during disconnection.
+   * @private
+   */
+  private offlineQueue: LogEntry[] = [];
+
+  /**
+   * Maximum offline queue size.
+   * @private
+   */
+  private readonly maxOfflineQueueSize: number;
+
+  /**
+   * Whether to queue entries when offline.
    * @protected
    */
-  protected readonly circuitBreakerCooldown = 60000; // 1 minute
+  protected queueWhenOffline: boolean;
+
+  /**
+   * Health check interval timer.
+   * @private
+   */
+  private healthCheckTimer?: NodeJS.Timeout;
+
+  /**
+   * Health check interval in milliseconds.
+   * @protected
+   */
+  protected healthCheckInterval: number;
+
+  /**
+   * Keep-alive interval timer.
+   * @private
+   */
+  private keepAliveTimer?: NodeJS.Timeout;
+
+  /**
+   * Keep-alive interval in milliseconds.
+   * @protected
+   */
+  protected keepAliveInterval: number;
 
   /**
    * Creates a new NetworkTransport instance.
    * 
-   * @param {NetworkTransportOptions} options - Configuration options
+   * @param {NetworkTransportOptions} options - Transport options
    */
   constructor(options: NetworkTransportOptions) {
     super(options);
 
-    // Initialize retry options with defaults
-    this.retryOptions = {
-      maxRetries: options.retry?.maxRetries ?? 3,
-      initialDelay: options.retry?.initialDelay ?? 1000,
-      maxDelay: options.retry?.maxDelay ?? 30000,
-      backoffFactor: options.retry?.backoffFactor ?? 2,
-      jitter: options.retry?.jitter ?? true,
-      retryCondition: options.retry?.retryCondition ?? this.defaultRetryCondition.bind(this),
-    };
-
-    // Initialize DLQ configuration
-    this.dlqEnabled = options.dlq?.enabled ?? false;
-    this.dlqPath = options.dlq?.filepath;
-    this.dlqMaxSize = options.dlq?.maxSize ?? 10485760; // 10MB
-    this.dlqMaxAge = options.dlq?.maxAge ?? 604800000; // 7 days
-
-    // Store fallback configuration
-    this.fallbackConfig = options.fallback;
-
-    // Initialize headers
-    this.headers = { ...options.headers };
-
-    // Store TLS configuration
-    this.tls = options.tls;
-
-    // Validate configuration
-    this.validateNetworkConfig();
+    this.url = options.url;
+    this.connectionTimeout = options.connectionTimeout || 30000;
+    this.requestTimeout = options.requestTimeout || 10000;
+    this.maxReconnectAttempts = options.maxReconnectAttempts || 5;
+    this.reconnectDelay = options.reconnectDelay || 1000;
+    this.maxOfflineQueueSize = options.maxOfflineQueueSize || 1000;
+    this.queueWhenOffline = options.queueWhenOffline !== false;
+    this.healthCheckInterval = options.healthCheckInterval || 60000;
+    this.keepAliveInterval = options.keepAliveInterval || 30000;
   }
 
   /**
-   * Validates network-specific configuration.
+   * Initialize the network transport.
    * 
-   * @throws {Error} If configuration is invalid
-   * @private
-   */
-  private validateNetworkConfig(): void {
-    if (this.retryOptions.maxRetries < 0) {
-      throw new Error('maxRetries must be non-negative');
-    }
-
-    if (this.retryOptions.initialDelay < 0) {
-      throw new Error('initialDelay must be non-negative');
-    }
-
-    if (this.retryOptions.backoffFactor < 1) {
-      throw new Error('backoffFactor must be at least 1');
-    }
-
-    if (this.dlqEnabled && !this.dlqPath) {
-      throw new Error('DLQ enabled but no filepath provided');
-    }
-  }
-
-  /**
-   * Initialize the transport and its dependencies.
-   * 
-   * @returns {Promise<void>} Resolves when initialization is complete
+   * @returns {Promise<void>} Resolves when initialized
    * @protected
    */
   protected async doInit(): Promise<void> {
-    // Initialize DLQ if enabled
-    if (this.dlqEnabled && this.dlqPath) {
-      this.dlqFileManager = new FileManager(
-        this.dlqPath.substring(0, this.dlqPath.lastIndexOf('/')),
-        Math.floor(this.dlqMaxAge / 86400000) // Convert ms to days
-      );
-      await this.dlqFileManager.initLogFile();
-    }
-
-    // Initialize fallback transport if configured
-    if (this.fallbackConfig) {
-      await this.initializeFallbackTransport();
-    }
-
-    // Perform transport-specific initialization
-    await this.initializeNetwork();
+    await this.establishConnection();
+    this.startHealthCheck();
+    this.startKeepAlive();
   }
 
   /**
-   * Initialize the fallback transport.
-   * 
-   * @returns {Promise<void>} Resolves when fallback is initialized
+   * Establish network connection.
    * @private
    */
-  private async initializeFallbackTransport(): Promise<void> {
-    if (typeof this.fallbackConfig === 'string') {
-      // Handle built-in fallback types
-      switch (this.fallbackConfig) {
-        case 'file': {
-          // Dynamic import to avoid circular dependencies
-          const { FileTransport } = await import('./implementations/FileTransport');
-          this.fallbackTransport = new FileTransport({
-            name: `${this.name}-fallback`,
-            enabled: true,
-            filepath: `./logs/fallback-${this.name}.log`,
-          });
-          break;
-        }
+  private async establishConnection(): Promise<void> {
+    try {
+      this.connectionState = 'connecting';
+      this.emit('connecting');
 
-        case 'console': {
-          const { ConsoleTransport } = await import('./implementations/ConsoleTransport');
-          this.fallbackTransport = new ConsoleTransport({
-            name: `${this.name}-fallback`,
-            enabled: true,
-          });
-          break;
-        }
+      // Set connection timeout
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Connection timeout')), this.connectionTimeout);
+      });
 
-        default:
-          throw new Error(`Unknown fallback transport: ${this.fallbackConfig}`);
-      }
-    } else if (this.fallbackConfig && typeof this.fallbackConfig === 'object') {
-      // Check if it's a Transport instance or TransportOptions
-      if ('log' in this.fallbackConfig && 'close' in this.fallbackConfig) {
-        // It's a Transport instance
-        this.fallbackTransport = this.fallbackConfig as ITransport;
-      } else {
-        // It's TransportOptions - we need to create an appropriate transport
-        throw new Error(`TransportOptions provided as fallback but automatic conversion not implemented. Please provide a Transport instance or string type.`);
-      }
-    }
+      // Race between connection and timeout
+      await Promise.race([
+        this.connect(),
+        timeoutPromise,
+      ]);
 
-    // Initialize the fallback transport
-    if (this.fallbackTransport) {
-      await this.fallbackTransport.init?.();
-    }
-  }
+      this.connectionState = 'connected';
+      this.reconnectAttempt = 0;
+      this.emit('connected');
 
-  /**
-   * Send a batch of logs over the network.
-   * 
-   * Implements retry logic and circuit breaker pattern.
-   * 
-   * @param {unknown} data - Prepared batch data
-   * @param {NetworkBatch} batch - Original batch object
-   * @returns {Promise<void>} Resolves when batch is sent
-   * @protected
-   */
-  protected async sendBatch(data: unknown, batch: NetworkBatch): Promise<void> {
-    // Check circuit breaker
-    if (this.isCircuitBreakerOpen()) {
-      throw new Error('Circuit breaker is open - transport temporarily disabled');
-    }
+      // Process offline queue
+      await this.processOfflineQueue();
 
-    let lastError: Error | undefined;
-    let retryCount = 0;
+    } catch (error) {
+      this.connectionState = 'disconnected';
+      this.handleError(error as Error);
+      this.emit('connectionError', error);
 
-    while (retryCount <= this.retryOptions.maxRetries) {
-      try {
-        // Attempt to send
-        await this.performNetworkRequest(data, batch);
-
-        // Success - reset failure tracking
-        this.consecutiveFailures = 0;
-        this.circuitBreakerOpen = false;
-
-        return;
-      } catch (error) {
-        lastError = error as Error;
-        
-        // Check if we should retry
-        if (!this.shouldRetryError(error as Error, retryCount)) {
-          break;
-        }
-
-        // Calculate retry delay
-        const delay = this.calculateRetryDelay(retryCount);
-        
-        // Log retry attempt
-        this.emit('retry', {
-          transport: this.name,
-          batch: batch.id,
-          attempt: retryCount + 1,
-          delay,
-          error: lastError.message,
-        });
-
-        // Wait before retrying
-        await this.sleep(delay);
-        retryCount++;
-      }
-    }
-
-    // All retries failed
-    if (lastError) {
-      this.handleNetworkFailure(lastError, batch);
-      throw lastError;
-    } else {
-      const error = new Error('Network request failed with unknown error');
-      this.handleNetworkFailure(error, batch);
+      // Schedule reconnection
+      this.scheduleReconnect();
+      
       throw error;
     }
   }
 
   /**
-   * Check if circuit breaker is currently open.
-   * 
-   * @returns {boolean} True if circuit breaker is open
-   * @protected
+   * Schedule reconnection attempt.
+   * @private
    */
-  protected isCircuitBreakerOpen(): boolean {
-    if (!this.circuitBreakerOpen) {
-      return false;
-    }
-
-    // Check if cooldown period has passed
-    if (Date.now() >= this.circuitBreakerOpenUntil) {
-      this.circuitBreakerOpen = false;
-      this.consecutiveFailures = 0;
-      return false;
-    }
-
-    return true;
-  }
-
-  /**
-   * Handle a network failure, potentially opening circuit breaker.
-   * 
-   * @param {Error} error - The error that occurred
-   * @param {NetworkBatch} batch - The failed batch
-   * @protected
-   */
-  protected handleNetworkFailure(error: Error, batch: NetworkBatch): void {
-    // Increment failure count
-    this.consecutiveFailures++;
-
-    // Check if we should open circuit breaker
-    if (this.consecutiveFailures >= this.maxConsecutiveFailures) {
-      this.circuitBreakerOpen = true;
-      this.circuitBreakerOpenUntil = Date.now() + this.circuitBreakerCooldown;
-      
-      this.emit('circuitBreakerOpen', {
-        transport: this.name,
-        failures: this.consecutiveFailures,
-        until: new Date(this.circuitBreakerOpenUntil),
+  private scheduleReconnect(): void {
+    if (this.reconnectAttempt >= this.maxReconnectAttempts) {
+      this.emit('reconnectFailed', {
+        attempts: this.reconnectAttempt,
       });
-    }
-
-    // Write to DLQ if enabled
-    if (this.dlqEnabled) {
-      this.writeToDLQ(batch, error);
-    }
-
-    // Use fallback transport if available
-    if (this.fallbackTransport && this.fallbackTransport.enabled) {
-      this.sendToFallback(batch);
-    }
-  }
-
-  /**
-   * Determine if an error should trigger a retry.
-   * 
-   * @param {Error} error - The error to check
-   * @param {number} retryCount - Current retry attempt
-   * @returns {boolean} True if should retry
-   * @protected
-   */
-  protected shouldRetryError(error: Error, retryCount: number): boolean {
-    if (retryCount >= this.retryOptions.maxRetries) {
-      return false;
-    }
-
-    return this.retryOptions.retryCondition(error);
-  }
-
-  /**
-   * Default retry condition - retry on network errors and 5xx status codes.
-   * 
-   * @param {Error} error - The error to check
-   * @returns {boolean} True if error is retryable
-   * @protected
-   */
-  protected defaultRetryCondition(error: Error): boolean {
-    // Network errors
-    if (error.message.includes('ECONNREFUSED') ||
-        error.message.includes('ETIMEDOUT') ||
-        error.message.includes('ENOTFOUND') ||
-        error.message.includes('ENETUNREACH')) {
-      return true;
-    }
-
-    // HTTP status codes (if error includes status)
-    const statusMatch = error.message.match(/status[:\s]+(\d+)/i);
-    if (statusMatch) {
-      const status = parseInt(statusMatch[1], 10);
-      // Retry on 5xx errors and specific 4xx errors
-      return status >= 500 || status === 429 || status === 408;
-    }
-
-    return false;
-  }
-
-  /**
-   * Calculate retry delay with exponential backoff and jitter.
-   * 
-   * @param {number} retryCount - Current retry attempt (0-based)
-   * @returns {number} Delay in milliseconds
-   * @protected
-   */
-  protected calculateRetryDelay(retryCount: number): number {
-    // Exponential backoff
-    let delay = this.retryOptions.initialDelay * 
-                Math.pow(this.retryOptions.backoffFactor, retryCount);
-
-    // Cap at maximum delay
-    delay = Math.min(delay, this.retryOptions.maxDelay);
-
-    // Add jitter if enabled
-    if (this.retryOptions.jitter) {
-      // Random jitter between 0-25% of delay
-      const jitter = delay * 0.25 * Math.random();
-      delay = delay + jitter;
-    }
-
-    return Math.floor(delay);
-  }
-
-  /**
-   * Write failed batch to Dead Letter Queue.
-   * 
-   * @param {NetworkBatch} batch - The failed batch
-   * @param {Error} error - The error that caused the failure
-   * @protected
-   */
-  protected writeToDLQ(batch: NetworkBatch, error: Error): void {
-    if (!this.dlqFileManager) {
       return;
     }
 
-    try {
-      const dlqEntry = {
-        timestamp: new Date().toISOString(),
-        transport: this.name,
-        error: {
-          message: error.message,
-          stack: error.stack,
-          code: (error as Error & { code?: string | number }).code,
-        },
-        batch: {
-          id: batch.id,
-          entryCount: batch.entries.length,
-          sizeBytes: batch.sizeBytes,
-          retryCount: batch.retryCount,
-          createdAt: new Date(batch.createdAt).toISOString(),
-        },
-        entries: batch.entries,
-      };
-
-      this.dlqFileManager.appendToFile(JSON.stringify(dlqEntry));
-    } catch (dlqError) {
-      // Log but don't throw - DLQ failure shouldn't break transport
-      this.handleError(new Error(`DLQ write failed: ${dlqError}`));
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
     }
+
+    // Calculate delay with exponential backoff
+    const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempt);
+    
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectAttempt++;
+      this.emit('reconnecting', {
+        attempt: this.reconnectAttempt,
+        maxAttempts: this.maxReconnectAttempts,
+      });
+
+      this.establishConnection().catch(() => {
+        // Error already handled in establishConnection
+      });
+    }, delay);
   }
 
   /**
-   * Send failed batch to fallback transport.
-   * 
-   * @param {NetworkBatch} batch - The failed batch
-   * @protected
+   * Process queued entries after reconnection.
+   * @private
    */
-  protected async sendToFallback(batch: NetworkBatch): Promise<void> {
-    if (!this.fallbackTransport) {
-      return;
-    }
+  private async processOfflineQueue(): Promise<void> {
+    if (this.offlineQueue.length === 0) return;
 
-    try {
-      // Send each entry to fallback
-      if (this.fallbackTransport) {
-        await Promise.all(
-          batch.entries.map(entry => this.fallbackTransport?.log(entry))
-        );
+    const queue = [...this.offlineQueue];
+    this.offlineQueue = [];
 
-        this.emit('fallback', {
-          transport: this.name,
-          fallback: this.fallbackTransport.name,
-          count: batch.entries.length,
-        });
+    this.emit('processingOfflineQueue', {
+      size: queue.length,
+    });
+
+    for (const entry of queue) {
+      try {
+        await this.doLog(entry);
+      } catch (error) {
+        // Re-queue on failure
+        if (this.queueWhenOffline && this.connectionState !== 'connected') {
+          this.queueEntry(entry);
+        }
       }
-    } catch (fallbackError) {
-      // Log but don't throw - fallback failure shouldn't break transport
-      this.handleError(new Error(`Fallback transport failed: ${fallbackError}`));
     }
   }
 
   /**
-   * Sleep for specified milliseconds.
+   * Queue entry when offline.
    * 
-   * @param {number} ms - Milliseconds to sleep
-   * @returns {Promise<void>} Resolves after delay
+   * @param {LogEntry} entry - Entry to queue
+   * @private
+   */
+  private queueEntry(entry: LogEntry): void {
+    if (this.offlineQueue.length >= this.maxOfflineQueueSize) {
+      // Drop oldest entry
+      const dropped = this.offlineQueue.shift();
+      this.stats.custom.droppedOffline = (this.stats.custom.droppedOffline || 0) + 1;
+    }
+
+    this.offlineQueue.push(entry);
+    this.stats.queued = this.offlineQueue.length;
+  }
+
+  /**
+   * Log a single entry.
+   * 
+   * @param {LogEntry} entry - Log entry
+   * @returns {Promise<void>} Resolves when logged
    * @protected
    */
-  protected sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+  protected async doLog(entry: LogEntry): Promise<void> {
+    if (this.connectionState !== 'connected') {
+      if (this.queueWhenOffline) {
+        this.queueEntry(entry);
+        return;
+      } else {
+        throw new Error('Transport is not connected');
+      }
+    }
+
+    try {
+      // Set request timeout
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Request timeout')), this.requestTimeout);
+      });
+
+      // Race between send and timeout
+      await Promise.race([
+        this.sendData(this.formatForNetwork(entry)),
+        timeoutPromise,
+      ]);
+
+    } catch (error) {
+      // Check if connection error
+      if (this.isConnectionError(error as Error)) {
+        this.handleDisconnection();
+        
+        if (this.queueWhenOffline) {
+          this.queueEntry(entry);
+        } else {
+          throw error;
+        }
+      } else {
+        throw error;
+      }
+    }
   }
 
   /**
-   * Build headers for network request.
+   * Handle disconnection.
+   * @private
+   */
+  private handleDisconnection(): void {
+    if (this.connectionState === 'connected') {
+      this.connectionState = 'disconnected';
+      this.emit('disconnected');
+      this.scheduleReconnect();
+    }
+  }
+
+  /**
+   * Start health check timer.
+   * @private
+   */
+  private startHealthCheck(): void {
+    if (this.healthCheckInterval <= 0) return;
+
+    this.healthCheckTimer = setInterval(async () => {
+      if (this.connectionState === 'connected') {
+        try {
+          await this.checkHealth();
+        } catch (error) {
+          this.handleDisconnection();
+        }
+      }
+    }, this.healthCheckInterval);
+
+    if (this.healthCheckTimer.unref) {
+      this.healthCheckTimer.unref();
+    }
+  }
+
+  /**
+   * Start keep-alive timer.
+   * @private
+   */
+  private startKeepAlive(): void {
+    if (this.keepAliveInterval <= 0) return;
+
+    this.keepAliveTimer = setInterval(async () => {
+      if (this.connectionState === 'connected') {
+        try {
+          await this.sendKeepAlive();
+        } catch (error) {
+          // Ignore keep-alive errors
+        }
+      }
+    }, this.keepAliveInterval);
+
+    if (this.keepAliveTimer.unref) {
+      this.keepAliveTimer.unref();
+    }
+  }
+
+  /**
+   * Format entry for network transmission.
    * 
-   * Combines configured headers with dynamic headers.
-   * 
-   * @returns {Promise<Record<string, string>>} Headers object
+   * @param {LogEntry} entry - Log entry
+   * @returns {any} Formatted data
    * @protected
    */
-  protected async buildHeaders(): Promise<Record<string, string>> {
-    const headers: Record<string, string> = {
-      ...this.headers,
-      'User-Agent': `MagicLogger/${this.constructor.name}`,
-      'X-Transport-Name': this.name,
-    };
-
-    return headers;
+  protected formatForNetwork(entry: LogEntry): any {
+    // Default implementation - can be overridden
+    return JSON.stringify(entry);
   }
 
   /**
-   * Get transport statistics with network-specific metrics.
+   * Check if error is a connection error.
    * 
-   * @returns {TransportStats} Current statistics
+   * @param {Error} error - Error to check
+   * @returns {boolean} Whether connection error
+   * @protected
    */
-  public getStats(): TransportStats {
-    const stats = super.getStats();
+  protected isConnectionError(error: Error): boolean {
+    // Default implementation - can be overridden
+    const connectionErrors = [
+      'ECONNREFUSED',
+      'ECONNRESET',
+      'ETIMEDOUT',
+      'EHOSTUNREACH',
+      'ENETUNREACH',
+      'EPIPE',
+    ];
 
-    // Add network-specific stats
-    stats.custom = {
-      ...stats.custom,
-      consecutiveFailures: this.consecutiveFailures,
-      circuitBreakerOpen: this.circuitBreakerOpen,
-      dlqEnabled: this.dlqEnabled,
-      fallbackEnabled: !!this.fallbackTransport,
-    };
-
-    return stats;
+    return connectionErrors.some(code => 
+      error.message.includes(code) || (error as any).code === code
+    );
   }
 
   /**
-   * Close the transport and clean up resources.
+   * Close the transport.
    * 
    * @returns {Promise<void>} Resolves when closed
    * @protected
    */
   protected async doClose(): Promise<void> {
-    // Close parent resources
-    await super.doClose();
-
-    // Close fallback transport
-    if (this.fallbackTransport) {
-      await this.fallbackTransport.close();
+    // Stop timers
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = undefined;
     }
 
-    // Clean up DLQ
-    if (this.dlqFileManager) {
-      // Just ensure any pending writes are flushed
-      // Don't delete files as they may be needed for recovery
+    if (this.healthCheckTimer) {
+      clearInterval(this.healthCheckTimer);
+      this.healthCheckTimer = undefined;
     }
 
-    // Clean up network resources
-    await this.closeNetwork();
+    if (this.keepAliveTimer) {
+      clearInterval(this.keepAliveTimer);
+      this.keepAliveTimer = undefined;
+    }
+
+    // Disconnect
+    if (this.connectionState !== 'disconnected') {
+      await this.disconnect();
+      this.connectionState = 'disconnected';
+    }
+
+    // Clear offline queue
+    this.offlineQueue = [];
   }
 
   /**
-   * Abstract method for transport-specific network initialization.
+   * Get connection state.
    * 
-   * @returns {Promise<void>} Resolves when initialized
-   * @protected
-   * @abstract
+   * @returns {ConnectionState} Current state
    */
-  protected abstract initializeNetwork(): Promise<void>;
+  public getConnectionState(): ConnectionState {
+    return this.connectionState;
+  }
 
   /**
-   * Abstract method for performing the actual network request.
+   * Check if transport is healthy.
    * 
-   * @param {unknown} data - The data to send
-   * @param {NetworkBatch} batch - The batch being sent
-   * @returns {Promise<void>} Resolves when request succeeds
-   * @protected
-   * @abstract
+   * @returns {boolean} Whether healthy
    */
-  protected abstract performNetworkRequest(data: unknown, batch: NetworkBatch): Promise<void>;
+  public async isHealthy(): Promise<boolean> {
+    if (this.connectionState !== 'connected') {
+      return false;
+    }
+
+    try {
+      await this.checkHealth();
+      return true;
+    } catch {
+      return false;
+    }
+  }
 
   /**
-   * Abstract method for transport-specific cleanup.
+   * Get transport statistics.
    * 
-   * @returns {Promise<void>} Resolves when cleaned up
+   * @returns {object} Transport statistics
+   */
+  public getStats(): any {
+    const baseStats = super.getStats();
+    
+    return {
+      ...baseStats,
+      custom: {
+        ...baseStats.custom,
+        connectionState: this.connectionState,
+        offlineQueueSize: this.offlineQueue.length,
+        reconnectAttempts: this.reconnectAttempt,
+        droppedOffline: this.stats.custom.droppedOffline || 0,
+      },
+    };
+  }
+
+  /**
+   * Force reconnection.
+   * 
+   * @returns {Promise<void>} Resolves when reconnected
+   */
+  public async reconnect(): Promise<void> {
+    if (this.connectionState !== 'disconnected') {
+      await this.disconnect();
+    }
+
+    this.reconnectAttempt = 0;
+    await this.establishConnection();
+  }
+
+  // Abstract methods to be implemented by subclasses
+
+  /**
+   * Establish connection to the network resource.
+   * 
+   * @returns {Promise<void>} Resolves when connected
    * @protected
    * @abstract
    */
-  protected abstract closeNetwork(): Promise<void>;
+  protected abstract connect(): Promise<void>;
+
+  /**
+   * Disconnect from the network resource.
+   * 
+   * @returns {Promise<void>} Resolves when disconnected
+   * @protected
+   * @abstract
+   */
+  protected abstract disconnect(): Promise<void>;
+
+  /**
+   * Send data over the network.
+   * 
+   * @param {any} data - Data to send
+   * @returns {Promise<void>} Resolves when sent
+   * @protected
+   * @abstract
+   */
+  protected abstract sendData(data: any): Promise<void>;
+
+  /**
+   * Check connection health.
+   * 
+   * @returns {Promise<void>} Resolves if healthy
+   * @protected
+   * @abstract
+   */
+  protected abstract checkHealth(): Promise<void>;
+
+  /**
+   * Send keep-alive signal.
+   * 
+   * @returns {Promise<void>} Resolves when sent
+   * @protected
+   */
+  protected async sendKeepAlive(): Promise<void> {
+    // Default implementation - can be overridden
+    await this.checkHealth();
+  }
 }

@@ -7,6 +7,7 @@ import { TagManager } from './core/TagManager';
 import { TransportManager } from './transports/base/TransportManager';
 import { ConsoleTransport } from './transports/base/implementations/ConsoleTransport';
 import { FileTransport } from './transports/base/implementations/FileTransport';
+import { AsyncLogger } from './core/AsyncLogger';
 import type { 
   LoggerOptions, 
   LogLevel, 
@@ -14,7 +15,8 @@ import type {
   ColorName,
   Transport,
   LogEntry,
-  IdGenerator
+  IdGenerator,
+  AsyncOptions
 } from './types';
 import type { LoggerBase } from './core/LoggerBase';
 import * as path from 'path';
@@ -24,7 +26,10 @@ import { FileManager } from './core/FileManager';
 import { IS_PATH_REGEX } from './constants/paths';
 
 /**
- * Extended logger options that include transport configuration.
+ * Extended logger options that include transport and async configuration.
+ * 
+ * @interface ExtendedLoggerOptions
+ * @extends {LoggerOptions}
  */
 export interface ExtendedLoggerOptions extends LoggerOptions {
   /**
@@ -56,14 +61,22 @@ export interface ExtendedLoggerOptions extends LoggerOptions {
    * @default true
    */
   enableTagManager?: boolean;
+
+  /**
+   * Async logging configuration.
+   * Enables high-performance async logging with ring buffer.
+   */
+  async?: AsyncOptions;
 }
 
 /**
- * Main Logger class that integrates the transport system.
+ * Main Logger class that integrates the transport system and async logging.
  * 
  * This class automatically detects whether it's running in a Node.js or Browser environment
  * and instantiates the appropriate logger (NodeLogger or BrowserLogger) accordingly.
- * It also manages transports for flexible log delivery to various destinations.
+ * It manages transports for flexible log delivery and provides both sync and async APIs.
+ * 
+ * @class Logger
  * 
  * @example
  * ```typescript
@@ -73,12 +86,19 @@ export interface ExtendedLoggerOptions extends LoggerOptions {
  *     new ConsoleTransport({ level: 'debug' }),
  *     new FileTransport({ filepath: './app.log' }),
  *     new S3Transport({ bucket: 'my-logs' })
- *   ]
+ *   ],
+ *   async: {
+ *     enabled: true,
+ *     buffer: { size: 10000 }
+ *   }
  * });
  * 
- * // Log messages are sent to all transports
+ * // Sync logging
  * logger.info('Application started');
- * logger.error('Database connection failed', { error: err });
+ * 
+ * // Async logging - two ways
+ * logger.async.info('High frequency log');
+ * logger.info('Another log', { async: true });
  * ```
  */
 export class Logger {
@@ -125,7 +145,31 @@ export class Logger {
   private readonly useLegacyOutput: boolean;
 
   /**
-   * Create a new logger instance with transport support.
+   * Async logger instance for high-performance logging.
+   * @private
+   */
+  private asyncLogger?: AsyncLogger;
+
+  /**
+   * Public async logging interface.
+   * Provides async methods that use ring buffer for zero-allocation logging.
+   * 
+   * @readonly
+   */
+  public readonly async: {
+    info: (message: string, meta?: any) => void;
+    warn: (message: string, meta?: any) => void;
+    error: (message: string, meta?: any) => void;
+    debug: (message: string, meta?: any) => void;
+    success: (message: string, meta?: any) => void;
+    log: (message: string, level?: LogLevel, meta?: any) => void;
+    flush: () => void;
+    flushAndWait: () => Promise<void>;
+    getStats: () => any;
+  };
+
+  /**
+   * Create a new logger instance with transport and async support.
    *
    * @param {ExtendedLoggerOptions} options - Logger configuration options
    */
@@ -161,6 +205,32 @@ export class Logger {
 
     // Initialize transports
     this.initializeTransports();
+
+    // Initialize async logger if enabled
+    if (options.async?.enabled) {
+      this.asyncLogger = new AsyncLogger(
+        {
+          buffer: options.async.buffer,
+          useWorkers: options.async.useWorkers,
+          workerPath: options.async.workerPath,
+          onFlush: (entries) => this.flushAsyncEntries(entries),
+        },
+        this.createLogEntry.bind(this)
+      );
+    }
+
+    // Create async interface
+    this.async = {
+      info: (message: string, meta?: any) => this.logAsync('info', message, meta),
+      warn: (message: string, meta?: any) => this.logAsync('warn', message, meta),
+      error: (message: string, meta?: any) => this.logAsync('error', message, meta),
+      debug: (message: string, meta?: any) => this.logAsync('debug', message, meta),
+      success: (message: string, meta?: any) => this.logAsync('success', message, meta),
+      log: (message: string, level: LogLevel = 'info', meta?: any) => this.logAsync(level, message, meta),
+      flush: () => this.asyncLogger?.flush(),
+      flushAndWait: () => this.asyncLogger?.flushAndWait() || Promise.resolve(),
+      getStats: () => this.asyncLogger?.getStats() || {},
+    };
   }
 
   /**
@@ -332,13 +402,60 @@ export class Logger {
   }
 
   /**
+   * Log a message asynchronously using the ring buffer.
+   * 
+   * @param {LogLevel} level - Log level
+   * @param {string} message - Log message
+   * @param {any} [meta] - Additional metadata
+   * @private
+   */
+  private logAsync(level: LogLevel, message: string, meta?: any): void {
+    if (!this.asyncLogger) {
+      // Fallback to sync logging if async not enabled
+      this.log(message, level, meta);
+      return;
+    }
+
+    this.asyncLogger.log(message, level, meta);
+  }
+
+  /**
+   * Process async log entries when buffer is flushed.
+   * 
+   * @param {LogEntry[]} entries - Log entries to process
+   * @returns {Promise<void>} Resolves when entries are processed
+   * @private
+   */
+  private async flushAsyncEntries(entries: LogEntry[]): Promise<void> {
+    // Send to transports in batches
+    if (this.transportManager) {
+      try {
+        await Promise.all(
+          entries.map(entry => this.transportManager.log(entry))
+        );
+      } catch (error) {
+        console.error('[Logger] Failed to flush async logs:', error);
+      }
+    }
+  }
+
+  /**
    * Log a message at a specified level.
+   * Supports both sync and async logging via meta.async flag.
    *
    * @param {string} msg - The message to log
    * @param {LogLevel} level - Log level (default: 'info')
    * @param {any} [meta] - Additional metadata or error
    */
   public log(msg: string, level: LogLevel = 'info', meta?: any): void {
+    // Check for async flag in meta
+    if (meta?.async === true && this.asyncLogger) {
+      // Remove async flag from meta
+      const { async: _, ...cleanMeta } = meta;
+      this.logAsync(level, msg, cleanMeta);
+      return;
+    }
+
     // Create log entry
     const entry = this.createLogEntry(level, msg, meta);
 
@@ -520,6 +637,11 @@ export class Logger {
    * @returns {Promise<void>} Resolves when closed
    */
   public async close(): Promise<void> {
+    // Close async logger first
+    if (this.asyncLogger) {
+      await this.asyncLogger.close();
+    }
+
     await this.transportManager.close();
     
     // Close legacy logger if it has a close method

@@ -1,289 +1,643 @@
-import type { LoggerOptions, ColorName, StylePreset, LogLevel } from '../types';
-import { ThemeManager } from '../theme/ThemeManager';
+// File: src/core/LoggerBase.ts
+
+import { EventEmitter } from 'events';
+import type { 
+  LoggerOptions, 
+  LogLevel, 
+  ColorName, 
+  StylePreset,
+  ThemeDefinition 
+} from '../types';
+import { COLORS } from '../constants/colors';
+import { PRESETS } from '../constants/presets';
+import { DEFAULT_THEME } from '../constants/themes';
 
 /**
- * Base abstract class for all logger implementations.
- *
- * This class provides common configuration, state management, and theme support
- * that is shared across both Node.js and browser logger implementations.
- * LoggerBase handles the core configuration and implements the main logging
- * interface, while leaving environment-specific implementations to subclasses.
- *
+ * Abstract base class for all logger implementations.
+ * 
+ * This class provides core functionality shared between Node.js and Browser loggers:
+ * - Theme management
+ * - Color and style handling
+ * - Preset management
+ * - Event emission
+ * - Base configuration
+ * 
  * @abstract
- * @class
+ * @class LoggerBase
+ * @extends {EventEmitter}
+ * 
+ * @example
+ * ```typescript
+ * class CustomLogger extends LoggerBase {
+ *   public info(msg: string): void {
+ *     this.print('INFO', msg, 'info');
+ *   }
+ *   
+ *   protected print(level: string, msg: string, preset: StylePreset): void {
+ *     // Custom implementation
+ *   }
+ * }
+ * ```
  */
-export abstract class LoggerBase {
+export abstract class LoggerBase extends EventEmitter {
   /**
-   * Optional unique identifier for this logger instance.
-   * Can be used for filtering or identifying logs from specific components.
+   * Logger instance ID.
+   * @protected
    */
-  public readonly id?: string;
+  protected id?: string;
 
   /**
-   * Optional array of tags associated with this logger instance.
-   * Useful for categorizing or filtering logs.
+   * Global tags for all logs.
+   * @protected
    */
-  public readonly tags?: string[];
+  protected tags?: string[];
 
   /**
-   * Optional context object with additional metadata for this logger.
-   * This data can be included with each log message.
+   * Global context data.
+   * @protected
    */
-  public readonly context?: Record<string, any>;
+  protected context?: Record<string, any>;
 
   /**
-   * Controls whether debug-level messages are displayed.
+   * Whether verbose (debug) mode is enabled.
    * @protected
    */
   protected verbose: boolean;
 
   /**
-   * Controls whether ANSI color codes or styling should be applied to log messages.
+   * Whether to use colors in output.
    * @protected
    */
   protected useColors: boolean;
 
   /**
-   * If true, the logger will throw errors for unknown log levels.
-   * If false, unknown levels will be treated as custom prefixes.
+   * Whether to enforce strict log levels.
    * @protected
    */
   protected strictLevels: boolean;
 
   /**
-   * Instance of ThemeManager used to load and apply themes.
+   * Current theme configuration.
    * @protected
    */
-  protected themeManager: ThemeManager;
+  protected theme: Record<string, ColorName[]>;
 
   /**
-   * The current theme configuration mapping log levels to color/style arrays.
+   * Custom presets added by user.
    * @protected
    */
-  protected theme: Record<string, ColorName[]> = {};
+  protected customPresets: Record<string, ColorName[]> = {};
 
   /**
-   * Creates a new LoggerBase instance with the specified options.
-   *
-   * @param {LoggerOptions} options - Configuration options for the logger
+   * Performance tracking data.
+   * @protected
+   */
+  protected performanceData: Map<string, {
+    count: number;
+    totalTime: number;
+    minTime: number;
+    maxTime: number;
+  }> = new Map();
+
+  /**
+   * Log level hierarchy for filtering.
+   * @protected
+   */
+  protected readonly levelHierarchy: Record<LogLevel, number> = {
+    debug: 0,
+    info: 1,
+    warn: 2,
+    error: 3,
+    success: 1, // Same as info
+  };
+
+  /**
+   * Maximum listeners to prevent memory leaks.
+   * @protected
+   */
+  protected readonly maxListeners = 100;
+
+  /**
+   * Creates a new LoggerBase instance.
+   * 
+   * @param {LoggerOptions} options - Logger configuration
    */
   constructor(options: LoggerOptions = {}) {
-    // Initialize basic configuration
-    this.verbose = options.verbose ?? false;
-    this.useColors = options.useColors ?? true;
-    this.strictLevels = options.strictLevels ?? false;
+    super();
 
-    // Set metadata
     this.id = options.id;
     this.tags = options.tags;
     this.context = options.context;
+    this.verbose = options.verbose || false;
+    this.useColors = options.useColors !== false;
+    this.strictLevels = options.strictLevels || false;
 
-    // Initialize the theme manager
-    this.themeManager = new ThemeManager();
-
-    // Process theme option
-    if (options.theme) {
-      if (typeof options.theme === 'string') {
-        // Handle string theme name by loading from ThemeManager
-        const loadedTheme = this.themeManager.getTheme(options.theme);
-        if (Object.keys(loadedTheme).length === 0) {
-          console.warn(`[Logger] Theme '${options.theme}' not found, using default theme`);
-        }
-        this.theme = loadedTheme;
-      } else if (typeof options.theme === 'object' && !Array.isArray(options.theme)) {
-        // Handle direct theme object
-        this.theme = options.theme as Record<string, ColorName[]>;
-      } else {
-        throw new Error(`[Logger] Invalid theme format: ${options.theme}`);
-      }
-    }
-  }
-
-  /**
-   * Enables or disables verbose mode, which controls whether debug-level messages are displayed.
-   *
-   * @param {boolean} enabled - Set to true to enable verbose mode (show debug messages)
-   */
-  public setVerbose(enabled: boolean): void {
-    this.verbose = enabled;
-  }
-
-  /**
-   * Enables or disables colored output.
-   * When disabled, all log messages will be output without ANSI color codes or styling.
-   *
-   * @param {boolean} enabled - Set to true to enable colored output
-   */
-  public setColorsEnabled(enabled: boolean): void {
-    this.useColors = enabled;
-  }
-
-  /**
-   * Applies a new theme to the logger.
-   *
-   * @param {Record<string, ColorName[]> | string} theme - Either a theme name (string) that will be loaded from
-   *                                                       the ThemeManager, or a direct theme configuration object
-   */
-  public setTheme(theme: Record<string, ColorName[]> | string): void {
-    if (typeof theme === 'string') {
-      // Load theme by name from the ThemeManager
-      const loadedTheme = this.themeManager.getTheme(theme);
-      if (Object.keys(loadedTheme).length === 0) {
-        console.warn(`[Logger] Theme '${theme}' not found, using default theme`);
-      }
-      this.theme = loadedTheme;
+    // Initialize theme
+    if (typeof options.theme === 'string') {
+      this.theme = this.loadTheme(options.theme);
+    } else if (typeof options.theme === 'object') {
+      this.theme = { ...DEFAULT_THEME, ...options.theme };
     } else {
-      // Use direct theme object
-      this.theme = theme;
+      this.theme = { ...DEFAULT_THEME };
     }
+
+    // Set max listeners
+    this.setMaxListeners(this.maxListeners);
+
+    // Emit ready event
+    process.nextTick(() => {
+      this.emit('ready', { id: this.id });
+    });
   }
 
   /**
-   * Main entry point for logging messages with a specified log level.
-   * This method routes messages to the appropriate level-specific method.
-   *
-   * @param {string} msg - The message to log
-   * @param {LogLevel} level - The log level to use (defaults to 'info')
-   */
-  public log(msg: string, level: LogLevel = 'info'): void {
-    switch (level) {
-      case 'info':
-        return this.info(msg);
-      case 'warn':
-        return this.warn(msg);
-      case 'error':
-        return this.error(msg);
-      case 'debug':
-        return this.debug(msg);
-      case 'success':
-        return this.success(msg);
-      default:
-        if (this.strictLevels) throw new Error(`[Logger] Unknown level: ${level}`);
-        return this.custom(msg, ['white'], level.toUpperCase());
-    }
-  }
-
-  /**
-   * Logs an informational message.
+   * Abstract method for logging info messages.
    * @abstract
-   * @param {string} msg - The message to log
    */
   public abstract info(msg: string): void;
 
   /**
-   * Logs a warning message.
+   * Abstract method for logging warning messages.
    * @abstract
-   * @param {string} msg - The message to log
    */
   public abstract warn(msg: string): void;
 
   /**
-   * Logs an error message.
+   * Abstract method for logging error messages.
    * @abstract
-   * @param {string} msg - The message to log
    */
   public abstract error(msg: string): void;
 
   /**
-   * Logs a debug message. Only visible when verbose mode is enabled.
+   * Abstract method for logging debug messages.
    * @abstract
-   * @param {string} msg - The message to log
    */
   public abstract debug(msg: string): void;
 
   /**
-   * Logs a success message.
+   * Abstract method for logging success messages.
    * @abstract
-   * @param {string} msg - The message to log
    */
   public abstract success(msg: string): void;
 
   /**
-   * Logs a message with custom styling and an optional prefix.
+   * Abstract method for custom logging.
    * @abstract
-   * @param {string} msg - The message to log
-   * @param {ColorName[]} colors - Array of color/style names to apply
-   * @param {string} [prefix] - Optional prefix to add before the message
    */
-  public abstract custom(msg: string, colors: ColorName[], prefix?: string): void;
+  public abstract custom(msg: string, colors: ColorName[], prefix: string): void;
 
   /**
-   * Logs a message using a predefined style preset.
+   * Abstract method for styled logging.
    * @abstract
-   * @param {string} msg - The message to log
-   * @param {StylePreset} preset - The name of the style preset to use
    */
   public abstract styled(msg: string, preset: StylePreset): void;
 
   /**
-   * Creates a styled header section with the specified title.
+   * Abstract method for headers.
    * @abstract
-   * @param {string} title - The title text for the header
-   * @param {ColorName[]} [colors] - Optional array of color/style names to apply
    */
-  public abstract header(title: string, colors?: ColorName[]): void;
+  public abstract header(title: string, colors: ColorName[]): void;
 
   /**
-   * Displays a table with the provided data.
+   * Abstract method for tables.
    * @abstract
-   * @param {Record<string, any>[]} data - Array of objects to display as a table
-   * @param {ColorName[]} [headerColor] - Optional array of color/style names for the header row
    */
-  public abstract table(data: Record<string, any>[], headerColor?: ColorName[]): void;
+  public abstract table(data: Record<string, any>[], headerColor: ColorName[]): void;
 
   /**
-   * Displays a progress bar with the specified completion percentage.
+   * Abstract method for progress bars.
    * @abstract
-   * @param {number} progress - Percentage of completion (0-100)
-   * @param {number} [length] - Optional length of the progress bar in characters
-   * @param {string} [completeChar] - Optional character to use for completed portions
-   * @param {string} [incompleteChar] - Optional character to use for incomplete portions
    */
-  public abstract progressBar(
-    progress: number,
-    length?: number,
-    completeChar?: string,
-    incompleteChar?: string
-  ): void;
+  public abstract progressBar(progress: number, length: number, completeChar: string, incompleteChar: string): void;
 
   /**
-   * Displays a link with optional description text.
-   * In terminal environments, this may show the URL with special formatting.
-   * In browser environments, this may create a clickable link.
+   * Abstract method for links.
    * @abstract
-   * @param {string} url - The URL to link to
-   * @param {string} [description] - Optional description text for the link
    */
   public abstract link(url: string, description?: string): void;
 
   /**
-   * Returns a function that applies the specified colors to text.
+   * Abstract method for color functions.
    * @abstract
-   * @param {...ColorName[]} colors - Color/style names to apply
-   * @returns {Function} A function that takes a string and returns the styled string
    */
   public abstract color(...colors: ColorName[]): (text: string) => string;
 
   /**
-   * Colorizes specific parts of a message according to a color mapping.
+   * Abstract method for coloring parts.
    * @abstract
-   * @param {string} message - The message containing parts to colorize
-   * @param {Record<string, ColorName[]>} colorMap - Map of substrings to color arrays
-   * @returns {string} The message with colorized parts
    */
-  public abstract colorParts?(message: string, colorMap: Record<string, ColorName[]>): string;
+  public abstract colorParts(message: string, colorMap: Record<string, ColorName[]>): string;
 
   /**
-   * Displays a visual separator line for organizing log output.
+   * Abstract method for separators.
    * @abstract
-   * @param {string} [char] - Optional character to use for the separator (default: '-')
-   * @param {number} [length] - Optional length of the separator line (default: 60)
-   * @param {ColorName[]} [colors] - Optional array of color/style names to apply
    */
+  public abstract separator(char: string, length: number): void;
+
   /**
-   * Print a separator line
-   * @param char Character to use for the separator
-   * @param length Length of the separator line
+   * Log a message at any level.
+   * 
+   * @param {string} msg - Message to log
+   * @param {LogLevel} level - Log level
    */
-  public abstract separator(char?: string, length?: number): void;
+  public log(msg: string, level: LogLevel = 'info'): void {
+    // Check if level is valid in strict mode
+    if (this.strictLevels && !this.isValidLevel(level)) {
+      throw new Error(`Invalid log level: ${level}`);
+    }
+
+    // Track performance
+    const startTime = process.hrtime.bigint();
+
+    // Call appropriate method based on level
+    switch (level.toLowerCase()) {
+      case 'info':
+        this.info(msg);
+        break;
+      case 'warn':
+      case 'warning':
+        this.warn(msg);
+        break;
+      case 'error':
+        this.error(msg);
+        break;
+      case 'debug':
+        this.debug(msg);
+        break;
+      case 'success':
+        this.success(msg);
+        break;
+      default:
+        // Use custom for non-standard levels
+        this.custom(msg, ['white'], level.toUpperCase());
+    }
+
+    // Track performance
+    const endTime = process.hrtime.bigint();
+    this.trackPerformance(level, Number(endTime - startTime) / 1000000); // Convert to ms
+
+    // Emit log event
+    this.emit('log', {
+      level,
+      message: msg,
+      timestamp: new Date(),
+      id: this.id,
+      tags: this.tags,
+      context: this.context,
+    });
+  }
+
+  /**
+   * Set verbose mode.
+   * 
+   * @param {boolean} enabled - Whether to enable verbose mode
+   */
+  public setVerbose(enabled: boolean): void {
+    this.verbose = enabled;
+    this.emit('verboseChanged', enabled);
+  }
+
+  /**
+   * Get verbose mode status.
+   * 
+   * @returns {boolean} Whether verbose mode is enabled
+   */
+  public isVerbose(): boolean {
+    return this.verbose;
+  }
+
+  /**
+   * Enable or disable colors.
+   * 
+   * @param {boolean} enabled - Whether to enable colors
+   */
+  public setColorsEnabled(enabled: boolean): void {
+    this.useColors = enabled;
+    this.emit('colorsChanged', enabled);
+  }
+
+  /**
+   * Check if colors are enabled.
+   * 
+   * @returns {boolean} Whether colors are enabled
+   */
+  public areColorsEnabled(): boolean {
+    return this.useColors;
+  }
+
+  /**
+   * Set or update the theme.
+   * 
+   * @param {Record<string, ColorName[]>} theme - Theme definition
+   */
+  public setTheme(theme: Record<string, ColorName[]>): void {
+    this.theme = { ...this.theme, ...theme };
+    this.emit('themeChanged', this.theme);
+  }
+
+  /**
+   * Get the current theme.
+   * 
+   * @returns {Record<string, ColorName[]>} Current theme
+   */
+  public getTheme(): Record<string, ColorName[]> {
+    return { ...this.theme };
+  }
+
+  /**
+   * Add a custom preset.
+   * 
+   * @param {string} name - Preset name
+   * @param {ColorName[]} colors - Colors for the preset
+   */
+  public addPreset(name: string, colors: ColorName[]): void {
+    this.customPresets[name] = colors;
+    this.emit('presetAdded', { name, colors });
+  }
+
+  /**
+   * Remove a custom preset.
+   * 
+   * @param {string} name - Preset name to remove
+   */
+  public removePreset(name: string): void {
+    if (this.customPresets[name]) {
+      delete this.customPresets[name];
+      this.emit('presetRemoved', name);
+    }
+  }
+
+  /**
+   * Get colors for a preset.
+   * 
+   * @param {StylePreset | string} preset - Preset name
+   * @returns {ColorName[]} Colors for the preset
+   * @protected
+   */
+  protected getPresetColors(preset: StylePreset | string): ColorName[] {
+    // Check custom presets first
+    if (this.customPresets[preset]) {
+      return this.customPresets[preset];
+    }
+
+    // Check built-in presets
+    if (PRESETS[preset as StylePreset]) {
+      return PRESETS[preset as StylePreset];
+    }
+
+    // Check theme
+    if (this.theme[preset]) {
+      return this.theme[preset];
+    }
+
+    // Default fallback
+    return ['white'];
+  }
+
+  /**
+   * Load a named theme.
+   * 
+   * @param {string} themeName - Name of the theme to load
+   * @returns {Record<string, ColorName[]>} Theme definition
+   * @protected
+   */
+  protected loadTheme(themeName: string): Record<string, ColorName[]> {
+    // In a real implementation, this would load from a theme registry
+    // For now, just return default theme
+    switch (themeName.toLowerCase()) {
+      case 'dark':
+        return {
+          ...DEFAULT_THEME,
+          info: ['brightCyan'],
+          warn: ['brightYellow'],
+          error: ['brightRed'],
+          debug: ['gray'],
+          success: ['brightGreen'],
+        };
+
+      case 'light':
+        return {
+          ...DEFAULT_THEME,
+          info: ['blue'],
+          warn: ['yellow'],
+          error: ['red'],
+          debug: ['gray'],
+          success: ['green'],
+        };
+
+      case 'minimal':
+        return {
+          ...DEFAULT_THEME,
+          info: ['white'],
+          warn: ['white'],
+          error: ['white'],
+          debug: ['white'],
+          success: ['white'],
+        };
+
+      default:
+        return { ...DEFAULT_THEME };
+    }
+  }
+
+  /**
+   * Check if a log level is valid.
+   * 
+   * @param {string} level - Level to check
+   * @returns {boolean} Whether level is valid
+   * @protected
+   */
+  protected isValidLevel(level: string): boolean {
+    const standardLevels = ['debug', 'info', 'warn', 'warning', 'error', 'success'];
+    return standardLevels.includes(level.toLowerCase());
+  }
+
+  /**
+   * Track performance metrics.
+   * 
+   * @param {string} level - Log level
+   * @param {number} time - Time in milliseconds
+   * @protected
+   */
+  protected trackPerformance(level: string, time: number): void {
+    let data = this.performanceData.get(level);
+    
+    if (!data) {
+      data = {
+        count: 0,
+        totalTime: 0,
+        minTime: Infinity,
+        maxTime: -Infinity,
+      };
+      this.performanceData.set(level, data);
+    }
+
+    data.count++;
+    data.totalTime += time;
+    data.minTime = Math.min(data.minTime, time);
+    data.maxTime = Math.max(data.maxTime, time);
+  }
+
+  /**
+   * Get performance statistics.
+   * 
+   * @returns {object} Performance stats by level
+   */
+  public getPerformanceStats(): Record<string, {
+    count: number;
+    avgTime: number;
+    minTime: number;
+    maxTime: number;
+  }> {
+    const stats: Record<string, any> = {};
+
+    for (const [level, data] of this.performanceData) {
+      stats[level] = {
+        count: data.count,
+        avgTime: data.totalTime / data.count,
+        minTime: data.minTime,
+        maxTime: data.maxTime,
+      };
+    }
+
+    return stats;
+  }
+
+  /**
+   * Reset performance statistics.
+   */
+  public resetPerformanceStats(): void {
+    this.performanceData.clear();
+  }
+
+  /**
+   * Update logger configuration.
+   * 
+   * @param {Partial<LoggerOptions>} options - Options to update
+   */
+  public updateConfig(options: Partial<LoggerOptions>): void {
+    if (options.id !== undefined) this.id = options.id;
+    if (options.tags !== undefined) this.tags = options.tags;
+    if (options.context !== undefined) this.context = options.context;
+    if (options.verbose !== undefined) this.verbose = options.verbose;
+    if (options.useColors !== undefined) this.useColors = options.useColors;
+    if (options.strictLevels !== undefined) this.strictLevels = options.strictLevels;
+
+    if (options.theme !== undefined) {
+      if (typeof options.theme === 'string') {
+        this.theme = this.loadTheme(options.theme);
+      } else {
+        this.theme = { ...this.theme, ...options.theme };
+      }
+    }
+
+    this.emit('configUpdated', options);
+  }
+
+  /**
+   * Get logger configuration.
+   * 
+   * @returns {object} Current configuration
+   */
+  public getConfig(): {
+    id?: string;
+    tags?: string[];
+    context?: Record<string, any>;
+    verbose: boolean;
+    useColors: boolean;
+    strictLevels: boolean;
+    theme: Record<string, ColorName[]>;
+  } {
+    return {
+      id: this.id,
+      tags: this.tags,
+      context: this.context,
+      verbose: this.verbose,
+      useColors: this.useColors,
+      strictLevels: this.strictLevels,
+      theme: { ...this.theme },
+    };
+  }
+
+  /**
+   * Create a child logger with merged configuration.
+   * 
+   * @param {Partial<LoggerOptions>} options - Child logger options
+   * @returns {LoggerBase} Child logger instance
+   */
+  public child(options: Partial<LoggerOptions>): LoggerBase {
+    const ChildClass = this.constructor as typeof LoggerBase;
+    
+    const childOptions: LoggerOptions = {
+      ...this.getConfig(),
+      ...options,
+      // Merge arrays
+      tags: [...(this.tags || []), ...(options.tags || [])],
+      // Deep merge context
+      context: { ...this.context, ...options.context },
+    };
+
+    return new (ChildClass as any)(childOptions);
+  }
+
+  /**
+   * Enable specific log levels.
+   * 
+   * @param {LogLevel[]} levels - Levels to enable
+   */
+  public enableLevels(levels: LogLevel[]): void {
+    // This would integrate with filtering logic
+    this.emit('levelsEnabled', levels);
+  }
+
+  /**
+   * Disable specific log levels.
+   * 
+   * @param {LogLevel[]} levels - Levels to disable  
+   */
+  public disableLevels(levels: LogLevel[]): void {
+    // This would integrate with filtering logic
+    this.emit('levelsDisabled', levels);
+  }
+
+  /**
+   * Set minimum log level.
+   * 
+   * @param {LogLevel} level - Minimum level to log
+   */
+  public setMinLevel(level: LogLevel): void {
+    // This would integrate with filtering logic
+    this.emit('minLevelSet', level);
+  }
+
+  /**
+   * Get event names this logger can emit.
+   * 
+   * @returns {string[]} Event names
+   */
+  public getEventNames(): string[] {
+    return [
+      'ready',
+      'log',
+      'verboseChanged',
+      'colorsChanged',
+      'themeChanged',
+      'presetAdded',
+      'presetRemoved',
+      'configUpdated',
+      'levelsEnabled',
+      'levelsDisabled',
+      'minLevelSet',
+      'error',
+    ];
+  }
+
+  /**
+   * Clean up resources.
+   */
+  public destroy(): void {
+    this.removeAllListeners();
+    this.performanceData.clear();
+    this.customPresets = {};
+  }
 }

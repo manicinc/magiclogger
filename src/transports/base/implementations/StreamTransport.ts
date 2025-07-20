@@ -1,53 +1,45 @@
-// File: src/transports/implementations/StreamTransport.ts
+// File: src/transports/base/implementations/StreamTransport.ts
 
 import { Transport } from '../Transport';
-import type { StreamTransportOptions, LogEntry, TransportStats } from '../../../types/transport';
+import type { 
+  StreamTransportOptions, 
+  LogEntry 
+} from '../../../types/transport';
+import { Writable, Transform } from 'stream';
 
 /**
- * Transport that writes logs to any Node.js writable stream.
+ * Stream transport for piping logs to any Node.js writable stream.
  * 
- * The StreamTransport provides flexible stream-based logging with:
- * - Support for any Node.js writable stream
+ * Features:
+ * - Works with any Node.js writable stream (files, network, process)
  * - Backpressure handling for flow control
- * - Stream error recovery
- * - Custom encoding support
- * - Stream pipeline integration
- * - Automatic stream lifecycle management
+ * - Transform stream support for log processing pipelines
+ * - Multiple encoding formats
+ * - Stream health monitoring
+ * - Automatic stream cleanup
  * 
- * This transport is ideal for:
- * - Piping logs to custom processing pipelines
- * - Integration with existing stream-based systems
- * - Custom output destinations
- * - Transform streams for log processing
- * 
+ * @class StreamTransport
  * @extends {Transport}
  * 
  * @example
  * ```typescript
- * import { createWriteStream } from 'fs';
- * import { createGzip } from 'zlib';
- * 
- * // Simple file stream
- * const fileStream = createWriteStream('./app.log');
- * const fileTransport = new StreamTransport({
- *   name: 'file-stream',
- *   stream: fileStream
+ * // Write to stdout
+ * const stdoutTransport = new StreamTransport({
+ *   name: 'stdout',
+ *   stream: process.stdout
  * });
  * 
- * // Compressed stream pipeline
- * const gzipStream = createGzip();
- * gzipStream.pipe(createWriteStream('./app.log.gz'));
- * 
- * const compressedTransport = new StreamTransport({
- *   name: 'compressed-stream',
- *   stream: gzipStream
+ * // Write to custom stream with transform
+ * const transformStream = new Transform({
+ *   transform(chunk, encoding, callback) {
+ *     // Process log data
+ *     callback(null, chunk.toString().toUpperCase());
+ *   }
  * });
  * 
- * // Network stream
- * const netStream = net.connect(3000, 'logserver.example.com');
- * const networkTransport = new StreamTransport({
- *   name: 'network-stream',
- *   stream: netStream
+ * const streamTransport = new StreamTransport({
+ *   name: 'transform',
+ *   stream: transformStream.pipe(process.stdout)
  * });
  * ```
  */
@@ -59,48 +51,55 @@ export class StreamTransport extends Transport {
   private stream: NodeJS.WritableStream;
 
   /**
-   * Stream configuration.
+   * Whether to close stream when transport closes.
    * @private
    */
   private readonly autoClose: boolean;
+
+  /**
+   * Stream encoding.
+   * @private
+   */
   private readonly encoding: BufferEncoding;
 
   /**
-   * Stream state tracking.
+   * Whether stream is writable.
    * @private
    */
-  private streamReady = false;
-  private streamEnded = false;
-  private streamErrored = false;
+  private isWritable = true;
 
   /**
-   * Write queue for handling backpressure.
+   * Queue for entries during backpressure.
    * @private
    */
-  private writeQueue: Array<{
-    chunk: string | Buffer;
-    resolve: () => void;
-    reject: (error: Error) => void;
+  private queue: Array<{
+    entry: string | Buffer;
+    callback: (error?: Error) => void;
   }> = [];
 
   /**
-   * Flag to track if we're currently draining.
+   * Maximum queue size during backpressure.
    * @private
    */
-  private draining = false;
+  private readonly maxQueueSize = 1000;
 
   /**
-   * Stream event listeners for cleanup.
+   * Stream error count.
    * @private
    */
-  private streamListeners: {
-    error?: (error: Error) => void;
-    drain?: () => void;
-    close?: () => void;
-    finish?: () => void;
-    pipe?: (src: NodeJS.ReadableStream) => void;
-    unpipe?: (src: NodeJS.ReadableStream) => void;
-  } = {};
+  private errorCount = 0;
+
+  /**
+   * Maximum consecutive errors before disabling.
+   * @private
+   */
+  private readonly maxErrors = 10;
+
+  /**
+   * Line ending for text output.
+   * @private
+   */
+  private readonly lineEnding: string;
 
   /**
    * Creates a new StreamTransport instance.
@@ -110,395 +109,249 @@ export class StreamTransport extends Transport {
   constructor(options: StreamTransportOptions) {
     super(options);
 
-    // Validate required options
-    if (!options.stream) {
-      throw new Error('StreamTransport requires stream option');
-    }
-
-    if (!this.isWritableStream(options.stream)) {
-      throw new Error('StreamTransport requires a writable stream');
-    }
-
-    // Initialize configuration
     this.stream = options.stream;
     this.autoClose = options.autoClose ?? false;
-    this.encoding = options.encoding ?? 'utf8';
+    this.encoding = options.encoding || 'utf8';
+    this.lineEnding = process.platform === 'win32' ? '\r\n' : '\n';
   }
 
   /**
-   * Check if the provided stream is writable.
-   * 
-   * @param {any} stream - Stream to check
-   * @returns {boolean} True if stream is writable
-   * @private
-   */
-  private isWritableStream(stream: any): stream is NodeJS.WritableStream {
-    return stream &&
-           typeof stream.write === 'function' &&
-           typeof stream.end === 'function' &&
-           typeof stream.on === 'function';
-  }
-
-  /**
-   * Initialize the stream transport.
+   * Initialize stream transport.
    * 
    * @returns {Promise<void>} Resolves when initialized
    * @protected
    */
   protected async doInit(): Promise<void> {
-    // Check if we're in a browser environment
-    if (typeof window !== 'undefined') {
-      throw new Error('StreamTransport is not supported in browser environments');
+    // Check if stream is writable
+    if (!this.stream.writable) {
+      throw new Error('Stream is not writable');
     }
 
-    // Set up stream event handlers
+    // Set up event handlers
     this.setupStreamHandlers();
-
-    // Check if stream is already writable
-    if (this.stream.writable) {
-      this.streamReady = true;
-    } else {
-      // Wait for stream to be ready
-      await this.waitForStream();
-    }
   }
 
   /**
-   * Set up event handlers for the stream.
+   * Set up stream event handlers.
    * 
    * @private
    */
   private setupStreamHandlers(): void {
-    // Error handler
-    this.streamListeners.error = (error: Error) => {
-      this.streamErrored = true;
-      this.handleStreamError(error);
-    };
+    // Handle drain event (backpressure relief)
+    this.stream.on('drain', () => {
+      this.isWritable = true;
+      this.processQueue();
+    });
 
-    // Drain handler for backpressure
-    this.streamListeners.drain = () => {
-      this.processDrainQueue();
-    };
+    // Handle stream errors
+    this.stream.on('error', (error) => {
+      this.errorCount++;
+      this.handleError(error);
 
-    // Close handler
-    this.streamListeners.close = () => {
-      this.streamEnded = true;
-      this.handleStreamClose();
-    };
-
-    // Finish handler
-    this.streamListeners.finish = () => {
-      this.streamEnded = true;
-      this.emit('stream_finish');
-    };
-
-    // Pipe/unpipe handlers for tracking
-    this.streamListeners.pipe = (src: NodeJS.ReadableStream) => {
-      this.emit('stream_pipe', src);
-    };
-
-    this.streamListeners.unpipe = (src: NodeJS.ReadableStream) => {
-      this.emit('stream_unpipe', src);
-    };
-
-    // Attach listeners
-    for (const [event, handler] of Object.entries(this.streamListeners)) {
-      if (handler) {
-        this.stream.on(event, handler);
+      // Disable transport if too many errors
+      if (this.errorCount >= this.maxErrors) {
+        this.enabled = false;
+        this.emit('disabled', {
+          reason: 'Too many stream errors',
+          errorCount: this.errorCount,
+        });
       }
+    });
+
+    // Handle stream close
+    this.stream.on('close', () => {
+      this.isWritable = false;
+      this.emit('streamClosed');
+    });
+
+    // Handle finish event
+    this.stream.on('finish', () => {
+      this.isWritable = false;
+      this.emit('streamFinished');
+    });
+
+    // Handle pipe/unpipe events if it's a readable stream
+    if ('on' in this.stream && typeof (this.stream as any).on === 'function') {
+      (this.stream as any).on('pipe', (src: any) => {
+        this.emit('piped', { source: src });
+      });
+
+      (this.stream as any).on('unpipe', (src: any) => {
+        this.emit('unpiped', { source: src });
+      });
     }
   }
 
   /**
-   * Wait for stream to be ready.
+   * Log a single entry to the stream.
    * 
-   * @returns {Promise<void>} Resolves when stream is ready
-   * @private
-   */
-  private waitForStream(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error('Stream initialization timeout'));
-      }, 5000);
-
-      const checkReady = () => {
-        if (this.stream.writable) {
-          clearTimeout(timeout);
-          this.streamReady = true;
-          resolve();
-        } else if (this.streamErrored || this.streamEnded) {
-          clearTimeout(timeout);
-          reject(new Error('Stream is not writable'));
-        } else {
-          setTimeout(checkReady, 100);
-        }
-      };
-
-      // Check if stream needs to be opened first
-      if (typeof (this.stream as any).open === 'function') {
-        (this.stream as any).open();
-      }
-
-      checkReady();
-    });
-  }
-
-  /**
-   * Log an entry to the stream.
-   * 
-   * @param {LogEntry} entry - The log entry to write
+   * @param {LogEntry} entry - Log entry to write
    * @returns {Promise<void>} Resolves when written
    * @protected
    */
   protected async doLog(entry: LogEntry): Promise<void> {
-    if (!this.streamReady || this.streamEnded || this.streamErrored) {
-      throw new Error('Stream is not writable');
-    }
-
-    // Format the entry
-    const formatted = this.formatEntry(entry);
+    const formatted = this.formatForStream(entry);
     
-    // Convert to appropriate type
-    const chunk = this.prepareChunk(formatted);
-
-    // Write to stream
-    await this.writeToStream(chunk);
+    return new Promise((resolve, reject) => {
+      this.writeToStream(formatted, (error) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve();
+        }
+      });
+    });
   }
 
   /**
    * Log multiple entries efficiently.
    * 
-   * @param {LogEntry[]} entries - Array of log entries
+   * @param {LogEntry[]} entries - Log entries to write
    * @returns {Promise<void>} Resolves when all written
    * @protected
    */
   protected async doLogBatch(entries: LogEntry[]): Promise<void> {
-    if (!this.streamReady || this.streamEnded || this.streamErrored) {
-      throw new Error('Stream is not writable');
-    }
-
     // Format all entries
-    const formatted = entries.map(entry => this.formatEntry(entry));
-    
-    // Join with newlines for batch writing
-    const batchContent = formatted.join('\n') + '\n';
-    
-    // Convert to appropriate type
-    const chunk = this.prepareChunk(batchContent);
+    const formatted = entries.map(entry => this.formatForStream(entry));
+    const combined = formatted.join('');
 
-    // Write to stream
-    await this.writeToStream(chunk);
-  }
-
-  /**
-   * Prepare chunk for writing based on format.
-   * 
-   * @param {string | Buffer} data - Data to prepare
-   * @returns {string | Buffer} Prepared chunk
-   * @private
-   */
-  private prepareChunk(data: string | Buffer): string | Buffer {
-    if (Buffer.isBuffer(data)) {
-      return data;
-    }
-
-    // Add newline if not present
-    if (typeof data === 'string' && !data.endsWith('\n')) {
-      data += '\n';
-    }
-
-    return data;
-  }
-
-  /**
-   * Write chunk to stream with backpressure handling.
-   * 
-   * @param {string | Buffer} chunk - Data to write
-   * @returns {Promise<void>} Resolves when write completes
-   * @private
-   */
-  private writeToStream(chunk: string | Buffer): Promise<void> {
     return new Promise((resolve, reject) => {
-      try {
-        // Ensure chunk is properly encoded
-        let data: Buffer;
-        let canWrite: boolean;
-        
-        if (chunk instanceof Buffer) {
-          data = chunk;
-          canWrite = this.stream.write(data);
+      this.writeToStream(combined, (error) => {
+        if (error) {
+          reject(error);
         } else {
-          // TypeScript now knows chunk is string
-          data = Buffer.from(chunk as string, this.encoding);
-          canWrite = this.stream.write(chunk as string, this.encoding);
-        }
-
-        if (canWrite) {
-          // Write completed immediately
           resolve();
-        } else {
-          // Handle backpressure
-          // Queue the completion callback
-          this.writeQueue.push({
-            chunk: '', // Already written, just need to track completion
-            resolve,
-            reject,
-          });
-          
-          // Ensure custom stats object exists before setting properties
-          if (!this.stats.custom) {
-            this.stats.custom = {};
-          }
-          this.stats.custom.backpressure = true;
         }
-      } catch (error) {
-        reject(error);
-      }
+      });
     });
   }
 
   /**
-   * Process drain queue after backpressure relief.
+   * Format log entry for stream output.
    * 
+   * @param {LogEntry} entry - Log entry to format
+   * @returns {string | Buffer} Formatted output
    * @private
    */
-  private processDrainQueue(): void {
-    // Ensure custom stats object exists before setting properties
-    if (!this.stats.custom) {
-      this.stats.custom = {};
-    }
-    this.stats.custom.backpressure = false;
-    
-    // Resolve all queued writes
-    while (this.writeQueue.length > 0) {
-      const item = this.writeQueue.shift();
-      if (item) {
-        item.resolve();
-      }
-    }
-
-    this.emit('stream_drain');
-  }
-
-  /**
-   * Handle stream errors.
-   * 
-   * @param {Error} error - Stream error
-   * @private
-   */
-  private handleStreamError(error: Error): void {
-    // Clear write queue
-    while (this.writeQueue.length > 0) {
-      const item = this.writeQueue.shift();
-      if (item) {
-        item.reject(error);
-      }
-    }
-
-    // Emit error
-    this.handleError(error);
-    
-    // Mark stream as unusable
-    this.streamReady = false;
-  }
-
-  /**
-   * Handle stream close event.
-   * 
-   * @private
-   */
-  private handleStreamClose(): void {
-    // Clear write queue
-    const error = new Error('Stream closed');
-    
-    while (this.writeQueue.length > 0) {
-      const item = this.writeQueue.shift();
-      if (item) {
-        item.reject(error);
-      }
-    }
-
-    this.emit('stream_close');
-  }
-
-  /**
-   * Format entry according to transport configuration.
-   * 
-   * @param {LogEntry} entry - The log entry to format
-   * @returns {string | Buffer} Formatted entry
-   * @protected
-   */
-  protected formatEntry(entry: LogEntry): string | Buffer {
-    let formatted: string | Buffer;
+  private formatForStream(entry: LogEntry): string | Buffer {
+    let output: string | Buffer;
 
     switch (this.format) {
       case 'json':
-        // Single-line JSON for stream processing
-        formatted = JSON.stringify(entry);
+        output = JSON.stringify(entry) + this.lineEnding;
         break;
 
       case 'plain':
-        // Use enhanced plain format for streams
-        formatted = this.formatStreamPlain(entry);
+        output = this.formatPlain(entry) + this.lineEnding;
         break;
 
       case 'custom':
-        if (!this.formatter) {
-          throw new Error('Custom formatter not provided');
+        if (this.formatter) {
+          const result = this.formatter(entry);
+          output = typeof result === 'string' 
+            ? result + (result.endsWith('\n') ? '' : this.lineEnding)
+            : result;
+        } else {
+          output = JSON.stringify(entry) + this.lineEnding;
         }
-        formatted = this.formatter(entry);
         break;
 
       default:
-        formatted = JSON.stringify(entry);
+        output = JSON.stringify(entry) + this.lineEnding;
     }
 
-    return formatted;
+    // Convert to buffer if needed
+    if (typeof output === 'string' && this.encoding !== 'utf8') {
+      return Buffer.from(output, this.encoding);
+    }
+
+    return output;
   }
 
   /**
-   * Format entry as plain text optimized for streams.
+   * Write data to stream with backpressure handling.
    * 
-   * @param {LogEntry} entry - The log entry to format
-   * @returns {string} Plain text formatted entry
+   * @param {string | Buffer} data - Data to write
+   * @param {Function} callback - Callback when written
    * @private
    */
-  private formatStreamPlain(entry: LogEntry): string {
-    const parts: string[] = [];
-
-    // Timestamp
-    parts.push(entry.timestamp);
-
-    // Level
-    parts.push(`[${entry.level.toUpperCase().padEnd(7)}]`);
-
-    // Logger ID if present
-    if (entry.loggerId) {
-      parts.push(`[${entry.loggerId}]`);
+  private writeToStream(
+    data: string | Buffer,
+    callback: (error?: Error) => void
+  ): void {
+    if (!this.isWritable || !this.stream.writable) {
+      callback(new Error('Stream is not writable'));
+      return;
     }
 
-    // Tags if present
-    if (entry.tags && entry.tags.length > 0) {
-      parts.push(`[${entry.tags.join(',')}]`);
+    // Check queue
+    if (this.queue.length > 0) {
+      // Add to queue if already queued items
+      this.queueWrite(data, callback);
+      return;
     }
 
-    // Message
-    parts.push(entry.plainMessage || entry.message);
+    // Attempt to write
+    try {
+      const canWrite = this.stream.write(data, this.encoding, (error) => {
+        if (error) {
+          callback(error);
+        } else {
+          callback();
+          this.errorCount = 0; // Reset error count on success
+        }
+      });
 
-    // Context as inline JSON if present
-    if (entry.context && Object.keys(entry.context).length > 0) {
-      parts.push(`context=${JSON.stringify(entry.context)}`);
+      if (!canWrite) {
+        // Backpressure - stream buffer is full
+        this.isWritable = false;
+        this.emit('backpressure', {
+          queueSize: this.queue.length,
+        });
+      }
+    } catch (error) {
+      callback(error as Error);
+    }
+  }
+
+  /**
+   * Queue a write operation during backpressure.
+   * 
+   * @param {string | Buffer} data - Data to queue
+   * @param {Function} callback - Callback when written
+   * @private
+   */
+  private queueWrite(
+    data: string | Buffer,
+    callback: (error?: Error) => void
+  ): void {
+    if (this.queue.length >= this.maxQueueSize) {
+      callback(new Error('Stream queue is full'));
+      this.stats.custom.droppedWrites = (this.stats.custom.droppedWrites || 0) + 1;
+      return;
     }
 
-    // Error details if present
-    if (entry.error) {
-      parts.push(`error="${entry.error.message}"`);
-      if (entry.error.code) {
-        parts.push(`code=${entry.error.code}`);
+    this.queue.push({ entry: data, callback });
+    this.stats.queued = this.queue.length;
+  }
+
+  /**
+   * Process queued writes when stream is ready.
+   * 
+   * @private
+   */
+  private processQueue(): void {
+    while (this.queue.length > 0 && this.isWritable && this.stream.writable) {
+      const item = this.queue.shift()!;
+      this.stats.queued = this.queue.length;
+
+      this.writeToStream(item.entry, item.callback);
+
+      if (!this.isWritable) {
+        // Stream is full again
+        break;
       }
     }
-
-    return parts.join(' ');
   }
 
   /**
@@ -507,15 +360,11 @@ export class StreamTransport extends Transport {
    * @returns {Promise<void>} Resolves when flushed
    */
   public async flush(): Promise<void> {
-    if (!this.stream || !this.streamReady) {
-      return;
-    }
-
-    // Wait for any pending writes
-    if (this.writeQueue.length > 0) {
+    // Process any queued items first
+    if (this.queue.length > 0) {
       await new Promise<void>((resolve) => {
         const checkQueue = () => {
-          if (this.writeQueue.length === 0) {
+          if (this.queue.length === 0) {
             resolve();
           } else {
             setTimeout(checkQueue, 10);
@@ -525,15 +374,69 @@ export class StreamTransport extends Transport {
       });
     }
 
-    // Some streams have a flush method
-    if (typeof (this.stream as any).flush === 'function') {
-      await new Promise<void>((resolve, reject) => {
-        (this.stream as any).flush((error: Error) => {
-          if (error) reject(error);
-          else resolve();
+    // Flush stream if it supports it
+    if ('flush' in this.stream && typeof (this.stream as any).flush === 'function') {
+      return new Promise((resolve, reject) => {
+        (this.stream as any).flush((error?: Error) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve();
+          }
         });
       });
     }
+  }
+
+  /**
+   * Cork the stream (buffer writes).
+   */
+  public cork(): void {
+    if ('cork' in this.stream && typeof (this.stream as any).cork === 'function') {
+      (this.stream as any).cork();
+    }
+  }
+
+  /**
+   * Uncork the stream (flush buffered writes).
+   */
+  public uncork(): void {
+    if ('uncork' in this.stream && typeof (this.stream as any).uncork === 'function') {
+      (this.stream as any).uncork();
+    }
+  }
+
+  /**
+   * Pipe this transport's output to another stream.
+   * 
+   * @param {NodeJS.WritableStream} destination - Destination stream
+   * @param {object} options - Pipe options
+   * @returns {NodeJS.WritableStream} Destination stream
+   */
+  public pipe(
+    destination: NodeJS.WritableStream,
+    options?: { end?: boolean }
+  ): NodeJS.WritableStream {
+    // Create a transform stream that formats log entries
+    const transform = new Transform({
+      objectMode: true,
+      transform: (entry: LogEntry, encoding, callback) => {
+        try {
+          const formatted = this.formatForStream(entry);
+          callback(null, formatted);
+        } catch (error) {
+          callback(error as Error);
+        }
+      },
+    });
+
+    // Pipe through transform to destination
+    transform.pipe(destination, options);
+
+    // Store transform stream reference
+    this.stats.custom.pipedTo = destination;
+
+    return destination;
   }
 
   /**
@@ -543,110 +446,70 @@ export class StreamTransport extends Transport {
    * @protected
    */
   protected async doClose(): Promise<void> {
-    // Remove event listeners only if stream exists
-    if (this.stream) {
-      for (const [event, handler] of Object.entries(this.streamListeners)) {
-        if (handler) {
-          this.stream.removeListener(event, handler);
-        }
-      }
-    }
+    // Flush any remaining data
+    await this.flush();
 
-    // Clear write queue
-    const error = new Error('Transport closing');
-    while (this.writeQueue.length > 0) {
-      const item = this.writeQueue.shift();
-      if (item) {
-        item.reject(error);
-      }
-    }
-
-    // Close stream if configured and stream exists
-    if (this.autoClose && this.stream && !this.streamEnded) {
-      await new Promise<void>((resolve, reject) => {
-        // Fix: stream.end() callback signature should not expect error parameter
-        this.stream!.end(() => {
-          resolve();
+    // End stream if autoClose is enabled
+    if (this.autoClose && this.stream.writable) {
+      return new Promise((resolve, reject) => {
+        this.stream.end((error?: Error) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve();
+          }
         });
-        
-        // Handle potential errors via error event
-        const errorHandler = (error: Error) => {
-          this.stream?.removeListener('error', errorHandler);
-          reject(error);
-        };
-        this.stream!.once('error', errorHandler);
       });
     }
-
-    this.streamReady = false;
   }
 
   /**
-   * Get transport statistics with stream-specific metrics.
+   * Get stream statistics.
    * 
-   * @returns {TransportStats} Current statistics
+   * @returns {object} Extended statistics
    */
-  public getStats(): TransportStats {
-    const stats = super.getStats();
-
-    // Add stream-specific stats
-    stats.custom = {
-      ...stats.custom,
-      streamReady: this.streamReady,
-      streamEnded: this.streamEnded,
-      streamErrored: this.streamErrored,
-      writeQueueLength: this.writeQueue.length,
-      backpressure: this.writeQueue.length > 0,
-      encoding: this.encoding,
-      autoClose: this.autoClose,
+  public getStats(): any {
+    const baseStats = super.getStats();
+    const streamStats: any = {
+      writable: this.stream.writable,
+      queueSize: this.queue.length,
+      errorCount: this.errorCount,
+      isWritable: this.isWritable,
     };
 
-    return stats;
-  }
-
-  /**
-   * Get the underlying stream (for advanced usage).
-   * 
-   * @returns {NodeJS.WritableStream} The wrapped stream
-   */
-  public getStream(): NodeJS.WritableStream {
-    if (!this.stream) {
-      throw new Error('Stream is not initialized');
+    // Add stream-specific stats if available
+    if ('bytesWritten' in this.stream) {
+      streamStats.bytesWritten = (this.stream as any).bytesWritten;
     }
-    return this.stream;
+
+    if ('writableLength' in this.stream) {
+      streamStats.bufferSize = (this.stream as any).writableLength;
+    }
+
+    if ('writableHighWaterMark' in this.stream) {
+      streamStats.highWaterMark = (this.stream as any).writableHighWaterMark;
+    }
+
+    return {
+      ...baseStats,
+      custom: {
+        ...baseStats.custom,
+        stream: streamStats,
+      },
+    };
   }
 
   /**
-   * Check if the stream is currently writable.
+   * Check if transport is healthy.
    * 
-   * @returns {boolean} True if stream can accept writes
+   * @returns {boolean} True if healthy
    */
-  public isWritable(): boolean {
-    return this.streamReady && 
-           !this.streamEnded && 
-           !this.streamErrored && 
-           this.stream?.writable === true;
+  public isHealthy(): boolean {
+    return (
+      this.enabled &&
+      this.stream.writable &&
+      this.errorCount < this.maxErrors &&
+      this.queue.length < this.maxQueueSize * 0.8
+    );
   }
-}
-
-/**
- * Factory function to create a stream transport with common defaults.
- * 
- * @param {NodeJS.WritableStream} stream - Target writable stream
- * @param {Partial<StreamTransportOptions>} [options={}] - Transport options
- * @returns {StreamTransport} Configured stream transport
- */
-export function createStreamTransport(
-  stream: NodeJS.WritableStream,
-  options: Partial<StreamTransportOptions> = {}
-): StreamTransport {
-  return new StreamTransport({
-    name: 'stream',
-    enabled: true,
-    level: 'info',
-    format: 'plain',
-    encoding: 'utf8',
-    ...options,
-    stream,
-  } as StreamTransportOptions);
 }

@@ -1,51 +1,123 @@
-// File: src/transports/implementations/FileTransport.ts
+// File: src/transports/base/implementations/FileTransport.ts
 
-import { Transport } from '../Transport';
-import { FileManager } from '../../../core/FileManager';
-import type { LogEntry, FileTransportOptions } from '../../../types/transport';
+import { BatchingTransport } from '../BatchingTransport';
+import * as fs from 'fs';
 import * as path from 'path';
+import * as zlib from 'zlib';
+import { promisify } from 'util';
+import type { 
+  FileTransportOptions, 
+  LogEntry,
+  BatchingTransportOptions 
+} from '../../../types/transport';
+
+const writeFile = promisify(fs.writeFile);
+const appendFile = promisify(fs.appendFile);
+const readdir = promisify(fs.readdir);
+const stat = promisify(fs.stat);
+const unlink = promisify(fs.unlink);
+const rename = promisify(fs.rename);
+const mkdir = promisify(fs.mkdir);
+const gzip = promisify(zlib.gzip);
 
 /**
- * Transport that writes logs to files with rotation and management.
- *
- * The FileTransport provides comprehensive file-based logging with:
- * - Automatic file rotation by size or time
- * - Log retention and cleanup
+ * File transport for writing logs to disk.
+ * 
+ * Features:
+ * - Automatic file rotation (size-based, time-based)
  * - Compression of rotated files
+ * - Directory-based logging with timestamps
+ * - Retention policies for old logs
  * - Atomic writes for data integrity
- * - Cross-platform path handling
- *
- * This transport is ideal for:
- * - Production environments requiring persistent logs
- * - Audit trails and compliance
- * - Long-term log storage
- * - Offline log analysis
- *
- * @extends {Transport}
- *
+ * - Efficient batching for high throughput
+ * 
+ * @class FileTransport
+ * @extends {BatchingTransport}
+ * 
  * @example
  * ```typescript
  * const fileTransport = new FileTransport({
  *   name: 'file',
  *   filepath: './logs',
  *   rotation: 'daily',
- *   maxFiles: 7,
+ *   maxFileSize: 10 * 1024 * 1024, // 10MB
+ *   maxFiles: 5,
  *   compress: true
- * });
- *
- * await fileTransport.log({
- *   level: 'error',
- *   message: 'Database connection failed',
- *   error: { message: 'Connection timeout' }
  * });
  * ```
  */
-export class FileTransport extends Transport {
+export class FileTransport extends BatchingTransport {
   /**
-   * File manager instance for handling file operations.
+   * Target file or directory path.
    * @private
    */
-  private fileManager?: FileManager;
+  private readonly filepath: string;
+
+  /**
+   * Whether filepath is a directory.
+   * @private
+   */
+  private readonly isDirectory: boolean;
+
+  /**
+   * Maximum file size before rotation.
+   * @private
+   */
+  private readonly maxFileSize: number;
+
+  /**
+   * Maximum number of backup files.
+   * @private
+   */
+  private readonly maxFiles: number;
+
+  /**
+   * Whether to compress rotated files.
+   * @private
+   */
+  private readonly compressRotated: boolean;
+
+  /**
+   * Rotation strategy.
+   * @private
+   */
+  private readonly rotation: 'size' | 'daily' | 'hourly' | 'none';
+
+  /**
+   * Whether to append to existing file.
+   * @private
+   */
+  private readonly append: boolean;
+
+  /**
+   * File encoding.
+   * @private
+   */
+  private readonly encoding: BufferEncoding;
+
+  /**
+   * Whether to include timestamp in log lines.
+   * @private
+   */
+  private readonly includeTimestamp: boolean;
+
+  /**
+   * Whether to create directory if missing.
+   * @private
+   */
+  private readonly createDir: boolean;
+
+  /**
+   * Log retention in days.
+   * @private
+   */
+  private readonly retentionDays: number;
+
+  /**
+   * Line ending character.
+   * @private
+   */
+  private readonly eol: string;
 
   /**
    * Current log file path.
@@ -54,607 +126,546 @@ export class FileTransport extends Transport {
   private currentFile?: string;
 
   /**
-   * File stream for efficient writing.
+   * Current file size.
    * @private
    */
-  private fileStream?: any;
+  private currentSize = 0;
 
   /**
-   * File configuration.
+   * Current date for daily rotation.
    * @private
    */
-  private readonly filepath: string;
-  private readonly isDirectory: boolean;
-  private readonly maxFileSize: number;
-  private readonly maxFiles: number;
-  private readonly compress: boolean;
-  private readonly rotation: 'size' | 'daily' | 'hourly' | 'none';
-  private readonly append: boolean;
-  private readonly encoding: BufferEncoding;
-  private readonly includeTimestamp: boolean;
-  private readonly createDir: boolean;
-  private readonly retentionDays: number;
-  private readonly eol: string;
+  private currentDate?: string;
 
   /**
-   * Current file size tracking.
+   * Write stream for better performance.
    * @private
    */
-  private currentFileSize = 0;
+  private writeStream?: fs.WriteStream;
 
   /**
-   * Last rotation check timestamp.
+   * Lock for file operations.
    * @private
    */
-  private lastRotationCheck = Date.now();
+  private writeLock = false;
 
   /**
-   * Write queue for batching file operations.
+   * Queue for pending writes during rotation.
    * @private
    */
   private writeQueue: string[] = [];
-  private writeTimer?: NodeJS.Timeout;
-  private writing = false;
-
-  /**
-   * Dynamic imports for Node.js modules.
-   * @private
-   */
-  private fs?: any;
-  private zlib?: any;
 
   /**
    * Creates a new FileTransport instance.
-   *
+   * 
    * @param {FileTransportOptions} options - Transport configuration
    */
   constructor(options: FileTransportOptions) {
-    super(options);
+    // Merge file-specific options with batching defaults
+    const batchingOptions: BatchingTransportOptions = {
+      ...options,
+      maxBatchSize: options.maxBatchSize || 100,
+      maxBatchTime: options.maxBatchTime || 1000,
+      compress: false, // We handle compression differently
+    };
 
-    // Validate required options
-    if (!options.filepath) {
-      throw new Error('FileTransport requires filepath option');
-    }
+    super(batchingOptions);
 
-    // Initialize configuration
     this.filepath = options.filepath;
     this.isDirectory = options.isDirectory ?? true;
-    this.maxFileSize = options.maxFileSize ?? 10485760; // 10MB
-    this.maxFiles = options.maxFiles ?? 5;
-    this.compress = options.compress ?? false;
-    this.rotation = options.rotation ?? 'size';
+    this.maxFileSize = options.maxFileSize || 10 * 1024 * 1024; // 10MB
+    this.maxFiles = options.maxFiles || 5;
+    this.compressRotated = options.compress ?? false;
+    this.rotation = options.rotation || 'size';
     this.append = options.append ?? true;
-    this.encoding = options.encoding ?? 'utf8';
+    this.encoding = options.encoding || 'utf8';
     this.includeTimestamp = options.includeTimestamp ?? true;
     this.createDir = options.createDir ?? true;
-    this.retentionDays = options.retentionDays ?? 30;
-    this.eol = options.eol ?? '\n';
+    this.retentionDays = options.retentionDays || 30;
+    this.eol = options.eol || '\n';
   }
 
   /**
    * Initialize the file transport.
-   *
+   * 
    * @returns {Promise<void>} Resolves when initialized
    * @protected
    */
   protected async doInit(): Promise<void> {
-    // Dynamic import Node.js modules
-    await this.loadModules();
-
-    // Initialize file manager if using directory mode
-    if (this.isDirectory) {
-      this.fileManager = new FileManager(this.filepath, this.retentionDays);
-      this.currentFile = (await this.fileManager.initLogFile()) || undefined;
-    } else {
-      // Ensure directory exists
-      await this.ensureDirectory(path.dirname(this.filepath));
-      this.currentFile = this.filepath;
-
-      // Initialize file if it doesn't exist
-      if (!this.append || !(await this.fileExists(this.currentFile))) {
-        await this.createFile(this.currentFile);
-      }
+    // Ensure directory exists
+    if (this.createDir) {
+      const dir = this.isDirectory ? this.filepath : path.dirname(this.filepath);
+      await this.ensureDirectory(dir);
     }
 
-    // Get current file size
-    await this.updateFileSize();
+    // Initialize current file
+    await this.initializeFile();
 
-    // Clean up old logs if in directory mode
-    if (this.isDirectory && this.fileManager) {
-      await this.fileManager.cleanupOldLogs();
-    }
+    // Start retention cleanup
+    this.startRetentionCleanup();
   }
 
   /**
-   * Load required Node.js modules dynamically.
-   *
+   * Initialize the current log file.
+   * 
+   * @returns {Promise<void>} Resolves when file is ready
    * @private
    */
-  private async loadModules(): Promise<void> {
-    if (typeof window === 'undefined') {
-      this.fs = (await import('fs')).default;
-
-      if (this.compress) {
-        this.zlib = (await import('zlib')).default;
-      }
+  private async initializeFile(): Promise<void> {
+    if (this.isDirectory) {
+      // Generate filename based on current timestamp
+      this.currentFile = this.generateFilename();
     } else {
-      throw new Error('FileTransport is not supported in browser environments');
+      this.currentFile = this.filepath;
     }
+
+    // Check if file exists and get size
+    try {
+      const stats = await stat(this.currentFile);
+      this.currentSize = stats.size;
+    } catch (error: any) {
+      if (error.code !== 'ENOENT') {
+        throw error;
+      }
+      this.currentSize = 0;
+    }
+
+    // Set current date for daily rotation
+    if (this.rotation === 'daily') {
+      this.currentDate = new Date().toISOString().split('T')[0];
+    }
+
+    // Create write stream
+    this.createWriteStream();
   }
 
   /**
-   * Log an entry to the file.
-   *
-   * @param {LogEntry} entry - The log entry to write
+   * Create a write stream for the current file.
+   * 
+   * @private
+   */
+  private createWriteStream(): void {
+    if (this.writeStream) {
+      this.writeStream.end();
+    }
+
+    this.writeStream = fs.createWriteStream(this.currentFile!, {
+      flags: this.append ? 'a' : 'w',
+      encoding: this.encoding,
+      highWaterMark: 64 * 1024, // 64KB buffer
+    });
+
+    this.writeStream.on('error', (error) => {
+      this.handleError(error);
+    });
+  }
+
+  /**
+   * Send a batch of logs to the file.
+   * 
+   * @param {LogEntry[]} data - Formatted log entries
    * @returns {Promise<void>} Resolves when written
    * @protected
    */
-  protected async doLog(entry: LogEntry): Promise<void> {
-    // Check if rotation is needed
-    await this.checkRotation();
+  protected async sendBatch(data: LogEntry[]): Promise<void> {
+    // Format entries
+    const lines = data.map(entry => this.formatFileEntry(entry));
+    const content = lines.join(this.eol) + this.eol;
+    const buffer = Buffer.from(content, this.encoding);
 
-    // Format the log entry
-    const line = this.formatFileEntry(entry);
+    // Check rotation before writing
+    await this.checkRotation(buffer.length);
 
-    // Add to write queue
-    this.writeQueue.push(line);
+    // Write to file
+    await this.writeToFile(content);
 
-    // Schedule write if not already scheduled
-    this.scheduleWrite();
+    // Update size
+    this.currentSize += buffer.length;
   }
 
   /**
    * Format a log entry for file output.
-   *
-   * @param {LogEntry} entry - The log entry to format
-   * @returns {string} Formatted log line
+   * 
+   * @param {LogEntry} entry - The log entry
+   * @returns {string} Formatted line
    * @private
    */
   private formatFileEntry(entry: LogEntry): string {
-    let line: string;
-
     switch (this.format) {
       case 'json':
-        // Single line JSON for easy parsing
-        line = JSON.stringify(entry);
-        break;
+        return JSON.stringify(entry);
 
       case 'plain': {
-        // Human-readable format
-        const parts: string[] = [];
+        let line = '';
 
         if (this.includeTimestamp) {
-          parts.push(entry.timestamp);
+          line += entry.timestamp + ' ';
         }
 
-        parts.push(`[${entry.level.toUpperCase()}]`);
+        line += `[${entry.level.toUpperCase()}]`;
 
         if (entry.loggerId) {
-          parts.push(`[${entry.loggerId}]`);
+          line += ` [${entry.loggerId}]`;
         }
 
         if (entry.tags && entry.tags.length > 0) {
-          parts.push(`[${entry.tags.join(',')}]`);
+          line += ` [${entry.tags.join(',')}]`;
         }
 
-        parts.push(entry.plainMessage || entry.message);
+        line += ' ' + (entry.plainMessage || entry.message);
 
-        // Add error details on new lines
         if (entry.error) {
-          parts.push(`\n  Error: ${entry.error.message}`);
+          line += ` Error: ${entry.error.message}`;
           if (entry.error.stack) {
-            parts.push(`\n  Stack: ${entry.error.stack.replace(/\n/g, '\n  ')}`);
+            line += this.eol + entry.error.stack;
           }
         }
 
-        // Add context as JSON
         if (entry.context && Object.keys(entry.context).length > 0) {
-          parts.push(`\n  Context: ${JSON.stringify(entry.context)}`);
+          line += ` Context: ${JSON.stringify(entry.context)}`;
         }
 
-        line = parts.join(' ');
-        break;
+        return line;
       }
 
-      case 'custom': {
-        if (!this.formatter) {
-          throw new Error('Custom formatter not provided');
+      case 'custom':
+        if (this.formatter) {
+          const result = this.formatter(entry);
+          return typeof result === 'string' ? result : result.toString(this.encoding);
         }
-        const formatted = this.formatter(entry);
-        line = typeof formatted === 'string' ? formatted : formatted.toString();
-        break;
-      }
+        return JSON.stringify(entry);
 
       default:
-        line = JSON.stringify(entry);
-    }
-
-    return line + this.eol;
-  }
-
-  /**
-   * Schedule a batch write operation.
-   *
-   * @private
-   */
-  private scheduleWrite(): void {
-    if (this.writeTimer || this.writing) {
-      return;
-    }
-
-    // Write immediately if queue is large
-    if (this.writeQueue.length >= 100) {
-      this.flushWriteQueue();
-      return;
-    }
-
-    // Otherwise, batch writes every 100ms
-    this.writeTimer = setTimeout(() => {
-      this.flushWriteQueue();
-    }, 100);
-  }
-
-  /**
-   * Flush the write queue to disk.
-   *
-   * @private
-   */
-  private async flushWriteQueue(): Promise<void> {
-    if (this.writing || this.writeQueue.length === 0) {
-      return;
-    }
-
-    this.writing = true;
-
-    if (this.writeTimer) {
-      clearTimeout(this.writeTimer);
-      this.writeTimer = undefined;
-    }
-
-    const lines = this.writeQueue.splice(0);
-    const content = lines.join('');
-
-    try {
-      await this.writeToFile(content);
-      this.currentFileSize += Buffer.byteLength(content, this.encoding);
-    } catch (error) {
-      // Put lines back in queue for retry
-      this.writeQueue.unshift(...lines);
-      throw error;
-    } finally {
-      this.writing = false;
+        return JSON.stringify(entry);
     }
   }
 
   /**
-   * Write content to the current log file.
-   *
+   * Write content to the current file.
+   * 
    * @param {string} content - Content to write
+   * @returns {Promise<void>} Resolves when written
    * @private
    */
   private async writeToFile(content: string): Promise<void> {
-    if (!this.currentFile) {
-      throw new Error('No log file initialized');
+    // Handle write lock during rotation
+    if (this.writeLock) {
+      this.writeQueue.push(content);
+      return;
     }
 
     return new Promise((resolve, reject) => {
-      if (!this.fs) {
-        reject(new Error('File system module not loaded'));
-        return;
+      if (!this.writeStream || this.writeStream.destroyed) {
+        this.createWriteStream();
       }
 
-      this.fs.appendFile(
-        this.currentFile,
-        content,
-        { encoding: this.encoding },
-        (err: NodeJS.ErrnoException | null) => {
-          if (err) reject(err);
-          else resolve();
+      this.writeStream!.write(content, (error) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve();
         }
-      );
+      });
     });
   }
 
   /**
    * Check if file rotation is needed.
-   *
+   * 
+   * @param {number} incomingSize - Size of incoming data
+   * @returns {Promise<void>} Resolves when check is complete
    * @private
    */
-  private async checkRotation(): Promise<void> {
-    if (this.rotation === 'none') {
-      return;
-    }
-
-    const now = Date.now();
+  private async checkRotation(incomingSize: number): Promise<void> {
+    let shouldRotate = false;
 
     switch (this.rotation) {
       case 'size':
-        if (this.currentFileSize >= this.maxFileSize) {
-          await this.rotateFile();
-        }
+        shouldRotate = this.currentSize + incomingSize > this.maxFileSize;
         break;
 
       case 'daily': {
-        // Check once per minute max
-        if (now - this.lastRotationCheck > 60000) {
-          const currentDate = new Date().toDateString();
-          const fileDate = new Date(this.lastRotationCheck).toDateString();
-
-          if (currentDate !== fileDate) {
-            await this.rotateFile();
-          }
-
-          this.lastRotationCheck = now;
-        }
+        const today = new Date().toISOString().split('T')[0];
+        shouldRotate = today !== this.currentDate;
         break;
       }
 
       case 'hourly': {
-        // Check once per minute max
-        if (now - this.lastRotationCheck > 60000) {
-          const currentHour = new Date().getHours();
-          const fileHour = new Date(this.lastRotationCheck).getHours();
-
-          if (currentHour !== fileHour) {
-            await this.rotateFile();
-          }
-
-          this.lastRotationCheck = now;
-        }
+        const currentHour = new Date().getHours();
+        const fileHour = this.currentFile ? 
+          parseInt(path.basename(this.currentFile).split('-')[3]?.split('.')[0] || '0') : -1;
+        shouldRotate = currentHour !== fileHour;
         break;
       }
+
+      case 'none':
+      default:
+        shouldRotate = false;
+    }
+
+    if (shouldRotate) {
+      await this.rotateFile();
     }
   }
 
   /**
    * Rotate the current log file.
-   *
+   * 
+   * @returns {Promise<void>} Resolves when rotation is complete
    * @private
    */
   private async rotateFile(): Promise<void> {
-    // Flush any pending writes
-    await this.flushWriteQueue();
+    this.writeLock = true;
 
-    if (this.isDirectory && this.fileManager) {
-      // Create new file with timestamp
-      this.currentFile = (await this.fileManager.initLogFile()) || undefined;
-    } else if (this.currentFile) {
-      // Rotate single file
-      const dir = path.dirname(this.currentFile);
-      const basename = path.basename(this.currentFile);
-      const ext = path.extname(basename);
-      const name = path.basename(basename, ext);
-
-      // Generate rotated filename with timestamp
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const rotatedFile = path.join(dir, `${name}-${timestamp}${ext}`);
-
-      // Rename current file
-      await this.renameFile(this.currentFile, rotatedFile);
-
-      // Compress if configured
-      if (this.compress) {
-        await this.compressFile(rotatedFile);
+    try {
+      // Close current stream
+      if (this.writeStream) {
+        await new Promise<void>((resolve) => {
+          this.writeStream!.end(() => resolve());
+        });
       }
 
-      // Create new file
-      await this.createFile(this.currentFile);
+      // Handle rotation based on mode
+      if (this.isDirectory) {
+        // Just create a new file
+        this.currentFile = this.generateFilename();
+        this.currentSize = 0;
+        
+        if (this.rotation === 'daily') {
+          this.currentDate = new Date().toISOString().split('T')[0];
+        }
+      } else {
+        // Rename current file and create new one
+        await this.rotateSingleFile();
+      }
 
-      // Manage old files
-      await this.cleanupOldFiles(dir, name, ext);
+      // Create new stream
+      this.createWriteStream();
+
+      // Process queued writes
+      const queue = this.writeQueue;
+      this.writeQueue = [];
+      for (const content of queue) {
+        await this.writeToFile(content);
+      }
+
+      // Clean up old files
+      await this.cleanupOldFiles();
+
+    } finally {
+      this.writeLock = false;
+    }
+  }
+
+  /**
+   * Rotate a single file (not directory mode).
+   * 
+   * @returns {Promise<void>} Resolves when rotated
+   * @private
+   */
+  private async rotateSingleFile(): Promise<void> {
+    const dir = path.dirname(this.filepath);
+    const basename = path.basename(this.filepath);
+    const ext = path.extname(basename);
+    const name = path.basename(basename, ext);
+
+    // Find next available backup number
+    let backupNum = 1;
+    while (backupNum <= this.maxFiles) {
+      const backupPath = path.join(dir, `${name}.${backupNum}${ext}`);
+      try {
+        await stat(backupPath);
+        backupNum++;
+      } catch {
+        break;
+      }
     }
 
-    // Reset file size
-    this.currentFileSize = 0;
+    // Rename current file
+    if (backupNum <= this.maxFiles) {
+      const backupPath = path.join(dir, `${name}.${backupNum}${ext}`);
+      await rename(this.currentFile!, backupPath);
+
+      // Compress if enabled
+      if (this.compressRotated) {
+        await this.compressFile(backupPath);
+      }
+    }
+
+    this.currentSize = 0;
+  }
+
+  /**
+   * Generate a filename for directory mode.
+   * 
+   * @returns {string} Generated filename
+   * @private
+   */
+  private generateFilename(): string {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hour = String(now.getHours()).padStart(2, '0');
+    const minute = String(now.getMinutes()).padStart(2, '0');
+    const second = String(now.getSeconds()).padStart(2, '0');
+
+    let filename = `${year}-${month}-${day}`;
+
+    if (this.rotation === 'hourly') {
+      filename += `-${hour}`;
+    } else if (this.rotation === 'size' || this.rotation === 'none') {
+      filename += `-${hour}${minute}${second}`;
+    }
+
+    filename += '.log';
+
+    return path.join(this.filepath, filename);
   }
 
   /**
    * Compress a file using gzip.
-   *
+   * 
    * @param {string} filepath - File to compress
+   * @returns {Promise<void>} Resolves when compressed
    * @private
    */
   private async compressFile(filepath: string): Promise<void> {
-    if (!this.zlib) {
-      return;
+    try {
+      const data = await fs.promises.readFile(filepath);
+      const compressed = await gzip(data);
+      await writeFile(`${filepath}.gz`, compressed);
+      await unlink(filepath);
+    } catch (error) {
+      console.error(`Failed to compress ${filepath}:`, error);
     }
-
-    const gzipFile = `${filepath}.gz`;
-
-    return new Promise((resolve, reject) => {
-      const input = this.fs.createReadStream(filepath);
-      const output = this.fs.createWriteStream(gzipFile);
-      const gzip = this.zlib.createGzip();
-
-      // Handle errors on all streams
-      input.on('error', reject);
-      output.on('error', reject);
-      gzip.on('error', reject);
-
-      // Set up the pipe chain with proper error handling
-      input.pipe(gzip).pipe(output);
-      
-      output.on('finish', () => {
-        // Delete original file after compression
-        this.fs.unlink(filepath, (err: NodeJS.ErrnoException | null) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      });
-    });
   }
 
   /**
-   * Clean up old rotated files.
-   *
-   * @param {string} dir - Directory containing files
-   * @param {string} namePattern - Base filename pattern
-   * @param {string} ext - File extension
+   * Clean up old log files based on retention policy.
+   * 
+   * @returns {Promise<void>} Resolves when cleanup is complete
    * @private
    */
-  private async cleanupOldFiles(dir: string, namePattern: string, ext: string): Promise<void> {
-    const files = await this.readDirectory(dir);
+  private async cleanupOldFiles(): Promise<void> {
+    if (!this.isDirectory) {
+      // For single file mode, remove old backups
+      const dir = path.dirname(this.filepath);
+      const basename = path.basename(this.filepath);
+      const ext = path.extname(basename);
+      const name = path.basename(basename, ext);
 
-    // Find all rotated files
-    const pattern = new RegExp(
-      `^${namePattern}-\\d{4}-\\d{2}-\\d{2}T\\d{2}-\\d{2}-\\d{2}.*${ext}(\\.gz)?$`
-    );
-    const rotatedFiles = files
-      .filter(file => pattern.test(file))
-      .map(file => ({
-        name: file,
-        path: path.join(dir, file),
-      }));
+      const files = await readdir(dir);
+      const backupFiles = files
+        .filter(f => f.startsWith(`${name}.`) && (f.endsWith(ext) || f.endsWith(`${ext}.gz`)))
+        .sort()
+        .reverse();
 
-    // Sort by modification time
-    const stats = await Promise.all(
-      rotatedFiles.map(async file => ({
-        ...file,
-        mtime: (await this.getFileStats(file.path)).mtime.getTime(),
-      }))
-    );
+      // Remove files beyond maxFiles
+      for (let i = this.maxFiles; i < backupFiles.length; i++) {
+        try {
+          await unlink(path.join(dir, backupFiles[i]));
+        } catch (error) {
+          console.error(`Failed to remove ${backupFiles[i]}:`, error);
+        }
+      }
+    } else {
+      // For directory mode, remove old files based on retention
+      const cutoff = Date.now() - (this.retentionDays * 24 * 60 * 60 * 1000);
+      const files = await readdir(this.filepath);
 
-    stats.sort((a, b) => b.mtime - a.mtime);
+      for (const file of files) {
+        if (!file.endsWith('.log') && !file.endsWith('.log.gz')) continue;
 
-    // Remove old files exceeding maxFiles
-    const filesToDelete = stats.slice(this.maxFiles);
+        try {
+          const filepath = path.join(this.filepath, file);
+          const stats = await stat(filepath);
 
-    for (const file of filesToDelete) {
-      await this.deleteFile(file.path);
+          if (stats.mtime.getTime() < cutoff) {
+            await unlink(filepath);
+          }
+        } catch (error) {
+          console.error(`Failed to check/remove ${file}:`, error);
+        }
+      }
     }
   }
 
   /**
-   * Flush any pending writes.
-   *
-   * @returns {Promise<void>} Resolves when flushed
+   * Start periodic retention cleanup.
+   * 
+   * @private
    */
-  public async flush(): Promise<void> {
-    await this.flushWriteQueue();
+  private startRetentionCleanup(): void {
+    // Run cleanup every hour
+    const interval = setInterval(() => {
+      this.cleanupOldFiles().catch(error => {
+        console.error('Retention cleanup failed:', error);
+      });
+    }, 60 * 60 * 1000);
+
+    // Don't prevent process exit
+    if (interval.unref) {
+      interval.unref();
+    }
   }
 
   /**
-   * Close the file transport.
-   *
+   * Ensure a directory exists.
+   * 
+   * @param {string} dir - Directory path
+   * @returns {Promise<void>} Resolves when directory exists
+   * @private
+   */
+  private async ensureDirectory(dir: string): Promise<void> {
+    try {
+      await mkdir(dir, { recursive: true });
+    } catch (error: any) {
+      if (error.code !== 'EEXIST') {
+        throw error;
+      }
+    }
+  }
+
+  /**
+   * Close the transport and clean up resources.
+   * 
    * @returns {Promise<void>} Resolves when closed
    * @protected
    */
   protected async doClose(): Promise<void> {
-    // Flush pending writes
-    await this.flush();
-
-    // Clear write timer
-    if (this.writeTimer) {
-      clearTimeout(this.writeTimer);
-      this.writeTimer = undefined;
-    }
-
-    // Close file stream if open
-    if (this.fileStream) {
-      await new Promise<void>((resolve, reject) => {
-        this.fileStream.end((err: Error) => {
-          if (err) reject(err);
-          else resolve();
-        });
+    if (this.writeStream) {
+      await new Promise<void>((resolve) => {
+        this.writeStream!.end(() => resolve());
       });
     }
   }
 
   /**
-   * Utility methods for file operations.
-   * These wrap fs methods in promises for easier async/await usage.
+   * Get the current log file path.
+   * 
+   * @returns {string | undefined} Current file path
    */
-
-  private async ensureDirectory(dir: string): Promise<void> {
-    if (!this.createDir) return;
-
-    return new Promise((resolve, reject) => {
-      this.fs.mkdir(dir, { recursive: true }, (err: Error) => {
-        if (err && (err as NodeJS.ErrnoException).code !== 'EEXIST') reject(err);
-        else resolve();
-      });
-    });
+  public getCurrentFile(): string | undefined {
+    return this.currentFile;
   }
 
-  private async fileExists(filepath: string): Promise<boolean> {
-    return new Promise(resolve => {
-      this.fs.access(filepath, this.fs.constants.F_OK, (err: Error) => {
-        resolve(!err);
-      });
-    });
+  /**
+   * Get file transport statistics.
+   * 
+   * @returns {object} Extended statistics
+   */
+  public getStats(): any {
+    const baseStats = super.getStats();
+    
+    return {
+      ...baseStats,
+      custom: {
+        ...baseStats.custom,
+        currentFile: this.currentFile,
+        currentSize: this.currentSize,
+        writeQueueLength: this.writeQueue.length,
+      },
+    };
   }
-
-  private async createFile(filepath: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.fs.writeFile(filepath, '', { encoding: this.encoding }, (err: Error) => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
-  }
-
-  private async renameFile(oldPath: string, newPath: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.fs.rename(oldPath, newPath, (err: Error) => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
-  }
-
-  private async deleteFile(filepath: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.fs.unlink(filepath, (err: Error) => {
-        if (err && (err as NodeJS.ErrnoException).code !== 'ENOENT') reject(err);
-        else resolve();
-      });
-    });
-  }
-
-  private async readDirectory(dir: string): Promise<string[]> {
-    return new Promise((resolve, reject) => {
-      this.fs.readdir(dir, (err: Error, files: string[]) => {
-        if (err) reject(err);
-        else resolve(files);
-      });
-    });
-  }
-
-  private async getFileStats(filepath: string): Promise<any> {
-    return new Promise((resolve, reject) => {
-      this.fs.stat(filepath, (err: Error, stats: any) => {
-        if (err) reject(err);
-        else resolve(stats);
-      });
-    });
-  }
-
-  private async updateFileSize(): Promise<void> {
-    if (!this.currentFile) return;
-
-    try {
-      const stats = await this.getFileStats(this.currentFile);
-      this.currentFileSize = stats.size;
-    } catch (err) {
-      this.currentFileSize = 0;
-    }
-  }
-}
-
-/**
- * Factory function to create a file transport with common defaults.
- *
- * @param {Partial<FileTransportOptions>} [options={}] - Transport options
- * @returns {FileTransport} Configured file transport
- */
-export function createFileTransport(options: Partial<FileTransportOptions> = {}): FileTransport {
-  return new FileTransport({
-    name: 'file',
-    enabled: true,
-    level: 'info',
-    filepath: './logs',
-    isDirectory: true,
-    rotation: 'daily',
-    ...options,
-  });
 }

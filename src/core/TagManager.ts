@@ -1,585 +1,609 @@
 // File: src/core/TagManager.ts
 
 /**
- * TagManager provides utilities for managing and manipulating tags
- * in log entries. It handles tag normalization, filtering, grouping,
- * and provides helper methods for common tag operations.
+ * Tag management utilities for log categorization.
+ * 
+ * The TagManager provides comprehensive tag manipulation:
+ * - Tag normalization and validation
+ * - Hierarchical tag support (parent.child)
+ * - Tag aliasing and synonyms
+ * - Tag rules and constraints
+ * - Tag statistics and analytics
+ * - Performance-optimized operations
+ * 
+ * @class TagManager
  * 
  * @example
  * ```typescript
- * const tagManager = new TagManager();
+ * const tagManager = new TagManager({
+ *   aliases: {
+ *     'err': 'error',
+ *     'warn': 'warning'
+ *   },
+ *   rules: {
+ *     maxTags: 10,
+ *     maxLength: 50,
+ *     pattern: /^[a-z0-9-_.]+$/
+ *   }
+ * });
  * 
  * // Normalize tags
- * const normalized = tagManager.normalize(['API', 'v1.0', 'PROD']);
- * // Result: ['api', 'v1-0', 'prod']
+ * const tags = tagManager.normalize(['ERR', 'user.action', 'api']);
+ * // Result: ['error', 'user.action', 'api']
  * 
- * // Filter tags
- * const filtered = tagManager.filter(['api', 'debug', 'prod'], {
- *   include: ['api', 'prod'],
- *   exclude: ['debug']
- * });
- * // Result: ['api', 'prod']
- * 
- * // Group tags
- * const grouped = tagManager.group(['api-v1', 'api-v2', 'db-read', 'db-write']);
- * // Result: { api: ['v1', 'v2'], db: ['read', 'write'] }
+ * // Check hierarchy
+ * tagManager.isChildOf('user.action.login', 'user'); // true
  * ```
  */
 export class TagManager {
-  private readonly normalizationRules: TagNormalizationRules;
-  private readonly hierarchySeparator: string;
+  /**
+   * Tag aliases mapping.
+   * @private
+   */
+  private aliases: Map<string, string>;
+
+  /**
+   * Reverse alias mapping for lookups.
+   * @private
+   */
+  private reverseAliases: Map<string, Set<string>>;
+
+  /**
+   * Tag validation rules.
+   * @private
+   */
+  private rules: {
+    maxTags: number;
+    maxLength: number;
+    minLength: number;
+    pattern?: RegExp;
+    required?: string[];
+    forbidden?: string[];
+    lowercase: boolean;
+    trim: boolean;
+  };
+
+  /**
+   * Tag statistics.
+   * @private
+   */
+  private stats: Map<string, {
+    count: number;
+    firstSeen: Date;
+    lastSeen: Date;
+  }>;
+
+  /**
+   * Hierarchical tag index.
+   * @private
+   */
+  private hierarchy: Map<string, Set<string>>;
+
+  /**
+   * Tag metadata storage.
+   * @private
+   */
+  private metadata: Map<string, Record<string, any>>;
 
   /**
    * Creates a new TagManager instance.
    * 
-   * @param {TagManagerOptions} [options={}] - Configuration options
+   * @param {object} options - Configuration options
    */
-  constructor(options: TagManagerOptions = {}) {
-    this.normalizationRules = {
-      lowercase: options.normalizationRules?.lowercase ?? true,
-      replaceSpaces: options.normalizationRules?.replaceSpaces ?? true,
-      replaceDots: options.normalizationRules?.replaceDots ?? true,
-      removeSpecialChars: options.normalizationRules?.removeSpecialChars ?? false,
-      maxLength: options.normalizationRules?.maxLength ?? 50,
-      ...options.normalizationRules
+  constructor(options: {
+    aliases?: Record<string, string>;
+    rules?: Partial<TagManager['rules']>;
+    metadata?: Record<string, Record<string, any>>;
+  } = {}) {
+    this.aliases = new Map(Object.entries(options.aliases || {}));
+    this.reverseAliases = new Map();
+    this.stats = new Map();
+    this.hierarchy = new Map();
+    this.metadata = new Map(Object.entries(options.metadata || {}));
+
+    // Build reverse aliases
+    for (const [alias, canonical] of this.aliases) {
+      if (!this.reverseAliases.has(canonical)) {
+        this.reverseAliases.set(canonical, new Set());
+      }
+      this.reverseAliases.get(canonical)!.add(alias);
+    }
+
+    // Set default rules
+    this.rules = {
+      maxTags: 20,
+      maxLength: 100,
+      minLength: 1,
+      pattern: /^[a-zA-Z0-9-_.:/]+$/,
+      required: [],
+      forbidden: [],
+      lowercase: true,
+      trim: true,
+      ...options.rules,
     };
-    
-    this.hierarchySeparator = options.hierarchySeparator || '-';
   }
 
   /**
-   * Normalize tags according to configured rules.
+   * Normalize an array of tags.
    * 
    * @param {string[]} tags - Tags to normalize
    * @returns {string[]} Normalized tags
-   * 
-   * @example
-   * ```typescript
-   * const tags = ['API Service', 'v1.0', 'PRODUCTION', 'user@auth'];
-   * const normalized = tagManager.normalize(tags);
-   * // Result: ['api-service', 'v1-0', 'production', 'user-auth']
-   * ```
    */
   public normalize(tags: string[]): string[] {
-    return tags
-      .filter(tag => typeof tag === 'string' && tag.trim().length > 0)
-      .map(tag => this.normalizeTag(tag))
-      .filter(tag => tag.length > 0);
-  }
+    if (!Array.isArray(tags)) return [];
 
-  /**
-   * Filter tags based on include/exclude criteria.
-   * 
-   * @param {string[]} tags - Tags to filter
-   * @param {TagFilterOptions} options - Filter options
-   * @returns {string[]} Filtered tags
-   * 
-   * @example
-   * ```typescript
-   * const tags = ['api', 'debug', 'production', 'v1', 'internal'];
-   * const filtered = tagManager.filter(tags, {
-   *   include: ['api', 'production', 'v1'],
-   *   exclude: ['debug', 'internal'],
-   *   patterns: [/^v\d+$/] // Include version tags
-   * });
-   * // Result: ['api', 'production', 'v1']
-   * ```
-   */
-  public filter(tags: string[], options: TagFilterOptions): string[] {
-    let result = [...tags];
+    const normalized = new Set<string>();
     
-    // Apply include filter
-    if (options.include && options.include.length > 0) {
-      result = result.filter(tag => 
-        options.include!.includes(tag) ||
-        (options.patterns && options.patterns.some(pattern => pattern.test(tag)))
-      );
+    for (let tag of tags) {
+      if (typeof tag !== 'string') continue;
+
+      // Apply basic normalization
+      if (this.rules.trim) {
+        tag = tag.trim();
+      }
+
+      if (this.rules.lowercase) {
+        tag = tag.toLowerCase();
+      }
+
+      // Skip empty tags
+      if (!tag) continue;
+
+      // Apply alias
+      tag = this.resolveAlias(tag);
+
+      // Validate tag
+      if (!this.isValid(tag)) continue;
+
+      // Check forbidden
+      if (this.rules.forbidden?.includes(tag)) continue;
+
+      normalized.add(tag);
+
+      // Update hierarchy
+      this.updateHierarchy(tag);
     }
-    
-    // Apply exclude filter
-    if (options.exclude && options.exclude.length > 0) {
-      result = result.filter(tag => !options.exclude!.includes(tag));
+
+    // Add required tags
+    for (const required of this.rules.required || []) {
+      normalized.add(required);
     }
-    
-    // Apply pattern filters
-    if (options.patterns && !options.include) {
-      result = result.filter(tag => 
-        options.patterns!.some(pattern => pattern.test(tag))
-      );
+
+    // Apply max limit
+    const result = Array.from(normalized);
+    if (result.length > this.rules.maxTags) {
+      return result.slice(0, this.rules.maxTags);
     }
-    
+
     return result;
   }
 
   /**
-   * Group tags by hierarchy using the configured separator.
+   * Validate a single tag.
    * 
-   * @param {string[]} tags - Tags to group
-   * @returns {Record<string, string[]>} Grouped tags
-   * 
-   * @example
-   * ```typescript
-   * const tags = ['api-v1', 'api-v2', 'db-read', 'db-write', 'cache-redis', 'cache-memory'];
-   * const grouped = tagManager.group(tags);
-   * // Result: {
-   * //   api: ['v1', 'v2'],
-   * //   db: ['read', 'write'],
-   * //   cache: ['redis', 'memory']
-   * // }
-   * ```
+   * @param {string} tag - Tag to validate
+   * @returns {boolean} True if valid
    */
-  public group(tags: string[]): Record<string, string[]> {
-    const groups: Record<string, string[]> = {};
+  public isValid(tag: string): boolean {
+    if (typeof tag !== 'string') return false;
     
-    for (const tag of tags) {
-      const parts = tag.split(this.hierarchySeparator);
-      if (parts.length > 1) {
-        const [group, ...subTags] = parts;
-        if (!groups[group]) {
-          groups[group] = [];
-        }
-        groups[group].push(subTags.join(this.hierarchySeparator));
-      } else {
-        // Tags without hierarchy go to 'general' group
-        if (!groups.general) {
-          groups.general = [];
-        }
-        groups.general.push(tag);
-      }
+    if (tag.length < this.rules.minLength || tag.length > this.rules.maxLength) {
+      return false;
     }
-    
-    return groups;
-  }
 
-  /**
-   * Merge multiple tag arrays, removing duplicates and applying normalization.
-   * 
-   * @param {...string[][]} tagArrays - Arrays of tags to merge
-   * @returns {string[]} Merged and deduplicated tags
-   * 
-   * @example
-   * ```typescript
-   * const merged = tagManager.merge(
-   *   ['api', 'v1'],
-   *   ['API', 'production'],
-   *   ['v1', 'debug']
-   * );
-   * // Result: ['api', 'v1', 'production', 'debug']
-   * ```
-   */
-  public merge(...tagArrays: string[][]): string[] {
-    const allTags = tagArrays.flat();
-    const normalized = this.normalize(allTags);
-    return [...new Set(normalized)]; // Remove duplicates
-  }
+    if (this.rules.pattern && !this.rules.pattern.test(tag)) {
+      return false;
+    }
 
-  /**
-   * Check if tags match given criteria.
-   * 
-   * @param {string[]} tags - Tags to check
-   * @param {TagMatchCriteria} criteria - Match criteria
-   * @returns {boolean} Whether tags match criteria
-   * 
-   * @example
-   * ```typescript
-   * const tags = ['api', 'v1', 'production'];
-   * 
-   * // Check if has all required tags
-   * const hasRequired = tagManager.matches(tags, {
-   *   all: ['api', 'production']
-   * }); // true
-   * 
-   * // Check if has any of the tags
-   * const hasAny = tagManager.matches(tags, {
-   *   any: ['debug', 'v1']
-   * }); // true
-   * 
-   * // Check if doesn't have forbidden tags
-   * const noForbidden = tagManager.matches(tags, {
-   *   none: ['debug', 'test']
-   * }); // true
-   * ```
-   */
-  public matches(tags: string[], criteria: TagMatchCriteria): boolean {
-    // Check 'all' criteria
-    if (criteria.all && criteria.all.length > 0) {
-      if (!criteria.all.every(tag => tags.includes(tag))) {
-        return false;
-      }
-    }
-    
-    // Check 'any' criteria
-    if (criteria.any && criteria.any.length > 0) {
-      if (!criteria.any.some(tag => tags.includes(tag))) {
-        return false;
-      }
-    }
-    
-    // Check 'none' criteria
-    if (criteria.none && criteria.none.length > 0) {
-      if (criteria.none.some(tag => tags.includes(tag))) {
-        return false;
-      }
-    }
-    
-    // Check pattern criteria
-    if (criteria.patterns && criteria.patterns.length > 0) {
-      const hasMatchingPattern = tags.some(tag =>
-        criteria.patterns!.some(pattern => pattern.test(tag))
-      );
-      if (!hasMatchingPattern) {
-        return false;
-      }
-    }
-    
     return true;
   }
 
   /**
-   * Generate hierarchical tags from a path or namespace.
+   * Resolve tag alias to canonical form.
    * 
-   * @param {string} path - Path to convert to tags
-   * @param {string} [separator='/'] - Path separator
-   * @returns {string[]} Generated hierarchical tags
-   * 
-   * @example
-   * ```typescript
-   * const tags = tagManager.fromPath('api/v1/users/create', '/');
-   * // Result: ['api', 'api-v1', 'api-v1-users', 'api-v1-users-create']
-   * ```
+   * @param {string} tag - Tag to resolve
+   * @returns {string} Canonical tag
    */
-  public fromPath(path: string, separator = '/'): string[] {
-    const parts = path.split(separator).filter(part => part.length > 0);
-    const tags: string[] = [];
-    
-    for (let i = 0; i < parts.length; i++) {
-      const tagParts = parts.slice(0, i + 1);
-      const tag = this.normalizeTag(tagParts.join(this.hierarchySeparator));
-      if (tag) {
-        tags.push(tag);
-      }
-    }
-    
-    return tags;
+  public resolveAlias(tag: string): string {
+    return this.aliases.get(tag) || tag;
   }
 
   /**
-   * Create tags from an object's properties.
+   * Get all aliases for a canonical tag.
    * 
-   * @param {Record<string, any>} obj - Object to extract tags from
-   * @param {TagExtractionOptions} [options={}] - Extraction options
-   * @returns {string[]} Extracted tags
-   * 
-   * @example
-   * ```typescript
-   * const obj = {
-   *   service: 'api',
-   *   version: '1.0',
-   *   environment: 'production',
-   *   features: ['auth', 'payments']
-   * };
-   * 
-   * const tags = tagManager.fromObject(obj, {
-   *   prefix: 'app',
-   *   includeArrays: true
-   * });
-   * // Result: ['app-service-api', 'app-version-1-0', 'app-environment-production', 'app-features-auth', 'app-features-payments']
-   * ```
+   * @param {string} tag - Canonical tag
+   * @returns {string[]} Array of aliases
    */
-  public fromObject(obj: Record<string, any>, options: TagExtractionOptions = {}): string[] {
-    const tags: string[] = [];
-    const prefix = options.prefix ? `${options.prefix}${this.hierarchySeparator}` : '';
-    
-    for (const [key, value] of Object.entries(obj)) {
-      if (value === null || value === undefined) continue;
-      
-      const normalizedKey = this.normalizeTag(key);
-      
-      if (Array.isArray(value) && options.includeArrays) {
-        for (const item of value) {
-          if (typeof item === 'string' || typeof item === 'number') {
-            const tag = `${prefix}${normalizedKey}${this.hierarchySeparator}${this.normalizeTag(String(item))}`;
-            tags.push(tag);
-          }
-        }
-      } else if (typeof value === 'string' || typeof value === 'number') {
-        const tag = `${prefix}${normalizedKey}${this.hierarchySeparator}${this.normalizeTag(String(value))}`;
-        tags.push(tag);
-      } else if (typeof value === 'boolean') {
-        if (value) {
-          tags.push(`${prefix}${normalizedKey}`);
-        }
-      }
-    }
-    
-    return tags;
+  public getAliases(tag: string): string[] {
+    const aliases = this.reverseAliases.get(tag);
+    return aliases ? Array.from(aliases) : [];
   }
 
   /**
-   * Validate tags against configured rules.
+   * Add or update a tag alias.
+   * 
+   * @param {string} alias - Alias tag
+   * @param {string} canonical - Canonical tag
+   */
+  public addAlias(alias: string, canonical: string): void {
+    // Remove old alias if exists
+    const oldCanonical = this.aliases.get(alias);
+    if (oldCanonical) {
+      this.reverseAliases.get(oldCanonical)?.delete(alias);
+    }
+
+    // Add new alias
+    this.aliases.set(alias, canonical);
+    
+    if (!this.reverseAliases.has(canonical)) {
+      this.reverseAliases.set(canonical, new Set());
+    }
+    this.reverseAliases.get(canonical)!.add(alias);
+  }
+
+  /**
+   * Remove a tag alias.
+   * 
+   * @param {string} alias - Alias to remove
+   */
+  public removeAlias(alias: string): void {
+    const canonical = this.aliases.get(alias);
+    if (canonical) {
+      this.aliases.delete(alias);
+      this.reverseAliases.get(canonical)?.delete(alias);
+    }
+  }
+
+  /**
+   * Merge multiple tag arrays.
+   * 
+   * @param {...string[][]} tagArrays - Arrays of tags to merge
+   * @returns {string[]} Merged and normalized tags
+   */
+  public merge(...tagArrays: string[][]): string[] {
+    const allTags = new Set<string>();
+    
+    for (const tags of tagArrays) {
+      if (!Array.isArray(tags)) continue;
+      
+      const normalized = this.normalize(tags);
+      for (const tag of normalized) {
+        allTags.add(tag);
+      }
+    }
+
+    return Array.from(allTags);
+  }
+
+  /**
+   * Check if a tag is a child of another tag (hierarchical).
+   * 
+   * @param {string} child - Child tag
+   * @param {string} parent - Parent tag
+   * @returns {boolean} True if child of parent
+   */
+  public isChildOf(child: string, parent: string): boolean {
+    if (!child.startsWith(parent)) return false;
+    
+    // Check if it's a proper hierarchy separator
+    const separator = child[parent.length];
+    return separator === '.' || separator === ':' || separator === '/';
+  }
+
+  /**
+   * Get all children of a tag.
+   * 
+   * @param {string} parent - Parent tag
+   * @returns {string[]} Child tags
+   */
+  public getChildren(parent: string): string[] {
+    const children = this.hierarchy.get(parent);
+    return children ? Array.from(children) : [];
+  }
+
+  /**
+   * Get parent tags from a hierarchical tag.
+   * 
+   * @param {string} tag - Hierarchical tag
+   * @returns {string[]} Parent tags
+   */
+  public getParents(tag: string): string[] {
+    const parents: string[] = [];
+    const separators = ['.', ':', '/'];
+    
+    for (const sep of separators) {
+      const parts = tag.split(sep);
+      if (parts.length > 1) {
+        for (let i = 1; i < parts.length; i++) {
+          parents.push(parts.slice(0, i).join(sep));
+        }
+        break;
+      }
+    }
+
+    return parents;
+  }
+
+  /**
+   * Update hierarchical index.
+   * 
+   * @param {string} tag - Tag to index
+   * @private
+   */
+  private updateHierarchy(tag: string): void {
+    const parents = this.getParents(tag);
+    
+    for (const parent of parents) {
+      if (!this.hierarchy.has(parent)) {
+        this.hierarchy.set(parent, new Set());
+      }
+      this.hierarchy.get(parent)!.add(tag);
+    }
+  }
+
+  /**
+   * Filter tags by pattern.
+   * 
+   * @param {string[]} tags - Tags to filter
+   * @param {string | RegExp} pattern - Pattern to match
+   * @returns {string[]} Filtered tags
+   */
+  public filter(tags: string[], pattern: string | RegExp): string[] {
+    const regex = typeof pattern === 'string' ? new RegExp(pattern) : pattern;
+    return tags.filter(tag => regex.test(tag));
+  }
+
+  /**
+   * Group tags by prefix.
+   * 
+   * @param {string[]} tags - Tags to group
+   * @returns {Record<string, string[]>} Grouped tags
+   */
+  public groupByPrefix(tags: string[]): Record<string, string[]> {
+    const groups: Record<string, string[]> = {};
+    
+    for (const tag of tags) {
+      const firstSep = tag.search(/[.:/]/);
+      const prefix = firstSep > 0 ? tag.substring(0, firstSep) : '_root';
+      
+      if (!groups[prefix]) {
+        groups[prefix] = [];
+      }
+      groups[prefix].push(tag);
+    }
+
+    return groups;
+  }
+
+  /**
+   * Record tag usage for statistics.
+   * 
+   * @param {string[]} tags - Tags that were used
+   */
+  public recordUsage(tags: string[]): void {
+    const now = new Date();
+    
+    for (const tag of tags) {
+      let stat = this.stats.get(tag);
+      
+      if (!stat) {
+        stat = {
+          count: 0,
+          firstSeen: now,
+          lastSeen: now,
+        };
+        this.stats.set(tag, stat);
+      }
+
+      stat.count++;
+      stat.lastSeen = now;
+    }
+  }
+
+  /**
+   * Get tag statistics.
+   * 
+   * @param {string} tag - Tag to get stats for
+   * @returns {object | null} Tag statistics
+   */
+  public getStats(tag: string): TagManager['stats'] extends Map<string, infer T> ? T | null : null {
+    return this.stats.get(tag) || null;
+  }
+
+  /**
+   * Get most used tags.
+   * 
+   * @param {number} limit - Number of tags to return
+   * @returns {Array<{tag: string; count: number}>} Top tags
+   */
+  public getTopTags(limit = 10): Array<{ tag: string; count: number }> {
+    const sorted = Array.from(this.stats.entries())
+      .map(([tag, stat]) => ({ tag, count: stat.count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, limit);
+
+    return sorted;
+  }
+
+  /**
+   * Get or set tag metadata.
+   * 
+   * @param {string} tag - Tag name
+   * @param {Record<string, any>} [metadata] - Metadata to set
+   * @returns {Record<string, any> | undefined} Tag metadata
+   */
+  public metadata(tag: string, metadata?: Record<string, any>): Record<string, any> | undefined {
+    if (metadata !== undefined) {
+      this.metadata.set(tag, metadata);
+      return metadata;
+    }
+    return this.metadata.get(tag);
+  }
+
+  /**
+   * Suggest tags based on partial input.
+   * 
+   * @param {string} partial - Partial tag string
+   * @param {number} limit - Maximum suggestions
+   * @returns {string[]} Suggested tags
+   */
+  public suggest(partial: string, limit = 5): string[] {
+    const normalizedPartial = this.rules.lowercase ? partial.toLowerCase() : partial;
+    const suggestions: Array<{ tag: string; score: number }> = [];
+
+    // Check all known tags
+    for (const [tag, stat] of this.stats) {
+      if (tag.startsWith(normalizedPartial)) {
+        // Exact prefix match gets highest score
+        suggestions.push({ tag, score: 1000 + stat.count });
+      } else if (tag.includes(normalizedPartial)) {
+        // Contains match gets lower score
+        suggestions.push({ tag, score: 500 + stat.count });
+      }
+    }
+
+    // Check aliases
+    for (const [alias, canonical] of this.aliases) {
+      if (alias.startsWith(normalizedPartial) && !suggestions.some(s => s.tag === canonical)) {
+        const stat = this.stats.get(canonical);
+        suggestions.push({ tag: canonical, score: 800 + (stat?.count || 0) });
+      }
+    }
+
+    // Sort by score and return top suggestions
+    return suggestions
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit)
+      .map(s => s.tag);
+  }
+
+  /**
+   * Validate a set of tags against rules.
    * 
    * @param {string[]} tags - Tags to validate
-   * @param {TagValidationRules} [rules] - Validation rules
-   * @returns {TagValidationResult} Validation result
-   * 
-   * @example
-   * ```typescript
-   * const validation = tagManager.validate(['api', 'v1', 'production'], {
-   *   maxCount: 5,
-   *   allowedPatterns: [/^[a-z0-9-]+$/],
-   *   required: ['api'],
-   *   forbidden: ['debug', 'test']
-   * });
-   * 
-   * if (!validation.valid) {
-   *   console.error('Tag validation failed:', validation.errors);
-   * }
-   * ```
+   * @returns {object} Validation result
    */
-  public validate(tags: string[], rules: TagValidationRules = {}): TagValidationResult {
+  public validateSet(tags: string[]): {
+    valid: boolean;
+    errors: string[];
+    warnings: string[];
+  } {
     const errors: string[] = [];
-    
-    // Check max count
-    if (rules.maxCount !== undefined && tags.length > rules.maxCount) {
-      errors.push(`Too many tags: ${tags.length} > ${rules.maxCount}`);
+    const warnings: string[] = [];
+
+    if (!Array.isArray(tags)) {
+      errors.push('Tags must be an array');
+      return { valid: false, errors, warnings };
     }
-    
-    // Check min count
-    if (rules.minCount !== undefined && tags.length < rules.minCount) {
-      errors.push(`Too few tags: ${tags.length} < ${rules.minCount}`);
+
+    // Check max tags
+    if (tags.length > this.rules.maxTags) {
+      errors.push(`Too many tags: ${tags.length} > ${this.rules.maxTags}`);
     }
-    
+
     // Check required tags
-    if (rules.required) {
-      for (const required of rules.required) {
-        if (!tags.includes(required)) {
-          errors.push(`Required tag '${required}' is missing`);
-        }
+    for (const required of this.rules.required || []) {
+      if (!tags.includes(required)) {
+        errors.push(`Missing required tag: ${required}`);
       }
     }
-    
-    // Check forbidden tags
-    if (rules.forbidden) {
-      for (const forbidden of rules.forbidden) {
-        if (tags.includes(forbidden)) {
-          errors.push(`Forbidden tag '${forbidden}' is present`);
-        }
+
+    // Validate each tag
+    const seen = new Set<string>();
+    for (const tag of tags) {
+      if (!this.isValid(tag)) {
+        warnings.push(`Invalid tag format: ${tag}`);
       }
-    }
-    
-    // Check allowed patterns
-    if (rules.allowedPatterns) {
-      for (const tag of tags) {
-        const isAllowed = rules.allowedPatterns.some(pattern => pattern.test(tag));
-        if (!isAllowed) {
-          errors.push(`Tag '${tag}' doesn't match allowed patterns`);
-        }
+
+      if (this.rules.forbidden?.includes(tag)) {
+        errors.push(`Forbidden tag: ${tag}`);
       }
-    }
-    
-    // Check forbidden patterns
-    if (rules.forbiddenPatterns) {
-      for (const tag of tags) {
-        const isForbidden = rules.forbiddenPatterns.some(pattern => pattern.test(tag));
-        if (isForbidden) {
-          errors.push(`Tag '${tag}' matches forbidden pattern`);
-        }
+
+      if (seen.has(tag)) {
+        warnings.push(`Duplicate tag: ${tag}`);
       }
+      seen.add(tag);
     }
-    
+
     return {
       valid: errors.length === 0,
-      errors
+      errors,
+      warnings,
     };
   }
 
-  // Private helper methods
-
-  private normalizeTag(tag: string): string {
-    let normalized = tag.trim();
-    
-    if (this.normalizationRules.lowercase) {
-      normalized = normalized.toLowerCase();
-    }
-    
-    if (this.normalizationRules.replaceSpaces) {
-      normalized = normalized.replace(/\s+/g, this.hierarchySeparator);
-    }
-    
-    if (this.normalizationRules.replaceDots) {
-      normalized = normalized.replace(/\./g, this.hierarchySeparator);
-    }
-    
-    if (this.normalizationRules.removeSpecialChars) {
-      normalized = normalized.replace(/[^a-zA-Z0-9\-_]/g, '');
-    }
-    
-    if (this.normalizationRules.maxLength) {
-      normalized = normalized.substring(0, this.normalizationRules.maxLength);
-    }
-    
-    return normalized;
+  /**
+   * Export tag configuration.
+   * 
+   * @returns {object} Exportable configuration
+   */
+  public export(): {
+    aliases: Record<string, string>;
+    rules: TagManager['rules'];
+    metadata: Record<string, Record<string, any>>;
+    stats: Array<{ tag: string; count: number; firstSeen: string; lastSeen: string }>;
+  } {
+    return {
+      aliases: Object.fromEntries(this.aliases),
+      rules: { ...this.rules },
+      metadata: Object.fromEntries(this.metadata),
+      stats: Array.from(this.stats.entries()).map(([tag, stat]) => ({
+        tag,
+        count: stat.count,
+        firstSeen: stat.firstSeen.toISOString(),
+        lastSeen: stat.lastSeen.toISOString(),
+      })),
+    };
   }
-}
 
-/**
- * Configuration options for TagManager.
- */
-export interface TagManagerOptions {
   /**
-   * Rules for normalizing tags.
+   * Import tag configuration.
+   * 
+   * @param {object} config - Configuration to import
    */
-  normalizationRules?: TagNormalizationRules;
-  
-  /**
-   * Separator for hierarchical tags.
-   * @default '-'
-   */
-  hierarchySeparator?: string;
-}
+  public import(config: ReturnType<TagManager['export']>): void {
+    // Import aliases
+    if (config.aliases) {
+      this.aliases = new Map(Object.entries(config.aliases));
+      this.rebuildReverseAliases();
+    }
 
-/**
- * Rules for normalizing tags.
- */
-export interface TagNormalizationRules {
-  /**
-   * Convert tags to lowercase.
-   * @default true
-   */
-  lowercase?: boolean;
-  
-  /**
-   * Replace spaces with hierarchy separator.
-   * @default true
-   */
-  replaceSpaces?: boolean;
-  
-  /**
-   * Replace dots with hierarchy separator.
-   * @default true
-   */
-  replaceDots?: boolean;
-  
-  /**
-   * Remove special characters.
-   * @default false
-   */
-  removeSpecialChars?: boolean;
-  
-  /**
-   * Maximum tag length.
-   * @default 50
-   */
-  maxLength?: number;
-}
+    // Import rules
+    if (config.rules) {
+      Object.assign(this.rules, config.rules);
+    }
 
-/**
- * Options for filtering tags.
- */
-export interface TagFilterOptions {
-  /**
-   * Tags that must be included.
-   */
-  include?: string[];
-  
-  /**
-   * Tags that must be excluded.
-   */
-  exclude?: string[];
-  
-  /**
-   * Regex patterns for matching tags.
-   */
-  patterns?: RegExp[];
-}
+    // Import metadata
+    if (config.metadata) {
+      this.metadata = new Map(Object.entries(config.metadata));
+    }
 
-/**
- * Criteria for matching tags.
- */
-export interface TagMatchCriteria {
-  /**
-   * All of these tags must be present.
-   */
-  all?: string[];
-  
-  /**
-   * At least one of these tags must be present.
-   */
-  any?: string[];
-  
-  /**
-   * None of these tags must be present.
-   */
-  none?: string[];
-  
-  /**
-   * At least one tag must match one of these patterns.
-   */
-  patterns?: RegExp[];
-}
+    // Import stats
+    if (config.stats) {
+      this.stats.clear();
+      for (const stat of config.stats) {
+        this.stats.set(stat.tag, {
+          count: stat.count,
+          firstSeen: new Date(stat.firstSeen),
+          lastSeen: new Date(stat.lastSeen),
+        });
+      }
+    }
+  }
 
-/**
- * Options for extracting tags from objects.
- */
-export interface TagExtractionOptions {
   /**
-   * Prefix to add to all extracted tags.
+   * Rebuild reverse alias mapping.
+   * 
+   * @private
    */
-  prefix?: string;
-  
-  /**
-   * Whether to include array values as separate tags.
-   * @default false
-   */
-  includeArrays?: boolean;
-}
-
-/**
- * Rules for validating tags.
- */
-export interface TagValidationRules {
-  /**
-   * Maximum number of tags allowed.
-   */
-  maxCount?: number;
-  
-  /**
-   * Minimum number of tags required.
-   */
-  minCount?: number;
-  
-  /**
-   * Tags that must be present.
-   */
-  required?: string[];
-  
-  /**
-   * Tags that must not be present.
-   */
-  forbidden?: string[];
-  
-  /**
-   * Patterns that tags must match.
-   */
-  allowedPatterns?: RegExp[];
-  
-  /**
-   * Patterns that tags must not match.
-   */
-  forbiddenPatterns?: RegExp[];
-}
-
-/**
- * Result of tag validation.
- */
-export interface TagValidationResult {
-  /**
-   * Whether the tags are valid.
-   */
-  valid: boolean;
-  
-  /**
-   * Validation error messages.
-   */
-  errors: string[];
+  private rebuildReverseAliases(): void {
+    this.reverseAliases.clear();
+    
+    for (const [alias, canonical] of this.aliases) {
+      if (!this.reverseAliases.has(canonical)) {
+        this.reverseAliases.set(canonical, new Set());
+      }
+      this.reverseAliases.get(canonical)!.add(alias);
+    }
+  }
 }
