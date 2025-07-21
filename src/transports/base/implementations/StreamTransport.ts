@@ -3,9 +3,10 @@
 import { Transport } from '../Transport';
 import type { 
   StreamTransportOptions, 
-  LogEntry 
+  LogEntry,
+  TransportStats 
 } from '../../../types/transport';
-import { Writable, Transform } from 'stream';
+import { Transform } from 'stream';
 
 /**
  * Stream transport for piping logs to any Node.js writable stream.
@@ -171,12 +172,12 @@ export class StreamTransport extends Transport {
     });
 
     // Handle pipe/unpipe events if it's a readable stream
-    if ('on' in this.stream && typeof (this.stream as any).on === 'function') {
-      (this.stream as any).on('pipe', (src: any) => {
+    if ('on' in this.stream && typeof (this.stream as NodeJS.EventEmitter).on === 'function') {
+      (this.stream as NodeJS.EventEmitter).on('pipe', (src: NodeJS.ReadableStream) => {
         this.emit('piped', { source: src });
       });
 
-      (this.stream as any).on('unpipe', (src: any) => {
+      (this.stream as NodeJS.EventEmitter).on('unpipe', (src: NodeJS.ReadableStream) => {
         this.emit('unpiped', { source: src });
       });
     }
@@ -327,7 +328,10 @@ export class StreamTransport extends Transport {
   ): void {
     if (this.queue.length >= this.maxQueueSize) {
       callback(new Error('Stream queue is full'));
-      this.stats.custom.droppedWrites = (this.stats.custom.droppedWrites || 0) + 1;
+      this.stats.custom = {
+        ...this.stats.custom,
+        droppedWrites: ((this.stats.custom?.droppedWrites as number) || 0) + 1
+      };
       return;
     }
 
@@ -375,9 +379,9 @@ export class StreamTransport extends Transport {
     }
 
     // Flush stream if it supports it
-    if ('flush' in this.stream && typeof (this.stream as any).flush === 'function') {
+    if ('flush' in this.stream && typeof (this.stream as NodeJS.WritableStream & { flush: (callback: (error?: Error) => void) => void }).flush === 'function') {
       return new Promise((resolve, reject) => {
-        (this.stream as any).flush((error?: Error) => {
+        (this.stream as NodeJS.WritableStream & { flush: (callback: (error?: Error) => void) => void }).flush((error?: Error) => {
           if (error) {
             reject(error);
           } else {
@@ -392,8 +396,8 @@ export class StreamTransport extends Transport {
    * Cork the stream (buffer writes).
    */
   public cork(): void {
-    if ('cork' in this.stream && typeof (this.stream as any).cork === 'function') {
-      (this.stream as any).cork();
+    if ('cork' in this.stream && typeof (this.stream as NodeJS.WritableStream & { cork: () => void }).cork === 'function') {
+      (this.stream as NodeJS.WritableStream & { cork: () => void }).cork();
     }
   }
 
@@ -401,8 +405,8 @@ export class StreamTransport extends Transport {
    * Uncork the stream (flush buffered writes).
    */
   public uncork(): void {
-    if ('uncork' in this.stream && typeof (this.stream as any).uncork === 'function') {
-      (this.stream as any).uncork();
+    if ('uncork' in this.stream && typeof (this.stream as NodeJS.WritableStream & { uncork: () => void }).uncork === 'function') {
+      (this.stream as NodeJS.WritableStream & { uncork: () => void }).uncork();
     }
   }
 
@@ -434,7 +438,10 @@ export class StreamTransport extends Transport {
     transform.pipe(destination, options);
 
     // Store transform stream reference
-    this.stats.custom.pipedTo = destination;
+    this.stats.custom = {
+      ...this.stats.custom,
+      pipedTo: destination
+    };
 
     return destination;
   }
@@ -466,11 +473,11 @@ export class StreamTransport extends Transport {
   /**
    * Get stream statistics.
    * 
-   * @returns {object} Extended statistics
+   * @returns {TransportStats} Extended statistics
    */
-  public getStats(): any {
+  public getStats(): TransportStats {
     const baseStats = super.getStats();
-    const streamStats: any = {
+    const streamStats: Record<string, unknown> = {
       writable: this.stream.writable,
       queueSize: this.queue.length,
       errorCount: this.errorCount,
@@ -479,15 +486,15 @@ export class StreamTransport extends Transport {
 
     // Add stream-specific stats if available
     if ('bytesWritten' in this.stream) {
-      streamStats.bytesWritten = (this.stream as any).bytesWritten;
+      streamStats.bytesWritten = (this.stream as NodeJS.WritableStream & { bytesWritten: number }).bytesWritten;
     }
 
     if ('writableLength' in this.stream) {
-      streamStats.bufferSize = (this.stream as any).writableLength;
+      streamStats.bufferSize = (this.stream as NodeJS.WritableStream & { writableLength: number }).writableLength;
     }
 
     if ('writableHighWaterMark' in this.stream) {
-      streamStats.highWaterMark = (this.stream as any).writableHighWaterMark;
+      streamStats.highWaterMark = (this.stream as NodeJS.WritableStream & { writableHighWaterMark: number }).writableHighWaterMark;
     }
 
     return {
@@ -502,10 +509,10 @@ export class StreamTransport extends Transport {
   /**
    * Check if transport is healthy.
    * 
-   * @returns {boolean} True if healthy
+   * @returns {Promise<boolean>} True if healthy
    */
-  public isHealthy(): boolean {
-    return (
+  public async isHealthy(): Promise<boolean> {
+    return Promise.resolve(
       this.enabled &&
       this.stream.writable &&
       this.errorCount < this.maxErrors &&

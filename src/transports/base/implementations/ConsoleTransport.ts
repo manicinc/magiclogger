@@ -1,7 +1,6 @@
 // File: src/transports/base/implementations/ConsoleTransport.ts
 
 import { Transport } from '../Transport';
-import { Formatter } from '../../../core/Formatter';
 import { Colorizer } from '../../../core/Colorizer';
 import type { 
   ConsoleTransportOptions, 
@@ -86,12 +85,6 @@ export class ConsoleTransport extends Transport {
   private readonly consoleMethods: Record<string, keyof Console>;
 
   /**
-   * Formatter instance.
-   * @private
-   */
-  private formatter: Formatter;
-
-  /**
    * Level colors mapping.
    * @private
    */
@@ -140,8 +133,6 @@ export class ConsoleTransport extends Transport {
       default: options.consoleMethods?.default || 'log',
       ...options.consoleMethods,
     };
-
-    this.formatter = new Formatter(this.useColors);
   }
 
   /**
@@ -167,8 +158,12 @@ export class ConsoleTransport extends Transport {
     const method = this.getConsoleMethod(entry.level);
     
     // Use the bound original console method
-    this.originalConsole[method as keyof typeof this.originalConsole]?.(output) || 
-    this.originalConsole.log(output);
+    const consoleMethod = this.originalConsole[method as keyof typeof this.originalConsole];
+    if (consoleMethod) {
+      consoleMethod(output);
+    } else {
+      this.originalConsole.log(output);
+    }
   }
 
   /**
@@ -326,11 +321,11 @@ export class ConsoleTransport extends Transport {
   /**
    * Format context object for display.
    * 
-   * @param {Record<string, any>} context - Context object
+   * @param {Record<string, unknown>} context - Context object
    * @returns {string} Formatted context
    * @private
    */
-  private formatContext(context: Record<string, any>): string {
+  private formatContext(context: Record<string, unknown>): string {
     let output = this.colorize('  Context:', ['blue', 'bold']);
     
     for (const [key, value] of Object.entries(context)) {
@@ -345,11 +340,11 @@ export class ConsoleTransport extends Transport {
   /**
    * Format metadata object for display.
    * 
-   * @param {Record<string, any>} metadata - Metadata object
+   * @param {Record<string, unknown>} metadata - Metadata object
    * @returns {string} Formatted metadata
    * @private
    */
-  private formatMetadata(metadata: Record<string, any>): string {
+  private formatMetadata(metadata: Record<string, unknown>): string {
     let output = this.colorize('  Metadata:', ['gray', 'bold']);
     
     for (const [key, value] of Object.entries(metadata)) {
@@ -364,11 +359,11 @@ export class ConsoleTransport extends Transport {
   /**
    * Format a value for display.
    * 
-   * @param {any} value - Value to format
+   * @param {unknown} value - Value to format
    * @returns {string} Formatted value
    * @private
    */
-  private formatValue(value: any): string {
+  private formatValue(value: unknown): string {
     if (value === null) return 'null';
     if (value === undefined) return 'undefined';
     
@@ -428,6 +423,5 @@ export class ConsoleTransport extends Transport {
    */
   public setUseColors(useColors: boolean): void {
     (this as any).useColors = useColors;
-    this.formatter = new Formatter(useColors);
   }
 }

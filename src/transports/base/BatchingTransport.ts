@@ -111,8 +111,9 @@ export abstract class BatchingTransport extends Transport {
   constructor(options: BatchingTransportOptions) {
     super(options);
 
-    this.batchSize = options.batchSize || 100;
-    this.flushInterval = options.flushInterval || 5000;
+    // Handle both property names
+    this.batchSize = options.batchSize || options.maxBatchSize || 100;
+    this.flushInterval = options.flushInterval || options.maxBatchTime || 5000;
     this.maxRetries = options.maxRetries || 3;
     this.retryDelay = options.retryDelay || 1000;
     this.retryOnFailure = options.retryOnFailure !== false;
@@ -232,7 +233,7 @@ export abstract class BatchingTransport extends Transport {
       const dropped = this.processingQueue.shift();
       if (dropped) {
         this.droppedBatches++;
-        this.stats.errors += dropped.length;
+        this.stats.failed += dropped.length;
         this.emit('batchDropped', { size: dropped.length });
       }
     }
@@ -250,13 +251,14 @@ export abstract class BatchingTransport extends Transport {
     this.processing = true;
 
     while (this.processingQueue.length > 0) {
-      const batch = this.processingQueue.shift()!;
+      const batch = this.processingQueue.shift();
+      if (!batch) continue;
 
       try {
         await this.processBatchWithRetry(batch);
-        this.stats.sent += batch.length;
+        this.stats.succeeded += batch.length;
       } catch (error) {
-        this.stats.errors += batch.length;
+        this.stats.failed += batch.length;
         this.handleError(error as Error);
         
         // Emit batch failure event

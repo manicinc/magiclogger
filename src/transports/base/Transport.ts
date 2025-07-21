@@ -10,7 +10,7 @@ import type {
 } from '../../types/transport';
 
 /**
- * Abstract base class for all MagicLogger transport
+ * Abstract base class for all MagicLogger transports.
  * 
  * This class provides the foundational functionality that all transports share:
  * - Event emission for lifecycle management
@@ -23,16 +23,41 @@ import type {
  * the abstract methods for their specific transport mechanism.
  * 
  * @abstract
+ * @class Transport
  * @extends {EventEmitter}
  * @implements {ITransport}
  * 
  * @example
  * ```typescript
  * class ConsoleTransport extends Transport {
+ *   protected async doInit(): Promise<void> {
+ *     // Initialize console-specific resources
+ *   }
+ *   
  *   protected async doLog(entry: LogEntry): Promise<void> {
- *     console.log(this.format(entry));
+ *     console.log(this.formatEntry(entry));
+ *   }
+ *   
+ *   protected async doClose(): Promise<void> {
+ *     // Clean up console-specific resources
  *   }
  * }
+ * ```
+ * 
+ * @example
+ * ```typescript
+ * // Using transports with filtering
+ * const errorTransport = new FileTransport({
+ *   name: 'error-logs',
+ *   filepath: './logs/errors.log',
+ *   level: 'error', // Only log errors and above
+ * });
+ * 
+ * const taggedTransport = new ConsoleTransport({
+ *   name: 'api-console',
+ *   tags: ['api', 'http'], // Only log entries with these tags
+ *   filter: (entry) => !entry.message.includes('health-check'), // Custom filter
+ * });
  * ```
  */
 export abstract class Transport extends EventEmitter implements ITransport {
@@ -139,6 +164,18 @@ export abstract class Transport extends EventEmitter implements ITransport {
    * 
    * @param {TransportOptions} options - Configuration options for the transport
    * @throws {Error} If required options are missing or invalid
+   * 
+   * @example
+   * ```typescript
+   * const transport = new MyTransport({
+   *   name: 'my-transport',
+   *   level: 'info',
+   *   format: 'json',
+   *   silent: false,
+   *   timeout: 30000,
+   *   filter: (entry) => !entry.tags?.includes('internal'),
+   * });
+   * ```
    */
   constructor(options: TransportOptions) {
     super();
@@ -169,9 +206,16 @@ export abstract class Transport extends EventEmitter implements ITransport {
    * Initialize the transport.
    * 
    * This method is called when the transport is added to a logger.
-   * Subclasses should override this to perform any necessary setup.
+   * Subclasses should override doInit() to perform any necessary setup.
    * 
    * @returns {Promise<void>} Resolves when initialization is complete
+   * @throws {Error} If initialization fails
+   * 
+   * @example
+   * ```typescript
+   * await transport.init();
+   * // Transport is now ready to receive logs
+   * ```
    */
   public async init(): Promise<void> {
     if (this.initialized) {
@@ -196,6 +240,19 @@ export abstract class Transport extends EventEmitter implements ITransport {
    * 
    * @param {LogEntry} entry - The log entry to process
    * @returns {Promise<void>} Resolves when the log has been processed
+   * 
+   * @example
+   * ```typescript
+   * await transport.log({
+   *   id: '123',
+   *   timestamp: new Date().toISOString(),
+   *   timestampMs: Date.now(),
+   *   level: 'info',
+   *   message: 'User logged in',
+   *   tags: ['auth', 'user'],
+   *   context: { userId: 'user123' },
+   * });
+   * ```
    */
   public async log(entry: LogEntry): Promise<void> {
     if (!this.enabled || this.closing) {
@@ -230,6 +287,15 @@ export abstract class Transport extends EventEmitter implements ITransport {
    * 
    * @param {LogEntry[]} entries - Array of log entries to process
    * @returns {Promise<void>} Resolves when all logs have been processed
+   * 
+   * @example
+   * ```typescript
+   * await transport.logBatch([
+   *   { id: '1', level: 'info', message: 'First log', ... },
+   *   { id: '2', level: 'warn', message: 'Second log', ... },
+   *   { id: '3', level: 'error', message: 'Third log', ... },
+   * ]);
+   * ```
    */
   public async logBatch(entries: LogEntry[]): Promise<void> {
     if (!this.enabled || this.closing) {
@@ -285,6 +351,23 @@ export abstract class Transport extends EventEmitter implements ITransport {
    * 
    * @param {LogEntry} entry - The log entry to check
    * @returns {boolean} True if the entry should be logged by this transport
+   * 
+   * @example
+   * ```typescript
+   * const transport = new FileTransport({
+   *   name: 'errors',
+   *   level: 'error',
+   *   tags: ['important'],
+   *   excludeTags: ['test'],
+   *   filter: (entry) => entry.context?.production === true,
+   * });
+   * 
+   * // This will return true only for:
+   * // - Logs with level 'error' or higher
+   * // - Logs tagged with 'important'
+   * // - Logs NOT tagged with 'test'
+   * // - Logs with context.production === true
+   * ```
    */
   public shouldLog(entry: LogEntry): boolean {
     // Check if specific levels are configured
@@ -333,6 +416,13 @@ export abstract class Transport extends EventEmitter implements ITransport {
    * Subclasses should override doClose() to implement specific cleanup logic.
    * 
    * @returns {Promise<void>} Resolves when the transport is fully closed
+   * @throws {Error} If cleanup fails
+   * 
+   * @example
+   * ```typescript
+   * await transport.close();
+   * // Transport is now closed and will not accept new logs
+   * ```
    */
   public async close(): Promise<void> {
     if (this.closing) {
@@ -369,6 +459,13 @@ export abstract class Transport extends EventEmitter implements ITransport {
    * Subclasses that buffer logs should override this method.
    * 
    * @returns {Promise<void>} Resolves when flush is complete
+   * 
+   * @example
+   * ```typescript
+   * // Flush all pending logs before shutdown
+   * await transport.flush();
+   * await transport.close();
+   * ```
    */
   public async flush(): Promise<void> {
     // Default implementation - override in subclasses that buffer
@@ -379,6 +476,15 @@ export abstract class Transport extends EventEmitter implements ITransport {
    * Get current transport statistics.
    * 
    * @returns {TransportStats} Current statistics for this transport
+   * 
+   * @example
+   * ```typescript
+   * const stats = transport.getStats();
+   * console.log(`Processed: ${stats.processed}`);
+   * console.log(`Succeeded: ${stats.succeeded}`);
+   * console.log(`Failed: ${stats.failed}`);
+   * console.log(`Queued: ${stats.queued}`);
+   * ```
    */
   public getStats(): TransportStats {
     return { ...this.stats };
@@ -390,6 +496,21 @@ export abstract class Transport extends EventEmitter implements ITransport {
    * @param {LogEntry} entry - The log entry to format
    * @returns {string | Buffer} Formatted log entry
    * @protected
+   * 
+   * @example
+   * ```typescript
+   * // JSON format (default)
+   * const json = this.formatEntry(entry);
+   * // Returns: '{"id":"123","level":"info","message":"Test",...}'
+   * 
+   * // Plain text format
+   * const plain = this.formatEntry(entry);
+   * // Returns: '2024-01-15T10:30:45.123Z [INFO] Test'
+   * 
+   * // Custom format
+   * const custom = this.formatEntry(entry);
+   * // Returns whatever the custom formatter produces
+   * ```
    */
   protected formatEntry(entry: LogEntry): string | Buffer {
     switch (this.format) {
@@ -416,6 +537,23 @@ export abstract class Transport extends EventEmitter implements ITransport {
    * @param {LogEntry} entry - The log entry to format
    * @returns {string} Plain text formatted log entry
    * @protected
+   * 
+   * @example
+   * ```typescript
+   * const formatted = this.formatPlain({
+   *   timestamp: '2024-01-15T10:30:45.123Z',
+   *   level: 'info',
+   *   message: 'User action',
+   *   loggerId: 'api-server',
+   *   tags: ['user', 'action'],
+   *   error: { name: 'Error', message: 'Something failed' },
+   *   context: { userId: '123' },
+   * });
+   * // Returns:
+   * // 2024-01-15T10:30:45.123Z [INFO] [api-server] [user,action] User action
+   * // Error: Something failed
+   * // Context: {"userId":"123"}
+   * ```
    */
   protected formatPlain(entry: LogEntry): string {
     const parts: string[] = [
@@ -453,6 +591,18 @@ export abstract class Transport extends EventEmitter implements ITransport {
    * @param {Error} error - The error that occurred
    * @param {LogEntry} [entry] - The log entry that caused the error (if applicable)
    * @protected
+   * 
+   * @example
+   * ```typescript
+   * try {
+   *   await this.doLog(entry);
+   * } catch (error) {
+   *   this.handleError(error as Error, entry);
+   *   // Error is logged if not silent
+   *   // Stats are updated
+   *   // Error event is emitted
+   * }
+   * ```
    */
   protected handleError(error: Error, entry?: LogEntry): void {
     // Update error stats
@@ -480,12 +630,43 @@ export abstract class Transport extends EventEmitter implements ITransport {
   }
 
   /**
+   * Check if transport is enabled.
+   * 
+   * @returns {boolean} True if enabled
+   * 
+   * @example
+   * ```typescript
+   * if (transport.isEnabled()) {
+   *   await transport.log(entry);
+   * }
+   * ```
+   */
+  public isEnabled(): boolean {
+    return this.enabled;
+  }
+
+  /**
    * Apply a timeout to an async operation.
    * 
    * @param {Promise<T>} promise - The promise to apply timeout to
    * @param {number} ms - Timeout in milliseconds
    * @returns {Promise<T>} The original promise with timeout applied
    * @protected
+   * @throws {Error} If operation times out
+   * 
+   * @example
+   * ```typescript
+   * try {
+   *   await this.withTimeout(
+   *     this.sendToRemote(data),
+   *     5000 // 5 second timeout
+   *   );
+   * } catch (error) {
+   *   if (error.message.includes('timed out')) {
+   *     // Handle timeout
+   *   }
+   * }
+   * ```
    */
   protected async withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
     const timeout = new Promise<never>((_, reject) => {
@@ -501,6 +682,16 @@ export abstract class Transport extends EventEmitter implements ITransport {
    * @param {LogLevel} level - The level to check
    * @returns {boolean} True if the level is enabled
    * @protected
+   * 
+   * @example
+   * ```typescript
+   * this.level = 'info';
+   * 
+   * this.isLevelEnabled('debug');  // false
+   * this.isLevelEnabled('info');   // true
+   * this.isLevelEnabled('warn');   // true
+   * this.isLevelEnabled('error');  // true
+   * ```
    */
   protected isLevelEnabled(level: LogLevel): boolean {
     const levels: LogLevel[] = ['debug', 'info', 'warn', 'error', 'success'];
@@ -520,9 +711,103 @@ export abstract class Transport extends EventEmitter implements ITransport {
    * 
    * @returns {string} A unique identifier
    * @protected
+   * 
+   * @example
+   * ```typescript
+   * const id = this.generateId();
+   * // Returns: "1642339845123-a1b2c3d4e"
+   * ```
    */
   protected generateId(): string {
     return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  /**
+   * Check if transport is healthy.
+   * Default implementation checks if transport is enabled and initialized.
+   * 
+   * @returns {Promise<boolean>} True if transport is healthy
+   * 
+   * @example
+   * ```typescript
+   * const isHealthy = await transport.isHealthy();
+   * if (!isHealthy) {
+   *   console.warn('Transport is unhealthy');
+   * }
+   * ```
+   */
+  public async isHealthy(): Promise<boolean> {
+    return this.enabled && this.initialized && !this.closing;
+  }
+
+  /**
+   * Enable the transport.
+   * 
+   * @example
+   * ```typescript
+   * transport.enable();
+   * // Transport will now process logs
+   * ```
+   */
+  public enable(): void {
+    this.enabled = true;
+    this.emit('enabled');
+  }
+
+  /**
+   * Disable the transport.
+   * 
+   * @example
+   * ```typescript
+   * transport.disable();
+   * // Transport will not process new logs
+   * ```
+   */
+  public disable(): void {
+    this.enabled = false;
+    this.emit('disabled');
+  }
+
+  /**
+   * Check if transport supports batching.
+   * 
+   * @returns {boolean} True if batching is supported
+   * 
+   * @example
+   * ```typescript
+   * if (transport.supportsBatching()) {
+   *   await transport.logBatch(entries);
+   * } else {
+   *   for (const entry of entries) {
+   *     await transport.log(entry);
+   *   }
+   * }
+   * ```
+   */
+  public supportsBatching(): boolean {
+    return typeof this.doLogBatch === 'function';
+  }
+
+  /**
+   * Reset transport statistics.
+   * 
+   * @example
+   * ```typescript
+   * transport.resetStats();
+   * const stats = transport.getStats();
+   * // All counters are now 0
+   * ```
+   */
+  public resetStats(): void {
+    this.stats = {
+      processed: 0,
+      succeeded: 0,
+      failed: 0,
+      queued: 0,
+      lastSuccess: undefined,
+      lastError: undefined,
+      custom: {},
+    };
   }
 
   /**
@@ -532,6 +817,20 @@ export abstract class Transport extends EventEmitter implements ITransport {
    * @returns {Promise<void>} Resolves when initialization is complete
    * @protected
    * @abstract
+   * 
+   * @example
+   * ```typescript
+   * protected async doInit(): Promise<void> {
+   *   // Connect to database
+   *   await this.connect();
+   *   
+   *   // Create necessary resources
+   *   await this.createTables();
+   *   
+   *   // Start background tasks
+   *   this.startHealthCheck();
+   * }
+   * ```
    */
   protected abstract doInit(): Promise<void>;
 
@@ -543,6 +842,14 @@ export abstract class Transport extends EventEmitter implements ITransport {
    * @returns {Promise<void>} Resolves when the log has been processed
    * @protected
    * @abstract
+   * 
+   * @example
+   * ```typescript
+   * protected async doLog(entry: LogEntry): Promise<void> {
+   *   const formatted = this.formatEntry(entry);
+   *   await this.writeToDestination(formatted);
+   * }
+   * ```
    */
   protected abstract doLog(entry: LogEntry): Promise<void>;
 
@@ -553,6 +860,14 @@ export abstract class Transport extends EventEmitter implements ITransport {
    * @param {LogEntry[]} entries - Array of log entries to process
    * @returns {Promise<void>} Resolves when all logs have been processed
    * @protected
+   * 
+   * @example
+   * ```typescript
+   * protected async doLogBatch(entries: LogEntry[]): Promise<void> {
+   *   const batch = entries.map(e => this.formatEntry(e));
+   *   await this.writeBatchToDestination(batch);
+   * }
+   * ```
    */
   protected doLogBatch?(entries: LogEntry[]): Promise<void>;
 
@@ -563,11 +878,47 @@ export abstract class Transport extends EventEmitter implements ITransport {
    * @returns {Promise<void>} Resolves when cleanup is complete
    * @protected
    * @abstract
+   * 
+   * @example
+   * ```typescript
+   * protected async doClose(): Promise<void> {
+   *   // Stop background tasks
+   *   this.stopHealthCheck();
+   *   
+   *   // Close connections
+   *   await this.disconnect();
+   *   
+   *   // Clean up resources
+   *   this.cleanup();
+   * }
+   * ```
    */
   protected abstract doClose(): Promise<void>;
 }
 
-// Examples of formatter usage for data serialization:
-// formatter: Formatters.json.compact    // Single-line JSON
-// formatter: Formatters.plain.detailed  // Structured plain text
-// formatter: (entry) => customFormat(entry)  // Custom serialization
+// Type guards for checking transport capabilities
+export function isAsyncTransport(transport: unknown): transport is Transport {
+  return (
+    typeof transport === 'object' &&
+    transport !== null &&
+    'log' in transport &&
+    typeof (transport as Transport).log === 'function'
+  );
+}
+
+export function isBatchingTransport(transport: unknown): transport is Transport & { logBatch: (entries: LogEntry[]) => Promise<void> } {
+  return (
+    isAsyncTransport(transport) &&
+    'logBatch' in transport &&
+    typeof (transport as Transport).logBatch === 'function'
+  );
+}
+
+export function hasStats(transport: unknown): transport is Transport & { getStats: () => TransportStats } {
+  return (
+    isAsyncTransport(transport) &&
+    'getStats' in transport &&
+    typeof (transport as Transport).getStats === 'function'
+  );
+}
+

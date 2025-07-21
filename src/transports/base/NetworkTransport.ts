@@ -1,45 +1,23 @@
 // File: src/transports/base/NetworkTransport.ts
 
-import { Transport } from './Transport';
+import { BatchingTransport } from './BatchingTransport';
 import type { 
   NetworkTransportOptions, 
   LogEntry,
-  ConnectionState 
+  ConnectionState,
+  TransportStats 
 } from '../../types/transport';
 
 /**
  * Abstract base class for network-based transports.
- * 
- * Features:
- * - Connection management and pooling
- * - Automatic reconnection with backoff
- * - Network error handling
- * - Connection state tracking
- * - Request queuing during disconnection
- * - Health checking
+ * Provides connection management, reconnection logic, offline queuing,
+ * and health monitoring for transports that communicate over networks.
  * 
  * @abstract
  * @class NetworkTransport
- * @extends {Transport}
- * 
- * @example
- * ```typescript
- * class MyNetworkTransport extends NetworkTransport {
- *   protected async connect(): Promise<void> {
- *     this.connection = await createConnection(this.url);
- *   }
- *   
- *   protected async disconnect(): Promise<void> {
- *     await this.connection.close();
- *   }
- *   
- *   protected async sendData(data: any): Promise<void> {
- *     await this.connection.send(data);
- *   }
- * }
- * ```
+ * @extends {BatchingTransport}
  */
-export abstract class NetworkTransport extends Transport {
+export abstract class NetworkTransport extends BatchingTransport {
   /**
    * Network endpoint URL.
    * @protected
@@ -80,7 +58,7 @@ export abstract class NetworkTransport extends Transport {
    * Active connection instance.
    * @protected
    */
-  protected connection: any;
+  protected connection: unknown;
 
   /**
    * Current reconnection attempt.
@@ -137,6 +115,18 @@ export abstract class NetworkTransport extends Transport {
   protected keepAliveInterval: number;
 
   /**
+   * Custom headers for requests.
+   * @protected
+   */
+  protected headers?: Record<string, string>;
+
+  /**
+   * TLS options for secure connections.
+   * @protected
+   */
+  protected tls?: NetworkTransportOptions['tls'];
+
+  /**
    * Creates a new NetworkTransport instance.
    * 
    * @param {NetworkTransportOptions} options - Transport options
@@ -144,7 +134,7 @@ export abstract class NetworkTransport extends Transport {
   constructor(options: NetworkTransportOptions) {
     super(options);
 
-    this.url = options.url;
+    this.url = options.url || '';
     this.connectionTimeout = options.connectionTimeout || 30000;
     this.requestTimeout = options.requestTimeout || 10000;
     this.maxReconnectAttempts = options.maxReconnectAttempts || 5;
@@ -153,6 +143,8 @@ export abstract class NetworkTransport extends Transport {
     this.queueWhenOffline = options.queueWhenOffline !== false;
     this.healthCheckInterval = options.healthCheckInterval || 60000;
     this.keepAliveInterval = options.keepAliveInterval || 30000;
+    this.headers = options.headers;
+    this.tls = options.tls;
   }
 
   /**
@@ -162,9 +154,21 @@ export abstract class NetworkTransport extends Transport {
    * @protected
    */
   protected async doInit(): Promise<void> {
-    await this.establishConnection();
+    await super.doInit();
+    await this.initializeNetwork();
     this.startHealthCheck();
     this.startKeepAlive();
+  }
+
+  /**
+   * Initialize network-specific resources.
+   * Override in subclasses for custom initialization.
+   * 
+   * @returns {Promise<void>} Resolves when initialized
+   * @protected
+   */
+  protected async initializeNetwork(): Promise<void> {
+    // Override in subclasses if needed
   }
 
   /**
@@ -176,12 +180,10 @@ export abstract class NetworkTransport extends Transport {
       this.connectionState = 'connecting';
       this.emit('connecting');
 
-      // Set connection timeout
       const timeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(() => reject(new Error('Connection timeout')), this.connectionTimeout);
       });
 
-      // Race between connection and timeout
       await Promise.race([
         this.connect(),
         timeoutPromise,
@@ -191,7 +193,6 @@ export abstract class NetworkTransport extends Transport {
       this.reconnectAttempt = 0;
       this.emit('connected');
 
-      // Process offline queue
       await this.processOfflineQueue();
 
     } catch (error) {
@@ -199,7 +200,6 @@ export abstract class NetworkTransport extends Transport {
       this.handleError(error as Error);
       this.emit('connectionError', error);
 
-      // Schedule reconnection
       this.scheduleReconnect();
       
       throw error;
@@ -222,7 +222,6 @@ export abstract class NetworkTransport extends Transport {
       clearTimeout(this.reconnectTimer);
     }
 
-    // Calculate delay with exponential backoff
     const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempt);
     
     this.reconnectTimer = setTimeout(() => {
@@ -256,7 +255,6 @@ export abstract class NetworkTransport extends Transport {
       try {
         await this.doLog(entry);
       } catch (error) {
-        // Re-queue on failure
         if (this.queueWhenOffline && this.connectionState !== 'connected') {
           this.queueEntry(entry);
         }
@@ -272,9 +270,9 @@ export abstract class NetworkTransport extends Transport {
    */
   private queueEntry(entry: LogEntry): void {
     if (this.offlineQueue.length >= this.maxOfflineQueueSize) {
-      // Drop oldest entry
-      const dropped = this.offlineQueue.shift();
-      this.stats.custom.droppedOffline = (this.stats.custom.droppedOffline || 0) + 1;
+      this.offlineQueue.shift();
+      const droppedOffline = (this.stats.custom?.droppedOffline as number || 0) + 1;
+      this.stats.custom = { ...this.stats.custom, droppedOffline };
     }
 
     this.offlineQueue.push(entry);
@@ -282,16 +280,17 @@ export abstract class NetworkTransport extends Transport {
   }
 
   /**
-   * Log a single entry.
+   * Process a batch of entries.
+   * Handles offline queuing and connection errors.
    * 
-   * @param {LogEntry} entry - Log entry
-   * @returns {Promise<void>} Resolves when logged
+   * @param {LogEntry[]} entries - Batch of entries
+   * @returns {Promise<void>} Resolves when processed
    * @protected
    */
-  protected async doLog(entry: LogEntry): Promise<void> {
+  protected async processBatch(entries: LogEntry[]): Promise<void> {
     if (this.connectionState !== 'connected') {
       if (this.queueWhenOffline) {
-        this.queueEntry(entry);
+        entries.forEach(entry => this.queueEntry(entry));
         return;
       } else {
         throw new Error('Transport is not connected');
@@ -299,24 +298,13 @@ export abstract class NetworkTransport extends Transport {
     }
 
     try {
-      // Set request timeout
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Request timeout')), this.requestTimeout);
-      });
-
-      // Race between send and timeout
-      await Promise.race([
-        this.sendData(this.formatForNetwork(entry)),
-        timeoutPromise,
-      ]);
-
+      await this.performNetworkRequest(entries);
     } catch (error) {
-      // Check if connection error
       if (this.isConnectionError(error as Error)) {
         this.handleDisconnection();
         
         if (this.queueWhenOffline) {
-          this.queueEntry(entry);
+          entries.forEach(entry => this.queueEntry(entry));
         } else {
           throw error;
         }
@@ -325,6 +313,17 @@ export abstract class NetworkTransport extends Transport {
       }
     }
   }
+
+  /**
+   * Abstract method for performing network requests.
+   * Must be implemented by subclasses to send log entries.
+   * 
+   * @param {LogEntry[]} entries - Log entries to send
+   * @returns {Promise<void>} Resolves when sent
+   * @protected
+   * @abstract
+   */
+  protected abstract performNetworkRequest(entries: LogEntry[]): Promise<void>;
 
   /**
    * Handle disconnection.
@@ -383,15 +382,15 @@ export abstract class NetworkTransport extends Transport {
   }
 
   /**
-   * Format entry for network transmission.
+   * Format entries for network transmission.
+   * Default implementation returns JSON string.
    * 
-   * @param {LogEntry} entry - Log entry
-   * @returns {any} Formatted data
+   * @param {LogEntry[]} entries - Log entries
+   * @returns {unknown} Formatted data
    * @protected
    */
-  protected formatForNetwork(entry: LogEntry): any {
-    // Default implementation - can be overridden
-    return JSON.stringify(entry);
+  protected formatForNetwork(entries: LogEntry[]): unknown {
+    return JSON.stringify(entries);
   }
 
   /**
@@ -402,7 +401,6 @@ export abstract class NetworkTransport extends Transport {
    * @protected
    */
   protected isConnectionError(error: Error): boolean {
-    // Default implementation - can be overridden
     const connectionErrors = [
       'ECONNREFUSED',
       'ECONNRESET',
@@ -413,8 +411,19 @@ export abstract class NetworkTransport extends Transport {
     ];
 
     return connectionErrors.some(code => 
-      error.message.includes(code) || (error as any).code === code
+      error.message.includes(code) || (error as NodeJS.ErrnoException).code === code
     );
+  }
+
+  /**
+   * Default retry condition.
+   * 
+   * @param {Error} error - Error to check
+   * @returns {boolean} Whether to retry
+   * @protected
+   */
+  protected defaultRetryCondition(error: Error): boolean {
+    return this.isConnectionError(error);
   }
 
   /**
@@ -424,7 +433,6 @@ export abstract class NetworkTransport extends Transport {
    * @protected
    */
   protected async doClose(): Promise<void> {
-    // Stop timers
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = undefined;
@@ -440,14 +448,14 @@ export abstract class NetworkTransport extends Transport {
       this.keepAliveTimer = undefined;
     }
 
-    // Disconnect
     if (this.connectionState !== 'disconnected') {
       await this.disconnect();
       this.connectionState = 'disconnected';
     }
 
-    // Clear offline queue
     this.offlineQueue = [];
+
+    await super.doClose();
   }
 
   /**
@@ -462,7 +470,7 @@ export abstract class NetworkTransport extends Transport {
   /**
    * Check if transport is healthy.
    * 
-   * @returns {boolean} Whether healthy
+   * @returns {Promise<boolean>} Whether healthy
    */
   public async isHealthy(): Promise<boolean> {
     if (this.connectionState !== 'connected') {
@@ -480,9 +488,9 @@ export abstract class NetworkTransport extends Transport {
   /**
    * Get transport statistics.
    * 
-   * @returns {object} Transport statistics
+   * @returns {TransportStats} Transport statistics
    */
-  public getStats(): any {
+  public getStats(): TransportStats {
     const baseStats = super.getStats();
     
     return {
@@ -492,9 +500,19 @@ export abstract class NetworkTransport extends Transport {
         connectionState: this.connectionState,
         offlineQueueSize: this.offlineQueue.length,
         reconnectAttempts: this.reconnectAttempt,
-        droppedOffline: this.stats.custom.droppedOffline || 0,
+        droppedOffline: this.stats.custom?.droppedOffline || 0,
       },
     };
+  }
+
+  /**
+   * Build request headers.
+   * 
+   * @returns {Promise<Record<string, string>>} Headers
+   * @protected
+   */
+  protected async buildHeaders(): Promise<Record<string, string>> {
+    return this.headers || {};
   }
 
   /**
@@ -509,6 +527,17 @@ export abstract class NetworkTransport extends Transport {
 
     this.reconnectAttempt = 0;
     await this.establishConnection();
+  }
+
+  /**
+   * Send keep-alive signal.
+   * Default implementation calls checkHealth.
+   * 
+   * @returns {Promise<void>} Resolves when sent
+   * @protected
+   */
+  protected async sendKeepAlive(): Promise<void> {
+    await this.checkHealth();
   }
 
   // Abstract methods to be implemented by subclasses
@@ -534,30 +563,19 @@ export abstract class NetworkTransport extends Transport {
   /**
    * Send data over the network.
    * 
-   * @param {any} data - Data to send
+   * @param {unknown} data - Data to send
    * @returns {Promise<void>} Resolves when sent
    * @protected
    * @abstract
    */
-  protected abstract sendData(data: any): Promise<void>;
+  protected abstract sendData(data: unknown): Promise<void>;
 
   /**
    * Check connection health.
    * 
-   * @returns {Promise<void>} Resolves if healthy
+   * @returns {Promise<void>} Resolves if healthy, rejects if not
    * @protected
    * @abstract
    */
   protected abstract checkHealth(): Promise<void>;
-
-  /**
-   * Send keep-alive signal.
-   * 
-   * @returns {Promise<void>} Resolves when sent
-   * @protected
-   */
-  protected async sendKeepAlive(): Promise<void> {
-    // Default implementation - can be overridden
-    await this.checkHealth();
-  }
 }

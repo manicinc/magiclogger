@@ -1,9 +1,10 @@
-// File: src/transports/base/implementations/HTTPTransport.ts
+// File: src/transports/base/implementations/HttpTransport.ts
 
 import { NetworkTransport } from '../NetworkTransport';
 import * as https from 'https';
 import * as http from 'http';
 import { URL } from 'url';
+import * as zlib from 'zlib';
 import type { 
   HTTPTransportOptions, 
   LogEntry,
@@ -47,13 +48,13 @@ export class HTTPTransport extends NetworkTransport {
    * Target URL for log delivery.
    * @private
    */
-  private readonly url: URL;
+  private readonly targetUrl: URL;
 
   /**
    * HTTP method to use.
    * @private
    */
-  private readonly method: HTTPTransportOptions['method'];
+  private readonly method: string;
 
   /**
    * Authentication configuration.
@@ -113,14 +114,15 @@ export class HTTPTransport extends NetworkTransport {
 
     super(networkOptions);
 
-    this.url = new URL(options.url);
+    this.targetUrl = new URL(options.url);
+    this.url = options.url; // Set parent's url property
     this.method = options.method || 'POST';
     this.auth = options.auth;
     this.bodyFormat = options.bodyFormat || 'json';
     this.transformRequest = options.transformRequest;
 
     // Create appropriate agent
-    const isHttps = this.url.protocol === 'https:';
+    const isHttps = this.targetUrl.protocol === 'https:';
     const AgentClass = isHttps ? https.Agent : http.Agent;
     
     this.agent = new AgentClass({
@@ -128,7 +130,7 @@ export class HTTPTransport extends NetworkTransport {
       keepAliveMsecs: 1000,
       maxSockets: 100,
       maxFreeSockets: 10,
-      timeout: this.timeout,
+      timeout: this.requestTimeout,
       // Add TLS options for HTTPS
       ...(isHttps && this.tls ? {
         rejectUnauthorized: this.tls.rejectUnauthorized ?? true,
@@ -156,6 +158,68 @@ export class HTTPTransport extends NetworkTransport {
   }
 
   /**
+   * Establish connection (HTTP doesn't maintain persistent connections).
+   * 
+   * @returns {Promise<void>} Resolves immediately
+   * @protected
+   */
+  protected async connect(): Promise<void> {
+    // HTTP doesn't maintain persistent connections
+    // Connection is established per request
+  }
+
+  /**
+   * Disconnect (HTTP doesn't maintain persistent connections).
+   * 
+   * @returns {Promise<void>} Resolves immediately
+   * @protected
+   */
+  protected async disconnect(): Promise<void> {
+    // Clean up agent
+    this.agent.destroy();
+  }
+
+  /**
+   * Send data over HTTP.
+   * 
+   * @param {unknown} data - Data to send
+   * @returns {Promise<void>} Resolves when sent
+   * @protected
+   */
+  protected async sendData(data: unknown): Promise<void> {
+    const body = typeof data === 'string' || Buffer.isBuffer(data) 
+      ? data 
+      : JSON.stringify(data);
+
+    const headers = await this.buildRequestHeaders(body);
+    
+    await this.makeHttpRequest(this.method, this.targetUrl, headers, body);
+  }
+
+  /**
+   * Check connection health.
+   * 
+   * @returns {Promise<void>} Resolves if healthy
+   * @protected
+   */
+  protected async checkHealth(): Promise<void> {
+    // Make a lightweight health check request
+    const healthUrl = new URL(this.targetUrl.toString());
+    healthUrl.pathname = healthUrl.pathname.replace(/\/$/, '') + '/health';
+
+    try {
+      await this.makeHttpRequest('GET', healthUrl, {});
+    } catch (error: unknown) {
+      // If health endpoint doesn't exist, try HEAD request to main endpoint
+      try {
+        await this.makeHttpRequest('HEAD', this.targetUrl, {});
+      } catch {
+        throw new Error(`Health check failed: ${error}`);
+      }
+    }
+  }
+
+  /**
    * Test endpoint connectivity.
    * 
    * @returns {Promise<void>} Resolves if endpoint is reachable
@@ -163,14 +227,11 @@ export class HTTPTransport extends NetworkTransport {
    */
   private async testEndpoint(): Promise<void> {
     try {
-      // Make a lightweight request to test connectivity
-      const testUrl = new URL(this.url.toString());
-      testUrl.pathname = testUrl.pathname.replace(/\/$/, '') + '/health';
-
-      await this.makeHttpRequest('GET', testUrl, {});
-    } catch (error: any) {
+      await this.checkHealth();
+    } catch (error: unknown) {
       // Only warn, don't fail initialization
-      console.warn(`[HTTPTransport] Health check failed for ${this.url.hostname}: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.warn(`[HTTPTransport] Health check failed for ${this.targetUrl.hostname}: ${errorMessage}`);
     }
   }
 
@@ -221,25 +282,24 @@ export class HTTPTransport extends NetworkTransport {
   /**
    * Perform the network request to send logs.
    * 
-   * @param {any} data - Prepared log data
-   * @param {any} batch - Batch metadata
+   * @param {LogEntry[]} entries - Log entries to send
    * @returns {Promise<void>} Resolves when sent
    * @protected
    */
-  protected async performNetworkRequest(data: any, batch: any): Promise<void> {
+  protected async performNetworkRequest(entries: LogEntry[]): Promise<void> {
     // Refresh auth if needed
     if (this.auth && Date.now() - this.lastAuthRefresh > this.authRefreshInterval) {
       await this.refreshAuthHeaders();
     }
 
     // Transform data if transformer provided
-    const body = this.transformRequest ? this.transformRequest(data) : this.formatBody(data);
+    const body = this.transformRequest ? this.transformRequest(entries) : this.formatBody(entries);
 
     // Build headers
     const headers = await this.buildRequestHeaders(body);
 
     // Make request
-    const response = await this.makeHttpRequest(this.method!, this.url, headers, body);
+    const response = await this.makeHttpRequest(this.method, this.targetUrl, headers, body);
 
     // Validate response
     if (response.statusCode && response.statusCode >= 400) {
@@ -247,8 +307,8 @@ export class HTTPTransport extends NetworkTransport {
     }
 
     this.emit('sent', {
-      url: this.url.toString(),
-      count: batch.entries.length,
+      url: this.targetUrl.toString(),
+      count: entries.length,
       size: Buffer.byteLength(body),
       statusCode: response.statusCode,
     });
@@ -354,7 +414,12 @@ export class HTTPTransport extends NetworkTransport {
     url: URL,
     headers: Record<string, string>,
     body?: string | Buffer
-  ): Promise<any> {
+  ): Promise<{
+    statusCode?: number;
+    statusMessage?: string;
+    headers: http.IncomingHttpHeaders;
+    body: string;
+  }> {
     return new Promise((resolve, reject) => {
       const isHttps = url.protocol === 'https:';
       const lib = isHttps ? https : http;
@@ -366,7 +431,7 @@ export class HTTPTransport extends NetworkTransport {
         path: url.pathname + url.search,
         headers,
         agent: this.agent,
-        timeout: this.timeout,
+        timeout: this.requestTimeout,
       };
 
       const req = lib.request(options, (res) => {
@@ -375,10 +440,8 @@ export class HTTPTransport extends NetworkTransport {
         // Handle compression
         let stream: NodeJS.ReadableStream = res;
         if (res.headers['content-encoding'] === 'gzip') {
-          const zlib = require('zlib');
           stream = res.pipe(zlib.createGunzip());
         } else if (res.headers['content-encoding'] === 'deflate') {
-          const zlib = require('zlib');
           stream = res.pipe(zlib.createInflate());
         }
 
@@ -397,7 +460,10 @@ export class HTTPTransport extends NetworkTransport {
           if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
             resolve(response);
           } else {
-            const error: any = new Error(`HTTP ${res.statusCode}: ${res.statusMessage}`);
+            const error = new Error(`HTTP ${res.statusCode}: ${res.statusMessage}`) as Error & { 
+              statusCode?: number; 
+              response?: typeof response;
+            };
             error.statusCode = res.statusCode;
             error.response = response;
             reject(error);
@@ -413,7 +479,7 @@ export class HTTPTransport extends NetworkTransport {
 
       req.on('timeout', () => {
         req.destroy();
-        reject(new Error(`Request timeout after ${this.timeout}ms`));
+        reject(new Error(`Request timeout after ${this.requestTimeout}ms`));
       });
 
       if (body) {

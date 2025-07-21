@@ -12,7 +12,6 @@ import type {
 } from '../../../types/transport';
 
 const writeFile = promisify(fs.writeFile);
-const appendFile = promisify(fs.appendFile);
 const readdir = promisify(fs.readdir);
 const stat = promisify(fs.stat);
 const unlink = promisify(fs.unlink);
@@ -261,15 +260,15 @@ export class FileTransport extends BatchingTransport {
   }
 
   /**
-   * Send a batch of logs to the file.
+   * Process a batch of logs to the file.
    * 
-   * @param {LogEntry[]} data - Formatted log entries
+   * @param {LogEntry[]} entries - Log entries to write
    * @returns {Promise<void>} Resolves when written
    * @protected
    */
-  protected async sendBatch(data: LogEntry[]): Promise<void> {
+  protected async processBatch(entries: LogEntry[]): Promise<void> {
     // Format entries
-    const lines = data.map(entry => this.formatFileEntry(entry));
+    const lines = entries.map(entry => this.formatFileEntry(entry));
     const content = lines.join(this.eol) + this.eol;
     const buffer = Buffer.from(content, this.encoding);
 

@@ -1,20 +1,20 @@
-// File: src/core/TransportManager.ts
+// File: src/transports/base/TransportManager.ts
 
 import { EventEmitter } from 'events';
-import { Transport } from '../transports/base/Transport';
-import { ConsoleTransport } from '../transports/ConsoleTransport';
-import { FileTransport } from '../transports/FileTransport';
-import { HTTPTransport } from '../transports/HTTPTransport';
-import { StreamTransport } from '../transports/StreamTransport';
-import { S3Transport } from '../transports/S3Transport';
-import { MongoDBTransport } from '../transports/MongoDBTransport';
-import { WebSocketTransport } from '../transports/WebSocketTransport';
+import { Transport } from './Transport';
+import { ConsoleTransport } from './implementations/ConsoleTransport';
+import { FileTransport } from './implementations/FileTransport';
+import { HTTPTransport } from './implementations/HttpTransport';
+import { StreamTransport } from './implementations/StreamTransport';
+import { S3Transport } from './implementations/S3Transport';
+import { MongoDBTransport } from './implementations/MongoDBTransport';
+import { WebSocketTransport } from './implementations/WebSocketTransport';
 import type { 
   TransportConfig, 
   LogEntry, 
   TransportType,
   TransportStats 
-} from '../types/transport';
+} from '../../types/transport';
 
 /**
  * Transport factory function type.
@@ -141,13 +141,13 @@ export class TransportManager extends EventEmitter {
    * @private
    */
   private registerDefaultFactories(): void {
-    this.registerFactory('console', (config) => new ConsoleTransport(config));
-    this.registerFactory('file', (config) => new FileTransport(config));
-    this.registerFactory('http', (config) => new HTTPTransport(config));
-    this.registerFactory('stream', (config) => new StreamTransport(config));
-    this.registerFactory('s3', (config) => new S3Transport(config));
-    this.registerFactory('mongodb', (config) => new MongoDBTransport(config));
-    this.registerFactory('websocket', (config) => new WebSocketTransport(config));
+    this.registerFactory('console', (config) => new ConsoleTransport(config as any));
+    this.registerFactory('file', (config) => new FileTransport(config as any));
+    this.registerFactory('http', (config) => new HTTPTransport(config as any));
+    this.registerFactory('stream', (config) => new StreamTransport(config as any));
+    this.registerFactory('s3', (config) => new S3Transport(config as any));
+    this.registerFactory('mongodb', (config) => new MongoDBTransport(config as any));
+    this.registerFactory('websocket', (config) => new WebSocketTransport(config as any));
   }
 
   /**
@@ -205,7 +205,7 @@ export class TransportManager extends EventEmitter {
     this.setupTransportHandlers(transport);
 
     // Initialize transport
-    await transport.initialize();
+    await transport.init();
 
     // Add to transports map
     this.transports.set(name, transport);
@@ -438,7 +438,9 @@ export class TransportManager extends EventEmitter {
 
     // Send to batching transports
     for (const transport of batchingTransports) {
-      promises.push(transport.logBatch(processedEntries));
+      if (transport.logBatch) {
+        promises.push(transport.logBatch(processedEntries));
+      }
     }
 
     // Send to non-batching transports individually
@@ -459,7 +461,7 @@ export class TransportManager extends EventEmitter {
    * @private
    */
   private setupTransportHandlers(transport: Transport): void {
-    transport.on('error', (error) => {
+    transport.on('error', (error: Error) => {
       this.emit('transportError', {
         transport: transport.name,
         error,
@@ -579,7 +581,8 @@ export class TransportManager extends EventEmitter {
    */
   public async flush(): Promise<void> {
     const promises = Array.from(this.transports.values())
-      .map(transport => transport.flush());
+      .filter(transport => typeof transport.flush === 'function')
+      .map(transport => transport.flush!());
 
     await Promise.allSettled(promises);
   }
@@ -612,8 +615,14 @@ export class TransportManager extends EventEmitter {
    * 
    * @returns {Record<string, TransportStats>} Transport statistics
    */
-  public getStats(): Record<string, TransportStats & { performance: any }> {
-    const stats: Record<string, any> = {};
+  public getStats(): Record<string, TransportStats & { performance: {
+    count: number;
+    avgTime: number;
+    totalTime: number;
+    errors: number;
+    lastError?: string;
+  } | null }> {
+    const stats: Record<string, TransportStats & { performance: any }> = {};
 
     for (const [name, transport] of this.transports) {
       const perfData = this.performanceData.get(name);

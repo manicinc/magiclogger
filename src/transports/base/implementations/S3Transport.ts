@@ -1,10 +1,7 @@
 // File: src/transports/base/implementations/S3Transport.ts
 
 import { NetworkTransport } from '../NetworkTransport';
-import * as crypto from 'crypto';
-import * as https from 'https';
-import * as http from 'http';
-import { URL } from 'url';
+import { createHash } from 'crypto';
 import type { 
   S3TransportOptions, 
   LogEntry,
@@ -12,16 +9,15 @@ import type {
 } from '../../../types/transport';
 
 /**
- * AWS S3 transport for archiving logs to S3 buckets.
+ * S3 transport for archiving logs to Amazon S3.
  * 
  * Features:
- * - Direct S3 API integration (no SDK dependency)
- * - Multiple key naming strategies
+ * - Automatic key generation with multiple strategies
  * - Server-side encryption support
- * - Automatic retry with exponential backoff
- * - Compression before upload
- * - Tagging and metadata support
- * - Multiple storage classes
+ * - Object lifecycle management via tags
+ * - Multiple file formats (JSON, JSONL, CSV)
+ * - Compression support
+ * - S3-compatible storage support (MinIO, etc.)
  * - Batch uploads for efficiency
  * 
  * @class S3Transport
@@ -30,18 +26,15 @@ import type {
  * @example
  * ```typescript
  * const s3Transport = new S3Transport({
- *   name: 's3-logs',
- *   bucket: 'my-app-logs',
+ *   name: 's3-archive',
+ *   bucket: 'my-logs',
  *   region: 'us-east-1',
- *   prefix: 'logs/',
+ *   prefix: 'app-logs/',
  *   keyStrategy: 'date-hierarchy',
- *   storageClass: 'INTELLIGENT_TIERING',
+ *   fileFormat: 'jsonl',
+ *   compress: true,
  *   encryption: {
  *     type: 'AES256'
- *   },
- *   credentials: {
- *     accessKeyId: process.env.AWS_ACCESS_KEY_ID,
- *     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
  *   }
  * });
  * ```
@@ -54,7 +47,7 @@ export class S3Transport extends NetworkTransport {
   private readonly bucket: string;
 
   /**
-   * S3 key prefix.
+   * Key prefix for all objects.
    * @private
    */
   private readonly prefix: string;
@@ -69,11 +62,7 @@ export class S3Transport extends NetworkTransport {
    * AWS credentials.
    * @private
    */
-  private credentials: {
-    accessKeyId?: string;
-    secretAccessKey?: string;
-    sessionToken?: string;
-  };
+  private readonly credentials?: S3TransportOptions['credentials'];
 
   /**
    * Storage class for objects.
@@ -88,7 +77,7 @@ export class S3Transport extends NetworkTransport {
   private readonly encryption?: S3TransportOptions['encryption'];
 
   /**
-   * Key naming strategy.
+   * Key generation strategy.
    * @private
    */
   private readonly keyStrategy: S3TransportOptions['keyStrategy'];
@@ -100,7 +89,7 @@ export class S3Transport extends NetworkTransport {
   private readonly keyGenerator?: S3TransportOptions['keyGenerator'];
 
   /**
-   * File format for uploads.
+   * File format for storage.
    * @private
    */
   private readonly fileFormat: S3TransportOptions['fileFormat'];
@@ -112,16 +101,16 @@ export class S3Transport extends NetworkTransport {
   private readonly objectTags?: Record<string, string>;
 
   /**
-   * S3 endpoint URL.
+   * Whether compression is enabled.
    * @private
    */
-  private readonly endpoint: string;
+  private readonly compress: boolean;
 
   /**
-   * HTTP agent for connection pooling.
+   * S3 client instance.
    * @private
    */
-  private agent: https.Agent;
+  private s3Client?: any;
 
   /**
    * Creates a new S3Transport instance.
@@ -133,181 +122,252 @@ export class S3Transport extends NetworkTransport {
       ...options,
       // S3 specific defaults
       maxBatchSize: options.maxBatchSize || 1000,
-      maxBatchTime: options.maxBatchTime || 30000, // 30 seconds
+      maxBatchTime: options.maxBatchTime || 60000, // 1 minute
       maxBatchBytes: options.maxBatchBytes || 5 * 1024 * 1024, // 5MB
-      compress: options.compress ?? true,
     };
 
     super(networkOptions);
 
     this.bucket = options.bucket;
-    this.prefix = options.prefix || 'logs/';
+    this.prefix = options.prefix || '';
     this.region = options.region || 'us-east-1';
-    this.credentials = options.credentials || {};
+    this.credentials = options.credentials;
     this.storageClass = options.storageClass || 'STANDARD';
     this.encryption = options.encryption;
     this.keyStrategy = options.keyStrategy || 'timestamp';
     this.keyGenerator = options.keyGenerator;
     this.fileFormat = options.fileFormat || 'jsonl';
     this.objectTags = options.objectTags;
+    this.compress = options.compress ?? false;
 
-    // Set endpoint based on region
-    this.endpoint = `s3.${this.region}.amazonaws.com`;
-
-    // Initialize HTTP agent
-    this.agent = new https.Agent({
-      keepAlive: true,
-      keepAliveMsecs: 1000,
-      maxSockets: 50,
-      maxFreeSockets: 10,
-      timeout: 60000,
-    });
+    // Set URL for parent class
+    this.url = `s3://${this.bucket}/${this.prefix}`;
   }
 
   /**
-   * Initialize S3 transport.
+   * Initialize S3 client.
    * 
    * @returns {Promise<void>} Resolves when initialized
    * @protected
    */
   protected async initializeNetwork(): Promise<void> {
-    // Load credentials from environment if not provided
-    if (!this.credentials.accessKeyId) {
-      this.credentials = {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-        sessionToken: process.env.AWS_SESSION_TOKEN,
-      };
-    }
-
-    // Validate credentials
-    if (!this.credentials.accessKeyId || !this.credentials.secretAccessKey) {
-      throw new Error('AWS credentials not provided');
-    }
-
-    // Test bucket access
-    await this.testBucketAccess();
+    await this.connect();
   }
 
   /**
-   * Test access to the S3 bucket.
+   * Connect to S3 (initialize client).
    * 
-   * @returns {Promise<void>} Resolves if bucket is accessible
-   * @private
+   * @returns {Promise<void>} Resolves when connected
+   * @protected
    */
-  private async testBucketAccess(): Promise<void> {
-    const method = 'HEAD';
-    const path = `/${this.bucket}`;
-    
+  protected async connect(): Promise<void> {
     try {
-      await this.makeS3Request(method, path);
-    } catch (error: any) {
-      if (error.statusCode === 404) {
-        throw new Error(`Bucket '${this.bucket}' not found`);
-      } else if (error.statusCode === 403) {
-        throw new Error(`Access denied to bucket '${this.bucket}'`);
+      // Dynamic import AWS SDK
+      const AWS = await import('aws-sdk');
+      
+      // Configure S3 client
+      const config: any = {
+        region: this.region,
+        apiVersion: '2006-03-01',
+      };
+
+      if (this.credentials) {
+        config.credentials = {
+          accessKeyId: this.credentials.accessKeyId,
+          secretAccessKey: this.credentials.secretAccessKey,
+          sessionToken: this.credentials.sessionToken,
+        };
       }
-      throw error;
+
+      this.s3Client = new AWS.S3(config);
+      
+      // Test connection by checking bucket exists
+      await this.s3Client.headBucket({ Bucket: this.bucket }).promise();
+      
+      this.connectionState = 'connected';
+      this.emit('connected', { bucket: this.bucket });
+      
+    } catch (error) {
+      this.connectionState = 'disconnected';
+      throw new Error(`S3 connection failed: ${error}`);
     }
   }
 
   /**
-   * Perform the network request to upload logs to S3.
+   * Disconnect from S3 (no-op for S3).
    * 
-   * @param {any} data - Prepared log data
-   * @param {any} batch - Batch metadata
+   * @returns {Promise<void>} Resolves immediately
+   * @protected
+   */
+  protected async disconnect(): Promise<void> {
+    this.s3Client = undefined;
+    this.connectionState = 'disconnected';
+  }
+
+  /**
+   * Send data to S3 (not used, see performNetworkRequest).
+   * 
+   * @param {unknown} data - Data to send
+   * @returns {Promise<void>} Resolves when sent
+   * @protected
+   */
+  protected async sendData(data: unknown): Promise<void> {
+    // Not used - see performNetworkRequest
+    throw new Error('Use performNetworkRequest instead');
+  }
+
+  /**
+   * Check S3 connection health.
+   * 
+   * @returns {Promise<void>} Resolves if healthy
+   * @protected
+   */
+  protected async checkHealth(): Promise<void> {
+    if (!this.s3Client) {
+      throw new Error('S3 client not initialized');
+    }
+
+    // Check bucket accessibility
+    await this.s3Client.headBucket({ Bucket: this.bucket }).promise();
+  }
+
+  /**
+   * Perform the network request to upload logs.
+   * 
+   * @param {LogEntry[]} entries - Log entries to upload
    * @returns {Promise<void>} Resolves when uploaded
    * @protected
    */
-  protected async performNetworkRequest(data: any, batch: any): Promise<void> {
-    // Generate S3 key
-    const key = this.generateS3Key(batch.entries);
-
-    // Format data based on file format
-    const body = await this.formatData(batch.entries);
-
-    // Prepare S3 request
-    const method = 'PUT';
-    const path = `/${this.bucket}/${key}`;
-    const headers = await this.buildS3Headers(method, path, body);
-
-    // Add storage class header
-    if (this.storageClass !== 'STANDARD') {
-      headers['x-amz-storage-class'] = this.storageClass;
+  protected async performNetworkRequest(entries: LogEntry[]): Promise<void> {
+    if (!this.s3Client) {
+      await this.connect();
     }
 
-    // Add encryption headers
+    // Generate key for this batch
+    const key = this.generateKey(entries);
+
+    // Format and optionally compress data
+    let body = await this.formatData(entries);
+    let contentEncoding: string | undefined;
+
+    if (this.compress) {
+      const zlib = await import('zlib');
+      body = await new Promise<Buffer>((resolve, reject) => {
+        zlib.gzip(body, (error, compressed) => {
+          if (error) reject(error);
+          else resolve(compressed);
+        });
+      });
+      contentEncoding = 'gzip';
+    }
+
+    // Prepare upload parameters
+    const params: any = {
+      Bucket: this.bucket,
+      Key: key,
+      Body: body,
+      StorageClass: this.storageClass,
+      ContentType: this.getContentType(),
+      Metadata: {
+        'log-count': String(entries.length),
+        'log-format': this.fileFormat,
+        'log-transport': 'magiclogger',
+      },
+    };
+
+    // Add encryption
     if (this.encryption) {
       if (this.encryption.type === 'AES256') {
-        headers['x-amz-server-side-encryption'] = 'AES256';
-      } else if (this.encryption.type === 'KMS' && this.encryption.kmsKeyId) {
-        headers['x-amz-server-side-encryption'] = 'aws:kms';
-        headers['x-amz-server-side-encryption-aws-kms-key-id'] = this.encryption.kmsKeyId;
+        params.ServerSideEncryption = 'AES256';
+      } else if (this.encryption.type === 'KMS') {
+        params.ServerSideEncryption = 'aws:kms';
+        if (this.encryption.kmsKeyId) {
+          params.SSEKMSKeyId = this.encryption.kmsKeyId;
+        }
       }
     }
 
-    // Add object tags
+    // Add content encoding if compressed
+    if (contentEncoding) {
+      params.ContentEncoding = contentEncoding;
+    }
+
+    // Add tags
     if (this.objectTags) {
       const tags = Object.entries(this.objectTags)
         .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
         .join('&');
-      headers['x-amz-tagging'] = tags;
+      params.Tagging = tags;
     }
 
-    // Make request
-    await this.makeS3Request(method, path, headers, body);
+    // Upload to S3
+    const result = await this.s3Client.upload(params).promise();
 
     this.emit('uploaded', {
       bucket: this.bucket,
       key,
-      size: body.length,
-      count: batch.entries.length,
+      location: result.Location,
+      etag: result.ETag,
+      size: Buffer.byteLength(body),
+      entries: entries.length,
     });
   }
 
   /**
    * Generate S3 key based on strategy.
    * 
-   * @param {LogEntry[]} entries - Log entries in the batch
-   * @returns {string} Generated S3 key
+   * @param {LogEntry[]} entries - Log entries
+   * @returns {string} S3 object key
    * @private
    */
-  private generateS3Key(entries: LogEntry[]): string {
-    // Use custom generator if provided
-    if (this.keyGenerator) {
-      return this.prefix + this.keyGenerator(entries);
-    }
-
-    const now = new Date();
-    const timestamp = now.toISOString().replace(/[:.]/g, '-');
-    
+  private generateKey(entries: LogEntry[]): string {
     let key = this.prefix;
 
-    switch (this.keyStrategy) {
-      case 'timestamp':
-        key += `${timestamp}-${this.generateId()}.${this.getFileExtension()}`;
-        break;
+    if (this.keyGenerator) {
+      key += this.keyGenerator(entries);
+    } else {
+      const now = new Date();
+      const timestamp = entries[0]?.timestamp || now.toISOString();
+      const date = new Date(timestamp);
 
-      case 'date-hierarchy':
-        key += `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}/`;
-        key += `${timestamp}-${this.generateId()}.${this.getFileExtension()}`;
-        break;
+      switch (this.keyStrategy) {
+        case 'timestamp':
+          key += `${date.getTime()}-${this.generateHash(entries)}.${this.getFileExtension()}`;
+          break;
 
-      case 'hourly':
-        key += `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}/`;
-        key += `${String(now.getHours()).padStart(2, '0')}/`;
-        key += `${timestamp}-${this.generateId()}.${this.getFileExtension()}`;
-        break;
+        case 'date-hierarchy':
+          key += `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}/`;
+          key += `${date.getTime()}-${this.generateHash(entries)}.${this.getFileExtension()}`;
+          break;
 
-      case 'custom':
-        // Should have custom generator
-        throw new Error('Custom key strategy requires keyGenerator function');
+        case 'hourly':
+          key += `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}/`;
+          key += `${String(date.getHours()).padStart(2, '0')}/`;
+          key += `${date.getTime()}-${this.generateHash(entries)}.${this.getFileExtension()}`;
+          break;
 
-      default:
-        key += `${timestamp}-${this.generateId()}.${this.getFileExtension()}`;
+        case 'custom':
+          throw new Error('Custom key strategy requires keyGenerator function');
+
+        default:
+          key += `${date.getTime()}-${this.generateHash(entries)}.${this.getFileExtension()}`;
+      }
     }
 
     return key;
+  }
+
+  /**
+   * Generate hash for uniqueness.
+   * 
+   * @param {LogEntry[]} entries - Log entries
+   * @returns {string} Hash string
+   * @private
+   */
+  private generateHash(entries: LogEntry[]): string {
+    const hash = createHash('sha256');
+    hash.update(JSON.stringify(entries.map(e => e.id)));
+    return hash.digest('hex').substring(0, 8);
   }
 
   /**
@@ -317,24 +377,32 @@ export class S3Transport extends NetworkTransport {
    * @private
    */
   private getFileExtension(): string {
-    const extensions: Record<string, string> = {
-      json: 'json',
-      jsonl: 'jsonl',
-      csv: 'csv',
-      parquet: 'parquet',
-    };
-
-    let ext = extensions[this.fileFormat] || 'log';
-    
-    if (this.compress) {
-      ext += '.gz';
-    }
-
-    return ext;
+    const ext = this.fileFormat === 'jsonl' ? 'jsonl' : this.fileFormat;
+    return this.compress ? `${ext}.gz` : ext;
   }
 
   /**
-   * Format log data based on file format.
+   * Get content type for S3 object.
+   * 
+   * @returns {string} Content type
+   * @private
+   */
+  private getContentType(): string {
+    switch (this.fileFormat) {
+      case 'json':
+      case 'jsonl':
+        return 'application/json';
+      case 'csv':
+        return 'text/csv';
+      case 'parquet':
+        return 'application/octet-stream';
+      default:
+        return 'application/json';
+    }
+  }
+
+  /**
+   * Format data based on file format.
    * 
    * @param {LogEntry[]} entries - Log entries
    * @returns {Promise<Buffer>} Formatted data
@@ -353,286 +421,126 @@ export class S3Transport extends NetworkTransport {
         break;
 
       case 'csv':
-        content = this.convertToCSV(entries);
+        content = await this.formatAsCSV(entries);
         break;
 
       case 'parquet':
-        // Would require parquet library
-        throw new Error('Parquet format not implemented');
+        throw new Error('Parquet format not yet implemented');
 
       default:
-        content = entries.map(e => JSON.stringify(e)).join('\n') + '\n';
+        content = JSON.stringify(entries);
     }
 
-    const buffer = Buffer.from(content, 'utf8');
-
-    // Compress if enabled
-    if (this.compress) {
-      const zlib = await import('zlib');
-      return new Promise((resolve, reject) => {
-        zlib.gzip(buffer, (err, compressed) => {
-          if (err) reject(err);
-          else resolve(compressed);
-        });
-      });
-    }
-
-    return buffer;
+    return Buffer.from(content, 'utf8');
   }
 
   /**
-   * Convert log entries to CSV format.
+   * Format entries as CSV.
    * 
    * @param {LogEntry[]} entries - Log entries
-   * @returns {string} CSV content
+   * @returns {Promise<string>} CSV content
    * @private
    */
-  private convertToCSV(entries: LogEntry[]): string {
+  private async formatAsCSV(entries: LogEntry[]): Promise<string> {
     if (entries.length === 0) return '';
 
-    // Define CSV columns
-    const columns = [
-      'id',
-      'timestamp',
-      'level',
-      'message',
-      'loggerId',
-      'tags',
-      'error',
-      'context',
-    ];
-
-    // Header row
-    let csv = columns.join(',') + '\n';
-
-    // Data rows
-    for (const entry of entries) {
-      const row = columns.map(col => {
-        let value = entry[col as keyof LogEntry];
-        
-        if (value === null || value === undefined) {
-          return '';
-        }
-
-        if (typeof value === 'object') {
-          value = JSON.stringify(value);
-        }
-
-        // Escape CSV values
-        value = String(value);
-        if (value.includes(',') || value.includes('"') || value.includes('\n')) {
-          value = `"${value.replace(/"/g, '""')}"`;
-        }
-
-        return value;
-      });
-
-      csv += row.join(',') + '\n';
-    }
-
-    return csv;
-  }
-
-  /**
-   * Build headers for S3 request.
-   * 
-   * @param {string} method - HTTP method
-   * @param {string} path - Request path
-   * @param {Buffer} body - Request body
-   * @returns {Promise<Record<string, string>>} Headers
-   * @private
-   */
-  private async buildS3Headers(
-    method: string,
-    path: string,
-    body: Buffer
-  ): Promise<Record<string, string>> {
-    const headers: Record<string, string> = {
-      Host: this.endpoint,
-      'Content-Type': this.getContentType(),
-      'Content-Length': String(body.length),
-      'x-amz-date': new Date().toISOString().replace(/[:-]|\.\d{3}/g, ''),
-      'x-amz-content-sha256': crypto.createHash('sha256').update(body).digest('hex'),
-    };
-
-    // Add base headers
-    Object.assign(headers, await this.buildHeaders());
-
-    // Sign request (AWS Signature V4)
-    await this.signRequest(method, path, headers, body);
-
-    return headers;
-  }
-
-  /**
-   * Sign S3 request using AWS Signature V4.
-   * 
-   * @param {string} method - HTTP method
-   * @param {string} path - Request path
-   * @param {Record<string, string>} headers - Request headers
-   * @param {Buffer} body - Request body
-   * @returns {Promise<void>} Adds authorization header
-   * @private
-   */
-  private async signRequest(
-    method: string,
-    path: string,
-    headers: Record<string, string>,
-    body: Buffer
-  ): Promise<void> {
-    const datetime = headers['x-amz-date'];
-    const date = datetime.substring(0, 8);
-    
-    // Create canonical request
-    const canonicalHeaders = Object.keys(headers)
-      .sort()
-      .map(key => `${key.toLowerCase()}:${headers[key].trim()}`)
-      .join('\n');
-    
-    const signedHeaders = Object.keys(headers)
-      .sort()
-      .map(k => k.toLowerCase())
-      .join(';');
-
-    const canonicalRequest = [
-      method,
-      path,
-      '', // query string
-      canonicalHeaders + '\n',
-      signedHeaders,
-      headers['x-amz-content-sha256'],
-    ].join('\n');
-
-    // Create string to sign
-    const credentialScope = `${date}/${this.region}/s3/aws4_request`;
-    const hashedRequest = crypto.createHash('sha256').update(canonicalRequest).digest('hex');
-    
-    const stringToSign = [
-      'AWS4-HMAC-SHA256',
-      datetime,
-      credentialScope,
-      hashedRequest,
-    ].join('\n');
-
-    // Calculate signature
-    const kDate = this.hmac(`AWS4${this.credentials.secretAccessKey}`, date);
-    const kRegion = this.hmac(kDate, this.region);
-    const kService = this.hmac(kRegion, 's3');
-    const kSigning = this.hmac(kService, 'aws4_request');
-    const signature = this.hmac(kSigning, stringToSign, 'hex');
-
-    // Add authorization header
-    headers.Authorization = [
-      `AWS4-HMAC-SHA256 Credential=${this.credentials.accessKeyId}/${credentialScope}`,
-      `SignedHeaders=${signedHeaders}`,
-      `Signature=${signature}`,
-    ].join(', ');
-
-    // Add session token if present
-    if (this.credentials.sessionToken) {
-      headers['x-amz-security-token'] = this.credentials.sessionToken;
-    }
-  }
-
-  /**
-   * HMAC helper for AWS signing.
-   * 
-   * @param {string | Buffer} key - HMAC key
-   * @param {string} data - Data to sign
-   * @param {string} encoding - Output encoding
-   * @returns {any} HMAC result
-   * @private
-   */
-  private hmac(key: string | Buffer, data: string, encoding?: any): any {
-    const hmac = crypto.createHmac('sha256', key);
-    hmac.update(data);
-    return encoding ? hmac.digest(encoding) : hmac.digest();
-  }
-
-  /**
-   * Make S3 API request.
-   * 
-   * @param {string} method - HTTP method
-   * @param {string} path - Request path
-   * @param {Record<string, string>} headers - Request headers
-   * @param {Buffer} body - Request body
-   * @returns {Promise<any>} Response data
-   * @private
-   */
-  private async makeS3Request(
-    method: string,
-    path: string,
-    headers?: Record<string, string>,
-    body?: Buffer
-  ): Promise<any> {
-    return new Promise((resolve, reject) => {
-      const options = {
-        method,
-        hostname: this.endpoint,
-        path,
-        headers: headers || {},
-        agent: this.agent,
-      };
-
-      const req = https.request(options, (res) => {
-        let data = '';
-        
-        res.on('data', (chunk) => {
-          data += chunk;
-        });
-
-        res.on('end', () => {
-          if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
-            resolve(data ? JSON.parse(data) : null);
-          } else {
-            const error: any = new Error(`S3 request failed: ${res.statusCode} ${res.statusMessage}`);
-            error.statusCode = res.statusCode;
-            error.response = data;
-            reject(error);
-          }
-        });
-      });
-
-      req.on('error', reject);
-
-      if (body) {
-        req.write(body);
-      }
-
-      req.end();
+    // Get all unique keys from entries
+    const allKeys = new Set<string>();
+    entries.forEach(entry => {
+      Object.keys(entry).forEach(key => allKeys.add(key));
     });
-  }
 
-  /**
-   * Get content type for uploads.
-   * 
-   * @returns {string} Content type
-   * @private
-   */
-  private getContentType(): string {
-    const types: Record<string, string> = {
-      json: 'application/json',
-      jsonl: 'application/x-ndjson',
-      csv: 'text/csv',
-      parquet: 'application/octet-stream',
-    };
+    const headers = Array.from(allKeys);
+    const rows: string[] = [headers.join(',')];
 
-    let contentType = types[this.fileFormat] || 'application/octet-stream';
-    
-    if (this.compress) {
-      contentType = 'application/gzip';
+    // Add data rows
+    for (const entry of entries) {
+      const values = headers.map(key => {
+        const value = (entry as any)[key];
+        if (value === undefined || value === null) return '';
+        if (typeof value === 'object') return JSON.stringify(value);
+        return String(value).includes(',') ? `"${String(value).replace(/"/g, '""')}"` : String(value);
+      });
+      rows.push(values.join(','));
     }
 
-    return contentType;
+    return rows.join('\n') + '\n';
   }
 
   /**
-   * Close the S3 transport.
+   * List objects in bucket with prefix.
+   * 
+   * @param {object} options - List options
+   * @returns {Promise<any[]>} S3 objects
+   */
+  public async listObjects(options: {
+    prefix?: string;
+    maxKeys?: number;
+    continuationToken?: string;
+  } = {}): Promise<any[]> {
+    if (!this.s3Client) {
+      await this.connect();
+    }
+
+    const params: any = {
+      Bucket: this.bucket,
+      Prefix: this.prefix + (options.prefix || ''),
+      MaxKeys: options.maxKeys || 1000,
+    };
+
+    if (options.continuationToken) {
+      params.ContinuationToken = options.continuationToken;
+    }
+
+    const result = await this.s3Client.listObjectsV2(params).promise();
+    return result.Contents || [];
+  }
+
+  /**
+   * Download object from S3.
+   * 
+   * @param {string} key - Object key
+   * @returns {Promise<Buffer>} Object data
+   */
+  public async getObject(key: string): Promise<Buffer> {
+    if (!this.s3Client) {
+      await this.connect();
+    }
+
+    const result = await this.s3Client.getObject({
+      Bucket: this.bucket,
+      Key: key,
+    }).promise();
+
+    return result.Body as Buffer;
+  }
+
+  /**
+   * Delete objects from S3.
+   * 
+   * @param {string[]} keys - Object keys to delete
+   * @returns {Promise<void>} Resolves when deleted
+   */
+  public async deleteObjects(keys: string[]): Promise<void> {
+    if (!this.s3Client || keys.length === 0) return;
+
+    const params = {
+      Bucket: this.bucket,
+      Delete: {
+        Objects: keys.map(key => ({ Key: key })),
+      },
+    };
+
+    await this.s3Client.deleteObjects(params).promise();
+  }
+
+  /**
+   * Close S3 transport.
    * 
    * @returns {Promise<void>} Resolves when closed
    * @protected
    */
   protected async closeNetwork(): Promise<void> {
-    this.agent.destroy();
+    await this.disconnect();
   }
 }

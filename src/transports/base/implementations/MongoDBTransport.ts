@@ -7,6 +7,59 @@ import type {
   NetworkTransportOptions 
 } from '../../../types/transport';
 
+// MongoDB types for better type safety
+interface MongoClient {
+  connect(): Promise<void>;
+  db(name: string): MongoDatabase;
+  close(): Promise<void>;
+}
+
+interface MongoDatabase {
+  collection(name: string): MongoCollection;
+  admin(): { ping(): Promise<void> };
+}
+
+interface MongoCollection {
+  createIndexes(indexes: IndexSpec[]): Promise<void>;
+  insertMany(docs: Record<string, unknown>[], options?: InsertManyOptions): Promise<InsertManyResult>;
+  find(query: Record<string, unknown>): MongoCursor;
+  deleteMany(query: Record<string, unknown>): Promise<{ deletedCount: number }>;
+  aggregate(pipeline: Record<string, unknown>[]): MongoCursor;
+  watch(pipeline?: Record<string, unknown>[], options?: ChangeStreamOptions): unknown;
+}
+
+interface MongoCursor {
+  sort(sort: Record<string, 1 | -1>): MongoCursor;
+  skip(skip: number): MongoCursor;
+  limit(limit: number): MongoCursor;
+  project(projection: Record<string, 0 | 1>): MongoCursor;
+  toArray(): Promise<LogEntry[]>;
+}
+
+interface IndexSpec {
+  key: Record<string, unknown>;
+  name: string;
+  expireAfterSeconds?: number;
+}
+
+interface InsertManyOptions {
+  ordered?: boolean;
+  writeConcern?: { w: number; j: boolean };
+}
+
+interface InsertManyResult {
+  insertedCount: number;
+}
+
+interface ChangeStreamOptions {
+  fullDocument?: 'default' | 'updateLookup';
+}
+
+interface MongoError extends Error {
+  code?: number;
+  writeErrors?: Array<{ index: number }>;
+}
+
 /**
  * MongoDB transport for storing logs in MongoDB collections.
  * 
@@ -61,7 +114,7 @@ export class MongoDBTransport extends NetworkTransport {
    * MongoDB client options.
    * @private
    */
-  private readonly clientOptions: Record<string, any>;
+  private readonly clientOptions: Record<string, unknown>;
 
   /**
    * Whether to create indexes.
@@ -79,25 +132,25 @@ export class MongoDBTransport extends NetworkTransport {
    * Document transformer function.
    * @private
    */
-  private readonly transformDocument?: (entry: LogEntry) => Record<string, any>;
+  private readonly transformDocument?: (entry: LogEntry) => Record<string, unknown>;
 
   /**
    * MongoDB client instance.
    * @private
    */
-  private client?: any;
+  private client?: MongoClient;
 
   /**
    * Database instance.
    * @private
    */
-  private db?: any;
+  private db?: MongoDatabase;
 
   /**
    * Collection instance.
    * @private
    */
-  private logCollection?: any;
+  private logCollection?: MongoCollection;
 
   /**
    * Whether indexes have been created.
@@ -110,12 +163,6 @@ export class MongoDBTransport extends NetworkTransport {
    * @private
    */
   private pendingOperations: Array<() => Promise<void>> = [];
-
-  /**
-   * Connection state.
-   * @private
-   */
-  private connectionState: 'disconnected' | 'connecting' | 'connected' = 'disconnected';
 
   /**
    * Creates a new MongoDBTransport instance.
@@ -134,6 +181,7 @@ export class MongoDBTransport extends NetworkTransport {
     super(networkOptions);
 
     this.uri = options.uri;
+    this.url = options.uri; // Set parent's url property
     this.database = options.database || 'logs';
     this.collection = options.collection || 'entries';
     this.clientOptions = {
@@ -162,9 +210,9 @@ export class MongoDBTransport extends NetworkTransport {
    * Connect to MongoDB.
    * 
    * @returns {Promise<void>} Resolves when connected
-   * @private
+   * @protected
    */
-  private async connect(): Promise<void> {
+  protected async connect(): Promise<void> {
     if (this.connectionState === 'connected') return;
     if (this.connectionState === 'connecting') {
       // Wait for existing connection
@@ -212,13 +260,56 @@ export class MongoDBTransport extends NetworkTransport {
   }
 
   /**
+   * Disconnect from MongoDB.
+   * 
+   * @returns {Promise<void>} Resolves when disconnected
+   * @protected
+   */
+  protected async disconnect(): Promise<void> {
+    if (this.client) {
+      await this.client.close();
+      this.client = undefined;
+      this.db = undefined;
+      this.logCollection = undefined;
+      this.connectionState = 'disconnected';
+    }
+  }
+
+  /**
+   * Send data to MongoDB (not used, see performNetworkRequest).
+   * 
+   * @param {unknown} data - Data to send
+   * @returns {Promise<void>} Resolves when sent
+   * @protected
+   */
+  protected async sendData(_data: unknown): Promise<void> {
+    // Not used - see performNetworkRequest
+    throw new Error('Use performNetworkRequest instead');
+  }
+
+  /**
+   * Check MongoDB connection health.
+   * 
+   * @returns {Promise<void>} Resolves if healthy
+   * @protected
+   */
+  protected async checkHealth(): Promise<void> {
+    if (!this.client || !this.db) {
+      throw new Error('MongoDB client not connected');
+    }
+
+    // Ping the database
+    await this.db.admin().ping();
+  }
+
+  /**
    * Create indexes for the collection.
    * 
    * @returns {Promise<void>} Resolves when indexes are created
    * @private
    */
   private async createCollectionIndexes(): Promise<void> {
-    const indexes = [
+    const indexes: IndexSpec[] = [
       // Timestamp index for time-based queries
       { key: { timestamp: -1 }, name: 'timestamp_desc' },
       
@@ -263,29 +354,28 @@ export class MongoDBTransport extends NetworkTransport {
   /**
    * Perform the network request to insert logs.
    * 
-   * @param {LogEntry[]} data - Log entries to insert
-   * @param {any} batch - Batch metadata
+   * @param {LogEntry[]} entries - Log entries to insert
    * @returns {Promise<void>} Resolves when inserted
    * @protected
    */
-  protected async performNetworkRequest(data: LogEntry[], batch: any): Promise<void> {
+  protected async performNetworkRequest(entries: LogEntry[]): Promise<void> {
     // Ensure connection
     if (this.connectionState !== 'connected') {
       await this.connect();
     }
 
     // Transform documents if needed
-    const documents = data.map(entry => {
-      const doc = this.transformDocument ? this.transformDocument(entry) : entry;
+    const documents = entries.map(entry => {
+      const doc = this.transformDocument ? this.transformDocument(entry) : { ...entry };
       
       // Ensure _id is not duplicated
       if ('id' in doc && !('_id' in doc)) {
-        doc._id = doc.id;
+        (doc as Record<string, unknown>)._id = doc.id;
       }
       
       // Convert ISO timestamp to Date object for better querying
       if (typeof doc.timestamp === 'string') {
-        doc._timestamp = new Date(doc.timestamp);
+        (doc as Record<string, unknown>)._timestamp = new Date(doc.timestamp);
       }
 
       return doc;
@@ -310,12 +400,13 @@ export class MongoDBTransport extends NetworkTransport {
       }
 
     } catch (error: any) {
+      const mongoError = error as MongoError;
       // Handle bulk write errors
-      if (error.code === 11000) {
+      if (mongoError.code === 11000) {
         // Duplicate key error - filter and retry
-        const uniqueDocs = this.filterDuplicates(documents, error);
+        const uniqueDocs = this.filterDuplicates(documents, mongoError);
         if (uniqueDocs.length > 0) {
-          await this.logCollection.insertMany(uniqueDocs, { ordered: false });
+          await this.logCollection!.insertMany(uniqueDocs, { ordered: false });
         }
       } else {
         throw error;
@@ -331,10 +422,10 @@ export class MongoDBTransport extends NetworkTransport {
    * @returns {any[]} Filtered documents
    * @private
    */
-  private filterDuplicates(documents: any[], error: any): any[] {
+  private filterDuplicates(documents: Record<string, unknown>[], error: MongoError): Record<string, unknown>[] {
     if (!error.writeErrors) return documents;
 
-    const failedIndexes = new Set(error.writeErrors.map((e: any) => e.index));
+    const failedIndexes = new Set(error.writeErrors.map((e) => e.index));
     return documents.filter((_, index) => !failedIndexes.has(index));
   }
 
@@ -346,7 +437,7 @@ export class MongoDBTransport extends NetworkTransport {
    * @returns {Promise<LogEntry[]>} Log entries
    */
   public async query(
-    query: Record<string, any> = {},
+    query: Record<string, unknown> = {},
     options: {
       limit?: number;
       skip?: number;
@@ -389,16 +480,16 @@ export class MongoDBTransport extends NetworkTransport {
     startDate?: Date;
     endDate?: Date;
     groupBy?: 'hour' | 'day' | 'level' | 'loggerId';
-  } = {}): Promise<any> {
+  } = {}): Promise<Record<string, unknown>[]> {
     if (this.connectionState !== 'connected') {
       await this.connect();
     }
 
-    const pipeline: any[] = [];
+    const pipeline: Record<string, unknown>[] = [];
 
     // Date filter
     if (options.startDate || options.endDate) {
-      const dateFilter: any = {};
+      const dateFilter: Record<string, unknown> = {};
       if (options.startDate) {
         dateFilter.$gte = options.startDate;
       }
@@ -409,7 +500,7 @@ export class MongoDBTransport extends NetworkTransport {
     }
 
     // Grouping
-    let groupId: any = null;
+    let groupId: Record<string, unknown> | string | null = null;
     
     switch (options.groupBy) {
       case 'hour':
@@ -458,7 +549,7 @@ export class MongoDBTransport extends NetworkTransport {
       $sort: { _id: 1 },
     });
 
-    return this.logCollection.aggregate(pipeline).toArray();
+    return this.logCollection!.aggregate(pipeline).toArray();
   }
 
   /**
@@ -468,16 +559,16 @@ export class MongoDBTransport extends NetworkTransport {
    * @returns {any} MongoDB change stream
    */
   public async createChangeStream(options: {
-    filter?: Record<string, any>;
+    filter?: Record<string, unknown>;
     fullDocument?: 'default' | 'updateLookup';
-  } = {}): Promise<any> {
+  } = {}): Promise<unknown> {
     if (this.connectionState !== 'connected') {
       await this.connect();
     }
 
     const pipeline = options.filter ? [{ $match: options.filter }] : [];
     
-    return this.logCollection.watch(pipeline, {
+    return this.logCollection!.watch(pipeline, {
       fullDocument: options.fullDocument || 'default',
     });
   }
@@ -507,19 +598,14 @@ export class MongoDBTransport extends NetworkTransport {
    * @protected
    */
   protected async closeNetwork(): Promise<void> {
-    if (this.client) {
-      await this.client.close();
-      this.client = undefined;
-      this.db = undefined;
-      this.logCollection = undefined;
-      this.connectionState = 'disconnected';
-    }
+    await this.disconnect();
   }
 
   /**
    * Handle connection errors with reconnection.
    * 
    * @param {Error} error - The error that occurred
+   * @param {LogEntry} [entry] - The log entry that caused the error
    * @protected
    */
   protected handleError(error: Error, entry?: LogEntry): void {

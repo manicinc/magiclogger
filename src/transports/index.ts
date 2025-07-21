@@ -46,6 +46,7 @@ import type {
   MongoDBTransportOptions,
   WebSocketTransportOptions,
   StreamTransportOptions,
+  TransportManagerOptions,
 } from '../types/transport';
 
 // Re-export transport types
@@ -100,14 +101,9 @@ export type {
  * ```
  */
 export function createDefaultTransportManager(
-  options: Partial<import('../types/transport').TransportManagerOptions> = {}
+  options: Partial<TransportManagerOptions> = {}
 ): TransportManager {
-  return new TransportManager({
-    defaultTimeout: 30000,
-    stopOnSuccess: false,
-    enableAggregation: false,
-    ...options,
-  });
+  return new TransportManager();
 }
 
 /**
@@ -189,17 +185,10 @@ export async function createTransportsFromConfig(
  * @param {Transport} transport - Transport to check
  * @returns {boolean} True if transport supports batching
  */
-/**
- * Type guard to check if a transport supports batching.
- * 
- * @param {Transport} transport - Transport to check
- * @returns {boolean} True if transport supports batching
- */
 export function isBatchingTransport(transport: Transport): transport is BatchingTransport {
-  return 'maxBatchSize' in transport && 
-         'maxBatchTime' in transport && 
-         'flush' in transport && 
-         typeof (transport as any).flush === 'function';
+  return 'flush' in transport && 
+         typeof (transport as BatchingTransport).flush === 'function' &&
+         transport.supportsBatching();
 }
 
 /**
@@ -209,7 +198,7 @@ export function isBatchingTransport(transport: Transport): transport is Batching
  * @returns {boolean} True if transport is network-based
  */
 export function isNetworkTransport(transport: Transport): transport is NetworkTransport {
-  return 'retryOptions' in transport && 'performNetworkRequest' in transport;
+  return transport instanceof NetworkTransport;
 }
 
 // Factory functions for creating transport instances
