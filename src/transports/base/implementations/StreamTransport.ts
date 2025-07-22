@@ -178,7 +178,7 @@ export class StreamTransport extends Transport {
       });
 
       (this.stream as NodeJS.EventEmitter).on('unpipe', (src: NodeJS.ReadableStream) => {
-        this.emit('unpiped', { source: src });
+        this.emit('unpipe', { source: src });
       });
     }
   }
@@ -294,14 +294,29 @@ export class StreamTransport extends Transport {
 
     // Attempt to write
     try {
-      const canWrite = this.stream.write(data, this.encoding, (error) => {
-        if (error) {
-          callback(error);
-        } else {
-          callback();
-          this.errorCount = 0; // Reset error count on success
-        }
-      });
+      // Handle the type issue by checking if data is Buffer and encoding is provided
+      let canWrite: boolean;
+      if (Buffer.isBuffer(data)) {
+        // For Buffer data, don't pass encoding parameter
+        canWrite = this.stream.write(data, (error) => {
+          if (error) {
+            callback(error);
+          } else {
+            callback();
+            this.errorCount = 0; // Reset error count on success
+          }
+        });
+      } else {
+        // For string data, pass encoding parameter
+        canWrite = this.stream.write(data, this.encoding, (error) => {
+          if (error) {
+            callback(error);
+          } else {
+            callback();
+            this.errorCount = 0; // Reset error count on success
+          }
+        });
+      }
 
       if (!canWrite) {
         // Backpressure - stream buffer is full
@@ -346,7 +361,9 @@ export class StreamTransport extends Transport {
    */
   private processQueue(): void {
     while (this.queue.length > 0 && this.isWritable && this.stream.writable) {
-      const item = this.queue.shift()!;
+      const item = this.queue.shift();
+      if (!item) break;
+      
       this.stats.queued = this.queue.length;
 
       this.writeToStream(item.entry, item.callback);

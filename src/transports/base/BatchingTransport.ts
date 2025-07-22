@@ -1,21 +1,46 @@
 // File: src/transports/base/BatchingTransport.ts
 
 import { Transport } from './Transport';
-import type { 
-  BatchingTransportOptions, 
+import type {
   LogEntry,
-  TransportStats 
+  TransportStats,
 } from '../../types/transport';
+
+// Define the options interface directly here
+interface BatchingTransportOptions {
+  name: string;
+  enabled?: boolean;
+  level?: string;
+  levels?: string[];
+  tags?: string[];
+  excludeTags?: string[];
+  filter?: (entry: LogEntry) => boolean;
+  silent?: boolean;
+  timeout?: number;
+  format?: 'json' | 'plain' | 'custom';
+  formatter?: (entry: LogEntry) => string | Buffer;
+  maxBatchSize?: number;
+  maxBatchTime?: number;
+  maxBatchBytes?: number;
+  compress?: boolean;
+  batchSize?: number;
+  flushInterval?: number;
+  maxRetries?: number;
+  retryDelay?: number;
+  retryOnFailure?: boolean;
+  maxQueueSize?: number;
+}
 
 /**
  * Abstract base class for transports that batch log entries.
  * 
- * Features:
- * - Automatic batching by size and time
- * - Configurable batch size and interval
- * - Retry logic for failed batches
- * - Memory-efficient buffering
- * - Graceful shutdown with flush
+ * This class provides automatic batching functionality for transports that
+ * benefit from processing multiple log entries at once (e.g., network transports).
+ * It handles:
+ * - Automatic batching based on size, time, or memory limits
+ * - Queue management with configurable limits
+ * - Retry logic with exponential backoff
+ * - Graceful shutdown with queue flushing
  * 
  * @abstract
  * @class BatchingTransport
@@ -23,351 +48,394 @@ import type {
  * 
  * @example
  * ```typescript
- * class MyBatchingTransport extends BatchingTransport {
- *   protected async processBatch(entries: LogEntry[]): Promise<void> {
- *     // Send batch to destination
- *     await this.sendToAPI(entries);
+ * class MyBatchTransport extends BatchingTransport {
+ *   protected async sendBatch(entries: LogEntry[]): Promise<void> {
+ *     // Send entries to remote service
+ *     await this.api.post('/logs', entries);
  *   }
  * }
  * 
- * const transport = new MyBatchingTransport({
- *   batchSize: 100,
- *   flushInterval: 5000
+ * const transport = new MyBatchTransport({
+ *   name: 'my-batch-transport',
+ *   maxBatchSize: 100,
+ *   maxBatchTime: 5000, // 5 seconds
+ *   maxBatchBytes: 1024 * 1024, // 1MB
  * });
  * ```
  */
 export abstract class BatchingTransport extends Transport {
   /**
-   * Current batch buffer.
+   * Maximum number of entries per batch.
    * @protected
    */
-  protected batch: LogEntry[] = [];
+  protected readonly maxBatchSize: number;
 
   /**
-   * Maximum batch size.
+   * Maximum time to wait before sending a batch (ms).
    * @protected
    */
-  protected readonly batchSize: number;
+  protected readonly maxBatchTime: number;
 
   /**
-   * Flush interval in milliseconds.
+   * Maximum size in bytes per batch.
    * @protected
    */
-  protected readonly flushInterval: number;
+  protected readonly maxBatchBytes: number;
 
   /**
-   * Timer for automatic flushing.
-   * @private
-   */
-  private flushTimer?: NodeJS.Timeout;
-
-  /**
-   * Whether currently processing a batch.
-   * @private
-   */
-  private processing = false;
-
-  /**
-   * Queue for batches being processed.
-   * @private
-   */
-  private processingQueue: LogEntry[][] = [];
-
-  /**
-   * Maximum retry attempts.
+   * Maximum retry attempts for failed batches.
    * @protected
    */
   protected readonly maxRetries: number;
 
   /**
-   * Retry delay in milliseconds.
+   * Initial retry delay in milliseconds.
    * @protected
    */
   protected readonly retryDelay: number;
 
   /**
-   * Whether to retry failed batches.
+   * Whether to retry on failure.
    * @protected
    */
   protected readonly retryOnFailure: boolean;
 
   /**
-   * Maximum queue size for processing.
-   * @private
+   * Maximum queue size.
+   * @protected
    */
-  private readonly maxQueueSize: number;
+  protected readonly maxQueueSize: number;
 
   /**
-   * Number of dropped batches.
+   * Current batch being accumulated.
    * @private
    */
-  private droppedBatches = 0;
+  private currentBatch: LogEntry[] = [];
+
+  /**
+   * Current batch size in bytes.
+   * @private
+   */
+  private currentBatchBytes = 0;
+
+  /**
+   * Timer for batch timeout.
+   * @private
+   */
+  private batchTimer?: NodeJS.Timeout;
+
+  /**
+   * Queue of batches waiting to be sent.
+   * @private
+   */
+  private sendQueue: LogEntry[][] = [];
+
+  /**
+   * Whether currently sending a batch.
+   * @private
+   */
+  private sending = false;
+
+  /**
+   * Number of entries currently queued.
+   * @private
+   */
+  private queuedEntries = 0;
 
   /**
    * Creates a new BatchingTransport instance.
    * 
-   * @param {BatchingTransportOptions} options - Transport options
+   * @param {BatchingTransportOptions} options - Configuration options
    */
   constructor(options: BatchingTransportOptions) {
     super(options);
 
-    // Handle both property names
-    this.batchSize = options.batchSize || options.maxBatchSize || 100;
-    this.flushInterval = options.flushInterval || options.maxBatchTime || 5000;
+    // Set batching parameters with defaults
+    this.maxBatchSize = options.maxBatchSize || options.batchSize || 100;
+    this.maxBatchTime = options.maxBatchTime || options.flushInterval || 5000;
+    this.maxBatchBytes = options.maxBatchBytes || 1024 * 1024; // 1MB default
     this.maxRetries = options.maxRetries || 3;
     this.retryDelay = options.retryDelay || 1000;
     this.retryOnFailure = options.retryOnFailure !== false;
-    this.maxQueueSize = options.maxQueueSize || 10;
+    this.maxQueueSize = options.maxQueueSize || 10000;
   }
 
   /**
-   * Initialize the batching transport.
+   * Log a single entry.
    * 
-   * @returns {Promise<void>} Resolves when initialized
-   * @protected
-   */
-  protected async doInit(): Promise<void> {
-    // Start flush timer
-    this.startFlushTimer();
-  }
-
-  /**
-   * Start the automatic flush timer.
-   * @private
-   */
-  private startFlushTimer(): void {
-    if (this.flushTimer) {
-      clearInterval(this.flushTimer);
-    }
-
-    this.flushTimer = setInterval(() => {
-      if (this.batch.length > 0) {
-        this.flush().catch(error => {
-          this.handleError(error);
-        });
-      }
-    }, this.flushInterval);
-
-    // Ensure timer doesn't prevent process exit
-    if (this.flushTimer.unref) {
-      this.flushTimer.unref();
-    }
-  }
-
-  /**
-   * Stop the flush timer.
-   * @private
-   */
-  private stopFlushTimer(): void {
-    if (this.flushTimer) {
-      clearInterval(this.flushTimer);
-      this.flushTimer = undefined;
-    }
-  }
-
-  /**
-   * Log a single entry (adds to batch).
+   * Adds the entry to the current batch and triggers sending if limits are reached.
    * 
-   * @param {LogEntry} entry - Log entry
-   * @returns {Promise<void>} Resolves when added
-   * @protected
+   * @param {LogEntry} entry - The log entry to process
+   * @returns {Promise<void>} Resolves when the entry is queued
    */
   protected async doLog(entry: LogEntry): Promise<void> {
-    this.batch.push(entry);
-    this.stats.queued = this.batch.length;
+    // Check queue size limit
+    if (this.queuedEntries >= this.maxQueueSize) {
+      throw new Error(`Queue size limit exceeded (${this.maxQueueSize})`);
+    }
+
+    // Calculate entry size
+    const entrySize = this.calculateEntrySize(entry);
+
+    // Check if adding this entry would exceed batch limits
+    if (this.shouldFlushBatch(entrySize)) {
+      await this.flushBatch();
+    }
+
+    // Add to current batch
+    this.currentBatch.push(entry);
+    this.currentBatchBytes += entrySize;
+    this.queuedEntries++;
+
+    // Update stats
+    this.stats.queued = this.queuedEntries;
+
+    // Start timer if this is the first entry in the batch
+    if (this.currentBatch.length === 1) {
+      this.startBatchTimer();
+    }
 
     // Check if batch is full
-    if (this.batch.length >= this.batchSize) {
-      await this.flush();
+    if (this.currentBatch.length >= this.maxBatchSize || 
+        this.currentBatchBytes >= this.maxBatchBytes) {
+      await this.flushBatch();
     }
   }
 
   /**
-   * Process multiple entries efficiently.
+   * Log multiple entries at once.
    * 
-   * @param {LogEntry[]} entries - Log entries
-   * @returns {Promise<void>} Resolves when added
-   * @protected
+   * @param {LogEntry[]} entries - Array of log entries to process
+   * @returns {Promise<void>} Resolves when all entries are queued
    */
   protected async doLogBatch(entries: LogEntry[]): Promise<void> {
-    // Add all entries to batch
-    this.batch.push(...entries);
-    this.stats.queued = this.batch.length;
+    // For batching transports, we can optimize by adding all entries at once
+    for (const entry of entries) {
+      await this.doLog(entry);
+    }
+  }
 
-    // Flush if needed
-    while (this.batch.length >= this.batchSize) {
-      await this.flush();
+  /**
+   * Check if batch should be flushed before adding an entry.
+   * 
+   * @param {number} entrySize - Size of the entry to be added
+   * @returns {boolean} True if batch should be flushed
+   * @private
+   */
+  private shouldFlushBatch(entrySize: number): boolean {
+    if (this.currentBatch.length === 0) {
+      return false;
+    }
+
+    return (
+      this.currentBatch.length >= this.maxBatchSize ||
+      this.currentBatchBytes + entrySize > this.maxBatchBytes
+    );
+  }
+
+  /**
+   * Calculate the size of a log entry in bytes.
+   * 
+   * @param {LogEntry} entry - The log entry
+   * @returns {number} Size in bytes
+   * @private
+   */
+  private calculateEntrySize(entry: LogEntry): number {
+    // Estimate size by stringifying
+    // In production, you might want a more efficient method
+    return Buffer.byteLength(JSON.stringify(entry), 'utf8');
+  }
+
+  /**
+   * Start the batch timer.
+   * 
+   * @private
+   */
+  private startBatchTimer(): void {
+    if (this.batchTimer) {
+      return;
+    }
+
+    this.batchTimer = setTimeout(() => {
+      this.flushBatch().catch(error => {
+        this.handleError(error);
+      });
+    }, this.maxBatchTime);
+  }
+
+  /**
+   * Stop the batch timer.
+   * 
+   * @private
+   */
+  private stopBatchTimer(): void {
+    if (this.batchTimer) {
+      clearTimeout(this.batchTimer);
+      this.batchTimer = undefined;
     }
   }
 
   /**
    * Flush the current batch.
    * 
-   * @returns {Promise<void>} Resolves when flushed
+   * @returns {Promise<void>} Resolves when batch is queued for sending
+   * @private
    */
-  public async flush(): Promise<void> {
-    if (this.batch.length === 0) return;
+  private async flushBatch(): Promise<void> {
+    this.stopBatchTimer();
 
-    // Extract current batch
-    const batchToProcess = this.batch.splice(0, this.batchSize);
-    this.stats.queued = this.batch.length;
-
-    // Add to processing queue
-    this.addToProcessingQueue(batchToProcess);
-
-    // Process queue if not already processing
-    if (!this.processing) {
-      await this.processQueue();
+    if (this.currentBatch.length === 0) {
+      return;
     }
+
+    // Move current batch to send queue
+    this.sendQueue.push(this.currentBatch);
+    
+    // Reset current batch
+    this.currentBatch = [];
+    this.currentBatchBytes = 0;
+
+    // Process send queue
+    await this.processSendQueue();
   }
 
   /**
-   * Add batch to processing queue.
+   * Process the send queue.
    * 
-   * @param {LogEntry[]} batch - Batch to add
    * @private
    */
-  private addToProcessingQueue(batch: LogEntry[]): void {
-    if (this.processingQueue.length >= this.maxQueueSize) {
-      // Drop oldest batch
-      const dropped = this.processingQueue.shift();
-      if (dropped) {
-        this.droppedBatches++;
-        this.stats.failed += dropped.length;
-        this.emit('batchDropped', { size: dropped.length });
-      }
+  private async processSendQueue(): Promise<void> {
+    if (this.sending || this.sendQueue.length === 0) {
+      return;
     }
 
-    this.processingQueue.push(batch);
-  }
+    this.sending = true;
 
-  /**
-   * Process all batches in the queue.
-   * @private
-   */
-  private async processQueue(): Promise<void> {
-    if (this.processing || this.processingQueue.length === 0) return;
-
-    this.processing = true;
-
-    while (this.processingQueue.length > 0) {
-      const batch = this.processingQueue.shift();
-      if (!batch) continue;
-
+    while (this.sendQueue.length > 0) {
+      const batch = this.sendQueue.shift();
+      if (!batch) continue; // This should never happen but satisfies TypeScript
+      
       try {
-        await this.processBatchWithRetry(batch);
-        this.stats.succeeded += batch.length;
-      } catch (error) {
-        this.stats.failed += batch.length;
-        this.handleError(error as Error);
+        await this.sendBatchWithRetry(batch);
         
-        // Emit batch failure event
-        this.emit('batchFailed', {
-          size: batch.length,
-          error,
-        });
+        // Update stats
+        this.queuedEntries -= batch.length;
+        this.stats.queued = this.queuedEntries;
+        
+      } catch (error) {
+        // Put batch back at front of queue for retry
+        if (this.retryOnFailure) {
+          this.sendQueue.unshift(batch);
+        } else {
+          // Update failed stats
+          this.queuedEntries -= batch.length;
+          this.stats.queued = this.queuedEntries;
+          this.stats.failed += batch.length;
+        }
+        
+        this.handleError(error as Error);
+        break; // Stop processing on error
       }
     }
 
-    this.processing = false;
+    this.sending = false;
   }
 
   /**
-   * Process a batch with retry logic.
+   * Send a batch with retry logic.
    * 
-   * @param {LogEntry[]} batch - Batch to process
-   * @returns {Promise<void>} Resolves when processed
+   * @param {LogEntry[]} batch - The batch to send
+   * @returns {Promise<void>} Resolves when batch is sent successfully
    * @private
    */
-  private async processBatchWithRetry(batch: LogEntry[]): Promise<void> {
+  private async sendBatchWithRetry(batch: LogEntry[]): Promise<void> {
     let lastError: Error | undefined;
     
     for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
       try {
-        await this.processBatch(batch);
-        return; // Success
+        await this.sendBatch(batch);
+        
+        // Success - emit event
+        this.emit('batch', batch, batch.length);
+        return;
+        
       } catch (error) {
         lastError = error as Error;
         
-        if (!this.retryOnFailure || attempt === this.maxRetries) {
-          throw error;
+        // Don't retry on last attempt
+        if (attempt < this.maxRetries) {
+          // Calculate delay with exponential backoff
+          const delay = this.retryDelay * Math.pow(2, attempt);
+          await this.sleep(delay);
         }
-
-        // Wait before retry
-        await this.delay(this.retryDelay * Math.pow(2, attempt)); // Exponential backoff
       }
     }
 
-    throw lastError;
+    // All retries failed
+    throw lastError || new Error('Failed to send batch after retries');
   }
 
   /**
-   * Delay helper for retries.
+   * Sleep for a specified duration.
    * 
-   * @param {number} ms - Milliseconds to delay
-   * @returns {Promise<void>} Resolves after delay
+   * @param {number} ms - Duration in milliseconds
+   * @returns {Promise<void>} Resolves after the duration
    * @private
    */
-  private delay(ms: number): Promise<void> {
+  private sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   /**
-   * Abstract method to process a batch of entries.
-   * Must be implemented by subclasses.
+   * Flush any pending logs.
    * 
-   * @param {LogEntry[]} entries - Batch of entries
-   * @returns {Promise<void>} Resolves when processed
-   * @protected
-   * @abstract
+   * @returns {Promise<void>} Resolves when all pending logs are sent
    */
-  protected abstract processBatch(entries: LogEntry[]): Promise<void>;
+  public async flush(): Promise<void> {
+    // Flush current batch
+    await this.flushBatch();
+    
+    // Wait for send queue to empty
+    while (this.sendQueue.length > 0 || this.sending) {
+      await this.sleep(100);
+    }
+  }
 
   /**
    * Close the transport.
    * 
-   * @returns {Promise<void>} Resolves when closed
-   * @protected
+   * @returns {Promise<void>} Resolves when transport is closed
    */
   protected async doClose(): Promise<void> {
-    // Stop flush timer
-    this.stopFlushTimer();
-
-    // Flush remaining entries
-    if (this.batch.length > 0) {
-      await this.flush();
-    }
-
-    // Wait for processing to complete
-    let attempts = 0;
-    while (this.processing && attempts < 100) {
-      await this.delay(100);
-      attempts++;
-    }
-
-    // Force process remaining queue
-    if (this.processingQueue.length > 0) {
-      await this.processQueue();
-    }
+    // Stop accepting new logs
+    this.closing = true;
+    
+    // Stop batch timer
+    this.stopBatchTimer();
+    
+    // Flush remaining logs
+    await this.flush();
   }
 
   /**
    * Get transport statistics.
    * 
-   * @returns {TransportStats} Transport statistics
+   * @returns {TransportStats} Current statistics
    */
   public getStats(): TransportStats {
-    const baseStats = super.getStats();
+    const stats = super.getStats();
     
     return {
-      ...baseStats,
+      ...stats,
       custom: {
-        ...baseStats.custom,
-        batchSize: this.batchSize,
-        currentBatchSize: this.batch.length,
-        processingQueueSize: this.processingQueue.length,
-        droppedBatches: this.droppedBatches,
-        isProcessing: this.processing,
+        ...stats.custom,
+        currentBatchSize: this.currentBatch.length,
+        currentBatchBytes: this.currentBatchBytes,
+        sendQueueLength: this.sendQueue.length,
+        sending: this.sending,
+        maxBatchSize: this.maxBatchSize,
+        maxBatchTime: this.maxBatchTime,
+        maxBatchBytes: this.maxBatchBytes,
       },
     };
   }
@@ -375,52 +443,20 @@ export abstract class BatchingTransport extends Transport {
   /**
    * Check if transport supports batching.
    * 
-   * @returns {boolean} Always true for batching transport
+   * @returns {boolean} Always true for batching transports
    */
   public supportsBatching(): boolean {
     return true;
   }
 
   /**
-   * Force flush all batches immediately.
+   * Abstract method to send a batch of entries.
+   * Subclasses must implement this method.
    * 
-   * @returns {Promise<void>} Resolves when flushed
+   * @param {LogEntry[]} entries - The batch of entries to send
+   * @returns {Promise<void>} Resolves when batch is sent
+   * @protected
+   * @abstract
    */
-  public async forceFlush(): Promise<void> {
-    // Stop timer temporarily
-    this.stopFlushTimer();
-
-    try {
-      // Flush all entries
-      while (this.batch.length > 0) {
-        const batch = this.batch.splice(0, this.batchSize);
-        this.processingQueue.push(batch);
-      }
-
-      // Process all
-      await this.processQueue();
-    } finally {
-      // Restart timer
-      this.startFlushTimer();
-    }
-  }
-
-  /**
-   * Get batch configuration.
-   * 
-   * @returns {object} Batch configuration
-   */
-  public getBatchConfig(): {
-    batchSize: number;
-    flushInterval: number;
-    maxRetries: number;
-    retryDelay: number;
-  } {
-    return {
-      batchSize: this.batchSize,
-      flushInterval: this.flushInterval,
-      maxRetries: this.maxRetries,
-      retryDelay: this.retryDelay,
-    };
-  }
+  protected abstract sendBatch(entries: LogEntry[]): Promise<void>;
 }

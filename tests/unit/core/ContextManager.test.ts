@@ -40,7 +40,7 @@ interface DeleteObjectsCommandInput {
   };
 }
 
-// Command class types - using type aliases instead of interfaces
+// Command class types
 type PutObjectCommand = any;
 type HeadBucketCommand = any;
 type ListObjectsV2Command = any;
@@ -118,7 +118,7 @@ export class S3Transport extends NetworkTransport {
    * Storage class for objects.
    * @private
    */
-  private readonly storageClass: string;
+  private readonly storageClass: S3TransportOptions['storageClass'];
 
   /**
    * Encryption settings.
@@ -130,7 +130,7 @@ export class S3Transport extends NetworkTransport {
    * Key generation strategy.
    * @private
    */
-  private readonly keyStrategy: string;
+  private readonly keyStrategy: S3TransportOptions['keyStrategy'];
 
   /**
    * Custom key generator.
@@ -142,7 +142,7 @@ export class S3Transport extends NetworkTransport {
    * File format for storage.
    * @private
    */
-  private readonly fileFormat: string;
+  private readonly fileFormat: S3TransportOptions['fileFormat'];
 
   /**
    * Object tags.
@@ -290,11 +290,11 @@ export class S3Transport extends NetworkTransport {
    * Send data to S3.
    * This method is not used in S3Transport, see performNetworkRequest instead.
    * 
-   * @param {unknown} _data - Data to send (unused)
+   * @param {unknown} data - Data to send
    * @returns {Promise<void>} Resolves when sent
    * @protected
    */
-  protected async sendData(_data: unknown): Promise<void> {
+  protected async sendData(data: unknown): Promise<void> {
     // Not used - see performNetworkRequest
     throw new Error('Use performNetworkRequest instead');
   }
@@ -350,6 +350,7 @@ export class S3Transport extends NetworkTransport {
       Bucket: this.bucket,
       Key: key,
       Body: body,
+      StorageClass: this.storageClass,
       ContentType: this.getContentType(),
       Metadata: {
         'log-count': String(entries.length),
@@ -358,11 +359,6 @@ export class S3Transport extends NetworkTransport {
         'log-version': '1.0',
       },
     };
-
-    // Add storage class if specified
-    if (this.storageClass) {
-      params.StorageClass = this.storageClass;
-    }
 
     // Add encryption
     if (this.encryption) {
@@ -582,9 +578,7 @@ export class S3Transport extends NetworkTransport {
         } else if ((col === 'context' || col === 'metadata') && entry[col]) {
           value = JSON.stringify(entry[col]);
         } else {
-          // Safely access entry properties
-          const entryAsRecord = entry as unknown as Record<string, unknown>;
-          value = entryAsRecord[col];
+          value = (entry as Record<string, unknown>)[col];
         }
 
         // Format value for CSV
