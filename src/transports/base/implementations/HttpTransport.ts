@@ -1,4 +1,11 @@
-// File: src/transports/base/implementations/HttpTransport.ts
+/**
+ * HTTP transport implementation for MagicLogger.
+ * 
+ * Sends log entries to HTTP endpoints with support for various authentication
+ * methods, request formats, batching, and retry logic.
+ * 
+ * @module transports/implementations
+ */
 
 import { NetworkTransport } from '../NetworkTransport';
 import * as https from 'https';
@@ -22,6 +29,8 @@ import type {
  * - Multiple body formats (JSON, NDJSON, Form)
  * - Custom headers and request options
  * - Circuit breaker for failing endpoints
+ * - Compression support (gzip, deflate)
+ * - Proxy support
  * 
  * @class HTTPTransport
  * @extends {NetworkTransport}
@@ -39,7 +48,8 @@ import type {
  *   bodyFormat: 'json',
  *   headers: {
  *     'X-Service-Name': 'my-app'
- *   }
+ *   },
+ *   compress: true
  * });
  * ```
  */
@@ -73,6 +83,30 @@ export class HTTPTransport extends NetworkTransport {
    * @private
    */
   private readonly transformRequest?: HTTPTransportOptions['transformRequest'];
+
+  /**
+   * Response transformer.
+   * @private
+   */
+  private readonly transformResponse?: HTTPTransportOptions['transformResponse'];
+
+  /**
+   * Whether to follow redirects.
+   * @private
+   */
+  private readonly followRedirects: boolean;
+
+  /**
+   * Maximum redirects to follow.
+   * @private
+   */
+  private readonly maxRedirects: number;
+
+  /**
+   * Proxy configuration.
+   * @private
+   */
+  private readonly proxy?: HTTPTransportOptions['proxy'];
 
   /**
    * HTTP/HTTPS agent for connection pooling.
@@ -110,6 +144,7 @@ export class HTTPTransport extends NetworkTransport {
       maxBatchSize: options.maxBatchSize || 100,
       maxBatchTime: options.maxBatchTime || 5000,
       maxBatchBytes: options.maxBatchBytes || 1024 * 1024, // 1MB
+      compress: options.compress ?? false,
     };
 
     super(networkOptions);
@@ -120,6 +155,10 @@ export class HTTPTransport extends NetworkTransport {
     this.auth = options.auth;
     this.bodyFormat = options.bodyFormat || 'json';
     this.transformRequest = options.transformRequest;
+    this.transformResponse = options.transformResponse;
+    this.followRedirects = options.followRedirects ?? true;
+    this.maxRedirects = options.maxRedirects ?? 5;
+    this.proxy = options.proxy;
 
     // Create appropriate agent
     const isHttps = this.targetUrl.protocol === 'https:';
@@ -166,6 +205,7 @@ export class HTTPTransport extends NetworkTransport {
   protected async connect(): Promise<void> {
     // HTTP doesn't maintain persistent connections
     // Connection is established per request
+    this.connectionState = 'connected';
   }
 
   /**
@@ -177,6 +217,7 @@ export class HTTPTransport extends NetworkTransport {
   protected async disconnect(): Promise<void> {
     // Clean up agent
     this.agent.destroy();
+    this.connectionState = 'disconnected';
   }
 
   /**
@@ -293,7 +334,14 @@ export class HTTPTransport extends NetworkTransport {
     }
 
     // Transform data if transformer provided
-    const body = this.transformRequest ? this.transformRequest(entries) : this.formatBody(entries);
+    let body: string | Buffer = this.transformRequest 
+      ? this.ensureBodyType(this.transformRequest(entries))
+      : this.formatBody(entries);
+
+    // Compress if enabled
+    if (this.compress && (typeof body === 'string' || Buffer.isBuffer(body))) {
+      body = await this.compressBody(body);
+    }
 
     // Build headers
     const headers = await this.buildRequestHeaders(body);
@@ -303,7 +351,23 @@ export class HTTPTransport extends NetworkTransport {
 
     // Validate response
     if (response.statusCode && response.statusCode >= 400) {
-      throw new Error(`HTTP ${response.statusCode}: ${response.statusMessage}`);
+      const error = new Error(`HTTP ${response.statusCode}: ${response.statusMessage}`) as Error & {
+        statusCode?: number;
+        response?: typeof response;
+      };
+      error.statusCode = response.statusCode;
+      error.response = response;
+      throw error;
+    }
+
+    // Transform response if configured
+    if (this.transformResponse && response.body) {
+      try {
+        const parsed = JSON.parse(response.body);
+        this.transformResponse(parsed);
+      } catch {
+        // Ignore parse errors
+      }
     }
 
     this.emit('sent', {
@@ -351,6 +415,42 @@ export class HTTPTransport extends NetworkTransport {
   }
 
   /**
+   * Ensure the transformed body is of the correct type.
+   * 
+   * @param {unknown} body - Body from transform function
+   * @returns {string | Buffer} Properly typed body
+   * @private
+   */
+  private ensureBodyType(body: unknown): string | Buffer {
+    if (typeof body === 'string') {
+      return body;
+    }
+    if (Buffer.isBuffer(body)) {
+      return body;
+    }
+    // Convert to JSON string if not string or Buffer
+    return JSON.stringify(body);
+  }
+
+  /**
+   * Compress body data.
+   * 
+   * @param {string | Buffer} body - Body to compress
+   * @returns {Promise<Buffer>} Compressed body
+   * @private
+   */
+  private async compressBody(body: string | Buffer): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      const input = typeof body === 'string' ? Buffer.from(body) : body;
+      
+      zlib.gzip(input, (error, compressed) => {
+        if (error) reject(error);
+        else resolve(compressed);
+      });
+    });
+  }
+
+  /**
    * Build request headers.
    * 
    * @param {string | Buffer} body - Request body
@@ -363,9 +463,14 @@ export class HTTPTransport extends NetworkTransport {
       'Content-Length': String(Buffer.byteLength(body)),
       'Content-Type': this.getContentType(),
       'Accept': 'application/json',
-      'Accept-Encoding': 'gzip, deflate',
       'Connection': 'keep-alive',
     };
+
+    // Add compression header if body is compressed
+    if (this.compress) {
+      headers['Content-Encoding'] = 'gzip';
+      headers['Accept-Encoding'] = 'gzip, deflate';
+    }
 
     // Add auth headers
     if (this.authHeaders) {
@@ -400,12 +505,13 @@ export class HTTPTransport extends NetworkTransport {
   }
 
   /**
-   * Make HTTP/HTTPS request.
+   * Make HTTP/HTTPS request with redirect handling.
    * 
    * @param {string} method - HTTP method
    * @param {URL} url - Request URL
    * @param {Record<string, string>} headers - Request headers
    * @param {string | Buffer} body - Request body
+   * @param {number} redirectCount - Current redirect count
    * @returns {Promise<any>} Response
    * @private
    */
@@ -413,7 +519,8 @@ export class HTTPTransport extends NetworkTransport {
     method: string,
     url: URL,
     headers: Record<string, string>,
-    body?: string | Buffer
+    body?: string | Buffer,
+    redirectCount = 0
   ): Promise<{
     statusCode?: number;
     statusMessage?: string;
@@ -424,7 +531,8 @@ export class HTTPTransport extends NetworkTransport {
       const isHttps = url.protocol === 'https:';
       const lib = isHttps ? https : http;
 
-      const options = {
+      // Configure options
+      const options: http.RequestOptions | https.RequestOptions = {
         method,
         hostname: url.hostname,
         port: url.port || (isHttps ? 443 : 80),
@@ -434,14 +542,55 @@ export class HTTPTransport extends NetworkTransport {
         timeout: this.requestTimeout,
       };
 
+      // Add proxy if configured
+      if (this.proxy) {
+        options.hostname = this.proxy.host;
+        options.port = this.proxy.port;
+        options.path = url.toString();
+        
+        if (this.proxy.auth) {
+          const proxyAuth = Buffer.from(`${this.proxy.auth.username}:${this.proxy.auth.password}`).toString('base64');
+          options.headers = {
+            ...options.headers,
+            'Proxy-Authorization': `Basic ${proxyAuth}`,
+          };
+        }
+      }
+
       const req = lib.request(options, (res) => {
+        // Handle redirects
+        if (this.followRedirects && 
+            res.statusCode && 
+            res.statusCode >= 300 && 
+            res.statusCode < 400 &&
+            res.headers.location) {
+          
+          if (redirectCount >= this.maxRedirects) {
+            reject(new Error(`Too many redirects (${redirectCount})`));
+            return;
+          }
+
+          try {
+            const redirectUrl = new URL(res.headers.location, url);
+            this.makeHttpRequest(method, redirectUrl, headers, body, redirectCount + 1)
+              .then(resolve)
+              .catch(reject);
+            return;
+          } catch (error) {
+            reject(error);
+            return;
+          }
+        }
+
         let data = '';
         
         // Handle compression
         let stream: NodeJS.ReadableStream = res;
-        if (res.headers['content-encoding'] === 'gzip') {
+        const encoding = res.headers['content-encoding'];
+        
+        if (encoding === 'gzip') {
           stream = res.pipe(zlib.createGunzip());
-        } else if (res.headers['content-encoding'] === 'deflate') {
+        } else if (encoding === 'deflate') {
           stream = res.pipe(zlib.createInflate());
         }
 
@@ -523,6 +672,25 @@ export class HTTPTransport extends NetworkTransport {
       return true;
     }
 
+    // Check for retryable status codes
+    const errorWithStatus = error as Error & { statusCode?: number };
+    if (errorWithStatus.statusCode) {
+      // Retry on server errors and rate limiting
+      return errorWithStatus.statusCode >= 500 || 
+             errorWithStatus.statusCode === 429 ||
+             errorWithStatus.statusCode === 408;
+    }
+
     return false;
+  }
+
+  /**
+   * Get whether compression is enabled.
+   * 
+   * @returns {boolean} True if compression is enabled
+   * @protected
+   */
+  protected get compress(): boolean {
+    return (this.options as NetworkTransportOptions).compress ?? false;
   }
 }

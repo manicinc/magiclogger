@@ -2,21 +2,16 @@
 
 import { NodeLogger } from './core/NodeLogger';
 import { BrowserLogger } from './core/BrowserLogger';
-import { ContextManager } from './core/ContextManager';
-import { TagManager } from './core/TagManager';
 import { TransportManager } from './transports/base/TransportManager';
 import { ConsoleTransport } from './transports/base/implementations/ConsoleTransport';
 import { FileTransport } from './transports/base/implementations/FileTransport';
-import { AsyncLogger } from './async/AsyncLogger';
 import type { 
   LoggerOptions, 
   LogLevel, 
   StylePreset, 
   ColorName,
   Transport,
-  LogEntry,
-  IdGenerator,
-  AsyncOptions
+  LogEntry
 } from './types';
 import type { LoggerBase } from './core/LoggerBase';
 import * as path from 'path';
@@ -26,10 +21,39 @@ import { FileManager } from './core/FileManager';
 import { IS_PATH_REGEX } from './constants/paths';
 
 /**
- * Extended logger options that include transport and async configuration.
- * 
- * @interface ExtendedLoggerOptions
- * @extends {LoggerOptions}
+ * ID generator function type.
+ */
+export type IdGenerator = () => string;
+
+/**
+ * Extended logger instance with optional close method.
+ */
+interface ExtendedLoggerInstance {
+  close?: () => Promise<void>;
+}
+
+/**
+ * Extended node logger instance for file operations.
+ */
+interface ExtendedNodeLogger extends ExtendedLoggerInstance {
+  fileManager?: FileManager;
+  writeToDisk?: boolean;
+  logDir?: string;
+  logRetentionDays?: number;
+}
+
+/**
+ * Metadata for log entries.
+ */
+export type LogMetadata = Record<string, unknown>;
+
+/**
+ * Log entry metadata including error or additional context.
+ */
+export type LogEntryMeta = LogMetadata | Error | { error?: Error; [key: string]: unknown };
+
+/**
+ * Extended logger options that include transport configuration.
  */
 export interface ExtendedLoggerOptions extends LoggerOptions {
   /**
@@ -46,37 +70,17 @@ export interface ExtendedLoggerOptions extends LoggerOptions {
 
   /**
    * Custom ID generator for log entries.
-   * @default () => `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
+   * @default () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
    */
   idGenerator?: IdGenerator;
-
-  /**
-   * Enable advanced context management features.
-   * @default true
-   */
-  enableContextManager?: boolean;
-
-  /**
-   * Enable advanced tag management features.
-   * @default true
-   */
-  enableTagManager?: boolean;
-
-  /**
-   * Async logging configuration.
-   * Enables high-performance async logging with ring buffer.
-   */
-  async?: AsyncOptions;
 }
 
 /**
- * Main Logger class that integrates the transport system and async logging.
+ * Main Logger class that integrates the transport system.
  * 
  * This class automatically detects whether it's running in a Node.js or Browser environment
  * and instantiates the appropriate logger (NodeLogger or BrowserLogger) accordingly.
- * It manages transports for flexible log delivery and provides both sync and async APIs.
- * 
- * @class Logger
+ * It also manages transports for flexible log delivery to various destinations.
  * 
  * @example
  * ```typescript
@@ -86,19 +90,12 @@ export interface ExtendedLoggerOptions extends LoggerOptions {
  *     new ConsoleTransport({ level: 'debug' }),
  *     new FileTransport({ filepath: './app.log' }),
  *     new S3Transport({ bucket: 'my-logs' })
- *   ],
- *   async: {
- *     enabled: true,
- *     buffer: { size: 10000 }
- *   }
+ *   ]
  * });
  * 
- * // Sync logging
+ * // Log messages are sent to all transports
  * logger.info('Application started');
- * 
- * // Async logging - two ways
- * logger.async.info('High frequency log');
- * logger.info('Another log', { async: true });
+ * logger.error('Database connection failed', { error: err });
  * ```
  */
 export class Logger {
@@ -113,18 +110,6 @@ export class Logger {
    * @private
    */
   private transportManager: TransportManager;
-
-  /**
-   * Context manager for advanced context operations.
-   * @private
-   */
-  private contextManager?: ContextManager;
-
-  /**
-   * Tag manager for advanced tag operations.
-   * @private
-   */
-  private tagManager?: TagManager;
 
   /**
    * Logger configuration.
@@ -145,31 +130,7 @@ export class Logger {
   private readonly useLegacyOutput: boolean;
 
   /**
-   * Async logger instance for high-performance logging.
-   * @private
-   */
-  private asyncLogger?: AsyncLogger;
-
-  /**
-   * Public async logging interface.
-   * Provides async methods that use ring buffer for zero-allocation logging.
-   * 
-   * @readonly
-   */
-  public readonly async: {
-    info: (message: string, meta?: unknown) => void;
-    warn: (message: string, meta?: unknown) => void;
-    error: (message: string, meta?: unknown) => void;
-    debug: (message: string, meta?: unknown) => void;
-    success: (message: string, meta?: unknown) => void;
-    log: (message: string, level?: LogLevel, meta?: unknown) => void;
-    flush: () => void;
-    flushAndWait: () => Promise<void>;
-    getStats: () => unknown;
-  };
-
-  /**
-   * Create a new logger instance with transport and async support.
+   * Create a new logger instance with transport support.
    *
    * @param {ExtendedLoggerOptions} options - Logger configuration options
    */
@@ -177,15 +138,6 @@ export class Logger {
     this.options = options;
     this.useLegacyOutput = options.useLegacyOutput ?? false;
     this.idGenerator = options.idGenerator ?? this.defaultIdGenerator;
-
-    // Initialize context and tag managers if enabled
-    if (options.enableContextManager !== false) {
-      this.contextManager = new ContextManager();
-    }
-    
-    if (options.enableTagManager !== false) {
-      this.tagManager = new TagManager();
-    }
 
     // Initialize legacy logger instance
     if (typeof window !== 'undefined') {
@@ -197,40 +149,8 @@ export class Logger {
     // Initialize transport manager
     this.transportManager = new TransportManager();
 
-    // Set error handler for transport manager
-    this.transportManager.on('error', (error: Error, transport: Transport, _entry: LogEntry) => {
-      // Log transport errors to console
-      console.error(`[Transport Error - ${transport.name}]:`, error.message);
-    });
-
     // Initialize transports
     this.initializeTransports();
-
-    // Initialize async logger if enabled
-    if (options.async?.enabled) {
-      this.asyncLogger = new AsyncLogger(
-        {
-          buffer: options.async.buffer,
-          useWorkers: options.async.useWorkers,
-          workerPath: options.async.workerPath,
-          onFlush: (entries) => this.flushAsyncEntries(entries),
-        },
-        this.createLogEntry.bind(this)
-      );
-    }
-
-    // Create async interface
-    this.async = {
-      info: (message: string, meta?: unknown) => this.logAsync('info', message, meta),
-      warn: (message: string, meta?: unknown) => this.logAsync('warn', message, meta),
-      error: (message: string, meta?: unknown) => this.logAsync('error', message, meta),
-      debug: (message: string, meta?: unknown) => this.logAsync('debug', message, meta),
-      success: (message: string, meta?: unknown) => this.logAsync('success', message, meta),
-      log: (message: string, level: LogLevel = 'info', meta?: unknown) => this.logAsync(level, message, meta),
-      flush: () => this.asyncLogger?.flush(),
-      flushAndWait: () => this.asyncLogger?.flushAndWait() || Promise.resolve(),
-      getStats: () => this.asyncLogger?.getStats() || {},
-    };
   }
 
   /**
@@ -292,7 +212,7 @@ export class Logger {
    * @private
    */
   private defaultIdGenerator(): string {
-    return `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
 
   /**
@@ -300,11 +220,11 @@ export class Logger {
    * 
    * @param {string} level - Log level
    * @param {string} message - Log message
-   * @param {unknown} [meta] - Additional metadata
+   * @param {LogEntryMeta} [meta] - Additional metadata
    * @returns {LogEntry} Complete log entry
    * @private
    */
-  private createLogEntry(level: LogLevel, message: string, meta?: unknown): LogEntry {
+  private createLogEntry(level: LogLevel, message: string, meta?: LogEntryMeta): LogEntry {
     const now = new Date();
     
     // Extract error if present
@@ -318,34 +238,14 @@ export class Logger {
         stack: meta.stack,
       };
       context = undefined;
-    } else if (meta && typeof meta === 'object' && 'error' in meta && (meta as Record<string, unknown>).error instanceof Error) {
-      const errorObj = (meta as Record<string, unknown>).error as Error;
+    } else if (meta?.error instanceof Error) {
       error = {
-        name: errorObj.name,
-        message: errorObj.message,
-        stack: errorObj.stack,
+        name: meta.error.name,
+        message: meta.error.message,
+        stack: meta.error.stack,
       };
-      context = { ...meta as Record<string, unknown> };
-      delete (context as Record<string, unknown>).error;
-    }
-
-    // Merge contexts using ContextManager if available
-    let finalContext: Record<string, unknown> | undefined;
-    if (this.contextManager) {
-      finalContext = this.contextManager.merge(
-        this.options.context || {},
-        context as Record<string, unknown> | undefined
-      );
-    } else {
-      finalContext = (context || this.options.context) as Record<string, unknown> | undefined;
-    }
-
-    // Process tags using TagManager if available
-    let finalTags: string[] | undefined;
-    if (this.tagManager && this.options.tags) {
-      finalTags = this.tagManager.normalize(this.options.tags);
-    } else {
-      finalTags = this.options.tags;
+      context = { ...meta };
+      delete context.error;
     }
 
     // Create log entry
@@ -357,8 +257,8 @@ export class Logger {
       message,
       plainMessage: this.stripAnsiCodes(message),
       loggerId: this.options.id,
-      tags: finalTags,
-      context: finalContext,
+      tags: this.options.tags,
+      context: context || this.options.context,
       error,
       metadata: this.getMetadata(),
     };
@@ -369,11 +269,11 @@ export class Logger {
   /**
    * Get environment metadata.
    * 
-   * @returns {Record<string, unknown>} Metadata object
+   * @returns {LogMetadata} Metadata object
    * @private
    */
-  private getMetadata(): Record<string, unknown> {
-    const metadata: Record<string, unknown> = {};
+  private getMetadata(): LogMetadata {
+    const metadata: LogMetadata = {};
 
     if (typeof window !== 'undefined') {
       // Browser metadata
@@ -403,66 +303,13 @@ export class Logger {
   }
 
   /**
-   * Log a message asynchronously.
-   * 
-   * @param {LogLevel} level - Log level
-   * @param {string} message - The message to log
-   * @param {unknown} [meta] - Additional metadata
-   * @private
-   */
-  private logAsync(level: LogLevel, message: string, meta?: unknown): void {
-    if (!this.asyncLogger) {
-      // Fallback to sync logging if async not enabled
-      this.log(message, level, meta);
-      return;
-    }
-
-    // Ensure meta is compatible with AsyncLogger
-    const safeMeta = meta && typeof meta === 'object' && !Array.isArray(meta) && meta !== null 
-      ? meta as Record<string, unknown> 
-      : undefined;
-
-    this.asyncLogger.log(message, level, safeMeta);
-  }
-
-  /**
-   * Process async log entries when buffer is flushed.
-   * 
-   * @param {LogEntry[]} entries - Log entries to process
-   * @returns {Promise<void>} Resolves when entries are processed
-   * @private
-   */
-  private async flushAsyncEntries(entries: LogEntry[]): Promise<void> {
-    // Send to transports in batches
-    if (this.transportManager) {
-      try {
-        await Promise.all(
-          entries.map(entry => this.transportManager.log(entry))
-        );
-      } catch (error) {
-        console.error('[Logger] Failed to flush async logs:', error);
-      }
-    }
-  }
-
-  /**
    * Log a message at a specified level.
-   * Supports both sync and async logging via meta.async flag.
    *
    * @param {string} msg - The message to log
    * @param {LogLevel} level - Log level (default: 'info')
-   * @param {unknown} [meta] - Additional metadata or error
+   * @param {LogEntryMeta} [meta] - Additional metadata or error
    */
-  public log(msg: string, level: LogLevel = 'info', meta?: unknown): void {
-    // Check for async flag in meta
-    if (meta && typeof meta === 'object' && 'async' in meta && (meta as Record<string, unknown>).async === true && this.asyncLogger) {
-      // Remove async flag from meta
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { async: _, ...cleanMeta } = meta as Record<string, unknown>;
-      this.logAsync(level, msg, cleanMeta);
-      return;
-    }
-
+  public log(msg: string, level: LogLevel = 'info', meta?: LogEntryMeta): void {
     // Create log entry
     const entry = this.createLogEntry(level, msg, meta);
 
@@ -474,7 +321,7 @@ export class Logger {
     }
 
     // Use legacy output if enabled
-    if (this.useLegacyOutput || this.transportManager.getTransports().length === 0) {
+    if (this.useLegacyOutput || this.transportManager.getTransportNames().length === 0) {
       this.loggerInstance.log(msg, level);
     }
   }
@@ -483,9 +330,9 @@ export class Logger {
    * Log an info-level message.
    * 
    * @param {string} msg - Info message
-   * @param {unknown} [meta] - Additional metadata
+   * @param {LogEntryMeta} [meta] - Additional metadata
    */
-  public info(msg: string, meta?: unknown): void {
+  public info(msg: string, meta?: LogEntryMeta): void {
     this.log(msg, 'info', meta);
   }
 
@@ -493,9 +340,9 @@ export class Logger {
    * Log a success message.
    *
    * @param {string} msg - Success message
-   * @param {unknown} [meta] - Additional metadata
+   * @param {LogEntryMeta} [meta] - Additional metadata
    */
-  public success(msg: string, meta?: unknown): void {
+  public success(msg: string, meta?: LogEntryMeta): void {
     this.log(msg, 'success', meta);
   }
 
@@ -503,9 +350,9 @@ export class Logger {
    * Log a warning message.
    *
    * @param {string} msg - Warning message
-   * @param {unknown} [meta] - Additional metadata
+   * @param {LogEntryMeta} [meta] - Additional metadata
    */
-  public warn(msg: string, meta?: unknown): void {
+  public warn(msg: string, meta?: LogEntryMeta): void {
     this.log(msg, 'warn', meta);
   }
 
@@ -513,9 +360,9 @@ export class Logger {
    * Log an error message.
    *
    * @param {string} msg - Error message
-   * @param {unknown} [meta] - Additional metadata or error object
+   * @param {LogEntryMeta} [meta] - Additional metadata or error object
    */
-  public error(msg: string, meta?: unknown): void {
+  public error(msg: string, meta?: LogEntryMeta): void {
     this.log(msg, 'error', meta);
   }
 
@@ -523,82 +370,19 @@ export class Logger {
    * Log a debug message (only shown when verbose is true).
    *
    * @param {string} msg - Debug message
-   * @param {unknown} [meta] - Additional metadata
+   * @param {LogEntryMeta} [meta] - Additional metadata
    */
-  public debug(msg: string, meta?: unknown): void {
+  public debug(msg: string, meta?: LogEntryMeta): void {
     this.log(msg, 'debug', meta);
-  }
-
-  /**
-   * Get the context manager instance.
-   * 
-   * @returns {ContextManager | undefined} Context manager if enabled
-   */
-  public getContextManager(): ContextManager | undefined {
-    return this.contextManager;
-  }
-
-  /**
-   * Get the tag manager instance.
-   * 
-   * @returns {TagManager | undefined} Tag manager if enabled
-   */
-  public getTagManager(): TagManager | undefined {
-    return this.tagManager;
-  }
-
-  /**
-   * Add tags to a log entry using TagManager.
-   * 
-   * @param {string} msg - Log message
-   * @param {LogLevel} level - Log level
-   * @param {unknown} [meta] - Additional metadata
-   * @param {string[]} [additionalTags] - Additional tags for this log entry
-   */
-  public logWithTags(msg: string, level: LogLevel = 'info', meta?: unknown, additionalTags?: string[]): void {
-    // Temporarily merge additional tags
-    const originalTags = this.options.tags;
-    
-    if (additionalTags && this.tagManager) {
-      this.options.tags = this.tagManager.merge(originalTags || [], additionalTags);
-    }
-
-    this.log(msg, level, meta);
-
-    // Restore original tags
-    this.options.tags = originalTags;
-  }
-
-  /**
-   * Log with enhanced context using ContextManager.
-   * 
-   * @param {string} msg - Log message
-   * @param {LogLevel} level - Log level
-   * @param {Record<string, unknown>} [context] - Context to merge
-   * @param {unknown} [meta] - Additional metadata
-   */
-  public logWithContext(msg: string, level: LogLevel = 'info', context?: Record<string, unknown>, meta?: unknown): void {
-    let enhancedMeta = meta;
-
-    if (context && this.contextManager) {
-      // Merge the provided context with any existing meta context
-      const existingContext = (typeof meta === 'object' && meta !== null && !Array.isArray(meta)) ? meta as Record<string, unknown> : {};
-      enhancedMeta = this.contextManager.merge(existingContext, context);
-    }
-
-    this.log(msg, level, enhancedMeta);
   }
 
   /**
    * Add a transport to the logger.
    * 
    * @param {Transport} transport - Transport to add
-   * @param {number} [priority=0] - Transport priority (currently unused, for future enhancement)
    * @returns {Promise<void>} Resolves when transport is added
    */
-  public async addTransport(transport: Transport, priority = 0): Promise<void> {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const _ = priority; // Priority parameter reserved for future use
+  public async addTransport(transport: Transport): Promise<void> {
     await this.transportManager.registerTransport(transport);
   }
 
@@ -628,7 +412,7 @@ export class Logger {
    * @returns {string[]} Array of transport names
    */
   public listTransports(): string[] {
-    return this.transportManager.getTransports().map((t) => t.name);
+    return this.transportManager.getTransportNames();
   }
 
   /**
@@ -646,17 +430,12 @@ export class Logger {
    * @returns {Promise<void>} Resolves when closed
    */
   public async close(): Promise<void> {
-    // Close async logger first
-    if (this.asyncLogger) {
-      await this.asyncLogger.close();
-    }
-
     await this.transportManager.close();
     
     // Close legacy logger if it has a close method
-    const legacyLogger = this.loggerInstance as unknown as { close?: () => Promise<void> };
-    if (typeof legacyLogger.close === 'function') {
-      await legacyLogger.close();
+    const extendedLogger = this.loggerInstance as ExtendedLoggerInstance;
+    if (typeof extendedLogger.close === 'function') {
+      await extendedLogger.close();
     }
   }
 
@@ -674,11 +453,8 @@ export class Logger {
       this.loggerInstance.custom(msg, colors, prefix);
     }
     
-    // Convert to standard log - use 'info' as fallback
-    const lowerPrefix = prefix.toLowerCase();
-    const validLevels: LogLevel[] = ['info', 'success', 'warn', 'error', 'debug'];
-    const level = validLevels.includes(lowerPrefix as LogLevel) ? lowerPrefix as LogLevel : 'info';
-    this.log(msg, level);
+    // Convert to standard log
+    this.log(msg, prefix.toLowerCase());
   }
 
   /**
@@ -801,9 +577,11 @@ export class Logger {
     this.loggerInstance.setVerbose(enabled);
     
     // Update transports
-    this.transportManager.getTransports().forEach(transport => {
-      if ('level' in transport) {
-        (transport as Transport & { level?: string }).level = enabled ? 'debug' : 'info';
+    this.transportManager.getTransportNames().forEach((name: string) => {
+      const transport = this.transportManager.getTransport(name);
+      if (transport && 'level' in transport) {
+        const transportWithLevel = transport as unknown as { level: string };
+        transportWithLevel.level = enabled ? 'debug' : 'info';
       }
     });
   }
@@ -848,9 +626,7 @@ export class Logger {
    */
   public getPath(): string | null {
     if (this.loggerInstance instanceof NodeLogger) {
-      const nodeLogger = this.loggerInstance as unknown as { 
-        fileManager?: { getLogFile: () => string } 
-      };
+      const nodeLogger = this.loggerInstance as unknown as ExtendedNodeLogger;
       return nodeLogger.fileManager?.getLogFile() || null;
     }
     return null;
@@ -862,9 +638,7 @@ export class Logger {
    */
   public getLogDir(): string {
     if (this.loggerInstance instanceof NodeLogger) {
-      const nodeLogger = this.loggerInstance as unknown as { 
-        fileManager?: { getLogDir: () => string } 
-      };
+      const nodeLogger = this.loggerInstance as unknown as ExtendedNodeLogger;
       return nodeLogger.fileManager?.getLogDir() || 'logs';
     }
     return 'logs';
@@ -877,18 +651,14 @@ export class Logger {
    */
   public setLogDir(dir: string, reinitialize = false): void {
     if (this.loggerInstance instanceof NodeLogger) {
-      const nodeLogger = this.loggerInstance as unknown as {
-        fileManager?: FileManager;
-        writeToDisk?: boolean;
-        logRetentionDays?: number;
-      };
+      const nodeLogger = this.loggerInstance as unknown as ExtendedNodeLogger;
       if (!nodeLogger.fileManager) {
-        nodeLogger.fileManager = new FileManager(dir, nodeLogger.logRetentionDays || 30);
+        nodeLogger.fileManager = new FileManager(dir, nodeLogger.logRetentionDays || 30) as ExtendedNodeLogger['fileManager'];
       } else {
         nodeLogger.fileManager.setLogDir(dir);
       }
 
-      if (reinitialize && nodeLogger.writeToDisk) {
+      if (reinitialize && nodeLogger.writeToDisk && nodeLogger.fileManager) {
         nodeLogger.fileManager.initLogFile();
       }
     }
@@ -900,9 +670,7 @@ export class Logger {
    */
   public getLogRetentionDays(): number {
     if (this.loggerInstance instanceof NodeLogger) {
-      const nodeLogger = this.loggerInstance as unknown as { 
-        fileManager?: { getLogRetentionDays: () => number } 
-      };
+      const nodeLogger = this.loggerInstance as unknown as ExtendedNodeLogger;
       return nodeLogger.fileManager?.getLogRetentionDays() || 30;
     }
     return 30;
@@ -915,9 +683,7 @@ export class Logger {
    */
   public setLogRetentionDays(days: number, cleanNow = false): void {
     if (this.loggerInstance instanceof NodeLogger) {
-      const nodeLogger = this.loggerInstance as unknown as { 
-        fileManager?: FileManager 
-      };
+      const nodeLogger = this.loggerInstance as unknown as ExtendedNodeLogger;
       const safeDays = Math.max(1, days || 1);
 
       if (!nodeLogger.fileManager) return;
@@ -936,12 +702,7 @@ export class Logger {
    */
   public setFileLogging(enabled: boolean): void {
     if (this.loggerInstance instanceof NodeLogger) {
-      const nodeLogger = this.loggerInstance as unknown as {
-        writeToDisk?: boolean;
-        fileManager?: FileManager;
-        logDir?: string;
-        logRetentionDays?: number;
-      };
+      const nodeLogger = this.loggerInstance as unknown as ExtendedNodeLogger;
       nodeLogger.writeToDisk = enabled;
 
       if (enabled) {
@@ -949,13 +710,15 @@ export class Logger {
           nodeLogger.fileManager = new FileManager(
             nodeLogger.logDir || 'logs',
             nodeLogger.logRetentionDays || 30
-          );
+          ) as ExtendedNodeLogger['fileManager'];
         }
 
-        nodeLogger.fileManager.initLogFile().catch((err: Error): void => {
-          console.error('Failed to initialize log file:', err);
-          nodeLogger.writeToDisk = false;
-        });
+        if (nodeLogger.fileManager) {
+          nodeLogger.fileManager.initLogFile().catch((err: Error): void => {
+            console.error('Failed to initialize log file:', err);
+            nodeLogger.writeToDisk = false;
+          });
+        }
       }
     }
   }
@@ -1006,12 +769,12 @@ export class Logger {
 
   /**
    * Normalize path to use forward slashes.
-   * @param {string} pathStr - Path to normalize
+   * @param {string} path - Path to normalize
    * @returns {string} Normalized path
    */
-  public static normalizePath(pathStr: string): string {
-    if (!pathStr) return pathStr;
-    return pathStr.replace(/\\/g, '/');
+  public static normalizePath(path: string): string {
+    if (!path) return path;
+    return path.replace(/\\/g, '/');
   }
 
   /**
@@ -1070,6 +833,3 @@ export type {
   TransportOptions,
   LogEntry 
 } from './types';
-
-// Export the Logger class as default
-export default Logger;

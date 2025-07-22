@@ -10,6 +10,18 @@
  * @module transports
  */
 
+import { Transport } from './base/Transport';
+import { BatchingTransport } from './base/BatchingTransport';
+import { NetworkTransport } from './base/NetworkTransport';
+import { TransportManager } from './base/TransportManager';
+import { ConsoleTransport } from './base/implementations/ConsoleTransport';
+import { FileTransport } from './base/implementations/FileTransport';
+import { S3Transport } from './base/implementations/S3Transport';
+import { HTTPTransport } from './base/implementations/HttpTransport';
+import { MongoDBTransport } from './base/implementations/MongoDBTransport';
+import { WebSocketTransport } from './base/implementations/WebSocketTransport';
+import { StreamTransport } from './base/implementations/StreamTransport';
+
 // Base classes
 export { Transport } from './base/Transport';
 export { BatchingTransport } from './base/BatchingTransport';
@@ -24,30 +36,6 @@ export { HTTPTransport } from './base/implementations/HttpTransport';
 export { MongoDBTransport } from './base/implementations/MongoDBTransport';
 export { WebSocketTransport } from './base/implementations/WebSocketTransport';
 export { StreamTransport } from './base/implementations/StreamTransport';
-
-// Import classes and types for factory functions
-import { Transport } from './base/Transport';
-import { BatchingTransport } from './base/BatchingTransport';
-import { NetworkTransport } from './base/NetworkTransport';
-import { TransportManager } from './base/TransportManager';
-import { ConsoleTransport } from './base/implementations/ConsoleTransport';
-import { FileTransport } from './base/implementations/FileTransport';
-import { S3Transport } from './base/implementations/S3Transport';
-import { HTTPTransport } from './base/implementations/HttpTransport';
-import { MongoDBTransport } from './base/implementations/MongoDBTransport';
-import { WebSocketTransport } from './base/implementations/WebSocketTransport';
-import { StreamTransport } from './base/implementations/StreamTransport';
-
-import type {
-  ConsoleTransportOptions,
-  FileTransportOptions,
-  S3TransportOptions,
-  HTTPTransportOptions,
-  MongoDBTransportOptions,
-  WebSocketTransportOptions,
-  StreamTransportOptions,
-  TransportManagerOptions,
-} from '../types/transport';
 
 // Re-export transport types
 export type {
@@ -67,14 +55,14 @@ export type {
   RetryOptions,
   
   // Implementation-specific
-  ConsoleTransportOptions,
-  FileTransportOptions,
   S3TransportOptions,
   HTTPTransportOptions,
   MongoDBTransportOptions,
   WebSocketTransportOptions,
   StreamTransportOptions,
   
+  // Manager
+  TransportManagerOptions,
 } from '../types/transport';
 
 /**
@@ -91,17 +79,18 @@ export type {
  * });
  * 
  * // Add console transport
- * await manager.add(createConsoleTransport());
+ * await manager.add(new ConsoleTransport({ name: 'console' }));
  * 
  * // Add file transport
- * await manager.add(createFileTransport({
+ * await manager.add(new FileTransport({
+ *   name: 'file',
  *   filepath: './logs',
  *   rotation: 'daily'
  * }));
  * ```
  */
 export function createDefaultTransportManager(
-  options: Partial<TransportManagerOptions> = {}
+  _options: Partial<import('../types/transport').TransportManagerOptions> = {}
 ): TransportManager {
   return new TransportManager();
 }
@@ -121,6 +110,7 @@ export function createDefaultTransportManager(
  * ]);
  * ```
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function createTransportsFromConfig(
   configs: Array<{
     type: 'console' | 'file' | 's3' | 'http' | 'mongodb' | 'websocket' | 'stream';
@@ -134,34 +124,36 @@ export async function createTransportsFromConfig(
 
     switch (config.type) {
       case 'console':
-        transport = createConsoleTransport(config.options);
+        transport = new ConsoleTransport(config.options as unknown as import('../types/transport').TransportOptions);
         break;
 
       case 'file':
-        transport = createFileTransport(config.options);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        transport = new FileTransport(config.options as any);
         break;
 
       case 's3':
-        transport = createS3Transport(config.options);
+        transport = new S3Transport(config.options as unknown as import('../types/transport').S3TransportOptions);
         break;
 
       case 'http':
-        transport = createHTTPTransport(config.options);
+        transport = new HTTPTransport(config.options as unknown as import('../types/transport').HTTPTransportOptions);
         break;
 
       case 'mongodb':
-        transport = createMongoDBTransport(config.options);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        transport = new MongoDBTransport(config.options as any) as any;
         break;
 
       case 'websocket':
-        transport = createWebSocketTransport(config.options);
+        transport = new WebSocketTransport(config.options as unknown as import('../types/transport').WebSocketTransportOptions);
         break;
 
       case 'stream':
         if (!config.options.stream) {
           throw new Error('Stream transport requires stream option');
         }
-        transport = createStreamTransport(config.options.stream as NodeJS.WritableStream, config.options);
+        transport = new StreamTransport(config.options as unknown as import('../types/transport').StreamTransportOptions);
         break;
 
       default:
@@ -186,9 +178,7 @@ export async function createTransportsFromConfig(
  * @returns {boolean} True if transport supports batching
  */
 export function isBatchingTransport(transport: Transport): transport is BatchingTransport {
-  return 'flush' in transport && 
-         typeof (transport as BatchingTransport).flush === 'function' &&
-         transport.supportsBatching();
+  return 'maxBatchSize' in transport && typeof (transport as unknown as BatchingTransport).flush === 'function';
 }
 
 /**
@@ -198,83 +188,5 @@ export function isBatchingTransport(transport: Transport): transport is Batching
  * @returns {boolean} True if transport is network-based
  */
 export function isNetworkTransport(transport: Transport): transport is NetworkTransport {
-  return transport instanceof NetworkTransport;
-}
-
-// Factory functions for creating transport instances
-
-/**
- * Create a console transport instance.
- */
-export function createConsoleTransport(options: Partial<ConsoleTransportOptions> = {}): ConsoleTransport {
-  return new ConsoleTransport({
-    name: 'console',
-    ...options,
-  });
-}
-
-/**
- * Create a file transport instance.
- */
-export function createFileTransport(options: Partial<FileTransportOptions> = {}): FileTransport {
-  return new FileTransport({
-    name: 'file',
-    filepath: './logs',
-    ...options,
-  });
-}
-
-/**
- * Create an S3 transport instance.
- */
-export function createS3Transport(options: Partial<S3TransportOptions> = {}): S3Transport {
-  return new S3Transport({
-    name: 's3',
-    bucket: options.bucket || 'default-logs',
-    ...options,
-  });
-}
-
-/**
- * Create an HTTP transport instance.
- */
-export function createHTTPTransport(options: Partial<HTTPTransportOptions> = {}): HTTPTransport {
-  return new HTTPTransport({
-    name: 'http',
-    url: options.url || 'http://localhost:3000/logs',
-    ...options,
-  });
-}
-
-/**
- * Create a MongoDB transport instance.
- */
-export function createMongoDBTransport(options: Partial<MongoDBTransportOptions> = {}): MongoDBTransport {
-  return new MongoDBTransport({
-    name: 'mongodb',
-    uri: options.uri || 'mongodb://localhost:27017/logs',
-    ...options,
-  });
-}
-
-/**
- * Create a WebSocket transport instance.
- */
-export function createWebSocketTransport(options: Partial<WebSocketTransportOptions> = {}): WebSocketTransport {
-  return new WebSocketTransport({
-    name: 'websocket',
-    url: options.url || 'ws://localhost:8080/logs',
-    ...options,
-  });
-}
-
-/**
- * Create a stream transport instance.
- */
-export function createStreamTransport(stream: NodeJS.WritableStream, options: Partial<StreamTransportOptions> = {}): StreamTransport {
-  return new StreamTransport({
-    name: 'stream',
-    stream,
-    ...options,
-  });
+  return 'retryOptions' in transport && 'performNetworkRequest' in transport;
 }

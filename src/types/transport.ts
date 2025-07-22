@@ -1,321 +1,369 @@
 // File: src/types/transport.ts
 
 import type { LogLevel } from './logger';
-import type { ColorName } from './colors';
 
-// Re-export types that transports need
-export type { LogLevel, ColorName };
+// Re-export LogLevel for convenience
+export type { LogLevel };
 
 /**
- * Log entry structure used by all transports.
+ * Connection state for network transports.
+ */
+export type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'closing' | 'reconnecting';
+
+/**
+ * Core log entry structure that flows through the transport system.
+ * This interface represents a single log message with all its metadata.
  */
 export interface LogEntry {
-  /** Unique identifier for this log entry */
+  /**
+   * Unique identifier for this log entry.
+   * Generated using timestamp + random component for uniqueness.
+   */
   id: string;
-  /** ISO timestamp string */
+
+  /**
+   * ISO 8601 timestamp when the log was created.
+   * @example "2024-01-15T10:30:45.123Z"
+   */
   timestamp: string;
-  /** Timestamp in milliseconds */
+
+  /**
+   * Unix timestamp in milliseconds for easier sorting/filtering.
+   */
   timestampMs: number;
-  /** Log level */
+
+  /**
+   * Log level of this entry.
+   * Can be standard levels or custom strings.
+   */
   level: LogLevel;
-  /** Formatted message with colors/styles */
+
+  /**
+   * The actual log message content.
+   */
   message: string;
-  /** Plain message without formatting */
+
+  /**
+   * Optional formatted message with ANSI codes stripped.
+   * Used for transports that don't support terminal colors.
+   */
   plainMessage?: string;
-  /** Logger instance ID */
+
+  /**
+   * Logger instance ID that created this entry.
+   * Useful for tracking logs from different services/components.
+   */
   loggerId?: string;
-  /** Associated tags */
+
+  /**
+   * Tags associated with this log entry.
+   * Used for filtering and categorization.
+   */
   tags?: string[];
-  /** Contextual data */
+
+  /**
+   * Additional context data for this specific log entry.
+   * Can contain any structured data relevant to the log.
+   */
   context?: Record<string, unknown>;
-  /** Error information */
+
+  /**
+   * Error object if this log entry represents an error.
+   * Includes stack trace and error details.
+   */
   error?: {
     name: string;
     message: string;
     stack?: string;
     code?: string;
+    [key: string]: unknown;
   };
-  /** Additional metadata */
-  metadata?: Record<string, unknown>;
+
+  /**
+   * Environment metadata captured at log time.
+   */
+  metadata?: {
+    hostname?: string;
+    pid?: number;
+    platform?: string;
+    nodeVersion?: string;
+    userAgent?: string;
+    [key: string]: unknown;
+  };
 }
 
 /**
- * Base transport interface.
- */
-export interface Transport {
-  /** Transport name */
-  readonly name: string;
-  /** Whether transport is enabled */
-  enabled: boolean;
-  
-  /** Initialize the transport */
-  init(): Promise<void>;
-  /** Log a single entry */
-  log(entry: LogEntry): Promise<void>;
-  /** Log multiple entries */
-  logBatch?(entries: LogEntry[]): Promise<void>;
-  /** Check if entry should be logged */
-  shouldLog(entry: LogEntry): boolean;
-  /** Flush any buffered logs */
-  flush?(): Promise<void>;
-  /** Close the transport */
-  close(): Promise<void>;
-  /** Get transport statistics */
-  getStats(): TransportStats;
-  /** Check if transport is healthy */
-  isHealthy(): Promise<boolean>;
-  /** Check if batching is supported */
-  supportsBatching(): boolean;
-  /** Enable the transport */
-  enable(): void;
-  /** Disable the transport */
-  disable(): void;
-  /** Reset statistics */
-  resetStats(): void;
-  /** Check if enabled */
-  isEnabled(): boolean;
-}
-
-/**
- * Transport configuration options.
+ * Transport configuration base interface.
+ * All transports must implement these core options.
  */
 export interface TransportOptions {
-  /** Transport name */
+  /**
+   * Unique name identifier for this transport instance.
+   * Used for managing multiple transports.
+   */
   name: string;
-  /** Whether enabled */
+
+  /**
+   * Whether this transport is currently active.
+   * Allows runtime enabling/disabling of transports.
+   * @default true
+   */
   enabled?: boolean;
-  /** Minimum log level */
+
+  /**
+   * Minimum log level this transport will handle.
+   * Logs below this level are ignored by this transport.
+   * @default 'info'
+   */
   level?: LogLevel;
-  /** Specific levels to handle */
+
+  /**
+   * Custom levels this transport should handle.
+   * Allows fine-grained control over what gets logged where.
+   */
   levels?: LogLevel[];
-  /** Required tags */
+
+  /**
+   * Tags that must be present for this transport to handle a log.
+   * If specified, only logs with at least one matching tag are processed.
+   */
   tags?: string[];
-  /** Excluded tags */
+
+  /**
+   * Tags that exclude logs from this transport.
+   * Logs with any of these tags are skipped.
+   */
   excludeTags?: string[];
-  /** Custom filter function */
+
+  /**
+   * Custom filter function for advanced filtering logic.
+   * Return true to process the log, false to skip.
+   */
   filter?: (entry: LogEntry) => boolean;
-  /** Suppress errors */
-  silent?: boolean;
-  /** Operation timeout */
-  timeout?: number;
-  /** Output format */
+
+  /**
+   * Output format for this transport.
+   * @default 'json'
+   */
   format?: 'json' | 'plain' | 'custom';
-  /** Custom formatter - updated signature */
+
+  /**
+   * Custom formatter function.
+   * Used when format is 'custom'.
+   */
   formatter?: (entry: LogEntry) => string | Buffer;
+
+  /**
+   * Whether to handle errors silently or propagate them.
+   * @default true
+   */
+  silent?: boolean;
+
+  /**
+   * Timeout for transport operations in milliseconds.
+   * @default 30000 (30 seconds)
+   */
+  timeout?: number;
 }
 
 /**
- * Formatter interface for transports.
- */
-export interface Formatter {
-  format(entry: LogEntry): string | Buffer;
-}
-
-/**
- * Transport statistics.
- */
-export interface TransportStats {
-  /** Total processed */
-  processed: number;
-  /** Successfully sent */
-  succeeded: number;
-  /** Failed to send */
-  failed: number;
-  /** Currently queued */
-  queued: number;
-  /** Last success time */
-  lastSuccess?: Date;
-  /** Last error info */
-  lastError?: {
-    timestamp: Date;
-    message: string;
-    count: number;
-  };
-  /** Custom stats */
-  custom?: Record<string, unknown>;
-}
-
-/**
- * Transport events interface.
- */
-export interface TransportEvents {
-  ready: () => void;
-  error: (error: Error, entry?: LogEntry) => void;
-  logged: (entry: LogEntry) => void;
-  batch: (entries: LogEntry[], count: number) => void;
-  closing: () => void;
-  closed: () => void;
-  enabled: () => void;
-  disabled: () => void;
-}
-
-/**
- * Batching options for transports.
+ * Configuration for transports that batch logs before sending.
  */
 export interface BatchingOptions {
-  /** Maximum batch size */
+  /**
+   * Maximum number of logs to batch before sending.
+   * @default 100
+   */
   maxBatchSize?: number;
-  /** Maximum time to wait before flushing */
+
+  /**
+   * Maximum time to wait before sending a batch (milliseconds).
+   * @default 5000 (5 seconds)
+   */
   maxBatchTime?: number;
-  /** Maximum batch size in bytes */
+
+  /**
+   * Maximum size in bytes before sending a batch.
+   * @default 1048576 (1MB)
+   */
   maxBatchBytes?: number;
-  /** Enable compression */
+
+  /**
+   * Whether to send logs immediately without batching.
+   * Overrides other batch settings when true.
+   * @default false
+   */
+  immediate?: boolean;
+
+  /**
+   * Compress batches before sending (gzip).
+   * @default false
+   */
   compress?: boolean;
 }
 
 /**
- * Retry options for network transports.
- */
-export interface RetryOptions {
-  /** Maximum retry attempts */
-  maxRetries?: number;
-  /** Initial retry delay in ms */
-  retryDelay?: number;
-  /** Whether to retry on failure */
-  retryOnFailure?: boolean;
-  /** Exponential backoff multiplier */
-  backoffMultiplier?: number;
-  /** Maximum retry delay */
-  maxRetryDelay?: number;
-  /** Custom retry condition */
-  retryCondition?: (error: Error) => boolean;
-}
-
-/**
- * Aggregation stats for transport manager.
- */
-export interface AggregationStats {
-  /** Total entries processed */
-  totalProcessed: number;
-  /** Total successful */
-  totalSucceeded: number;
-  /** Total failed */
-  totalFailed: number;
-  /** By transport stats */
-  byTransport: Record<string, TransportStats>;
-}
-
-/**
- * Transport manager options.
- */
-export interface TransportManagerOptions {
-  /** Default timeout for all transports */
-  defaultTimeout?: number;
-  /** Stop on first successful transport */
-  stopOnSuccess?: boolean;
-  /** Enable aggregation stats */
-  enableAggregation?: boolean;
-  /** Health check interval */
-  healthCheckInterval?: number;
-  /** Maximum pause queue size */
-  maxPauseQueueSize?: number;
-}
-
-/**
- * Console transport options.
- */
-export interface ConsoleTransportOptions extends TransportOptions {
-  /** Use colors in output */
-  useColors?: boolean;
-  /** Show timestamps */
-  showTimestamp?: boolean;
-  /** Show log level */
-  showLevel?: boolean;
-  /** Show logger ID */
-  showLoggerId?: boolean;
-  /** Show tags */
-  showTags?: boolean;
-  /** Show metadata */
-  showMetadata?: boolean;
-  /** Custom prefix */
-  prefix?: string;
-  /** Console method mapping */
-  consoleMethods?: {
-    debug?: keyof Console;
-    info?: keyof Console;
-    warn?: keyof Console;
-    error?: keyof Console;
-    default?: keyof Console;
-    [key: string]: keyof Console | undefined;
-  };
-}
-
-/**
- * File transport options.
- */
-export interface FileTransportOptions extends TransportOptions {
-  /** File or directory path */
-  filepath: string;
-  /** Whether filepath is a directory */
-  isDirectory?: boolean;
-  /** Max file size before rotation */
-  maxFileSize?: number;
-  /** Max number of backup files */
-  maxFiles?: number;
-  /** Compress rotated files */
-  compress?: boolean;
-  /** Rotation strategy */
-  rotation?: 'size' | 'daily' | 'hourly' | 'none';
-  /** Append to existing file */
-  append?: boolean;
-  /** File encoding */
-  encoding?: BufferEncoding;
-  /** Include timestamp in log lines */
-  includeTimestamp?: boolean;
-  /** Create directory if missing */
-  createDir?: boolean;
-  /** Log retention in days */
-  retentionDays?: number;
-  /** Line ending */
-  eol?: string;
-  /** Batching options */
-  maxBatchSize?: number;
-  maxBatchTime?: number;
-}
-
-/**
- * Batching transport options.
+ * Combined options for batching transports.
  */
 export interface BatchingTransportOptions extends TransportOptions, BatchingOptions {
-  /** Alias for maxBatchSize */
-  batchSize?: number;
-  /** Alias for maxBatchTime */
-  flushInterval?: number;
-  /** Max retries */
+  /**
+   * Maximum retry attempts for failed batches.
+   * @default 3
+   */
   maxRetries?: number;
-  /** Retry delay */
+
+  /**
+   * Initial retry delay in milliseconds.
+   * @default 1000
+   */
   retryDelay?: number;
-  /** Retry on failure */
+
+  /**
+   * Whether to retry on failure.
+   * @default true
+   */
   retryOnFailure?: boolean;
-  /** Max queue size */
+
+  /**
+   * Maximum queue size.
+   * @default 10000
+   */
   maxQueueSize?: number;
 }
 
 /**
- * Network transport options.
+ * Retry configuration for network transports.
+ */
+export interface RetryOptions {
+  /**
+   * Maximum number of retry attempts.
+   * @default 3
+   */
+  maxRetries?: number;
+
+  /**
+   * Initial retry delay in milliseconds.
+   * @default 1000 (1 second)
+   */
+  initialDelay?: number;
+
+  /**
+   * Maximum retry delay in milliseconds.
+   * @default 30000 (30 seconds)
+   */
+  maxDelay?: number;
+
+  /**
+   * Exponential backoff factor.
+   * @default 2
+   */
+  backoffFactor?: number;
+
+  /**
+   * Add random jitter to retry delays to prevent thundering herd.
+   * @default true
+   */
+  jitter?: boolean;
+
+  /**
+   * Which errors should trigger a retry.
+   * Return true to retry, false to fail immediately.
+   */
+  retryCondition?: (error: Error) => boolean;
+}
+
+/**
+ * Options for network-based transports (HTTP, S3, etc).
  */
 export interface NetworkTransportOptions extends BatchingTransportOptions {
-  /** Network endpoint URL */
+  /**
+   * Network endpoint URL.
+   */
   url?: string;
-  /** Connection timeout */
+
+  /**
+   * Connection timeout in milliseconds.
+   */
   connectionTimeout?: number;
-  /** Request timeout */
+
+  /**
+   * Request timeout in milliseconds.
+   */
   requestTimeout?: number;
-  /** Max reconnect attempts */
+
+  /**
+   * Maximum reconnection attempts.
+   */
   maxReconnectAttempts?: number;
-  /** Reconnect delay */
+
+  /**
+   * Delay between reconnection attempts.
+   */
   reconnectDelay?: number;
-  /** Max offline queue size */
+
+  /**
+   * Whether to use exponential backoff for reconnects.
+   */
+  reconnectBackoff?: boolean;
+
+  /**
+   * Maximum offline queue size.
+   */
   maxOfflineQueueSize?: number;
-  /** Queue when offline */
+
+  /**
+   * Whether to queue logs when offline.
+   */
   queueWhenOffline?: boolean;
-  /** Health check interval */
+
+  /**
+   * Health check interval in milliseconds.
+   */
   healthCheckInterval?: number;
-  /** Keep-alive interval */
+
+  /**
+   * Keep-alive interval in milliseconds.
+   */
   keepAliveInterval?: number;
-  /** Custom headers */
+
+  /**
+   * Circuit breaker configuration.
+   */
+  circuitBreaker?: {
+    enabled: boolean;
+    errorThreshold?: number;
+    resetTimeout?: number;
+  };
+
+  /**
+   * Retry configuration for failed requests.
+   */
+  retry?: RetryOptions;
+
+  /**
+   * Fallback transport to use when this transport fails.
+   * Can be 'file', 'console', or a Transport instance.
+   */
+  fallback?: string | Transport;
+
+  /**
+   * Dead letter queue configuration for failed logs.
+   */
+  dlq?: {
+    enabled: boolean;
+    filepath?: string;
+    maxSize?: number;
+    maxAge?: number;
+  };
+
+  /**
+   * Request headers to include with all requests.
+   */
   headers?: Record<string, string>;
-  /** TLS options */
+
+  /**
+   * TLS/SSL options for HTTPS connections.
+   */
   tls?: {
     rejectUnauthorized?: boolean;
     cert?: string;
@@ -325,14 +373,23 @@ export interface NetworkTransportOptions extends BatchingTransportOptions {
 }
 
 /**
- * HTTP transport options.
+ * HTTP transport specific options.
  */
 export interface HTTPTransportOptions extends NetworkTransportOptions {
-  /** Target URL */
+  /**
+   * Target URL endpoint for log delivery.
+   */
   url: string;
-  /** HTTP method */
+
+  /**
+   * HTTP method to use.
+   * @default 'POST'
+   */
   method?: 'POST' | 'PUT' | 'PATCH';
-  /** Authentication */
+
+  /**
+   * Authentication configuration.
+   */
   auth?: {
     type: 'basic' | 'bearer' | 'apikey' | 'custom';
     username?: string;
@@ -340,157 +397,606 @@ export interface HTTPTransportOptions extends NetworkTransportOptions {
     token?: string;
     apiKey?: string;
     apiKeyHeader?: string;
-    headers?: Record<string, string>;
     customAuth?: () => Promise<Record<string, string>>;
   };
-  /** Body format */
+
+  /**
+   * Request body encoding.
+   * @default 'json'
+   */
   bodyFormat?: 'json' | 'ndjson' | 'form' | 'custom';
-  /** Transform request */
-  transformRequest?: (entries: LogEntry[]) => string | Buffer;
+
+  /**
+   * Custom request transformer.
+   */
+  transformRequest?: (logs: LogEntry[]) => unknown;
+
+  /**
+   * Custom response transformer.
+   */
+  transformResponse?: (response: unknown) => void;
+
+  /**
+   * Whether to follow HTTP redirects.
+   * @default true
+   */
+  followRedirects?: boolean;
+
+  /**
+   * Maximum number of redirects to follow.
+   * @default 5
+   */
+  maxRedirects?: number;
+
+  /**
+   * Proxy configuration.
+   */
+  proxy?: {
+    host: string;
+    port: number;
+    auth?: {
+      username: string;
+      password: string;
+    };
+  };
 }
 
 /**
- * Stream transport options.
+ * S3 transport specific options.
  */
-export interface StreamTransportOptions extends TransportOptions {
-  /** Target stream */
-  stream: NodeJS.WritableStream;
-  /** Auto close stream */
-  autoClose?: boolean;
-  /** Stream encoding */
-  encoding?: BufferEncoding;
-}
+export interface S3TransportOptions extends NetworkTransportOptions {
+  /**
+   * S3 bucket name.
+   */
+  bucket: string;
 
-/**
- * WebSocket transport options.
- */
-export interface WebSocketTransportOptions extends TransportOptions {
-  /** WebSocket URL */
-  url: string;
-  /** Reconnection config */
-  reconnect?: {
-    enabled?: boolean;
-    maxAttempts?: number;
-    delay?: number;
+  /**
+   * S3 key prefix for log files.
+   * @default 'logs/'
+   */
+  prefix?: string;
+
+  /**
+   * AWS region.
+   * @default 'us-east-1'
+   */
+  region?: string;
+
+  /**
+   * AWS credentials.
+   * If not provided, uses default credential chain.
+   */
+  credentials?: {
+    accessKeyId?: string;
+    secretAccessKey?: string;
+    sessionToken?: string;
   };
-  /** Authentication */
-  auth?: {
-    token?: string;
-    headers?: Record<string, string>;
+
+  /**
+   * S3 storage class.
+   * @default 'STANDARD'
+   */
+  storageClass?: 'STANDARD' | 'STANDARD_IA' | 'ONEZONE_IA' | 'INTELLIGENT_TIERING' | 'GLACIER' | 'DEEP_ARCHIVE';
+
+  /**
+   * Server-side encryption settings.
+   */
+  encryption?: {
+    type: 'AES256' | 'KMS';
+    kmsKeyId?: string;
   };
-  /** Subprotocol */
-  protocol?: string | string[];
-  /** Message encoding */
-  encoding?: 'json' | 'msgpack' | 'protobuf';
+
+  /**
+   * Key naming strategy.
+   * @default 'timestamp'
+   */
+  keyStrategy?: 'timestamp' | 'date-hierarchy' | 'hourly' | 'custom';
+
+  /**
+   * Custom key generator function.
+   */
+  keyGenerator?: (logs: LogEntry[]) => string;
+
+  /**
+   * File format for S3 objects.
+   * @default 'jsonl'
+   */
+  fileFormat?: 'json' | 'jsonl' | 'csv' | 'parquet';
+
+  /**
+   * Tags to apply to S3 objects.
+   */
+  objectTags?: Record<string, string>;
 }
 
 /**
  * MongoDB transport options.
  */
 export interface MongoDBTransportOptions extends NetworkTransportOptions {
-  /** MongoDB URI */
+  /**
+   * MongoDB connection string.
+   */
   uri: string;
-  /** Database name */
+
+  /**
+   * Database name.
+   * @default 'logs'
+   */
   database?: string;
-  /** Collection name */
+
+  /**
+   * Collection name.
+   * @default 'entries'
+   */
   collection?: string;
-  /** Client options */
+
+  /**
+   * MongoDB client options.
+   */
   clientOptions?: Record<string, unknown>;
-  /** Create indexes */
+
+  /**
+   * Whether to create indexes for common queries.
+   * @default true
+   */
   createIndexes?: boolean;
-  /** TTL in seconds */
+
+  /**
+   * TTL (time to live) for log entries in seconds.
+   * Automatically deletes old logs.
+   */
   ttl?: number;
-  /** Transform document */
+
+  /**
+   * Custom document transformer before insertion.
+   */
   transformDocument?: (entry: LogEntry) => Record<string, unknown>;
 }
 
 /**
- * S3 transport options.
+ * WebSocket transport options.
  */
-export interface S3TransportOptions extends NetworkTransportOptions {
-  /** S3 bucket */
-  bucket: string;
-  /** Key prefix */
-  prefix?: string;
-  /** AWS region */
-  region?: string;
-  /** AWS credentials */
-  credentials?: {
-    accessKeyId?: string;
-    secretAccessKey?: string;
-    sessionToken?: string;
+export interface WebSocketTransportOptions extends TransportOptions {
+  /**
+   * WebSocket server URL.
+   */
+  url: string;
+
+  /**
+   * Reconnection options.
+   */
+  reconnect?: {
+    enabled?: boolean;
+    maxAttempts?: number;
+    delay?: number;
   };
-  /** Storage class */
-  storageClass?: 'STANDARD' | 'REDUCED_REDUNDANCY' | 'GLACIER' | 'DEEP_ARCHIVE' | 'INTELLIGENT_TIERING';
-  /** Encryption */
-  encryption?: {
-    type: 'AES256' | 'KMS';
-    kmsKeyId?: string;
+
+  /**
+   * Authentication token or credentials.
+   */
+  auth?: {
+    token?: string;
+    headers?: Record<string, string>;
   };
-  /** Key strategy */
-  keyStrategy?: 'timestamp' | 'date-hierarchy' | 'hourly' | 'custom';
-  /** Custom key generator */
-  keyGenerator?: (entries: LogEntry[]) => string;
-  /** File format */
-  fileFormat?: 'json' | 'jsonl' | 'csv' | 'parquet';
-  /** Object tags */
-  objectTags?: Record<string, string>;
+
+  /**
+   * WebSocket protocol to use.
+   */
+  protocol?: string | string[];
+
+  /**
+   * Message encoding.
+   * @default 'json'
+   */
+  encoding?: 'json' | 'msgpack' | 'protobuf';
 }
 
 /**
- * Connection state for network transports.
+ * Stream transport options for Node.js streams.
  */
-export type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'closing';
+export interface StreamTransportOptions extends TransportOptions {
+  /**
+   * Target writable stream.
+   */
+  stream: NodeJS.WritableStream;
 
-/**
- * Transport type enum.
- */
-export type TransportType = 
-  | 'console' 
-  | 'file' 
-  | 'http' 
-  | 'stream' 
-  | 's3' 
-  | 'mongodb' 
-  | 'websocket'
-  | 'custom';
+  /**
+   * Whether to close the stream when transport is closed.
+   * @default false
+   */
+  autoClose?: boolean;
 
-/**
- * Transport configuration for dynamic creation.
- */
-export interface TransportConfig extends Record<string, unknown> {
-  /** Transport type */
-  type: TransportType;
-  /** Transport name */
-  name?: string;
-  /** Enabled state */
-  enabled?: boolean;
-  /** Log level */
-  level?: LogLevel;
+  /**
+   * Stream encoding.
+   * @default 'utf8'
+   */
+  encoding?: BufferEncoding;
 }
 
 /**
- * ID generator function.
+ * Transport lifecycle events.
  */
-export type IdGenerator = () => string;
+export interface TransportEvents {
+  /**
+   * Emitted when transport is ready to accept logs.
+   */
+  ready: () => void;
+
+  /**
+   * Emitted when a log is successfully sent.
+   */
+  logged: (entry: LogEntry) => void;
+
+  /**
+   * Emitted when a batch is sent (for batching transports).
+   */
+  batch: (entries: LogEntry[], size: number) => void;
+
+  /**
+   * Emitted on transport errors.
+   */
+  error: (error: Error, entry?: LogEntry) => void;
+
+  /**
+   * Emitted when transport is closing.
+   */
+  closing: () => void;
+
+  /**
+   * Emitted when transport is closed.
+   */
+  closed: () => void;
+
+  /**
+   * Emitted when transport is enabled.
+   */
+  enabled: () => void;
+
+  /**
+   * Emitted when transport is disabled.
+   */
+  disabled: () => void;
+
+  // Network transport specific events
+  /**
+   * Emitted when connected.
+   */
+  connected?: (info?: unknown) => void;
+
+  /**
+   * Emitted on connection error.
+   */
+  connectionError?: (error: Error) => void;
+
+  /**
+   * Emitted when connection fails after all retries.
+   */
+  connectionFailed?: (info: { attempts: number; error: Error }) => void;
+
+  /**
+   * Emitted when reconnecting.
+   */
+  reconnecting?: (info: { attempt: number; delay: number }) => void;
+
+  /**
+   * Emitted when processing offline queue.
+   */
+  processingOfflineQueue?: (info: { count: number }) => void;
+
+  /**
+   * Emitted when offline queue is processed.
+   */
+  offlineQueueProcessed?: (info: { count: number }) => void;
+
+  /**
+   * Emitted when health check passes.
+   */
+  healthCheckPassed?: () => void;
+
+  /**
+   * Emitted when health check fails.
+   */
+  healthCheckFailed?: (error: unknown) => void;
+
+  /**
+   * Emitted when keep-alive fails.
+   */
+  keepAliveFailed?: (error: unknown) => void;
+
+  /**
+   * Emitted on retry attempt.
+   */
+  retry?: (info: { transport: string; batch: string; attempt: number; delay: number; error: string }) => void;
+
+  /**
+   * Emitted when circuit breaker opens.
+   */
+  circuitBreakerOpen?: (info: { transport: string; failures: number; until: Date }) => void;
+
+  /**
+   * Emitted when using fallback transport.
+   */
+  fallback?: (info: { transport: string; fallback: string; count: number }) => void;
+
+  /**
+   * Emitted when offline queue is full.
+   */
+  offlineQueueFull?: (info: { dropped: number }) => void;
+
+  /**
+   * Emitted when offline queue overflows.
+   */
+  offlineQueueOverflow?: (info: { queued: number; dropped: number }) => void;
+
+  // Transport-specific events
+  /**
+   * Emitted when a message/data is successfully sent.
+   */
+  sent?: (info: unknown) => void;
+
+  /**
+   * Emitted when disconnected.
+   */
+  disconnected?: (info: unknown) => void;
+
+  /**
+   * Emitted when upload/data transfer is complete.
+   */
+  uploaded?: (info: unknown) => void;
+
+  /**
+   * Emitted when a WebSocket message is acknowledged.
+   */
+  acknowledged?: (message: unknown) => void;
+
+  /**
+   * Emitted when configuration is received.
+   */
+  config?: (config: unknown) => void;
+
+  /**
+   * Emitted when a message is received.
+   */
+  message?: (message: unknown) => void;
+
+  /**
+   * Emitted when a stream is closed.
+   */
+  streamClosed?: () => void;
+
+  /**
+   * Emitted when a stream is finished.
+   */
+  streamFinished?: () => void;
+
+  /**
+   * Emitted when a stream is piped.
+   */
+  piped?: (info: { source: unknown }) => void;
+
+  /**
+   * Emitted when a stream is unpiped.
+   */
+  unpipe?: (info: { source: unknown }) => void;
+
+  /**
+   * Emitted when backpressure occurs.
+   */
+  backpressure?: (info: unknown) => void;
+
+  /**
+   * Emitted when MongoDB indexes are created.
+   */
+  indexesCreated?: (info: unknown) => void;
+
+  /**
+   * Emitted when MongoDB insert occurs.
+   */
+  mongoInsert?: (info: unknown) => void;
+
+  /**
+   * Emitted when data is inserted.
+   */
+  inserted?: (info: unknown) => void;
+}
 
 /**
- * Async logging options.
+ * Core transport interface that all transports must implement.
  */
-export interface AsyncOptions {
-  /** Enable async logging */
-  enabled?: boolean;
-  /** Buffer configuration */
-  buffer?: {
-    /** Buffer size */
-    size?: number;
-    /** Flush interval */
-    flushInterval?: number;
-    /** Flush size */
-    flushSize?: number;
+export interface Transport {
+  /**
+   * Unique name of this transport instance.
+   */
+  readonly name: string;
+
+  /**
+   * Whether this transport is currently enabled.
+   */
+  enabled: boolean;
+
+  /**
+   * Log a single entry.
+   * Should handle the entry according to transport's configuration.
+   */
+  log(entry: LogEntry): void | Promise<void>;
+
+  /**
+   * Log multiple entries at once (for batch support).
+   */
+  logBatch?(entries: LogEntry[]): void | Promise<void>;
+
+  /**
+   * Initialize the transport.
+   * Called when transport is added to logger.
+   */
+  init?(): void | Promise<void>;
+
+  /**
+   * Close the transport and clean up resources.
+   * Should flush any pending logs.
+   */
+  close(): void | Promise<void>;
+
+  /**
+   * Flush any buffered logs immediately.
+   */
+  flush?(): void | Promise<void>;
+
+  /**
+   * Check if transport should handle this log entry.
+   */
+  shouldLog(entry: LogEntry): boolean;
+
+  /**
+   * Get transport statistics.
+   */
+  getStats?(): TransportStats;
+
+  /**
+   * Event emitter methods (optional but recommended).
+   */
+  on?(event: keyof TransportEvents, listener: (...args: unknown[]) => void): this;
+  off?(event: keyof TransportEvents, listener: (...args: unknown[]) => void): this;
+  emit?(event: keyof TransportEvents, ...args: unknown[]): boolean;
+}
+
+/**
+ * Transport statistics for monitoring.
+ */
+export interface TransportStats {
+  /**
+   * Total logs processed by this transport.
+   */
+  processed: number;
+
+  /**
+   * Total logs successfully sent.
+   */
+  succeeded: number;
+
+  /**
+   * Total logs that failed to send.
+   */
+  failed: number;
+
+  /**
+   * Current number of logs in queue (if applicable).
+   */
+  queued?: number;
+
+  /**
+   * Last successful log timestamp.
+   */
+  lastSuccess?: Date;
+
+  /**
+   * Last error that occurred.
+   */
+  lastError?: {
+    timestamp: Date;
+    message: string;
+    count: number;
   };
-  /** Use worker threads */
-  useWorkers?: boolean;
-  /** Worker path */
-  workerPath?: string;
+
+  /**
+   * Transport-specific metrics.
+   */
+  custom?: Record<string, unknown>;
+}
+
+/**
+ * Transport manager configuration.
+ */
+export interface TransportManagerOptions {
+  /**
+   * Default timeout for all transports.
+   * @default 30000
+   */
+  defaultTimeout?: number;
+
+  /**
+   * Whether to stop on first transport success (fail-fast).
+   * @default false
+   */
+  stopOnSuccess?: boolean;
+
+  /**
+   * Global error handler for all transports.
+   */
+  errorHandler?: (error: Error, transport: Transport, entry?: LogEntry) => void;
+
+  /**
+   * Whether to aggregate logs from multiple sources.
+   * @default false
+   */
+  enableAggregation?: boolean;
+
+  /**
+   * Aggregation configuration.
+   */
+  aggregation?: {
+    /**
+     * Interval for aggregation reports in milliseconds.
+     * @default 60000 (1 minute)
+     */
+    interval?: number;
+
+    /**
+     * Transports to send aggregated data to.
+     */
+    targets?: string[];
+
+    /**
+     * Fields to aggregate.
+     */
+    fields?: Array<'level' | 'tags' | 'loggerId' | 'custom'>;
+  };
+}
+
+/**
+ * Log aggregation statistics.
+ */
+export interface AggregationStats {
+  /**
+   * Time period for these stats.
+   */
+  period: {
+    start: Date;
+    end: Date;
+  };
+
+  /**
+   * Total log count.
+   */
+  total: number;
+
+  /**
+   * Breakdown by log level.
+   */
+  byLevel: Record<LogLevel, number>;
+
+  /**
+   * Breakdown by logger ID.
+   */
+  byLogger?: Record<string, number>;
+
+  /**
+   * Breakdown by tags.
+   */
+  byTags?: Record<string, number>;
+
+  /**
+   * Error rate.
+   */
+  errorRate: number;
+
+  /**
+   * Average log size in bytes.
+   */
+  avgSize?: number;
+
+  /**
+   * Custom aggregated metrics.
+   */
+  custom?: Record<string, unknown>;
 }

@@ -130,10 +130,6 @@ export class WebSocketTransport extends NetworkTransport {
     this.auth = options.auth;
     this.protocol = options.protocol;
     this.encoding = options.encoding || 'json';
-
-    // Override parent reconnection settings with WebSocket-specific ones
-    this.maxReconnectAttempts = this.reconnectConfig.maxAttempts;
-    this.reconnectDelay = this.reconnectConfig.delay;
   }
 
   /**
@@ -204,10 +200,17 @@ export class WebSocketTransport extends NetworkTransport {
       // Initialize codec
       await this.initializeCodec();
 
+      // Validate URL is provided
+      if (!this.url) {
+        throw new Error('WebSocket URL is required');
+      }
+
       // Determine environment and create WebSocket
       if (typeof window !== 'undefined' && window.WebSocket) {
         // Browser environment
-        this.ws = new WebSocket(this.url, this.protocol);
+        this.ws = this.protocol 
+          ? new WebSocket(this.url, this.protocol)
+          : new WebSocket(this.url);
       } else {
         // Node.js environment - in production you'd import 'ws' package
         // For now, we'll just throw an error
@@ -290,7 +293,7 @@ export class WebSocketTransport extends NetworkTransport {
       });
     };
 
-    ws.onerror = (event: Event) => {
+    ws.onerror = (_event: Event) => {
       this.handleError(new Error('WebSocket error'));
     };
 

@@ -131,7 +131,7 @@ export class PlainTextFormatter {
    * @private
    */
   private readonly options: {
-    timestampFormat: 'ISO' | 'local' | 'locale' | 'unix' | 'relative' | 'custom';
+    timestampFormat: 'ISO' | 'UTC' | 'locale' | 'unix' | 'custom';
     customTimestamp?: (date: Date) => string;
     includeTimestamp: boolean;
     includeLevel: boolean;
@@ -144,10 +144,9 @@ export class PlainTextFormatter {
     includeMetadata: boolean;
     fieldSeparator: string;
     eol: string;
-    colors: boolean;
-    template?: string;
     maxLineLength: number;
     truncationIndicator: string;
+    template?: string;
   };
 
   /**
@@ -162,11 +161,8 @@ export class PlainTextFormatter {
    * @param {PlainTextFormatterOptions} [options={}] - Formatter options
    */
   constructor(options: PlainTextFormatterOptions = {}) {
-    // Accept both 'locale' and 'local' for backward compatibility
-    const timestampFormat = options.timestampFormat ?? 'ISO';
-    // Accept both 'locale' and 'local' as valid
     this.options = {
-      timestampFormat: timestampFormat as 'ISO' | 'local' | 'locale' | 'unix' | 'relative' | 'custom',
+      timestampFormat: options.timestampFormat ?? 'ISO',
       customTimestamp: options.customTimestamp,
       includeTimestamp: options.includeTimestamp ?? true,
       includeLevel: options.includeLevel ?? true,
@@ -179,10 +175,9 @@ export class PlainTextFormatter {
       includeMetadata: options.includeMetadata ?? false,
       fieldSeparator: options.fieldSeparator ?? ' ',
       eol: options.eol ?? '\n',
-      colors: (options as { colors?: boolean }).colors ?? false,
-      template: options.template,
       maxLineLength: options.maxLineLength ?? 0,
       truncationIndicator: options.truncationIndicator ?? '...',
+      template: options.template,
     };
   }
 
@@ -356,16 +351,19 @@ export class PlainTextFormatter {
     switch (this.options.timestampFormat) {
       case 'ISO':
         return timestamp;
+
       case 'unix':
         return String(Math.floor(date.getTime() / 1000));
-      case 'local':
+
       case 'locale':
         return date.toLocaleString();
+
       case 'custom':
         if (this.options.customTimestamp) {
           return this.options.customTimestamp(date);
         }
         return timestamp;
+
       default:
         return timestamp;
     }
@@ -390,17 +388,16 @@ export class PlainTextFormatter {
     if (this.options.includeStack && error.stack) {
       lines.push('  Stack:');
       const stackLines = error.stack.split('\n');
+      
       stackLines.forEach(line => {
         lines.push(`    ${line.trim()}`);
       });
     }
 
-    // Include additional error properties (remove unused vars)
-    const additional = { ...error } as Partial<typeof error>;
-    delete additional.name;
-    delete additional.message;
-    delete additional.stack;
-    delete additional.code;
+    // Include additional error properties
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { name, message, stack, code, ...additional } = error;
+    
     if (Object.keys(additional).length > 0) {
       lines.push(`  Details: ${JSON.stringify(additional)}`);
     }

@@ -51,7 +51,7 @@ export interface JSONFormatterOptions {
   /**
    * Custom replacer function for JSON.stringify.
    */
-  replacer?: (key: string, value: any) => any;
+  replacer?: (key: string, value: unknown) => unknown;
 
   /**
    * Whether to include a schema version.
@@ -203,11 +203,11 @@ export class JSONFormatter {
    */
   private filterFields(entry: LogEntry): Partial<LogEntry> {
     // Start with all fields
-    let result: any = { ...entry };
+    let result: Record<string, unknown> = { ...entry };
 
     // Apply include filter if specified
     if (this.options.includeFields) {
-      const included: any = {};
+      const included: Record<string, unknown> = {};
       
       for (const field of this.options.includeFields) {
         if (field in entry) {
@@ -238,15 +238,15 @@ export class JSONFormatter {
    * @private
    */
   private flattenObject(
-    obj: any,
+    obj: Record<string, unknown>,
     prefix = '',
     depth = 0
-  ): Record<string, any> {
+  ): Record<string, unknown> {
     if (depth >= this.options.maxFlattenDepth) {
       return prefix ? { [prefix]: obj } : obj;
     }
 
-    const flattened: Record<string, any> = {};
+    const flattened: Record<string, unknown> = {};
 
     for (const [key, value] of Object.entries(obj)) {
       const newKey = prefix
@@ -262,7 +262,7 @@ export class JSONFormatter {
         // Recursively flatten objects
         Object.assign(
           flattened,
-          this.flattenObject(value, newKey, depth + 1)
+          this.flattenObject(value as Record<string, unknown>, newKey, depth + 1)
         );
       } else {
         flattened[newKey] = value;
@@ -278,8 +278,8 @@ export class JSONFormatter {
    * @param {Function} [userReplacer] - User-provided replacer
    * @returns {Function} Combined replacer function
    */
-  public createReplacer(userReplacer?: (key: string, value: any) => any): (key: string, value: any) => any {
-    return (key: string, value: any) => {
+  public createReplacer(userReplacer?: (key: string, value: unknown) => unknown): (key: string, value: unknown) => unknown {
+    return (key: string, value: unknown) => {
       // Handle special types
       if (value instanceof Error) {
         return {

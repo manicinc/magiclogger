@@ -207,6 +207,7 @@ export class MongoDBTransport extends NetworkTransport {
 
     try {
       // Dynamic import of mongodb
+      // @ts-expect-error - Optional dependency
       const { MongoClient } = await import('mongodb');
 
       // Create client and connect

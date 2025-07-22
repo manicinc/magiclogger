@@ -10,7 +10,7 @@ import type {
 
 // AWS SDK v3 types (these would come from @aws-sdk/client-s3)
 interface S3Client {
-  send(command: any): Promise<any>;
+  send(command: unknown): Promise<unknown>;
 }
 
 interface PutObjectCommandInput {
@@ -41,13 +41,13 @@ interface DeleteObjectsCommandInput {
 }
 
 // Command class types - using type aliases instead of interfaces
-type PutObjectCommand = any;
-type HeadBucketCommand = any;
-type ListObjectsV2Command = any;
-type DeleteObjectsCommand = any;
+type PutObjectCommand = unknown;
+type HeadBucketCommand = unknown;
+type ListObjectsV2Command = unknown;
+type DeleteObjectsCommand = unknown;
 
 // Constructor types
-type S3ClientConstructor = new (config: any) => S3Client;
+type S3ClientConstructor = new (config: Record<string, unknown>) => S3Client;
 type PutObjectCommandConstructor = new (params: PutObjectCommandInput) => PutObjectCommand;
 type HeadBucketCommandConstructor = new (params: { Bucket: string }) => HeadBucketCommand;
 type ListObjectsV2CommandConstructor = new (params: ListObjectsV2CommandInput) => ListObjectsV2Command;
@@ -152,9 +152,9 @@ export class S3Transport extends NetworkTransport {
 
   /**
    * Whether compression is enabled.
-   * @private
+   * @protected
    */
-  private readonly compress: boolean;
+  protected readonly compress: boolean;
 
   /**
    * S3 client instance.
@@ -232,10 +232,15 @@ export class S3Transport extends NetworkTransport {
         { ListObjectsV2Command },
         { DeleteObjectsCommand }
       ] = await Promise.all([
+        // @ts-expect-error - Optional dependency
         import('@aws-sdk/client-s3').then(m => ({ S3Client: m.S3Client })),
+        // @ts-expect-error - Optional dependency
         import('@aws-sdk/client-s3').then(m => ({ PutObjectCommand: m.PutObjectCommand })),
+        // @ts-expect-error - Optional dependency
         import('@aws-sdk/client-s3').then(m => ({ HeadBucketCommand: m.HeadBucketCommand })),
+        // @ts-expect-error - Optional dependency
         import('@aws-sdk/client-s3').then(m => ({ ListObjectsV2Command: m.ListObjectsV2Command })),
+        // @ts-expect-error - Optional dependency
         import('@aws-sdk/client-s3').then(m => ({ DeleteObjectsCommand: m.DeleteObjectsCommand }))
       ]);
 
@@ -390,8 +395,15 @@ export class S3Transport extends NetworkTransport {
     }
 
     // Upload to S3
-    const putObjectCommand = new this.awsModules!.PutObjectCommand(params);
-    const result = await this.s3Client!.send(putObjectCommand);
+    if (!this.awsModules) {
+      throw new Error('AWS modules not initialized');
+    }
+    if (!this.s3Client) {
+      throw new Error('S3 client not initialized');
+    }
+
+    const putObjectCommand = new this.awsModules.PutObjectCommand(params);
+    const result = await this.s3Client.send(putObjectCommand) as Record<string, unknown>;
 
     this.emit('uploaded', {
       bucket: this.bucket,
@@ -630,13 +642,21 @@ export class S3Transport extends NetworkTransport {
       listParams.ContinuationToken = options.continuationToken;
     }
 
-    const listCommand = new this.awsModules!.ListObjectsV2Command(listParams);
-    const result = await this.s3Client!.send(listCommand);
+    if (!this.awsModules) {
+      throw new Error('AWS modules not initialized');
+    }
+    if (!this.s3Client) {
+      throw new Error('S3 client not initialized');
+    }
+
+    const listCommand = new this.awsModules.ListObjectsV2Command(listParams);
+    const result = await this.s3Client.send(listCommand) as Record<string, unknown>;
     
-    return (result.Contents || []).map((obj: any) => ({
-      Key: obj.Key,
-      Size: obj.Size,
-      LastModified: obj.LastModified,
+    const contents = (result.Contents as Array<Record<string, unknown>>) || [];
+    return contents.map((obj: Record<string, unknown>) => ({
+      Key: obj.Key as string,
+      Size: obj.Size as number,
+      LastModified: obj.LastModified as Date,
     }));
   }
 

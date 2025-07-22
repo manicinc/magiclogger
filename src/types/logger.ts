@@ -1,106 +1,143 @@
-// File: src/types/logger.ts
+import type { ColorName } from './colors';
 
 /**
- * Logger-specific type definitions.
+ * A theme defines color/style mappings for log levels.
+ *
+ * Each key represents a log level or category, and the value is
+ * an array of `ColorName` styles applied to messages of that level.
+ *
+ * @example
+ * {
+ *   info: ['cyan', 'bold'],
+ *   error: ['brightRed', 'bold'],
+ *   header: ['brightWhite', 'bgBlue', 'bold']
+ * }
  */
+export type ThemeDefinition = Record<string, ColorName[]>;
 
 /**
- * Log levels supported by the logger.
- * Can be extended with custom levels.
- */
-export type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'success' | string;
-
-/**
- * ID generator function type.
- */
-export type IdGenerator = () => string;
-
-/**
- * Base logger options.
+ * Configuration options for a MagicLogger instance.
+ * These settings control the logger's behavior, output format, identity, and destination.
  */
 export interface LoggerOptions {
   /**
-   * Logger instance identifier.
+   * Unique identifier for the logger instance.
+   * Used for filtering logs across services or systems.
+   *
+   * @example 'auth-service'
    */
   id?: string;
 
   /**
-   * Tags for categorizing logs.
+   * Optional static tags applied to all logs from this logger.
+   * Helps group or filter logs by functional or organizational tag.
+   *
+   * @example ['api', 'auth']
    */
   tags?: string[];
 
   /**
-   * Global context data.
+   * Optional default context applied to all logs.
+   * Can include environment metadata, user data, etc.
+   * Individual log calls may override this.
+   *
+   * @example { env: 'staging', region: 'us-east-1' }
    */
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
 
   /**
-   * Enable verbose (debug) logging.
+   * If enabled, debug-level logs will be shown.
+   *
    * @default false
    */
   verbose?: boolean;
 
   /**
-   * Enable colored output.
+   * Enables or disables terminal or console color output.
+   *
    * @default true
    */
   useColors?: boolean;
 
   /**
-   * Enforce strict log levels.
-   * @default false
-   */
-  strictLevels?: boolean;
-
-  /**
-   * Write logs to disk (Node.js only).
+   * Writes logs to disk in timestamped `.log` files (Node only).
+   * Ignored in browsers.
+   *
    * @default false
    */
   writeToDisk?: boolean;
 
   /**
-   * Directory for log files.
+   * Directory to store log files in (Node only).
+   *
    * @default 'logs'
    */
   logDir?: string;
 
   /**
-   * Log retention period in days.
+   * Number of days to retain log files before pruning (Node only).
+   *
    * @default 30
    */
   logRetentionDays?: number;
 
   /**
-   * Store logs in browser storage.
+   * Enforces strict log level behavior.
+   * If true, unknown levels passed to `.log()` will throw.
+   * If false, unknown levels are treated as custom and passed to `.custom()`.
+   *
+   * @default false
+   */
+  strictLevels?: boolean;
+
+  /**
+   * Theme used to style logger output.
+   * Can be a string (theme name from ThemeManager) or a full object.
+   *
+   * @example 'dark'
+   * @example {
+   *   info: ['cyan', 'bold'],
+   *   error: ['brightRed', 'bold'],
+   *   header: ['brightWhite', 'bgBlue', 'bold']
+   * }
+   */
+  theme?: string | ThemeDefinition;
+
+  /**
+   * Whether to store logs in browser storage when in browser environment.
+   * Has no effect in Node.js environments.
+   *
    * @default false
    */
   storeInBrowser?: boolean;
 
   /**
-   * Browser storage key name.
-   * @default 'logger_logs'
-   */
-  storageName?: string;
-
-  /**
-   * Maximum stored logs in browser.
+   * Maximum number of log entries to keep in browser storage.
+   * Has no effect in Node.js environments.
+   *
    * @default 1000
    */
   maxStoredLogs?: number;
 
   /**
-   * Use localStorage instead of IndexedDB.
+   * Name to use for browser storage (localStorage key or IndexedDB name).
+   * Has no effect in Node.js environments.
+   *
+   * @default 'magiclogger-logs'
+   */
+  storageName?: string;
+
+  /**
+   * Whether to use localStorage (true) or IndexedDB (false) for browser storage.
+   * Has no effect in Node.js environments.
+   *
    * @default true
    */
   useLocalStorage?: boolean;
-
-  /**
-   * Theme name or custom theme object.
-   */
-  theme?: string | Record<string, ColorName[]>;
 }
 
-// Re-export types from other modules for convenience
-export type { ColorName } from './colors';
-export type { StylePreset } from './preset';
-export type { ThemeDefinition } from './theme';
+/**
+ * Supported log levels for structured logging.
+ * Additional custom levels are allowed unless strictLevels is true.
+ */
+export type LogLevel = 'info' | 'warn' | 'error' | 'debug' | 'success' | string;
