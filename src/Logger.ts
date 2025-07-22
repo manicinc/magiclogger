@@ -5,12 +5,12 @@ import { BrowserLogger } from './core/BrowserLogger';
 import { TransportManager } from './transports/base/TransportManager';
 import { ConsoleTransport } from './transports/base/implementations/ConsoleTransport';
 import { FileTransport } from './transports/base/implementations/FileTransport';
+import { Transport } from './transports/base/Transport';
 import type { 
   LoggerOptions, 
   LogLevel, 
   StylePreset, 
   ColorName,
-  Transport,
   LogEntry
 } from './types';
 import type { LoggerBase } from './core/LoggerBase';
@@ -229,7 +229,7 @@ export class Logger {
     
     // Extract error if present
     let error: LogEntry['error'];
-    let context = meta;
+    let context: Record<string, unknown> | undefined;
 
     if (meta instanceof Error) {
       error = {
@@ -246,6 +246,8 @@ export class Logger {
       };
       context = { ...meta };
       delete context.error;
+    } else {
+      context = meta as Record<string, unknown> | undefined;
     }
 
     // Create log entry

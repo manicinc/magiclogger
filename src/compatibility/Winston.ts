@@ -1,105 +1,173 @@
 // File: src/compatibility/Winston.ts
 
-import { BaseCompatibleLogger, LogCompatibilityOptions } from './BaseCompatibleLogger';
+import { BaseCompatibleLogger } from './BaseCompatibleLogger';
+import type { LoggerOptions, Transport, ColorName } from '../types';
 
 /**
- * Winston-style metadata interface.
- * 
- * @interface WinstonMetadata
- */
-type WinstonMetadata = Record<string, unknown>;
-
-/**
- * Winston log method signature.
- * 
- * @type WinstonLogMethod
- */
-type WinstonLogMethod = {
-  (message: string): void;
-  (message: string, meta: WinstonMetadata): void;
-  (message: string, ...splat: unknown[]): void;
-  (infoObject: WinstonMetadata): void;
-};
-
-/**
- * Winston-compatible logger options.
- * 
+ * Winston-compatible logger options
  * @interface WinstonCompatibleOptions
+ * @extends {LoggerOptions}
  */
-export interface WinstonCompatibleOptions extends Omit<LogCompatibilityOptions, 'format'> {
+export interface WinstonCompatibleOptions extends LoggerOptions {
   /**
-   * Default Winston log level.
+   * Log level for the logger
+   * @type {'error' | 'warn' | 'info' | 'http' | 'verbose' | 'debug' | 'silly'}
    * @default 'info'
    */
-  level?: string;
-
+  level?: 'error' | 'warn' | 'info' | 'http' | 'verbose' | 'debug' | 'silly';
+  
   /**
-   * Whether to prepend timestamps to each log.
-   * @default false
+   * Custom levels configuration
+   * @type {Record<string, number>}
    */
-  timestamp?: boolean;
-
+  levels?: Record<string, number>;
+  
   /**
-   * Format for timestamps.
-   * @default 'HH:mm:ss'
-   */
-  timestampFormat?: string;
-
-  /**
-   * Default tags to apply to all log entries.
-   */
-  defaultTags?: string[];
-
-  /**
-   * Default context to apply to all log entries.
-   */
-  defaultContext?: Record<string, unknown>;
-
-  /**
-   * Whether to enable Winston's printf-style formatting.
-   * @default true
-   */
-  printfFormatting?: boolean;
-
-  /**
-   * Whether to handle exceptions.
-   * @default false
-   */
-  handleExceptions?: boolean;
-
-  /**
-   * Whether to handle rejections.
-   * @default false
-   */
-  handleRejections?: boolean;
-
-  /**
-   * Winston-style format function.
-   */
-  format?: (info: WinstonMetadata) => string;
-
-  /**
-   * Exit on error.
+   * Whether to exit on error
+   * @type {boolean}
    * @default true
    */
   exitOnError?: boolean;
-
+  
   /**
-   * Output format for BaseCompatibleLogger
+   * Array of transports
+   * @type {Transport[]}
    */
-  outputFormat?: 'json' | 'plain' | 'custom';
+  transports?: Transport[];
+  
+  /**
+   * Exception handlers
+   * @type {Transport[]}
+   */
+  exceptionHandlers?: Transport[];
+  
+  /**
+   * Rejection handlers
+   * @type {Transport[]}
+   */
+  rejectionHandlers?: Transport[];
+  
+  /**
+   * Silent mode - no output
+   * @type {boolean}
+   * @default false
+   */
+  silent?: boolean;
+  
+  /**
+   * Enable printf-style formatting
+   * @type {boolean}
+   * @default false
+   */
+  printfFormatting?: boolean;
+  
+  /**
+   * Default metadata for all logs
+   * @type {Record<string, unknown>}
+   */
+  defaultMeta?: Record<string, unknown>;
+  
+  /**
+   * Default context (alias for defaultMeta)
+   * @type {Record<string, unknown>}
+   */
+  defaultContext?: Record<string, unknown>;
+  
+  /**
+   * Whether to add timestamps to logs
+   * @type {boolean}
+   * @default false
+   */
+  timestamp?: boolean;
+  
+  /**
+   * Exception handling configuration
+   * @type {object}
+   */
+  exceptions?: {
+    /**
+     * Whether to handle exceptions
+     * @type {boolean}
+     */
+    handle?: boolean;
+    /**
+     * Whether to humanize error output
+     * @type {boolean}
+     */
+    humanizeErrors?: boolean;
+  };
+  
+  /**
+   * Rejection handling configuration
+   * @type {object}
+   */
+  rejections?: {
+    /**
+     * Whether to handle rejections
+     * @type {boolean}
+     */
+    handle?: boolean;
+    /**
+     * Whether to humanize error output
+     * @type {boolean}
+     */
+    humanizeErrors?: boolean;
+  };
+}
+
+/**
+ * Timer object for profiling
+ * @interface Timer
+ */
+interface Timer {
+  /**
+   * Timer name
+   * @type {string}
+   */
+  name: string;
+  /**
+   * Start time
+   * @type {number}
+   */
+  start: number;
+  /**
+   * Timer metadata
+   * @type {Record<string, unknown>}
+   */
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Simple sprintf implementation for Winston compatibility
+ * @param {string} format - Format string
+ * @param {...unknown[]} args - Arguments to format
+ * @returns {string} Formatted string
+ */
+function sprintf(format: string, ...args: unknown[]): string {
+  let i = 0;
+  return format.replace(/%[sdj%]/g, (match) => {
+    if (match === '%%') return '%';
+    if (i >= args.length) return match;
+    
+    const arg = args[i++];
+    switch (match) {
+      case '%s': return String(arg);
+      case '%d': return Number(arg).toString();
+      case '%j':
+        try {
+          return JSON.stringify(arg);
+        } catch {
+          return '[Circular]';
+        }
+      default:
+        return match;
+    }
+  });
 }
 
 /**
  * Winston-compatible logger implementation.
- * 
- * Provides a Winston-style API on top of MagicLogger with:
- * - Winston method signatures
- * - Metadata and splat support
- * - Winston-style formatting
- * - Exception handling
- * - Query interface
- * - Child loggers
+ * Provides full compatibility with the Winston logging library API.
  * 
  * @class WinstonCompatibleLogger
  * @extends {BaseCompatibleLogger}
@@ -108,559 +176,84 @@ export interface WinstonCompatibleOptions extends Omit<LogCompatibilityOptions, 
  * ```typescript
  * const logger = createWinstonCompatible({
  *   level: 'info',
- *   timestamp: true,
- *   defaultTags: ['app']
+ *   printfFormatting: true,
+ *   defaultMeta: { service: 'user-service' }
  * });
  * 
- * // Winston-style logging
- * logger.info('User logged in', { userId: 123 });
- * logger.error('Database error', { error: err, query: sql });
- * logger.log('debug', 'Debug message', { data });
- * 
- * // Query logs
- * const logs = await logger.query({
- *   from: new Date() - 24 * 60 * 60 * 1000,
- *   until: new Date(),
- *   level: 'error'
- * });
+ * logger.info('User %s logged in', userId);
+ * logger.error('Failed to connect', { error: err });
+ * logger.verbose('Debug information');
  * ```
  */
 export class WinstonCompatibleLogger extends BaseCompatibleLogger {
-  private level: string;
-  private timestamp: boolean;
-  private timestampFormat: string;
-  private defaultTags?: string[];
-  private defaultContext?: Record<string, unknown>;
-  private printfFormatting: boolean;
-  private handleExceptions: boolean;
-  private handleRejections: boolean;
-  private formatFn?: (info: WinstonMetadata) => string;
-  private exitOnError: boolean;
-  private queryHandlers: Array<(options: WinstonMetadata) => Promise<WinstonMetadata[]>> = [];
+  /**
+   * Current log level
+   * @protected
+   * @type {string}
+   */
+  protected level: string;
+  
+  /**
+   * Level configuration
+   * @protected
+   * @type {Record<string, number>}
+   */
+  protected levels: Record<string, number>;
+  
+  /**
+   * Exit on error flag
+   * @protected
+   * @type {boolean}
+   */
+  protected exitOnError: boolean;
+  
+  /**
+   * Silent mode flag
+   * @protected
+   * @type {boolean}
+   */
+  protected silent: boolean;
+  
+  /**
+   * Printf formatting flag
+   * @protected
+   * @type {boolean}
+   */
+  protected printfFormatting: boolean;
+  
+  /**
+   * Default metadata
+   * @protected
+   * @type {Record<string, unknown>}
+   */
+  protected defaultMeta: Record<string, unknown>;
+  
+  /**
+   * Active timers
+   * @protected
+   * @type {Map<string, Timer>}
+   */
+  protected timers: Map<string, Timer>;
+  
+  /**
+   * Timestamp flag
+   * @protected
+   * @type {boolean}
+   */
+  protected timestamp: boolean;
 
   /**
-   * Creates a new Winston-compatible logger.
-   * 
-   * @param {WinstonCompatibleOptions} options - Logger options
+   * Creates a new Winston-compatible logger
+   * @constructor
+   * @param {Partial<WinstonCompatibleOptions>} options - Logger options
    */
-  constructor(options: WinstonCompatibleOptions = {}) {
-    const baseOptions: LogCompatibilityOptions = {
-      ...options,
-      format: options.outputFormat || 'plain',
-    };
+  constructor(options: Partial<WinstonCompatibleOptions> = {}) {
+    // Extract format property before passing to base class
+    const { timestamp, ...baseOptions } = options;
     super(baseOptions);
+    
     this.level = options.level || 'info';
-    this.timestamp = options.timestamp || false;
-    this.timestampFormat = options.timestampFormat || 'HH:mm:ss';
-    this.defaultTags = options.defaultTags;
-    this.defaultContext = options.defaultContext;
-    this.printfFormatting = options.printfFormatting !== false;
-    this.handleExceptions = options.handleExceptions || false;
-    this.handleRejections = options.handleRejections || false;
-    this.formatFn = options.format;
-    this.exitOnError = options.exitOnError !== false;
-
-    // Set up exception handling
-    if (this.handleExceptions) {
-      this.setupExceptionHandling();
-    }
-
-    if (this.handleRejections) {
-      this.setupRejectionHandling();
-    }
-  }
-
-  /**
-   * Returns a formatted timestamp string based on `timestampFormat`.
-   * 
-   * @returns {string} Formatted timestamp
-   * @private
-   */
-  private getTimestamp(): string {
-    if (!this.timestamp) return '';
-    const now = new Date();
-
-    switch (this.timestampFormat) {
-      case 'ISO':
-        return `[${now.toISOString()}] `;
-      case 'epoch':
-        return `[${now.getTime()}] `;
-      default: {
-        const h = String(now.getHours()).padStart(2, '0');
-        const m = String(now.getMinutes()).padStart(2, '0');
-        const s = String(now.getSeconds()).padStart(2, '0');
-        return `[${h}:${m}:${s}] `;
-      }
-    }
-  }
-
-  /**
-   * Set up exception handling.
-   * @private
-   */
-  private setupExceptionHandling(): void {
-    process.on('uncaughtException', (error: Error) => {
-      this.error('Uncaught Exception', { error: this.serializeError(error) });
-      
-      if (this.exitOnError) {
-        process.exit(1);
-      }
-    });
-  }
-
-  /**
-   * Set up rejection handling.
-   * @private
-   */
-  private setupRejectionHandling(): void {
-    process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
-      this.error('Unhandled Rejection', {
-        reason: reason instanceof Error ? this.serializeError(reason) : reason,
-        promise: promise.toString(),
-      });
-
-      if (this.exitOnError) {
-        process.exit(1);
-      }
-    });
-  }
-
-  /**
-   * Serialize error object for logging.
-   * 
-   * @param {Error} error - Error to serialize
-   * @returns {object} Serialized error
-   * @private
-   */
-  private serializeError(error: Error): WinstonMetadata {
-    return {
-      errorName: error.name,
-      errorMessage: error.message,
-      errorStack: error.stack,
-      ...error,
-    };
-  }
-
-  /**
-   * Parse Winston-style arguments.
-   * 
-   * @param {any[]} args - Arguments to parse
-   * @returns {object} Parsed message and metadata
-   * @private
-   */
-  private parseArgs(args: unknown[]): { message: string; meta: WinstonMetadata } {
-    if (args.length === 0) {
-      return { message: '', meta: {} };
-    }
-
-    // Single object argument
-    if (args.length === 1 && typeof args[0] === 'object' && args[0] !== null) {
-      const obj = args[0] as WinstonMetadata;
-      
-      // Check if it has a message property
-      if ('message' in obj) {
-        const { message, ...meta } = obj;
-        return { message: String(message), meta };
-      }
-      
-      // Otherwise use the whole object as meta
-      return { message: this.safeSerialize(obj), meta: obj };
-    }
-
-    // String message with optional metadata
-    if (typeof args[0] === 'string') {
-      const message = args[0];
-      let meta: WinstonMetadata = {};
-
-      // Check for metadata object
-      if (args.length >= 2 && typeof args[1] === 'object' && args[1] !== null) {
-        meta = args[1] as WinstonMetadata;
-        
-        // Handle splat args
-        if (args.length > 2) {
-          meta.splat = args.slice(2);
-        }
-      } else if (args.length > 1) {
-        // All additional args go to splat
-        meta.splat = args.slice(1);
-      }
-
-      // Apply printf formatting if enabled
-      if (this.printfFormatting && meta.splat) {
-        return {
-          message: this.printf(message, ...(meta.splat as unknown[])),
-          meta: { ...meta, splat: undefined },
-        };
-      }
-
-      return { message, meta };
-    }
-
-    // Fallback
-    return { message: String(args[0]), meta: {} };
-  }
-
-  /**
-   * Printf-style formatting.
-   * 
-   * @param {string} format - Format string
-   * @param {...any} args - Format arguments
-   * @returns {string} Formatted string
-   * @private
-   */
-  private printf(format: string, ...args: unknown[]): string {
-    let i = 0;
-    return format.replace(/%[sdj%]/g, (match) => {
-      if (match === '%%') return '%';
-      if (i >= args.length) return match;
-      
-      const arg = args[i++];
-      switch (match) {
-        case '%s': return String(arg);
-        case '%d': return Number(arg).toString();
-        case '%j':
-          try {
-            return JSON.stringify(arg);
-          } catch {
-            return '[Circular]';
-          }
-        default:
-          return match;
-      }
-    });
-  }
-
-  /**
-   * Winston-like `.verbose()` method.
-   * 
-   * @param {...any} args - Log arguments
-   */
-  public verbose(...args: unknown[]): void {
-    if (!this._verbose) return;
-    
-    const { message, meta } = this.parseArgs(args);
-    const formattedMsg = this.getTimestamp() + message;
-    this.logger.debug(formattedMsg, this.enhanceMeta(meta));
-  }
-
-  /**
-   * Winston-like `.silly()` method.
-   * 
-   * @param {...any} args - Log arguments
-   */
-  public silly(...args: unknown[]): void {
-    const { message, meta } = this.parseArgs(args);
-    const formattedMsg = this.getTimestamp() + `SILLY: ${message}`;
-    this.logger.debug(formattedMsg, this.enhanceMeta(meta));
-  }
-
-  /**
-   * Winston info method with full signature support.
-   */
-  public info: WinstonLogMethod = (...args: unknown[]): void => {
-    const { message, meta } = this.parseArgs(args);
-    const formattedMsg = this.getTimestamp() + message;
-    this.logger.info(formattedMsg, this.enhanceMeta(meta));
-  };
-
-  /**
-   * Winston warn method with full signature support.
-   */
-  public warn: WinstonLogMethod = (...args: unknown[]): void => {
-    const { message, meta } = this.parseArgs(args);
-    const formattedMsg = this.getTimestamp() + message;
-    this.logger.warn(formattedMsg, this.enhanceMeta(meta));
-  };
-
-  /**
-   * Winston error method with full signature support.
-   */
-  public error: WinstonLogMethod = (...args: unknown[]): void => {
-    const { message, meta } = this.parseArgs(args);
-    const formattedMsg = this.getTimestamp() + message;
-    
-    // Special error handling
-    if (meta.error instanceof Error) {
-      meta.error = this.serializeError(meta.error);
-    }
-    
-    this.logger.error(formattedMsg, this.enhanceMeta(meta));
-  };
-
-  /**
-   * Winston debug method with full signature support.
-   */
-  public debug: WinstonLogMethod = (...args: unknown[]): void => {
-    const { message, meta } = this.parseArgs(args);
-    const formattedMsg = this.getTimestamp() + message;
-    this.logger.debug(formattedMsg, this.enhanceMeta(meta));
-  };
-
-  /**
-   * Winston-compatible log method with context and tags support.
-   * 
-   * @param {string} level - Log level
-   * @param {...any} args - Log arguments
-   */
-  public log(level: string, ...args: unknown[]): void {
-    // Handle special Winston levels
-    if (level.toLowerCase() === 'verbose') {
-      this.verbose(...args);
-      return;
-    }
-
-    if (level.toLowerCase() === 'silly') {
-      this.silly(...args);
-      return;
-    }
-
-    const { message, meta } = this.parseArgs(args);
-    const formattedMsg = this.getTimestamp() + message;
-    
-    // Apply custom format if provided
-    let finalMessage = formattedMsg;
-    if (this.formatFn) {
-      const info = {
-        level,
-        message: formattedMsg,
-        timestamp: new Date().toISOString(),
-        ...meta,
-      };
-      finalMessage = this.formatFn(info);
-    }
-
-    const enhancedMeta = this.enhanceMeta(meta);
-    const normalized = level.toLowerCase();
-
-    // Use the underlying logger's methods
-    switch (normalized) {
-      case 'info':
-        this.logger.info(finalMessage, enhancedMeta);
-        break;
-      case 'warn':
-      case 'warning':
-        this.logger.warn(finalMessage, enhancedMeta);
-        break;
-      case 'error':
-        this.logger.error(finalMessage, enhancedMeta);
-        break;
-      case 'debug':
-        this.logger.debug(finalMessage, enhancedMeta);
-        break;
-      default:
-        if (this.strictLevels) {
-          throw new Error(`Unknown log level: ${level}`);
-        }
-        this.logger.custom(finalMessage, ['white'], level.toUpperCase());
-    }
-  }
-
-  /**
-   * Enhance metadata with defaults.
-   * 
-   * @param {any} meta - Original metadata
-   * @returns {any} Enhanced metadata
-   * @private
-   */
-  private enhanceMeta(meta: WinstonMetadata): WinstonMetadata {
-    const enhanced: WinstonMetadata = { ...meta };
-
-    // Add default context
-    if (this.defaultContext) {
-      Object.assign(enhanced, this.defaultContext);
-    }
-
-    // Handle tags
-    const tags = [...(this.defaultTags || []), ...((meta.tags as string[]) || [])];
-    if (tags.length > 0) {
-      enhanced.tags = tags;
-    }
-
-    return enhanced;
-  }
-
-  /**
-   * Create a child logger with additional context.
-   * 
-   * @param {object} options - Child logger options
-   * @returns {WinstonCompatibleLogger} Child logger
-   */
-  public child(options: Partial<WinstonCompatibleOptions> = {}): WinstonCompatibleLogger {
-    const currentConfig = this.getConfig();
-    const childOptions: WinstonCompatibleOptions = {
-      ...currentConfig,
-      ...options,
-      defaultTags: [...(this.defaultTags || []), ...(options.defaultTags || [])],
-      defaultContext: { ...this.defaultContext, ...options.defaultContext },
-      outputFormat: currentConfig.format,
-      format: this.formatFn,
-    };
-
-    return new WinstonCompatibleLogger(childOptions);
-  }
-
-  /**
-   * Add a transport (compatibility method).
-   * 
-   * @param {any} _transport - Transport to add
-   */
-  public add(_transport: unknown): this {
-    console.warn('[Winston Compatibility] Transport management should be done through MagicLogger');
-    return this;
-  }
-
-  /**
-   * Remove a transport (compatibility method).
-   * 
-   * @param {any} _transport - Transport to remove
-   */
-  public remove(_transport: unknown): this {
-    console.warn('[Winston Compatibility] Transport management should be done through MagicLogger');
-    return this;
-  }
-
-  /**
-   * Clear all transports (compatibility method).
-   */
-  public clear(): this {
-    console.warn('[Winston Compatibility] Transport management should be done through MagicLogger');
-    return this;
-  }
-
-  /**
-   * Query logs (requires query handler setup).
-   * 
-   * @param {object} options - Query options
-   * @returns {Promise<any[]>} Query results
-   */
-  public async query(options: WinstonMetadata): Promise<WinstonMetadata[]> {
-    if (this.queryHandlers.length === 0) {
-      console.warn('[Winston Compatibility] No query handlers registered');
-      return [];
-    }
-
-    const results = await Promise.all(
-      this.queryHandlers.map(handler => handler(options))
-    );
-
-    return results.flat();
-  }
-
-  /**
-   * Stream logs (compatibility method).
-   * 
-   * @param {object} _options - Stream options
-   * @returns {any} Stream
-   */
-  public stream(_options: WinstonMetadata = {}): { on: () => WinstonCompatibleLogger; destroy: () => void } {
-    console.warn('[Winston Compatibility] Streaming not implemented');
-    return {
-      on: () => this,
-      destroy: () => { /* noop */ },
-    };
-  }
-
-  /**
-   * Register a query handler.
-   * 
-   * @param {Function} handler - Query handler function
-   */
-  public addQueryHandler(handler: (options: WinstonMetadata) => Promise<WinstonMetadata[]>): void {
-    this.queryHandlers.push(handler);
-  }
-
-  /**
-   * Profile a function or code block.
-   * 
-   * @param {string} id - Profile ID
-   * @param {any} meta - Optional metadata
-   */
-  public profile(id: string, meta?: WinstonMetadata): void {
-    const time = Date.now();
-    const existing = this.profileData.get(id);
-
-    if (existing) {
-      // End profiling
-      const duration = time - existing.start;
-      this.profileData.delete(id);
-
-      this.info(`Profiling [${id}]`, {
-        ...meta,
-        duration,
-        durationHuman: this.formatDuration(duration),
-      });
-    } else {
-      // Start profiling
-      this.profileData.set(id, { start: time });
-    }
-  }
-
-  /**
-   * Profile data storage.
-   * @private
-   */
-  private profileData: Map<string, { start: number }> = new Map();
-
-  /**
-   * Format duration for human reading.
-   * 
-   * @param {number} ms - Duration in milliseconds
-   * @returns {string} Formatted duration
-   * @private
-   */
-  private formatDuration(ms: number): string {
-    if (ms < 1000) return `${ms}ms`;
-    if (ms < 60000) return `${(ms / 1000).toFixed(2)}s`;
-    return `${(ms / 60000).toFixed(2)}m`;
-  }
-
-  /**
-   * Start a timer (Winston compatibility).
-   * 
-   * @returns {object} Timer object
-   */
-  public startTimer(): { done: (info?: WinstonMetadata) => void } {
-    const start = Date.now();
-
-    return {
-      done: (info?: WinstonMetadata) => {
-        const duration = Date.now() - start;
-        this.info('Timer', {
-          ...info,
-          duration,
-          durationHuman: this.formatDuration(duration),
-        });
-      },
-    };
-  }
-
-  /**
-   * Check if a level is enabled.
-   * 
-   * @param {string} level - Level to check
-   * @returns {boolean} Whether level is enabled
-   */
-  public isLevelEnabled(level: string): boolean {
-    const levels: Record<string, number> = {
-      silly: 0,
-      debug: 1,
-      verbose: 2,
-      info: 3,
-      warn: 4,
-      error: 5,
-    };
-
-    const currentLevel = levels[this.level] || 3;
-    const checkLevel = levels[level] || 0;
-
-    return checkLevel >= currentLevel;
-  }
-
-  /**
-   * Winston levels getter.
-   */
-  public get levels(): Record<string, number> {
-    return {
+    this.levels = options.levels || {
       error: 0,
       warn: 1,
       info: 2,
@@ -669,17 +262,457 @@ export class WinstonCompatibleLogger extends BaseCompatibleLogger {
       debug: 5,
       silly: 6,
     };
+    this.exitOnError = options.exitOnError ?? true;
+    this.silent = options.silent || false;
+    this.printfFormatting = options.printfFormatting || false;
+    this.defaultMeta = options.defaultMeta || options.defaultContext || {};
+    this.timers = new Map();
+    this.timestamp = timestamp ?? false;
+
+    // Handle exception and rejection handlers
+    if (options.exceptions?.handle || options.exceptionHandlers?.length) {
+      this.setupExceptionHandlers(options.exceptionHandlers);
+    }
+    
+    if (options.rejections?.handle || options.rejectionHandlers?.length) {
+      this.setupRejectionHandlers(options.rejectionHandlers);
+    }
+  }
+
+  /**
+   * Winston's flexible log method
+   * @public
+   * @param {string} level - Log level
+   * @param {string | Record<string, unknown>} message - Message or metadata object
+   * @param {...unknown[]} args - Additional arguments
+   * @returns {void}
+   */
+  log(level: string, message: string | Record<string, unknown>, ...args: unknown[]): void {
+    if (this.silent || !this.isLevelEnabled(level)) {
+      return;
+    }
+
+    let msg: string;
+    let meta: Record<string, unknown> = { ...this.defaultMeta };
+
+    // Handle different argument patterns
+    if (typeof message === 'object' && message !== null) {
+      // Object with message property
+      const obj = message as Record<string, unknown>;
+      msg = String(obj.message || '');
+      meta = { ...meta, ...obj };
+      delete meta.message;
+    } else {
+      msg = String(message);
+      
+      // Extract metadata from args
+      args.forEach(arg => {
+        if (typeof arg === 'object' && arg !== null && !Array.isArray(arg)) {
+          Object.assign(meta, arg);
+        }
+      });
+    }
+
+    // Apply printf formatting if enabled
+    if (this.printfFormatting && args.length > 0) {
+      const formatArgs = args.filter(arg => 
+        typeof arg !== 'object' || Array.isArray(arg)
+      );
+      if (formatArgs.length > 0) {
+        msg = sprintf(msg, ...formatArgs);
+      }
+    }
+
+    // Add timestamp if enabled
+    if (this.timestamp) {
+      msg = `[${new Date().toISOString()}] ${msg}`;
+    }
+
+    // Route to appropriate method
+    this.routeToMethod(level, msg, meta);
+  }
+
+  /**
+   * Route log to appropriate method based on level
+   * @protected
+   * @param {string} level - Log level
+   * @param {string} message - Log message
+   * @param {Record<string, unknown>} meta - Metadata
+   * @returns {void}
+   */
+  protected routeToMethod(level: string, message: string, meta: Record<string, unknown>): void {
+    switch (level) {
+      case 'error':
+        this.logger.error(message, meta);
+        break;
+      case 'warn':
+        this.logger.warn(message, meta);
+        break;
+      case 'info':
+        this.logger.info(message, meta);
+        break;
+      case 'http':
+        this.logger.info(`HTTP: ${message}`, meta);
+        break;
+      case 'verbose':
+        this.logger.debug(message, meta);
+        break;
+      case 'debug':
+        this.logger.debug(message, meta);
+        break;
+      case 'silly':
+        this.logger.debug(`SILLY: ${message}`, meta);
+        break;
+      default: {
+        // Custom level
+        const colors: ColorName[] = this.getColorsForLevel(level);
+        this.logger.custom(message, colors, level.toUpperCase());
+        break;
+      }
+    }
+  }
+
+  /**
+   * Get colors for custom log level
+   * @protected
+   * @param {string} level - Log level
+   * @returns {ColorName[]} Array of color names
+   */
+  protected getColorsForLevel(level: string): ColorName[] {
+    const levelColors: Record<string, ColorName[]> = {
+      emergency: ['red', 'bold', 'bgYellow'],
+      alert: ['yellow', 'bold', 'bgRed'],
+      critical: ['red', 'bold'],
+      notice: ['white'],
+      trace: ['gray'],
+    };
+    
+    return levelColors[level] || ['white'];
+  }
+
+  /**
+   * Check if a level is enabled
+   * @protected
+   * @param {string} level - Level to check
+   * @returns {boolean} True if level is enabled
+   */
+  protected isLevelEnabled(level: string): boolean {
+    const currentLevelValue = this.levels[this.level] ?? Infinity;
+    const targetLevelValue = this.levels[level] ?? -1;
+    return targetLevelValue <= currentLevelValue;
+  }
+
+  /**
+   * Log error message
+   * @public
+   * @param {string | Error | Record<string, unknown>} message - Error message or object
+   * @param {...unknown[]} args - Additional arguments
+   * @returns {void}
+   */
+  error(message: string | Error | Record<string, unknown>, ...args: unknown[]): void {
+    if (message instanceof Error) {
+      this.log('error', message.message, { error: message, ...args[0] as Record<string, unknown> });
+    } else {
+      this.log('error', message as string, ...args);
+    }
+  }
+
+  /**
+   * Log warning message
+   * @public
+   * @param {string | Record<string, unknown>} message - Warning message
+   * @param {...unknown[]} args - Additional arguments
+   * @returns {void}
+   */
+  warn(message: string | Record<string, unknown>, ...args: unknown[]): void {
+    this.log('warn', message as string, ...args);
+  }
+
+  /**
+   * Log info message
+   * @public
+   * @param {string | Record<string, unknown>} message - Info message
+   * @param {...unknown[]} args - Additional arguments
+   * @returns {void}
+   */
+  info(message: string | Record<string, unknown>, ...args: unknown[]): void {
+    this.log('info', message as string, ...args);
+  }
+
+  /**
+   * Log HTTP message
+   * @public
+   * @param {string | Record<string, unknown>} message - HTTP message
+   * @param {...unknown[]} args - Additional arguments
+   * @returns {void}
+   */
+  http(message: string | Record<string, unknown>, ...args: unknown[]): void {
+    this.log('http', message as string, ...args);
+  }
+
+  /**
+   * Log verbose message
+   * @public
+   * @param {string | Record<string, unknown>} message - Verbose message
+   * @param {...unknown[]} args - Additional arguments
+   * @returns {void}
+   */
+  verbose(message: string | Record<string, unknown>, ...args: unknown[]): void {
+    this.log('verbose', message as string, ...args);
+  }
+
+  /**
+   * Log debug message
+   * @public
+   * @param {string | Record<string, unknown>} message - Debug message
+   * @param {...unknown[]} args - Additional arguments
+   * @returns {void}
+   */
+  debug(message: string | Record<string, unknown>, ...args: unknown[]): void {
+    this.log('debug', message as string, ...args);
+  }
+
+  /**
+   * Log silly message
+   * @public
+   * @param {string | Record<string, unknown>} message - Silly message
+   * @param {...unknown[]} args - Additional arguments
+   * @returns {void}
+   */
+  silly(message: string | Record<string, unknown>, ...args: unknown[]): void {
+    this.log('silly', message as string, ...args);
+  }
+
+  /**
+   * Add header method for compatibility
+   * @public
+   * @param {string} title - Header title
+   * @param {ColorName[]} colors - Optional colors
+   * @returns {void}
+   */
+  header(title: string, colors?: ColorName[]): void {
+    const headerColors = colors || ['brightWhite', 'bgBlue', 'bold'];
+    this.logger.header(title, headerColors);
+  }
+
+  /**
+   * Create a child logger with additional context
+   * @public
+   * @param {Partial<WinstonCompatibleOptions>} options - Child logger options
+   * @returns {WinstonCompatibleLogger} New child logger instance
+   */
+  child(options: Partial<WinstonCompatibleOptions>): WinstonCompatibleLogger {
+    const childOptions = {
+      ...this.getOptions(),
+      ...options,
+      defaultMeta: {
+        ...this.defaultMeta,
+        ...(options.defaultMeta || {}),
+        ...(options.defaultContext || {}),
+      },
+    };
+    
+    return new WinstonCompatibleLogger(childOptions);
+  }
+
+  /**
+   * Start a timer for profiling
+   * @public
+   * @returns {{ done: (info?: { message?: string; [key: string]: unknown }) => void }} Timer object
+   */
+  startTimer(): { done: (info?: { message?: string; [key: string]: unknown }) => void } {
+    const start = Date.now();
+    
+    return {
+      done: (info?: { message?: string; [key: string]: unknown }) => {
+        const duration = Date.now() - start;
+        const message = info?.message || 'Timer';
+        const meta = { ...info, duration };
+        delete meta.message;
+        
+        this.info(`${message} (${duration}ms)`, meta);
+      },
+    };
+  }
+
+  /**
+   * Profile a named operation
+   * @public
+   * @param {string} name - Profile name
+   * @param {Record<string, unknown>} meta - Optional metadata
+   * @returns {void}
+   */
+  profile(name: string, meta?: Record<string, unknown>): void {
+    if (this.timers.has(name)) {
+      // End profiling
+      const timer = this.timers.get(name);
+      if (timer) {
+        const duration = Date.now() - timer.start;
+        this.timers.delete(name);
+        
+        this.info(`Profiling '${name}' (${duration}ms)`, {
+          ...timer.metadata,
+          ...meta,
+          duration,
+        });
+      }
+    } else {
+      // Start profiling
+      this.timers.set(name, {
+        name,
+        start: Date.now(),
+        metadata: meta,
+      });
+    }
+  }
+
+  /**
+   * Query logs (not implemented - for API compatibility)
+   * @public
+   * @param {Record<string, unknown>} _options - Query options
+   * @param {(err: Error | null, results: unknown) => void} callback - Callback function
+   * @returns {void}
+   */
+  query(_options?: Record<string, unknown>, callback?: (err: Error | null, results: unknown) => void): void {
+    const err = new Error('Query method not implemented in compatibility layer');
+    if (callback) {
+      callback(err, null);
+    }
+  }
+
+  /**
+   * Stream logs (not implemented - for API compatibility)
+   * @public
+   * @param {Record<string, unknown>} _options - Stream options
+   * @returns {NodeJS.ReadableStream} Readable stream
+   * @throws {Error} Not implemented
+   */
+  stream(_options?: Record<string, unknown>): NodeJS.ReadableStream {
+    throw new Error('Stream method not implemented in compatibility layer');
+  }
+
+  /**
+   * Clear all logs (no-op for compatibility)
+   * @public
+   * @returns {void}
+   */
+  clear(): void {
+    // No-op for compatibility
+  }
+
+  /**
+   * Setup exception handlers
+   * @protected
+   * @param {Transport[]} _handlers - Exception handlers
+   * @returns {void}
+   */
+  protected setupExceptionHandlers(_handlers?: Transport[]): void {
+    if (typeof process !== 'undefined' && process.on) {
+      process.on('uncaughtException', (error: Error) => {
+        this.error('Uncaught Exception', { error });
+        if (this.exitOnError) {
+          process.exit(1);
+        }
+      });
+    }
+  }
+
+  /**
+   * Setup rejection handlers
+   * @protected
+   * @param {Transport[]} _handlers - Rejection handlers
+   * @returns {void}
+   */
+  protected setupRejectionHandlers(_handlers?: Transport[]): void {
+    if (typeof process !== 'undefined' && process.on) {
+      process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
+        this.error('Unhandled Rejection', { reason, promise });
+        if (this.exitOnError) {
+          process.exit(1);
+        }
+      });
+    }
+  }
+
+  /**
+   * Get current logger options
+   * @protected
+   * @returns {Partial<WinstonCompatibleOptions>} Current options
+   */
+  protected getOptions(): Partial<WinstonCompatibleOptions> {
+    return {
+      level: this.level as WinstonCompatibleOptions['level'],
+      levels: this.levels,
+      exitOnError: this.exitOnError,
+      silent: this.silent,
+      printfFormatting: this.printfFormatting,
+      defaultMeta: this.defaultMeta,
+      verbose: this._verbose,
+      useColors: this.useColors,
+      timestamp: this.timestamp,
+    };
+  }
+
+  /**
+   * Configure the logger
+   * @public
+   * @param {Partial<WinstonCompatibleOptions>} options - Configuration options
+   * @returns {void}
+   */
+  configure(options: Partial<WinstonCompatibleOptions>): void {
+    if (options.level) this.level = options.level;
+    if (options.levels) this.levels = options.levels;
+    if (options.exitOnError !== undefined) this.exitOnError = options.exitOnError;
+    if (options.silent !== undefined) this.silent = options.silent;
+    if (options.printfFormatting !== undefined) this.printfFormatting = options.printfFormatting;
+    if (options.defaultMeta) this.defaultMeta = { ...this.defaultMeta, ...options.defaultMeta };
+    if (options.verbose !== undefined) this.setVerbose(options.verbose);
+    if (options.useColors !== undefined) this.useColors = options.useColors;
+    if (options.timestamp !== undefined) this.timestamp = options.timestamp;
+  }
+
+  /**
+   * Add metadata to all future logs
+   * @public
+   * @param {string} target - Target (e.g., 'metadata')
+   * @param {...unknown[]} args - Arguments
+   * @returns {this} Logger instance for chaining
+   */
+  add(target: string, ...args: unknown[]): this {
+    if (target === 'metadata' && args[0]) {
+      this.defaultMeta = { ...this.defaultMeta, ...args[0] as Record<string, unknown> };
+    }
+    return this;
+  }
+
+  /**
+   * Remove metadata
+   * @public
+   * @param {string} target - Target to remove
+   * @returns {this} Logger instance for chaining
+   */
+  remove(target: string): this {
+    if (target === 'metadata') {
+      this.defaultMeta = {};
+    }
+    return this;
   }
 }
 
 /**
- * Factory function that returns a WinstonCompatibleLogger instance.
+ * Factory function to create a Winston-compatible logger
+ * @function createWinstonCompatible
+ * @param {Partial<WinstonCompatibleOptions>} options - Logger options
+ * @returns {WinstonCompatibleLogger} New Winston-compatible logger instance
  * 
- * @param {WinstonCompatibleOptions} options - Logger options
- * @returns {WinstonCompatibleLogger} Winston-compatible logger
+ * @example
+ * ```typescript
+ * const logger = createWinstonCompatible({
+ *   level: 'info',
+ *   defaultMeta: { service: 'api' }
+ * });
+ * ```
  */
-export function createWinstonCompatible(
-  options?: WinstonCompatibleOptions
-): WinstonCompatibleLogger {
+export function createWinstonCompatible(options?: Partial<WinstonCompatibleOptions>): WinstonCompatibleLogger {
   return new WinstonCompatibleLogger(options);
 }

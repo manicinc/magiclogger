@@ -1,9 +1,10 @@
 // File: src/compatibility/Pino.ts
 
-import { BaseCompatibleLogger, LogCompatibilityOptions } from './BaseCompatibleLogger';
+import { BaseCompatibleLogger } from './BaseCompatibleLogger';
+import type { LoggerOptions } from '../types';
 
 /**
- * Pino log method type.
+ * Pino log method type with all supported signatures
  */
 type PinoLogMethod = {
   (msg: string): void;
@@ -11,102 +12,146 @@ type PinoLogMethod = {
   (obj: object, msg: string): void;
   (error: Error): void;
   (error: Error, msg: string): void;
+  (msg: string, ...args: unknown[]): void;
 };
 
 /**
- * Pino configuration options.
- * 
- * @interface PinoCompatibleOptions
- * @extends {LogCompatibilityOptions}
+ * Pino serializer function type
  */
-export interface PinoCompatibleOptions extends LogCompatibilityOptions {
+type Serializer = (value: unknown) => unknown;
+
+/**
+ * Pino censor function type
+ */
+type CensorFunction = (value: unknown, path: string[]) => unknown;
+
+/**
+ * Pino redaction options
+ */
+interface RedactOptions {
+  paths: string[];
+  censor?: string | CensorFunction;
+  remove?: boolean;
+}
+
+/**
+ * Pino formatter functions
+ */
+interface Formatters {
+  level?: (label: string, number: number) => object;
+  bindings?: (bindings: Record<string, unknown>) => object;
+  log?: (object: Record<string, unknown>) => object;
+}
+
+/**
+ * Pino-compatible logger options
+ * @interface PinoCompatibleOptions
+ * @extends {LoggerOptions}
+ */
+export interface PinoCompatibleOptions extends LoggerOptions {
   /**
-   * Log level.
+   * Log level (string or number)
+   * @type {string | number}
    * @default 'info'
    */
-  level?: string;
+  level?: string | number;
 
   /**
-   * Pretty print output.
+   * Pretty print output
+   * @type {boolean}
    * @default true
    */
   prettyPrint?: boolean;
 
   /**
-   * Include timestamp.
+   * Include timestamp
+   * @type {boolean}
    * @default false
    */
   timestamp?: boolean;
 
   /**
-   * Include level value (number).
-   * @default false
-   */
-  levelVal?: boolean;
-
-  /**
-   * Base object to include in all logs.
+   * Base object to include in all logs
+   * @type {Record<string, unknown>}
    */
   base?: Record<string, unknown>;
 
   /**
-   * Message key name.
+   * Message key name
+   * @type {string}
    * @default 'msg'
    */
   messageKey?: string;
 
   /**
-   * Level key name.
+   * Level key name
+   * @type {string}
    * @default 'level'
    */
   levelKey?: string;
 
   /**
-   * Timestamp key name.
+   * Timestamp key name
+   * @type {string}
    * @default 'time'
    */
   timestampKey?: string;
 
   /**
-   * Use only message.
+   * Use only message in output
+   * @type {boolean}
    * @default false
    */
   onlyMessage?: boolean;
 
   /**
-   * Redact paths in logs.
+   * Whether logger is enabled
+   * @type {boolean}
+   * @default true
    */
-  redact?: string[] | {
-    paths: string[];
-    censor?: string | ((value: unknown) => unknown);
+  enabled?: boolean;
+
+  /**
+   * Redaction configuration
+   * @type {RedactOptions}
+   */
+  redact?: RedactOptions;
+
+  /**
+   * Custom serializers
+   * @type {Record<string, Serializer>}
+   */
+  serializers?: Record<string, Serializer>;
+
+  /**
+   * Mixin function to add properties to each log
+   * @type {(mergeObject?: object, level?: number) => object}
+   */
+  mixin?: (mergeObject?: object, level?: number) => object;
+
+  /**
+   * Formatter functions
+   * @type {Formatters}
+   */
+  formatters?: Formatters;
+
+  /**
+   * Browser configuration
+   * @type {object}
+   */
+  browser?: {
+    serialize?: boolean | string[];
+    asObject?: boolean;
+    transmit?: {
+      level?: string;
+      send: (level: string, logEvent: object) => void;
+    };
   };
-
-  /**
-   * Custom serializers.
-   */
-  serializers?: Record<string, (value: unknown) => unknown>;
-
-  /**
-   * Mixin function to add properties.
-   */
-  mixin?: () => Record<string, unknown>;
-
-  /**
-   * Format level function.
-   */
-  formatLevel?: (label: string, number: number) => object;
 }
 
 /**
  * Pino-compatible logger implementation.
- * 
- * Provides a Pino-style API with:
- * - Pino method signatures
- * - Child loggers with bindings
- * - Fast JSON output
- * - Level values
- * - Redaction support
- * - Serializers
+ * Provides full compatibility with the Pino logging library API.
  * 
  * @class PinoCompatibleLogger
  * @extends {BaseCompatibleLogger}
@@ -131,27 +176,12 @@ export interface PinoCompatibleOptions extends LogCompatibilityOptions {
  * ```
  */
 export class PinoCompatibleLogger extends BaseCompatibleLogger {
-  private timestamp: boolean;
-  private prettyPrint: boolean;
-  private base: Record<string, unknown>;
-  private messageKey: string;
-  private levelKey: string;
-  private timestampKey: string;
-  private onlyMessage: boolean;
-  private redact?: PinoCompatibleOptions['redact'];
-  private serializers: Record<string, (value: unknown) => unknown>;
-  private mixin?: () => Record<string, unknown>;
-  private formatLevel?: (label: string, number: number) => object;
-  private _level: string;
-  private _levelNum: number;
-  private _levelVal: boolean;
-
   /**
-   * Pino level string to number mapping.
-   * @private
+   * Pino level string to number mapping
    * @static
+   * @readonly
    */
-  private static readonly levels: Record<string, number> = {
+  public static readonly levels: Record<string, number> = {
     trace: 10,
     debug: 20,
     info: 30,
@@ -162,73 +192,109 @@ export class PinoCompatibleLogger extends BaseCompatibleLogger {
   };
 
   /**
-   * Default serializers.
+   * Current log level string
+   * @private
+   */
+  private _level: string;
+
+  /**
+   * Current log level number
+   * @private
+   */
+  private _levelNum: number;
+
+  /**
+   * Configuration options
+   * @private
+   */
+  protected timestamp: boolean;
+  protected prettyPrint: boolean;
+  protected base: Record<string, unknown>;
+  protected messageKey: string;
+  protected levelKey: string;
+  protected timestampKey: string;
+  protected onlyMessage: boolean;
+  protected enabled: boolean;
+  protected redact?: RedactOptions;
+  protected serializers: Record<string, Serializer>;
+  protected mixin?: (mergeObject?: object, level?: number) => object;
+  protected formatters?: Formatters;
+
+  /**
+   * Default error serializer
    * @private
    * @static
    */
-  private static readonly stdSerializers: Record<string, (value: unknown) => unknown> = {
+  private static readonly stdSerializers = {
     err: (err: unknown): unknown => {
-      if (!err || !(err instanceof Error)) {
-        return err;
-      }
+      if (!err || typeof err !== 'object') return err;
+      const e = err as Error;
       return {
-        type: err.constructor.name,
-        message: err.message,
-        stack: err.stack,
+        type: e.constructor?.name || 'Error',
+        message: e.message,
+        stack: e.stack,
       };
     },
-    error: (err: unknown): unknown => {
-      return PinoCompatibleLogger.stdSerializers.err(err);
-    },
+    error: (err: unknown): unknown => PinoCompatibleLogger.stdSerializers.err(err),
   };
 
   /**
-   * Creates a new Pino-compatible logger.
-   * 
+   * Creates a new Pino-compatible logger
+   * @constructor
    * @param {PinoCompatibleOptions} options - Logger options
    */
   constructor(options: PinoCompatibleOptions = {}) {
-    super(options || {});
+    super(options);
     
-    this._level = options?.level || 'info';
-    this._levelNum = PinoCompatibleLogger.levels[this._level] || 30;
-    this._levelVal = options?.levelVal || false;
-    this.timestamp = options?.timestamp || false;
-    this.prettyPrint = options?.prettyPrint !== false;
-    this.base = options?.base || {};
-    this.messageKey = options?.messageKey || 'msg';
-    this.levelKey = options?.levelKey || 'level';
-    this.timestampKey = options?.timestampKey || 'time';
-    this.onlyMessage = options?.onlyMessage || false;
-    this.redact = options?.redact;
+    // Handle numeric level
+    if (typeof options.level === 'number') {
+      this._levelNum = options.level;
+      this._level = this.getLevelName(options.level);
+    } else {
+      this._level = options.level || 'info';
+      this._levelNum = PinoCompatibleLogger.levels[this._level] || 30;
+    }
+
+    this.timestamp = options.timestamp ?? false;
+    this.prettyPrint = options.prettyPrint !== false;
+    this.base = options.base || {};
+    this.messageKey = options.messageKey || 'msg';
+    this.levelKey = options.levelKey || 'level';
+    this.timestampKey = options.timestampKey || 'time';
+    this.onlyMessage = options.onlyMessage || false;
+    this.enabled = options.enabled !== false;
+    this.redact = options.redact;
     this.serializers = { 
       ...PinoCompatibleLogger.stdSerializers, 
-      ...options?.serializers 
+      ...(options.serializers || {})
     };
-    this.mixin = options?.mixin;
-    this.formatLevel = options?.formatLevel;
+    this.mixin = options.mixin;
+    this.formatters = options.formatters;
   }
 
   /**
-   * Get timestamp for log.
-   * 
-   * @returns {number | string} Timestamp
+   * Get level name from number
    * @private
+   * @param {number} levelNum - Level number
+   * @returns {string} Level name
    */
-  private getTimestamp(): number | string {
-    return this.timestamp ? Date.now() : '';
+  private getLevelName(levelNum: number): string {
+    const entries = Object.entries(PinoCompatibleLogger.levels);
+    const found = entries.find(([_, num]) => num === levelNum);
+    return found ? found[0] : 'info';
   }
 
   /**
-   * Format a Pino log record.
-   * 
-   * @param {string} level - Log level
-   * @param {any} objOrMsg - Object or message
-   * @param {string} [msg] - Optional message
-   * @returns {object} Formatted record
+   * Format a log record
    * @private
+   * @param {string} level - Log level
+   * @param {unknown} objOrMsg - Object or message
+   * @param {string} msg - Optional message
+   * @returns {object | null} Formatted record
    */
   private formatRecord(level: string, objOrMsg: unknown, msg?: string): object | null {
+    if (!this.enabled) return null;
+
     const levelNum = PinoCompatibleLogger.levels[level] || 30;
     
     // Skip if below current level
@@ -236,26 +302,31 @@ export class PinoCompatibleLogger extends BaseCompatibleLogger {
       return null;
     }
 
-    const record: Record<string, unknown> = {};
+    let record: Record<string, unknown> = {};
 
     // Add timestamp
     if (this.timestamp) {
-      record[this.timestampKey] = this.getTimestamp();
+      record[this.timestampKey] = Date.now();
     }
 
     // Add level
-    if (this.formatLevel) {
-      Object.assign(record, this.formatLevel(level, levelNum));
+    if (this.formatters?.level) {
+      Object.assign(record, this.formatters.level(level, levelNum));
     } else {
-      record[this.levelKey] = this._levelVal ? levelNum : level;
+      record[this.levelKey] = level;
     }
 
     // Add base properties
-    Object.assign(record, this.base);
+    if (this.formatters?.bindings) {
+      Object.assign(record, this.formatters.bindings(this.base));
+    } else {
+      Object.assign(record, this.base);
+    }
 
     // Add mixin properties
     if (this.mixin) {
-      Object.assign(record, this.mixin());
+      const mixinProps = this.mixin(record, levelNum);
+      Object.assign(record, mixinProps);
     }
 
     // Handle arguments
@@ -265,17 +336,47 @@ export class PinoCompatibleLogger extends BaseCompatibleLogger {
     if (typeof objOrMsg === 'string') {
       message = objOrMsg;
     } else if (objOrMsg instanceof Error) {
-      message = objOrMsg.message;
-      if (this.serializers.err) {
-        fields.err = this.serializers.err(objOrMsg);
-      }
+      message = msg || objOrMsg.message;
+      fields.err = objOrMsg;
     } else if (typeof objOrMsg === 'object' && objOrMsg !== null) {
       fields = objOrMsg as Record<string, unknown>;
       message = msg || '';
     }
 
     // Apply serializers
+    fields = this.applySerializers(fields);
+
+    // Merge fields
+    Object.assign(record, fields);
+
+    // Add message
+    if (message) {
+      record[this.messageKey] = message;
+    }
+
+    // Apply formatters.log
+    if (this.formatters?.log) {
+      const formattedRecord = this.formatters.log(record);
+      record = formattedRecord as Record<string, unknown>;
+    }
+
+    // Apply redaction
+    if (this.redact) {
+      record = this.applyRedaction(record);
+    }
+
+    return record;
+  }
+
+  /**
+   * Apply serializers to fields
+   * @protected
+   * @param {Record<string, unknown>} fields - Fields to serialize
+   * @returns {Record<string, unknown>} Serialized fields
+   */
+  protected applySerializers(fields: Record<string, unknown>): Record<string, unknown> {
     const serialized: Record<string, unknown> = {};
+    
     for (const [key, value] of Object.entries(fields)) {
       if (this.serializers[key]) {
         serialized[key] = this.serializers[key](value);
@@ -283,109 +384,146 @@ export class PinoCompatibleLogger extends BaseCompatibleLogger {
         serialized[key] = value;
       }
     }
-
-    // Merge fields
-    Object.assign(record, serialized);
-
-    // Add message
-    if (message) {
-      record[this.messageKey] = message;
-    }
-
-    // Apply redaction
-    if (this.redact) {
-      this.applyRedaction(record);
-    }
-
-    return record;
+    
+    return serialized;
   }
 
   /**
-   * Apply redaction to record.
-   * 
-   * @param {object} record - Record to redact
-   * @private
+   * Apply redaction to record
+   * @protected
+   * @param {Record<string, unknown>} record - Record to redact
+   * @returns {Record<string, unknown>} Redacted record
    */
-  private applyRedaction(record: Record<string, unknown>): void {
-    if (!this.redact) return;
+  protected applyRedaction(record: Record<string, unknown>): Record<string, unknown> {
+    if (!this.redact) return record;
 
-    const paths = Array.isArray(this.redact) ? this.redact : this.redact.paths;
-    const censor = Array.isArray(this.redact) ? '[Redacted]' : this.redact.censor || '[Redacted]';
+    const result = JSON.parse(JSON.stringify(record)) as Record<string, unknown>;
+    const { paths, censor = '[REDACTED]' } = this.redact;
 
     for (const path of paths) {
-      const parts = path.split('.');
-      let current: unknown = record;
-      
-      for (let i = 0; i < parts.length - 1; i++) {
-        if (current && typeof current === 'object' && parts[i] in current) {
-          current = (current as Record<string, unknown>)[parts[i]];
-        } else {
-          break;
+      this.redactPath(result, path.split('.'), censor);
+    }
+
+    return result;
+  }
+
+  /**
+   * Redact a specific path in an object
+   * @private
+   * @param {Record<string, unknown>} obj - Object to redact in
+   * @param {string[]} pathParts - Path parts
+   * @param {string | CensorFunction} censor - Censor value or function
+   */
+  private redactPath(obj: Record<string, unknown>, pathParts: string[], censor: string | CensorFunction): void {
+    if (!obj || typeof obj !== 'object') return;
+
+    const [current, ...rest] = pathParts;
+    
+    // Handle wildcards
+    if (current === '*') {
+      if (Array.isArray(obj)) {
+        for (const item of obj) {
+          if (typeof item === 'object' && item !== null) {
+            this.redactPath(item as Record<string, unknown>, rest, censor);
+          }
+        }
+      } else {
+        for (const key in obj) {
+          const value = obj[key];
+          if (typeof value === 'object' && value !== null) {
+            this.redactPath(value as Record<string, unknown>, rest, censor);
+          }
         }
       }
+      return;
+    }
 
-      const lastPart = parts[parts.length - 1];
-      if (current && typeof current === 'object' && lastPart in current) {
-        const obj = current as Record<string, unknown>;
-        obj[lastPart] = typeof censor === 'function' ? censor(obj[lastPart]) : censor;
+    // Handle array notation
+    const arrayMatch = current.match(/^(.+)\[\*\]$/);
+    if (arrayMatch) {
+      const arrayKey = arrayMatch[1];
+      if (arrayKey in obj && Array.isArray(obj[arrayKey])) {
+        const arr = obj[arrayKey] as unknown[];
+        for (const item of arr) {
+          if (typeof item === 'object' && item !== null) {
+            this.redactPath(item as Record<string, unknown>, rest, censor);
+          }
+        }
+      }
+      return;
+    }
+
+    // Final path part
+    if (rest.length === 0) {
+      if (current in obj) {
+        obj[current] = typeof censor === 'function' 
+          ? censor(obj[current], pathParts) 
+          : censor;
+      }
+    } else if (current in obj) {
+      const value = obj[current];
+      if (typeof value === 'object' && value !== null) {
+        this.redactPath(value as Record<string, unknown>, rest, censor);
       }
     }
   }
 
   /**
-   * Output a log record.
-   * 
-   * @param {string} level - Log level
-   * @param {object} record - Log record
+   * Output a log record
    * @private
+   * @param {string} level - Log level
+   * @param {object | null} record - Log record
    */
   private output(level: string, record: object | null): void {
     if (!record) return;
 
     let output: string;
+    let metadata: Record<string, unknown> = {};
 
     if (this.onlyMessage) {
       output = (record as Record<string, unknown>)[this.messageKey] as string || '';
     } else if (this.prettyPrint) {
-      output = this.prettyFormat(level, record);
+      const result = this.prettyFormat(level, record);
+      output = result.message;
+      metadata = result.metadata;
     } else {
       output = JSON.stringify(record);
     }
 
-    // Use underlying logger
+    // Route to appropriate logger method
     switch (level) {
       case 'trace':
-        this.logger.debug(`TRACE: ${output}`);
+        this.logger.debug(`TRACE: ${output}`, metadata);
         break;
       case 'debug':
-        this.logger.debug(output);
+        this.logger.debug(output, metadata);
         break;
       case 'info':
-        this.logger.info(output);
+        this.logger.info(output, metadata);
         break;
       case 'warn':
-        this.logger.warn(output);
+        this.logger.warn(output, metadata);
         break;
       case 'error':
-        this.logger.error(output);
+        this.logger.error(output, metadata);
         break;
       case 'fatal':
-        this.logger.error(`FATAL: ${output}`);
+        this.logger.error(`FATAL: ${output}`, metadata);
         break;
     }
   }
 
   /**
-   * Pretty format a record.
-   * 
+   * Pretty format a record
+   * @private
    * @param {string} level - Log level
    * @param {object} record - Log record
-   * @returns {string} Formatted output
-   * @private
+   * @returns {{ message: string, metadata: Record<string, unknown> }} Formatted output
    */
-  private prettyFormat(level: string, record: object): string {
+  private prettyFormat(level: string, record: object): { message: string; metadata: Record<string, unknown> } {
     const rec = record as Record<string, unknown>;
     const parts: string[] = [];
+    const metadata: Record<string, unknown> = {};
 
     // Timestamp
     if (rec[this.timestampKey]) {
@@ -394,120 +532,114 @@ export class PinoCompatibleLogger extends BaseCompatibleLogger {
     }
 
     // Level
-    if (this._levelVal && rec[this.levelKey]) {
-      parts.push(`[${rec[this.levelKey]}]`);
-    } else {
-      parts.push(`[${level.toUpperCase()}]`);
-    }
+    parts.push(`[${level.toUpperCase()}]`);
 
     // Message
     if (rec[this.messageKey]) {
       parts.push(rec[this.messageKey] as string);
     }
 
-    // Additional fields - create a clean copy without system fields
-    const fields: Record<string, unknown> = {};
+    // Additional fields
     for (const [key, value] of Object.entries(rec)) {
       if (key !== this.timestampKey && key !== this.levelKey && key !== this.messageKey) {
-        fields[key] = value;
+        metadata[key] = value;
       }
     }
 
-    if (Object.keys(fields).length > 0) {
-      parts.push(JSON.stringify(fields));
-    }
-
-    return parts.join(' ');
+    return { message: parts.join(' '), metadata };
   }
 
+  // Pino logging methods
   /**
-   * Generic log method.
-   * 
-   * @param {string} level - Log level
-   * @param {...any} args - Log arguments
+   * Log trace message
+   * @public
    */
-  public log(level: string, ...args: unknown[]): void {
-    const record = this.formatRecord(level, args[0], args[1] as string | undefined);
-    this.output(level, record);
-  }
-
-  // Pino logging methods with overloads
-
-  public trace: PinoLogMethod = (objOrMsg: unknown, msg?: string): void => {
-    const record = this.formatRecord('trace', objOrMsg, msg);
+  public trace: PinoLogMethod = (...args: unknown[]): void => {
+    const [objOrMsg, msg] = args;
+    const record = this.formatRecord('trace', objOrMsg, msg as string | undefined);
     this.output('trace', record);
   };
 
-  public debug: PinoLogMethod = (objOrMsg: unknown, msg?: string): void => {
-    const record = this.formatRecord('debug', objOrMsg, msg);
+  /**
+   * Log debug message
+   * @public
+   */
+  public debug: PinoLogMethod = (...args: unknown[]): void => {
+    const [objOrMsg, msg] = args;
+    const record = this.formatRecord('debug', objOrMsg, msg as string | undefined);
     this.output('debug', record);
   };
 
-  public info: PinoLogMethod = (objOrMsg: unknown, msg?: string): void => {
-    const record = this.formatRecord('info', objOrMsg, msg);
+  /**
+   * Log info message
+   * @public
+   */
+  public info: PinoLogMethod = (...args: unknown[]): void => {
+    const [objOrMsg, msg] = args;
+    const record = this.formatRecord('info', objOrMsg, msg as string | undefined);
     this.output('info', record);
   };
 
-  public warn: PinoLogMethod = (objOrMsg: unknown, msg?: string): void => {
-    const record = this.formatRecord('warn', objOrMsg, msg);
+  /**
+   * Log warning message
+   * @public
+   */
+  public warn: PinoLogMethod = (...args: unknown[]): void => {
+    const [objOrMsg, msg] = args;
+    const record = this.formatRecord('warn', objOrMsg, msg as string | undefined);
     this.output('warn', record);
   };
 
-  public error: PinoLogMethod = (objOrMsg: unknown, msg?: string): void => {
-    const record = this.formatRecord('error', objOrMsg, msg);
+  /**
+   * Log error message
+   * @public
+   */
+  public error: PinoLogMethod = (...args: unknown[]): void => {
+    const [objOrMsg, msg] = args;
+    const record = this.formatRecord('error', objOrMsg, msg as string | undefined);
     this.output('error', record);
   };
 
-  public fatal: PinoLogMethod = (objOrMsg: unknown, msg?: string): void => {
-    const record = this.formatRecord('fatal', objOrMsg, msg);
+  /**
+   * Log fatal message
+   * @public
+   */
+  public fatal: PinoLogMethod = (...args: unknown[]): void => {
+    const [objOrMsg, msg] = args;
+    const record = this.formatRecord('fatal', objOrMsg, msg as string | undefined);
     this.output('fatal', record);
   };
 
   /**
-   * Create a child logger with additional bindings.
-   * 
+   * Create a child logger with additional bindings
+   * @public
    * @param {Record<string, unknown>} bindings - Additional bindings
    * @returns {PinoCompatibleLogger} Child logger
    */
   public child(bindings: Record<string, unknown>): PinoCompatibleLogger {
-    const mergedBase = { ...this.base, ...bindings };
-
     const childOptions: PinoCompatibleOptions = {
-      verbose: this._verbose,
-      writeToDisk: this.writeToDisk,
-      useColors: this.useColors,
-      logDir: this.logDir,
-      logRetentionDays: this.logRetentionDays,
+      ...this.getConfig(),
+      base: { ...this.base, ...bindings },
       level: this._level,
-      levelVal: this._levelVal,
       timestamp: this.timestamp,
       prettyPrint: this.prettyPrint,
-      base: mergedBase,
       messageKey: this.messageKey,
       levelKey: this.levelKey,
       timestampKey: this.timestampKey,
       onlyMessage: this.onlyMessage,
+      enabled: this.enabled,
       redact: this.redact,
       serializers: this.serializers,
       mixin: this.mixin,
-      formatLevel: this.formatLevel,
-      strictLevels: this.strictLevels,
+      formatters: this.formatters,
     };
 
     return new PinoCompatibleLogger(childOptions);
   }
 
   /**
-   * Flush any buffered logs.
-   */
-  public async flush(): Promise<void> {
-    // MagicLogger handles this
-    await super.flush();
-  }
-
-  /**
-   * Check if level is enabled.
-   * 
+   * Check if level is enabled
+   * @public
    * @param {string | number} level - Level to check
    * @returns {boolean} Whether level is enabled
    */
@@ -520,65 +652,107 @@ export class PinoCompatibleLogger extends BaseCompatibleLogger {
   }
 
   /**
-   * Get or set the level.
+   * Get current configuration
+   * @protected
+   * @returns {PinoCompatibleOptions} Current configuration
+   */
+  protected getConfig(): PinoCompatibleOptions {
+    return {
+      verbose: this._verbose,
+      useColors: this.useColors,
+    };
+  }
+
+  // Getters and setters
+  /**
+   * Get or set the level
+   * @public
    */
   public get level(): string {
     return this._level;
   }
 
-  public set level(value: string) {
-    this._level = value;
-    this._levelNum = PinoCompatibleLogger.levels[value] || 30;
+  public set level(value: string | number) {
+    if (typeof value === 'number') {
+      this._levelNum = value;
+      this._level = this.getLevelName(value);
+    } else {
+      this._level = value;
+      this._levelNum = PinoCompatibleLogger.levels[value] || 30;
+    }
   }
 
   /**
-   * Get level value.
+   * Get level value
+   * @public
    */
   public get levelVal(): number {
     return this._levelNum;
   }
 
   /**
-   * Pino levels object.
-   */
-  public get levels() {
-    return {
-      values: PinoCompatibleLogger.levels,
-      labels: Object.entries(PinoCompatibleLogger.levels).reduce(
-        (acc, [label, value]) => {
-          acc[value] = label;
-          return acc;
-        },
-        {} as Record<number, string>
-      ),
-    };
-  }
-
-  /**
-   * Bindings getter.
+   * Get bindings
+   * @public
+   * @returns {Record<string, unknown>} Current bindings
    */
   public bindings(): Record<string, unknown> {
     return { ...this.base };
   }
 
   /**
-   * Set bindings.
-   * 
+   * Set bindings
+   * @public
    * @param {Record<string, unknown>} bindings - New bindings
    */
   public setBindings(bindings: Record<string, unknown>): void {
     this.base = { ...bindings };
   }
+
+  /**
+   * Flush logs (delegates to base class)
+   * @public
+   * @returns {Promise<void>}
+   */
+  public async flush(): Promise<void> {
+    await super.flush();
+  }
+
+  /**
+   * Generic log method
+   * @public
+   * @param {string} level - Log level
+   * @param {...unknown[]} args - Log arguments
+   */
+  public log(level: string, ...args: unknown[]): void {
+    const method = this[level as keyof this];
+    if (typeof method === 'function') {
+      method.apply(this, args);
+    }
+  }
+
+  /**
+   * Silent logging (no-op)
+   * @public
+   */
+  public silent(..._args: unknown[]): void {
+    // No-op
+  }
 }
 
 /**
- * Factory to create a Pino-compatible logger.
- * 
+ * Factory function to create a Pino-compatible logger
+ * @function createPinoCompatible
  * @param {PinoCompatibleOptions} options - Logger options
- * @returns {PinoCompatibleLogger} Pino-compatible logger
+ * @returns {PinoCompatibleLogger} New Pino-compatible logger instance
+ * 
+ * @example
+ * ```typescript
+ * const logger = createPinoCompatible({
+ *   level: 'info',
+ *   base: { service: 'api' }
+ * });
+ * ```
  */
-export function createPinoCompatible(
-  options: PinoCompatibleOptions = {}
-): PinoCompatibleLogger {
+export function createPinoCompatible(options?: PinoCompatibleOptions): PinoCompatibleLogger {
   return new PinoCompatibleLogger(options);
 }
