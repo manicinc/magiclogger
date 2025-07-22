@@ -349,4 +349,4 @@ createLogEntry('Invalid credentials provided', 'error');
 
 By leveraging Magiclogger's styling capabilities, you can create rich, informative console output that improves readability and helps users quickly identify important information. The intelligent terminal detection ensures that your logs look great in any environment, automatically adapting to terminal capabilities.
 
-For more information on terminal compatibility and advanced usage, see the main [README](./README.md) and [API Documentation](./api.md) guides.
+For more information on terminal compatibility and advanced usage, see the main [README](../README.md) and [API Documentation](./api_usage.md) guides.

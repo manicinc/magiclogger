@@ -91,11 +91,24 @@ export interface ContextMinificationOptions {
 export type {
   LogLevel,
   LoggerOptions,
-  ExtendedLoggerOptions,
-  ColorName,
-  StylePreset,
   ThemeDefinition,
+} from './logger';
+
+export type {
+  ColorName,
+} from './colors';
+
+export type {
   Transport,
   TransportOptions,
   LogEntry,
-} from './logger';
+  NetworkTransportOptions,
+  HTTPTransportOptions,
+  S3TransportOptions,
+  MongoDBTransportOptions,
+  WebSocketTransportOptions,
+  StreamTransportOptions,
+  BatchingTransportOptions,
+  TransportEvents,
+  TransportStats,
+} from './transport';

@@ -7,7 +7,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 const config: Config = {
   title: 'MagicLogger',
   tagline: 'The most colorful TypeScript/JavaScript logging library 🌈',
-  favicon: 'img/icon/favicon.ico', // Changed from 'img/favicon.ico'
+  favicon: 'img/favicon.ico',
 
   // Set the production url of your site here
   url: 'https://manicinc.github.io',
@@ -30,32 +30,6 @@ const config: Config = {
     locales: ['en'],
   },
 
-  // Custom webpack configuration
-  plugins: [
-    function (_context, _options) {
-      return {
-        name: 'custom-webpack-config',
-        configureWebpack(config, isServer) {
-          if (!isServer) {
-            // Only apply polyfills, don't modify other webpack settings
-            config.resolve = config.resolve || {};
-            config.resolve.fallback = {
-              ...config.resolve.fallback,
-              "path": require.resolve("path-browserify"),
-              "os": require.resolve("os-browserify/browser"),
-              "fs": false,
-              "zlib": require.resolve("browserify-zlib"),
-              "assert": require.resolve("assert/"),
-              "stream": require.resolve("stream-browserify"),
-              "util": require.resolve("util/"),
-            };
-          }
-          return {};
-        },
-      };
-    },
-  ],
-
   presets: [
     [
       'classic',
@@ -76,7 +50,7 @@ const config: Config = {
           },
           // Edit links point to GitHub
           editUrl:
-            'https://github.com/manicinc/magiclogger/tree/main/website/blog/',
+            'https://github.com/manicinc/magiclogger/tree/main/my-website/blog/',
           // Useful options to enforce blogging best practices
           onInlineTags: 'warn',
           onInlineAuthors: 'warn',
@@ -91,31 +65,21 @@ const config: Config = {
 
   themeConfig: {
     // Replace with your project's social card
-    image: 'img/magiclogger-primary-no-subtitle-transparent-4x.png', // Changed from generic social card
+    image: 'img/magiclogger-social-card.jpg',
     navbar: {
       title: 'MagicLogger',
       logo: {
         alt: 'MagicLogger Logo',
-        src: 'img/magiclogger-icon.svg', // This should show your logo
+        src: 'img/logo.svg',
       },
       items: [
         {
           type: 'docSidebar',
           sidebarId: 'tutorialSidebar',
           position: 'left',
-          label: '📚 Documentation',
+          label: 'Documentation',
         },
-        {
-          href: '/docs/api_usage',
-          label: '🔧 API Reference',
-          position: 'left',
-        },
-        {
-          href: 'https://github.com/manicinc/magiclogger/tree/master/examples',
-          label: '💡 Examples',
-          position: 'left',
-        },
-        { to: '/blog', label: '📝 Blog', position: 'left' },
+        { to: '/blog', label: 'Blog', position: 'left' },
         {
           href: 'https://github.com/manicinc/magiclogger',
           label: 'GitHub',
@@ -125,13 +89,6 @@ const config: Config = {
     },
     footer: {
       style: 'dark',
-      logo: {
-        alt: 'Manic Agency Logo',
-        src: 'img/magiclogger-icon.svg',
-        href: 'https://manic.agency',
-        width: 40,
-        height: 40,
-      },
       links: [
         {
           title: 'Documentation',

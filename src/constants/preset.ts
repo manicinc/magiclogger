@@ -12,7 +12,10 @@ import { getTheme } from '../theme';
  */
 export function getPresetColors(preset: StylePreset | string, themeName = 'default'): ColorName[] {
   const theme = getTheme(themeName);
-  return theme[preset] || theme[preset as StylePreset] || ['white'];
+  if (!theme) {
+    return ['white'];
+  }
+  return theme[preset as keyof typeof theme] || theme[preset as StylePreset] || ['white'];
 }
 
 /**
@@ -23,6 +26,9 @@ export function getPresetColors(preset: StylePreset | string, themeName = 'defau
  */
 export function getPresetNames(themeName = 'default'): string[] {
   const theme = getTheme(themeName);
+  if (!theme) {
+    return [];
+  }
   return Object.keys(theme);
 }
 
@@ -35,6 +41,9 @@ export function getPresetNames(themeName = 'default'): string[] {
  */
 export function hasPreset(name: string, themeName = 'default'): boolean {
   const theme = getTheme(themeName);
+  if (!theme) {
+    return false;
+  }
   return name in theme;
 }
 
@@ -47,7 +56,10 @@ export function hasPreset(name: string, themeName = 'default'): boolean {
  */
 export function getPreset(name: string, themeName = 'default'): ColorName[] | undefined {
   const theme = getTheme(themeName);
-  return theme[name];
+  if (!theme) {
+    return undefined;
+  }
+  return theme[name as keyof typeof theme];
 }
 
 /**
@@ -118,18 +130,20 @@ export const EXTENDED_PRESETS: Record<string, ColorName[]> = {
 export function getAllPresets(themeName = 'default'): Record<string, ColorName[]> {
   const theme = getTheme(themeName);
   const allPresets: Record<string, ColorName[]> = {};
-  
-  // Add theme presets
-  for (const [key, value] of Object.entries(theme)) {
-    if (value) {
-      allPresets[key] = value;
+
+  if (theme) {
+    // Add theme presets
+    for (const [key, value] of Object.entries(theme)) {
+      if (value) {
+        allPresets[key] = value;
+      }
     }
   }
-  
+
   // Add extended presets
   for (const [key, value] of Object.entries(EXTENDED_PRESETS)) {
     allPresets[key] = value;
   }
-  
+
   return allPresets;
 }
