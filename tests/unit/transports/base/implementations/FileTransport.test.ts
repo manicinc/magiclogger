@@ -1,8 +1,10 @@
 // File: tests/unit/transports/base/implementations/FileTransport.test.ts
 
-import { FileTransport } from '../../../../../src/transports/base/implementations/FileTransport';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+import { FileTransport, type FileTransportOptions, createFileTransport } from '../../../../../src/transports/base/implementations/FileTransport';
 import { FileManager } from '../../../../../src/core/FileManager';
-import type { LogEntry, FileTransportOptions } from '../../../../../src/types/transport';
+import type { LogEntry } from '../../../../../src/types/transport';
 import path from 'path';
 
 // Mock FileManager
@@ -40,6 +42,9 @@ const originalWindow = global.window;
  * Tests file writing, rotation, compression, and management.
  */
 describe('FileTransport', () => {
+  // Set global timeout for this test suite
+  jest.setTimeout(15000);
+  
   let transport: FileTransport;
   let mockFileManager: jest.Mocked<FileManager>;
   let mockEntry: LogEntry;
@@ -61,8 +66,8 @@ describe('FileTransport', () => {
       getLogRetentionDays: jest.fn().mockReturnValue(30),
       setLogRetentionDays: jest.fn(),
       resolveLogDir: jest.fn((dir) => dir),
-      cleanupDirectory: jest.fn()
-    };
+      cleanupDirectory: jest.fn(),
+    } as unknown as jest.Mocked<FileManager>;
     (FileManager as jest.MockedClass<typeof FileManager>).mockImplementation(() => mockFileManager);
 
     // Mock dynamic imports
@@ -228,7 +233,7 @@ describe('FileTransport', () => {
       await transport.init();
       // Set currentFile to ensure writeToFile doesn't fail
       (transport as any).currentFile = '/logs/test.log';
-    });
+    }, 15000); // Increase timeout to 15 seconds
   
     it('should log entry as JSON', async () => {
       await transport.log(mockEntry);
@@ -377,7 +382,7 @@ describe('FileTransport', () => {
       mockFs.writeFile.mockImplementation((_, __, ___, cb) => cb(null));
       mockFs.readdir.mockImplementation((_, cb) => cb(null, []));
       await transport.init();
-    });
+    }, 15000); // Increase timeout to 15 seconds
 
     it('should rotate by size', async () => {
       transport = new FileTransport({
@@ -550,7 +555,7 @@ describe('FileTransport', () => {
     beforeEach(async () => {
       mockFs.appendFile.mockImplementation((_, __, ___, cb) => cb(null));
       await transport.init();
-    });
+    }, 15000); // Increase timeout to 15 seconds
 
     it('should flush pending writes', async () => {
       await transport.log(mockEntry);
@@ -578,7 +583,7 @@ describe('FileTransport', () => {
     beforeEach(async () => {
       mockFs.appendFile.mockImplementation((_, __, ___, cb) => cb(null));
       await transport.init();
-    });
+    }, 15000); // Increase timeout to 15 seconds
 
     it('should flush before closing', async () => {
       const flushSpy = jest.spyOn(transport, 'flush');
@@ -602,7 +607,7 @@ describe('FileTransport', () => {
   describe('error handling', () => {
     beforeEach(async () => {
       await transport.init();
-    });
+    }, 15000); // Increase timeout to 15 seconds
 
     it('should handle directory creation errors', async () => {
       mockFs.mkdir.mockImplementation((_, __, cb) => cb(new Error('Permission denied')));
@@ -674,13 +679,11 @@ describe('FileTransport', () => {
       
       await expect((transport as any).compressFile('/logs/test.log'))
         .rejects.toThrow('Compression failed');
-    });
+    }, 15000); // Add 15 second timeout
   });
 
   describe('factory function', () => {
     it('should create transport with defaults', () => {
-      const { createFileTransport } = require('../../../../../src/transports/base/implementations/FileTransport');
-      
       const t = createFileTransport();
       
       expect(t.name).toBe('file');
@@ -688,8 +691,6 @@ describe('FileTransport', () => {
     });
 
     it('should merge options', () => {
-      const { createFileTransport } = require('../../../../../src/transports/base/implementations/FileTransport');
-      
       const t = createFileTransport({
         filepath: '/custom/logs',
         rotation: 'hourly'

@@ -49,14 +49,14 @@ let config: WorkerConfig = {
   destination: 'console',
 };
 
-let metrics: WorkerMetrics = {
+const metrics: WorkerMetrics = {
   processed: 0,
   errors: 0,
   avgProcessingTime: 0,
   lastBatchSize: 0,
 };
 
-let processingTimes: number[] = [];
+const processingTimes: number[] = [];
 const MAX_TIMING_SAMPLES = 100;
 
 /**

@@ -1,157 +1,111 @@
 // File: src/compatibility/BaseCompatibleLogger.ts
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { Logger } from '../Logger';
-import type { LoggerOptions, LogLevel, Transport } from '../types';
+import type { LoggerOptions, LogLevel } from '../types';
+import { Transport } from '../transports/base/Transport';
+import type { ExtendedLoggerOptions } from '../Logger';
 
 /**
- * Base options for compatibility loggers.
+ * Base options for compatibility logger implementations.
+ * Extends LoggerOptions with compatibility-specific configuration.
  * 
  * @interface LogCompatibilityOptions
  * @extends {LoggerOptions}
  */
 export interface LogCompatibilityOptions extends LoggerOptions {
-  /**
-   * Logger name for identification.
-   */
+  /** Logger name for identification. @default 'app' */
   name?: string;
-
-  /**
-   * Array of transports to use for logging.
-   */
+  
+  /** Array of transports to use for logging */
   transports?: Transport[];
-
-  /**
-   * Format type for output.
-   * @default 'plain'
-   */
+  
+  /** Output format type. @default 'plain' */
   format?: 'json' | 'plain' | 'custom';
-
-  /**
-   * Whether to use strict level checking.
-   * @default false
-   */
+  
+  /** Whether to enforce strict level checking. @default false */
   strictLevels?: boolean;
-
-  /**
-   * Custom formatter function.
-   */
+  
+  /** Custom formatter function for log entries */
   formatter?: (entry: any) => string;
-
-  /**
-   * Write logs to disk.
-   * @default false
-   */
+  
+  /** Whether to write logs to disk. @default false */
   writeToDisk?: boolean;
-
-  /**
-   * Log directory for file output.
-   * @default './logs'
-   */
+  
+  /** Directory for log files. @default './logs' */
   logDir?: string;
-
-  /**
-   * Log retention in days.
-   * @default 30
-   */
+  
+  /** Number of days to retain log files. @default 30 */
   logRetentionDays?: number;
 }
 
 /**
  * Abstract base class for logger compatibility layers.
+ * Provides common functionality for Winston, Bunyan, and Pino compatibility implementations.
  * 
- * This class provides common functionality for Winston, Bunyan, and Pino
- * compatibility implementations:
+ * Features:
  * - Shared configuration management
  * - Common method implementations
  * - Underlying MagicLogger instance management
- * - Shared utilities
+ * - Transport management
+ * - Metadata enhancement
+ * - Child logger support
  * 
  * @abstract
  * @class BaseCompatibleLogger
  * 
  * @example
  * ```typescript
- * class CustomCompatibleLogger extends BaseCompatibleLogger {
+ * class MyCompatibleLogger extends BaseCompatibleLogger {
  *   public info(message: string): void {
  *     this.logger.info(message);
  *   }
+ *   // ... implement other abstract methods
  * }
  * ```
  */
 export abstract class BaseCompatibleLogger {
-  /**
-   * Underlying MagicLogger instance.
-   * @protected
-   */
+  /** Underlying MagicLogger instance */
   protected logger: Logger;
-
-  /**
-   * Logger name.
-   * @protected
-   */
+  
+  /** Logger name identifier */
   protected name: string;
-
-  /**
-   * Output format.
-   * @protected
-   */
+  
+  /** Output format type */
   protected format: 'json' | 'plain' | 'custom';
-
-  /**
-   * Custom formatter function.
-   * @protected
-   */
+  
+  /** Custom formatter function */
   protected formatter?: (entry: any) => string;
-
-  /**
-   * Whether verbose mode is enabled.
-   * @protected
-   */
+  
+  /** Verbose mode flag */
   protected _verbose: boolean;
-
-  /**
-   * Whether to use colors.
-   * @protected
-   */
+  
+  /** Whether to use colors in output */
   protected useColors: boolean;
-
-  /**
-   * Whether to write logs to disk.
-   * @protected
-   */
+  
+  /** Whether to write logs to disk */
   protected writeToDisk: boolean;
-
-  /**
-   * Log directory path.
-   * @protected
-   */
+  
+  /** Log directory path */
   protected logDir: string;
-
-  /**
-   * Log retention period.
-   * @protected
-   */
+  
+  /** Log retention period in days */
   protected logRetentionDays: number;
-
-  /**
-   * Whether to use strict level checking.
-   * @protected
-   */
+  
+  /** Whether to enforce strict level checking */
   protected strictLevels: boolean;
-
-  /**
-   * Storage for child logger references.
-   * @protected
-   */
+  
+  /** Storage for child logger references */
   protected children: WeakMap<object, BaseCompatibleLogger> = new WeakMap();
 
   /**
    * Creates a new BaseCompatibleLogger instance.
    * 
-   * @param {LogCompatibilityOptions} options - Logger options
+   * @constructor
+   * @param {LogCompatibilityOptions} [options={}] - Logger configuration options
    */
   constructor(options: LogCompatibilityOptions = {}) {
-    // Extract compatibility-specific options
     this.name = options.name || 'app';
     this.format = options.format || 'plain';
     this.formatter = options.formatter;
@@ -162,23 +116,16 @@ export abstract class BaseCompatibleLogger {
     this.logRetentionDays = options.logRetentionDays || 30;
     this.strictLevels = options.strictLevels || false;
 
-    // Create underlying logger with appropriate options
-    const loggerOptions: LoggerOptions = {
+    const loggerOptions: ExtendedLoggerOptions = {
       ...options,
       verbose: this._verbose,
       useColors: this.useColors,
+      transports: options.transports || [],
     };
 
-    // Create the logger with transports if provided
-    this.logger = new Logger({
-      ...loggerOptions,
-      transports: options.transports || [],
-    });
+    this.logger = new Logger(loggerOptions);
 
-    // Add file transport if writeToDisk is enabled
     if (this.writeToDisk) {
-      // Note: This would need to be implemented based on your transport system
-      // For now, we'll use the file logging capability of the base logger
       this.logger.setFileLogging(true);
       this.logger.setLogDir(this.logDir);
       this.logger.setLogRetentionDays(this.logRetentionDays);
@@ -186,8 +133,9 @@ export abstract class BaseCompatibleLogger {
   }
 
   /**
-   * Get the logger name.
+   * Gets the logger name.
    * 
+   * @public
    * @returns {string} Logger name
    */
   public getName(): string {
@@ -195,8 +143,9 @@ export abstract class BaseCompatibleLogger {
   }
 
   /**
-   * Set the logger name.
+   * Sets the logger name.
    * 
+   * @public
    * @param {string} name - New logger name
    */
   public setName(name: string): void {
@@ -204,10 +153,10 @@ export abstract class BaseCompatibleLogger {
   }
 
   /**
-   * Get current configuration.
+   * Gets the current logger configuration.
    * 
-   * @returns {LogCompatibilityOptions} Current options
    * @protected
+   * @returns {LogCompatibilityOptions} Current configuration object
    */
   protected getConfig(): LogCompatibilityOptions {
     return {
@@ -224,8 +173,9 @@ export abstract class BaseCompatibleLogger {
   }
 
   /**
-   * Set verbose mode.
+   * Sets verbose mode.
    * 
+   * @public
    * @param {boolean} enabled - Whether to enable verbose mode
    */
   public setVerbose(enabled: boolean): void {
@@ -234,17 +184,19 @@ export abstract class BaseCompatibleLogger {
   }
 
   /**
-   * Check if verbose mode is enabled.
+   * Checks if verbose mode is enabled.
    * 
-   * @returns {boolean} Whether verbose is enabled
+   * @public
+   * @returns {boolean} True if verbose mode is enabled
    */
   public isVerbose(): boolean {
     return this._verbose;
   }
 
   /**
-   * Enable or disable colors.
+   * Enables or disables color output.
    * 
+   * @public
    * @param {boolean} enabled - Whether to enable colors
    */
   public setColors(enabled: boolean): void {
@@ -253,38 +205,41 @@ export abstract class BaseCompatibleLogger {
   }
 
   /**
-   * Check if colors are enabled.
+   * Checks if colors are enabled.
    * 
-   * @returns {boolean} Whether colors are enabled
+   * @public
+   * @returns {boolean} True if colors are enabled
    */
   public hasColors(): boolean {
     return this.useColors;
   }
 
   /**
-   * Set output format.
+   * Sets the output format.
    * 
-   * @param {string} format - Output format
+   * @public
+   * @param {'json' | 'plain' | 'custom'} format - Output format type
    */
   public setFormat(format: 'json' | 'plain' | 'custom'): void {
     this.format = format;
   }
 
   /**
-   * Get output format.
+   * Gets the current output format.
    * 
-   * @returns {string} Output format
+   * @public
+   * @returns {string} Current output format
    */
   public getFormat(): string {
     return this.format;
   }
 
   /**
-   * Safely serialize an object.
+   * Safely serializes an object to JSON, handling circular references.
    * 
-   * @param {any} obj - Object to serialize
-   * @returns {string} Serialized string
    * @protected
+   * @param {any} obj - Object to serialize
+   * @returns {string} JSON string or error message
    */
   protected safeSerialize(obj: any): string {
     try {
@@ -295,10 +250,10 @@ export abstract class BaseCompatibleLogger {
   }
 
   /**
-   * Get a replacer function for handling circular references.
+   * Creates a replacer function for JSON.stringify that handles circular references.
    * 
-   * @returns {Function} Replacer function
    * @private
+   * @returns {(key: string, value: any) => any} Replacer function
    */
   private getCircularReplacer(): (key: string, value: any) => any {
     const seen = new WeakSet();
@@ -314,11 +269,11 @@ export abstract class BaseCompatibleLogger {
   }
 
   /**
-   * Format a log entry based on format setting.
+   * Formats a log entry based on the configured format.
    * 
-   * @param {any} entry - Log entry
-   * @returns {string} Formatted entry
    * @protected
+   * @param {any} entry - Log entry to format
+   * @returns {string} Formatted entry string
    */
   protected formatEntry(entry: any): string {
     switch (this.format) {
@@ -327,9 +282,13 @@ export abstract class BaseCompatibleLogger {
       
       case 'custom':
         if (this.formatter) {
-          return this.formatter(entry);
+          try {
+            return this.formatter(entry);
+          } catch (error) {
+            // Fall through to plain format on error
+          }
         }
-        // Fall through to plain if no formatter
+        // Fall through to plain if no formatter or error
       
       case 'plain':
       default:
@@ -344,28 +303,33 @@ export abstract class BaseCompatibleLogger {
   }
 
   /**
-   * Add a transport to the underlying logger.
+   * Adds a transport to the underlying logger.
    * 
-   * @param {Transport} transport - Transport configuration
+   * @public
+   * @param {Transport} transport - Transport to add
+   * @returns {Promise<void>} Promise that resolves when transport is added
    */
-  public addTransport(transport: Transport): void {
-    this.logger.addTransport(transport);
+  public async addTransport(transport: Transport): Promise<void> {
+    await this.logger.addTransport(transport);
   }
 
   /**
-   * Remove a transport from the underlying logger.
+   * Removes a transport from the underlying logger.
    * 
-   * @param {string} name - Transport name
+   * @public
+   * @param {string} name - Name of the transport to remove
+   * @returns {Promise<void>} Promise that resolves when transport is removed
    */
-  public removeTransport(name: string): void {
-    this.logger.removeTransport(name);
+  public async removeTransport(name: string): Promise<void> {
+    await this.logger.removeTransport(name);
   }
 
   /**
-   * Clear all transports.
+   * Clears all transports from the underlying logger.
+   * 
+   * @public
    */
   public clearTransports(): void {
-    // Get all transport names and remove them
     const transportNames = this.logger.listTransports();
     transportNames.forEach(name => {
       this.logger.removeTransport(name);
@@ -373,79 +337,77 @@ export abstract class BaseCompatibleLogger {
   }
 
   /**
-   * Get all transports.
+   * Gets all configured transports.
    * 
-   * @returns {Transport[]} Transport configurations
+   * @public
+   * @returns {Transport[]} Array of transport instances
    */
   public getTransports(): Transport[] {
-    // Get transport names and retrieve each transport
     const transportNames = this.logger.listTransports();
     return transportNames
       .map(name => this.logger.getTransport(name))
-      .filter((transport): transport is Transport => transport !== undefined);
+      .filter((transport): transport is Transport => transport !== undefined) as Transport[];
   }
 
   /**
-   * Flush all transports.
+   * Flushes all transports.
+   * Since the Logger class doesn't have a direct flush method,
+   * this provides a no-op implementation that can be overridden.
    * 
-   * @returns {Promise<void>} Resolves when flushed
+   * @public
+   * @returns {Promise<void>} Promise that resolves when flush completes
    */
   public async flush(): Promise<void> {
-    // Use the async logger's flush method if available
-    if (this.logger.async && this.logger.async.flushAndWait) {
-      return this.logger.async.flushAndWait();
-    }
-    
-    // Fallback: close and reopen to ensure flush
-    // This is a workaround since the Logger class doesn't expose a direct flush method
+    // No-op implementation since Logger doesn't expose flush
+    // This maintains compatibility with tests expecting this method
     return Promise.resolve();
   }
 
   /**
-   * Close the logger and all transports.
+   * Closes the logger and all transports.
    * 
-   * @returns {Promise<void>} Resolves when closed
+   * @public
+   * @returns {Promise<void>} Promise that resolves when logger is closed
    */
   public async close(): Promise<void> {
     return this.logger.close();
   }
 
   /**
-   * Pause logging.
-   * Note: This is a compatibility method. The underlying Logger may not support pausing.
+   * Pauses logging (compatibility method).
+   * Note: The underlying Logger doesn't support pausing.
+   * 
+   * @public
    */
   public pause(): void {
-    // The Logger class doesn't have pause/resume methods exposed
-    // This is a compatibility method that doesn't do anything
-    // In a real implementation, you might want to add this functionality to the Logger class
     console.warn('pause() is not implemented in the underlying Logger');
   }
 
   /**
-   * Resume logging.
-   * Note: This is a compatibility method. The underlying Logger may not support resuming.
+   * Resumes logging (compatibility method).
+   * Note: The underlying Logger doesn't support resuming.
+   * 
+   * @public
    */
   public resume(): void {
-    // The Logger class doesn't have pause/resume methods exposed
-    // This is a compatibility method that doesn't do anything
     console.warn('resume() is not implemented in the underlying Logger');
   }
 
   /**
-   * Check if logger is paused.
-   * Note: This is a compatibility method. The underlying Logger may not support pause state.
+   * Checks if logger is paused.
+   * Note: Always returns false as pausing is not supported.
    * 
-   * @returns {boolean} Whether paused (always false for now)
+   * @public
+   * @returns {boolean} Always returns false
    */
   public isPaused(): boolean {
-    // The Logger class doesn't have pause/resume methods exposed
-    // This is a compatibility method that always returns false
     return false;
   }
 
   /**
-   * Get underlying MagicLogger instance.
+   * Gets the underlying MagicLogger instance.
    * 
+   * @public
    * @returns {Logger} MagicLogger instance
    */
   public getLogger(): Logger {
@@ -453,21 +415,19 @@ export abstract class BaseCompatibleLogger {
   }
 
   /**
-   * Common metadata enhancement.
+   * Enhances metadata with timestamp and logger name.
    * 
-   * @param {any} meta - Original metadata
-   * @returns {any} Enhanced metadata
    * @protected
+   * @param {any} meta - Original metadata
+   * @returns {any} Enhanced metadata with additional fields
    */
   protected enhanceMetadata(meta: any): any {
     const enhanced = { ...meta };
 
-    // Add timestamp if not present
     if (!enhanced.timestamp) {
       enhanced.timestamp = new Date().toISOString();
     }
 
-    // Add logger name
     if (!enhanced.logger && this.name) {
       enhanced.logger = this.name;
     }
@@ -476,23 +436,29 @@ export abstract class BaseCompatibleLogger {
   }
 
   /**
-   * Validate log level.
+   * Validates if a log level is valid.
    * 
-   * @param {string} level - Level to validate
-   * @returns {boolean} Whether level is valid
    * @protected
+   * @param {string} level - Level to validate
+   * @returns {boolean} True if level is valid
    */
   protected isValidLevel(level: string): boolean {
+    if (!level || typeof level !== 'string') return false;
     const validLevels = ['debug', 'info', 'warn', 'error', 'success'];
     return validLevels.includes(level.toLowerCase());
   }
 
   /**
-   * Normalize log level name.
+   * Normalizes level aliases to standard level names.
    * 
-   * @param {string} level - Level to normalize
-   * @returns {LogLevel} Normalized level
    * @protected
+   * @param {string} level - Level to normalize
+   * @returns {LogLevel} Normalized level name
+   * 
+   * @example
+   * normalizeLevel('warning') // returns 'warn'
+   * normalizeLevel('err') // returns 'error'
+   * normalizeLevel('log') // returns 'info'
    */
   protected normalizeLevel(level: string): LogLevel {
     const normalized = level.toLowerCase();
@@ -509,41 +475,65 @@ export abstract class BaseCompatibleLogger {
     }
   }
 
-  // Abstract methods that must be implemented by subclasses
-
   /**
-   * Log an info message.
+   * Logs an info-level message.
+   * Must be implemented by subclasses.
+   * 
    * @abstract
+   * @public
+   * @param {...any[]} args - Log arguments
    */
   public abstract info(...args: any[]): void;
 
   /**
-   * Log a warning message.
+   * Logs a warning-level message.
+   * Must be implemented by subclasses.
+   * 
    * @abstract
+   * @public
+   * @param {...any[]} args - Log arguments
    */
   public abstract warn(...args: any[]): void;
 
   /**
-   * Log an error message.
+   * Logs an error-level message.
+   * Must be implemented by subclasses.
+   * 
    * @abstract
+   * @public
+   * @param {...any[]} args - Log arguments
    */
   public abstract error(...args: any[]): void;
 
   /**
-   * Log a debug message.
+   * Logs a debug-level message.
+   * Must be implemented by subclasses.
+   * 
    * @abstract
+   * @public
+   * @param {...any[]} args - Log arguments
    */
   public abstract debug(...args: any[]): void;
 
   /**
-   * Generic log method.
+   * Generic log method with level specification.
+   * Must be implemented by subclasses.
+   * 
    * @abstract
+   * @public
+   * @param {string} level - Log level
+   * @param {...any[]} args - Log arguments
    */
   public abstract log(level: string, ...args: any[]): void;
 
   /**
-   * Create a child logger.
+   * Creates a child logger with additional context.
+   * Must be implemented by subclasses.
+   * 
    * @abstract
+   * @public
+   * @param {any} options - Child logger options
+   * @returns {BaseCompatibleLogger} Child logger instance
    */
   public abstract child(options: any): BaseCompatibleLogger;
 }

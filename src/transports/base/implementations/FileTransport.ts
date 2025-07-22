@@ -2,7 +2,7 @@
 
 import { Transport } from '../Transport';
 import { promises as fs } from 'fs';
-import { dirname, join, resolve } from 'path';
+import { dirname, join, resolve, basename, extname } from 'path';
 import type { LogEntry } from '../../../types/transport';
 import { createWriteStream, WriteStream } from 'fs';
 import { gzip } from 'zlib';
@@ -11,7 +11,7 @@ import { promisify } from 'util';
 const gzipAsync = promisify(gzip);
 
 // Define the options interface directly here
-interface FileTransportOptions {
+export interface FileTransportOptions {
   name: string;
   enabled?: boolean;
   level?: string;
@@ -185,7 +185,7 @@ export class FileTransport extends Transport {
   constructor(options: FileTransportOptions) {
     super(options);
 
-    // Parse filepath
+    // Parse filepath - handle relative paths correctly
     const fullPath = resolve(options.filepath);
     
     if (options.isDirectory) {
@@ -195,10 +195,9 @@ export class FileTransport extends Transport {
       this.filename = join(this.dirname, `${this.basename}${this.extension}`);
     } else {
       this.dirname = dirname(fullPath);
-      const filename = fullPath.split('/').pop() || 'app.log';
-      const parts = filename.split('.');
-      this.extension = parts.length > 1 ? `.${parts.pop()}` : '.log';
-      this.basename = parts.join('.');
+      const filename = basename(fullPath);
+      this.extension = extname(filename) || '.log';
+      this.basename = basename(filename, this.extension);
       this.filename = fullPath;
     }
     
@@ -634,4 +633,33 @@ export class FileTransport extends Transport {
       .filter(file => file.startsWith(this.basename))
       .map(file => join(this.dirname, file));
   }
+}
+
+/**
+ * Factory function to create a FileTransport instance.
+ * 
+ * @param {Partial<FileTransportOptions>} [options] - FileTransport configuration options
+ * @returns {FileTransport} New FileTransport instance
+ * 
+ * @example
+ * ```typescript
+ * const transport = createFileTransport({
+ *   filepath: './logs/app.log',
+ *   rotation: 'daily',
+ *   compress: true
+ * });
+ * ```
+ */
+export function createFileTransport(options: Partial<FileTransportOptions> = {}): FileTransport {
+  const defaultOptions: FileTransportOptions = {
+    name: 'file',
+    enabled: true,
+    filepath: './logs/app.log',
+    rotation: 'none',
+    append: true,
+    createDir: true,
+    ...options
+  };
+  
+  return new FileTransport(defaultOptions);
 }

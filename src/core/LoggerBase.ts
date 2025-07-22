@@ -8,6 +8,7 @@ import type {
   StylePreset
 } from '../types';
 import { PRESETS } from '../constants/preset';
+import { isBrowserEnvironment } from '../utils/environment';
 import { DEFAULT_THEME } from '../constants/themes';
 
 /**
@@ -143,9 +144,17 @@ export abstract class LoggerBase extends EventEmitter {
     this.setMaxListeners(this.maxListeners);
 
     // Emit ready event
-    process.nextTick(() => {
-      this.emit('ready', { id: this.id });
-    });
+    if (isBrowserEnvironment()) {
+      // Use setTimeout in browser environments
+      setTimeout(() => {
+        this.emit('ready', { id: this.id });
+      }, 0);
+    } else {
+      // Use process.nextTick in Node.js environments
+      process.nextTick(() => {
+        this.emit('ready', { id: this.id });
+      });
+    }
   }
 
   /**
@@ -245,7 +254,9 @@ export abstract class LoggerBase extends EventEmitter {
     }
 
     // Track performance
-    const startTime = process.hrtime.bigint();
+    const startTime = isBrowserEnvironment() 
+      ? BigInt(Math.floor(performance.now() * 1000000)) // Convert ms to ns for consistency
+      : process.hrtime.bigint();
 
     // Call appropriate method based on level
     switch (level.toLowerCase()) {
@@ -271,7 +282,9 @@ export abstract class LoggerBase extends EventEmitter {
     }
 
     // Track performance
-    const endTime = process.hrtime.bigint();
+    const endTime = isBrowserEnvironment() 
+      ? BigInt(Math.floor(performance.now() * 1000000)) // Convert ms to ns for consistency
+      : process.hrtime.bigint();
     this.trackPerformance(level, Number(endTime - startTime) / 1000000); // Convert to ms
 
     // Emit log event
