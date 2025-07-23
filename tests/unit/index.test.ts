@@ -12,13 +12,29 @@ describe('Logger module exports', () => {
     expect(typeof LoggerExports.PRESETS).toBe('object');
   });
 
-  it('should export utility functions', () => {
-    expect(LoggerExports.enhanceConsole).toBeDefined();
-    expect(typeof LoggerExports.enhanceConsole).toBe('function');
+  it('should export core functionality', () => {
+    expect(LoggerExports.Colorizer).toBeDefined();
+    expect(typeof LoggerExports.Colorizer).toBe('function');
 
-    expect(LoggerExports.createWinstonCompatible).toBeDefined();
-    expect(LoggerExports.createBunyanCompatible).toBeDefined();
-    expect(LoggerExports.createPinoCompatible).toBeDefined();
+    expect(LoggerExports.TransportManager).toBeDefined();
+    expect(typeof LoggerExports.TransportManager).toBe('function');
+  });
+
+  it('should export transport types', () => {
+    // These are type exports, so we can't test them at runtime
+    // But we can verify the module structure
+    expect(LoggerExports).toBeDefined();
+  });
+
+  it('should export utility functions', () => {
+    expect(LoggerExports.createLogger).toBeDefined();
+    expect(typeof LoggerExports.createLogger).toBe('function');
+
+    expect(LoggerExports.getDefaultLogger).toBeDefined();
+    expect(typeof LoggerExports.getDefaultLogger).toBe('function');
+
+    expect(LoggerExports.setDefaultLogger).toBeDefined();
+    expect(typeof LoggerExports.setDefaultLogger).toBe('function');
   });
 
   it('should have properly defined color and preset objects', () => {

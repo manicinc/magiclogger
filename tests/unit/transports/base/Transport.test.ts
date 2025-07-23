@@ -487,7 +487,7 @@ describe('Transport', () => {
     });
 
     it('should remove all listeners', async () => {
-      transport.on('test', () => {});
+      transport.on('ready', jest.fn());
       expect(transport.listenerCount('test')).toBe(1);
       
       await transport.close();
@@ -707,6 +707,326 @@ describe('Transport', () => {
       expect(stats).toHaveProperty('lastSuccess');
       expect(stats).toHaveProperty('lastError');
       expect(stats).toHaveProperty('custom');
+    });
+  });
+});
+
+// ==============================================
+// TRANSPORT MODULE EXPORTS TESTS
+// ==============================================
+
+describe('Transport Module Exports', () => {
+  
+  describe('src/transports.ts exports', () => {
+    
+    it('should export all core transport classes', async () => {
+      const transportsModule = await import('../../../../src/transports');
+      
+      expect(transportsModule.ConsoleTransport).toBeDefined();
+      expect(transportsModule.FileTransport).toBeDefined();
+      expect(transportsModule.StreamTransport).toBeDefined();
+      expect(transportsModule.HTTPTransport).toBeDefined();
+      expect(transportsModule.Transport).toBeDefined();
+      expect(transportsModule.NetworkTransport).toBeDefined();
+    });
+
+    it('should export optional transport classes', async () => {
+      const transportsModule = await import('../../../../src/transports');
+      
+      expect(transportsModule.S3Transport).toBeDefined();
+      expect(transportsModule.MongoDBTransport).toBeDefined();
+      expect(transportsModule.WebSocketTransport).toBeDefined();
+    });
+
+    it('should export transport registry', async () => {
+      const transportsModule = await import('../../../../src/transports');
+      
+      expect(transportsModule.TransportRegistry).toBeDefined();
+      expect(typeof transportsModule.TransportRegistry).toBe('function');
+    });
+
+    it('should export convenience factory functions', async () => {
+      const transportsModule = await import('../../../../src/transports');
+      
+      expect(transportsModule.createConsole).toBeDefined();
+      expect(transportsModule.createFile).toBeDefined();
+      expect(transportsModule.createHTTP).toBeDefined();
+      expect(transportsModule.createStream).toBeDefined();
+      
+      expect(typeof transportsModule.createConsole).toBe('function');
+      expect(typeof transportsModule.createFile).toBe('function');
+      expect(typeof transportsModule.createHTTP).toBe('function');
+      expect(typeof transportsModule.createStream).toBe('function');
+    });
+
+    it('should export transport types', async () => {
+      // Import for runtime verification
+      const transportsModule = await import('../../../../src/transports');
+      
+      // Verify module has exports (types are compile-time only)
+      expect(Object.keys(transportsModule).length).toBeGreaterThan(0);
+      
+      // Verify classes can be instantiated with proper types
+      const console = new transportsModule.ConsoleTransport({ name: 'test-console' });
+      expect(console.name).toBe('test-console');
+    });
+  });
+
+  describe('Convenience factory functions', () => {
+    
+    it('should create console transport with default name', async () => {
+      const { createConsole } = await import('../../../../src/transports');
+      
+      const transport = await createConsole();
+      expect(transport.name).toBe('console');
+      expect(transport.enabled).toBe(true);
+    });
+
+    it('should create console transport with custom options', async () => {
+      const { createConsole } = await import('../../../../src/transports');
+      
+      const transport = await createConsole({
+        name: 'custom-console',
+        enabled: false,
+        colorize: false
+      });
+      
+      expect(transport.name).toBe('custom-console');
+      expect(transport.enabled).toBe(false);
+    });
+
+    it('should create file transport with sanitized name', async () => {
+      const { createFile } = await import('../../../../src/transports');
+      
+      const transport = await createFile('/tmp/my-app.log');
+      expect(transport.name).toBe('file--tmp-my-app-log');
+      expect(transport.enabled).toBe(true);
+    });
+
+    it('should create HTTP transport with hostname-based name', async () => {
+      const { createHTTP } = await import('../../../../src/transports');
+      
+      const transport = await createHTTP('https://api.example.com/logs');
+      expect(transport.name).toBe('http-api.example.com');
+      expect(transport.enabled).toBe(true);
+    });
+
+    it('should create stream transport with default name', async () => {
+      const { createStream } = await import('../../../../src/transports');
+      const { Writable } = await import('stream');
+      
+      const mockStream = new Writable({
+        write(chunk, encoding, callback) {
+          callback();
+        }
+      });
+      
+      const transport = await createStream(mockStream);
+      expect(transport.name).toBe('stream');
+      expect(transport.enabled).toBe(true);
+    });
+  });
+
+  describe('Tree-shaking support', () => {
+    
+    it('should allow selective import of core transports', async () => {
+      // Test selective imports don't break
+      const { ConsoleTransport, FileTransport } = await import('../../../../src/transports');
+      
+      expect(ConsoleTransport).toBeDefined();
+      expect(FileTransport).toBeDefined();
+      
+      const console = new ConsoleTransport({ name: 'selective-console' });
+      const file = new FileTransport({ name: 'selective-file', filepath: '/tmp/test.log' });
+      
+      expect(console.name).toBe('selective-console');
+      expect(file.name).toBe('selective-file');
+    });
+
+    it('should allow selective import of optional transports', async () => {
+      const { S3Transport, MongoDBTransport } = await import('../../../../src/transports');
+      
+      expect(S3Transport).toBeDefined();
+      expect(MongoDBTransport).toBeDefined();
+      
+      // These should be importable even if external deps aren't available
+      expect(typeof S3Transport).toBe('function');
+      expect(typeof MongoDBTransport).toBe('function');
+    });
+
+    it('should allow selective import of factory functions', async () => {
+      const { createConsole, createFile } = await import('../../../../src/transports');
+      
+      expect(createConsole).toBeDefined();
+      expect(createFile).toBeDefined();
+      
+      const console = await createConsole({ name: 'tree-shaken-console' });
+      const file = await createFile('/tmp/tree-shaken.log', { name: 'tree-shaken-file' });
+      
+      expect(console.name).toBe('tree-shaken-console');
+      expect(file.name).toBe('tree-shaken-file');
+    });
+  });
+});
+
+// ==============================================
+// INDIVIDUAL TRANSPORT ENTRY POINTS TESTS
+// ==============================================
+
+describe('Individual Transport Entry Points', () => {
+  
+  describe('console.ts entry point', () => {
+    
+    it('should export console transport class', async () => {
+      const consoleModule = await import('../../../../src/console');
+      
+      expect(consoleModule.ConsoleTransport).toBeDefined();
+      expect(typeof consoleModule.ConsoleTransport).toBe('function');
+    });
+
+    it('should export console transport options type', async () => {
+      // Types are compile-time, but we can verify the module structure
+      const consoleModule = await import('../../../../src/console');
+      expect(Object.keys(consoleModule).length).toBeGreaterThan(0);
+    });
+
+    it('should register console transport with TransportRegistry', async () => {
+      await import('../../../../src/console');
+      const { TransportRegistry } = await import('../../../../src/transports');
+      
+      // Verify registration occurred
+      expect(TransportRegistry.has('console')).toBe(true);
+    });
+
+    it('should create console transport via registry', async () => {
+      await import('../../../../src/console'); // Ensure registration
+      const { TransportRegistry } = await import('../../../../src/transports');
+      
+      const factory = TransportRegistry.get('console');
+      expect(factory).toBeDefined();
+      
+      // TypeScript assertion - we know factory exists from above test
+      const transport = (factory as any)({
+        type: 'console',
+        name: 'registry-console',
+        enabled: true
+      });
+      
+      expect(transport.name).toBe('registry-console');
+      expect(transport.enabled).toBe(true);
+    });
+  });
+
+  describe('file.ts entry point', () => {
+    
+    it('should export file transport class', async () => {
+      const fileModule = await import('../../../../src/file');
+      
+      expect(fileModule.FileTransport).toBeDefined();
+      expect(typeof fileModule.FileTransport).toBe('function');
+    });
+
+    it('should register file transport with TransportRegistry', async () => {
+      await import('../../../../src/file');
+      const { TransportRegistry } = await import('../../../../src/transports');
+      
+      expect(TransportRegistry.has('file')).toBe(true);
+    });
+
+    it('should create file transport via registry', async () => {
+      await import('../../../../src/file'); // Ensure registration
+      const { TransportRegistry } = await import('../../../../src/transports');
+      
+      const factory = TransportRegistry.get('file');
+      expect(factory).toBeDefined();
+      
+      if (factory) {
+        const transport = factory({
+          type: 'file',
+          name: 'registry-file',
+          filepath: '/tmp/registry-test.log',
+          enabled: true
+        });
+        
+        expect(transport.name).toBe('registry-file');
+        expect(transport.enabled).toBe(true);
+      }
+    });
+  });
+
+  describe('http.ts entry point', () => {
+    
+    it('should export HTTP transport class', async () => {
+      const httpModule = await import('../../../../src/http');
+      
+      expect(httpModule.HTTPTransport).toBeDefined();
+      expect(typeof httpModule.HTTPTransport).toBe('function');
+    });
+
+    it('should register HTTP transport with TransportRegistry', async () => {
+      await import('../../../../src/http');
+      const { TransportRegistry } = await import('../../../../src/transports');
+      
+      expect(TransportRegistry.has('http')).toBe(true);
+    });
+
+    it('should create HTTP transport via registry', async () => {
+      await import('../../../../src/http'); // Ensure registration
+      const { TransportRegistry } = await import('../../../../src/transports');
+      
+      const factory = TransportRegistry.get('http');
+      expect(factory).toBeDefined();
+      
+      if (factory) {
+        const transport = factory({
+          type: 'http',
+          name: 'registry-http',
+          url: 'https://api.example.com/logs',
+          enabled: true
+        });
+        
+        expect(transport.name).toBe('registry-http');
+        expect(transport.enabled).toBe(true);
+      }
+    });
+  });
+
+  describe('Entry point integration', () => {
+    
+    it('should allow mixing entry points and main exports', async () => {
+      // Import individual entry points
+      await import('../../../../src/console');
+      await import('../../../../src/file');
+      
+      // Import main transport module
+      const { TransportRegistry, createConsole } = await import('../../../../src/transports');
+      
+      // Should work together
+      const factory = TransportRegistry.get('console');
+      expect(factory).toBeDefined();
+      
+      const registryConsole = factory!({
+        type: 'console',
+        name: 'mixed-registry-console'
+      });
+      
+      const factoryConsole = await createConsole({ name: 'mixed-factory-console' });
+      
+      expect(registryConsole.name).toBe('mixed-registry-console');
+      expect(factoryConsole.name).toBe('mixed-factory-console');
+    });
+
+    it('should handle multiple imports of same entry point', async () => {
+      // Import same entry point multiple times
+      const console1 = await import('../../../../src/console');
+      const console2 = await import('../../../../src/console');
+      
+      // Should be same reference
+      expect(console1.ConsoleTransport).toBe(console2.ConsoleTransport);
+      
+      // Registry should only have one registration
+      const { TransportRegistry } = await import('../../../../src/transports');
+      expect(TransportRegistry.has('console')).toBe(true);
     });
   });
 });

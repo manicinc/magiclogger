@@ -2,13 +2,6 @@
 
 import { EventEmitter } from 'events';
 import { Transport } from './Transport';
-import { ConsoleTransport } from './implementations/ConsoleTransport';
-import { FileTransport } from './implementations/FileTransport';
-import { HTTPTransport } from './implementations/HttpTransport';
-import { StreamTransport } from './implementations/StreamTransport';
-import { S3Transport } from './implementations/S3Transport';
-import { MongoDBTransport } from './implementations/MongoDBTransport';
-import { WebSocketTransport } from './implementations/WebSocketTransport';
 import type { 
   TransportConfig, 
   LogEntry, 
@@ -24,36 +17,30 @@ type TransportFactory = (config: TransportConfig) => Transport;
 /**
  * TransportManager handles all transport operations for the logger.
  * 
- * Features:
- * - Dynamic transport loading and management
- * - Transport lifecycle management
- * - Parallel and sequential log dispatching
- * - Transport health monitoring
- * - Performance tracking
- * - Error handling and recovery
- * - Transport plugin system
+ * This version uses a registry pattern to avoid importing all transports,
+ * enabling proper tree-shaking. Transports must be registered before use.
  * 
  * @class TransportManager
  * @extends {EventEmitter}
  * 
  * @example
  * ```typescript
+ * // Register transports you need
+ * import { TransportManager, TransportRegistry } from 'magiclogger/transports/base';
+ * import { ConsoleTransport } from 'magiclogger/console';
+ * import { FileTransport } from 'magiclogger/file';
+ * 
+ * // Register factories
+ * TransportRegistry.register('console', (config) => new ConsoleTransport(config));
+ * TransportRegistry.register('file', (config) => new FileTransport(config));
+ * 
+ * // Or use the helper to register core transports
+ * import { registerCoreTransports } from 'magiclogger/transports/base';
+ * await registerCoreTransports();
+ * 
+ * // Now create manager and add transports
  * const manager = new TransportManager();
- * 
- * // Add transports
- * await manager.addTransport({
- *   type: 'console',
- *   level: 'info'
- * });
- * 
- * await manager.addTransport({
- *   type: 'file',
- *   filename: 'app.log',
- *   level: 'debug'
- * });
- * 
- * // Log to all transports
- * await manager.log(logEntry);
+ * await manager.addTransport({ type: 'console', level: 'info' });
  * ```
  */
 export class TransportManager extends EventEmitter {
@@ -68,6 +55,15 @@ export class TransportManager extends EventEmitter {
    * @private
    */
   private factories: Map<TransportType | string, TransportFactory> = new Map();
+
+  /**
+   * External registry reference for dynamic loading
+   * @private
+   */
+  private externalRegistry?: {
+    get(type: string): TransportFactory | undefined;
+    has(type: string): boolean;
+  };
 
   /**
    * Whether manager is initialized.
@@ -91,7 +87,7 @@ export class TransportManager extends EventEmitter {
    * Maximum pause queue size.
    * @private
    */
-  private readonly maxPauseQueueSize = 10000;
+  private readonly maxPauseQueueSize: number;
 
   /**
    * Performance tracking data.
@@ -126,28 +122,50 @@ export class TransportManager extends EventEmitter {
    * Health check interval in ms.
    * @private
    */
-  private readonly healthCheckIntervalMs = 60000; // 1 minute
+  private readonly healthCheckIntervalMs: number;
 
   /**
    * Creates a new TransportManager instance.
+   * 
+   * @param {object} options - Configuration options
    */
-  constructor() {
+  constructor(options: {
+    maxPauseQueueSize?: number;
+    healthCheckIntervalMs?: number;
+    useExternalRegistry?: boolean;
+  } = {}) {
     super();
-    this.registerDefaultFactories();
+    
+    this.maxPauseQueueSize = options.maxPauseQueueSize || 10000;
+    this.healthCheckIntervalMs = options.healthCheckIntervalMs || 60000;
+    
+    // Use external registry if requested (for tree-shaking)
+    if (options.useExternalRegistry !== false) {
+      this.setupExternalRegistry();
+    }
   }
 
   /**
-   * Register default transport factories.
+   * Set up connection to external TransportRegistry
    * @private
    */
-  private registerDefaultFactories(): void {
-    this.registerFactory('console', (config) => new ConsoleTransport(config as any));
-    this.registerFactory('file', (config) => new FileTransport(config as any));
-    this.registerFactory('http', (config) => new HTTPTransport(config as any));
-    this.registerFactory('stream', (config) => new StreamTransport(config as any));
-    this.registerFactory('s3', (config) => new S3Transport(config as any));
-    this.registerFactory('mongodb', (config) => new MongoDBTransport(config as any));
-    this.registerFactory('websocket', (config) => new WebSocketTransport(config as any));
+  private setupExternalRegistry(): void {
+    // Dynamically access TransportRegistry to avoid circular imports
+    try {
+      // This will be available if the transport index is imported
+      const globalThis_ = globalThis as {
+        __MAGICLOGGER_TRANSPORT_REGISTRY__?: {
+          get(type: string): TransportFactory | undefined;
+          has(type: string): boolean;
+        };
+      };
+      const registry = globalThis_.__MAGICLOGGER_TRANSPORT_REGISTRY__;
+      if (registry) {
+        this.externalRegistry = registry;
+      }
+    } catch {
+      // Registry not available, use local factories only
+    }
   }
 
   /**
@@ -177,6 +195,22 @@ export class TransportManager extends EventEmitter {
   }
 
   /**
+   * Get a factory for a transport type
+   * @private
+   */
+  private getFactory(type: string): TransportFactory | undefined {
+    // Check local factories first
+    let factory = this.factories.get(type);
+    
+    // Then check external registry
+    if (!factory && this.externalRegistry) {
+      factory = this.externalRegistry.get(type);
+    }
+    
+    return factory;
+  }
+
+  /**
    * Add a transport to the manager.
    * 
    * @param {TransportConfig} config - Transport configuration
@@ -192,9 +226,13 @@ export class TransportManager extends EventEmitter {
     }
 
     // Get factory
-    const factory = this.factories.get(config.type);
+    const factory = this.getFactory(config.type);
     if (!factory) {
-      throw new Error(`Unknown transport type: ${config.type}`);
+      throw new Error(
+        `Unknown transport type: ${config.type}. ` +
+        `Make sure to register the transport factory or import it first. ` +
+        `Example: import { ${config.type}Transport } from 'magiclogger/${config.type}'`
+      );
     }
 
     // Create transport with name
@@ -461,10 +499,13 @@ export class TransportManager extends EventEmitter {
    * @private
    */
   private setupTransportHandlers(transport: Transport): void {
-    transport.on('error', (error: Error) => {
+    transport.on('error', (...args: unknown[]) => {
+      const error = args[0] as Error;
+      const entry = args[1] as LogEntry | undefined;
       this.emit('transportError', {
         transport: transport.name,
         error,
+        entry,
       });
     });
 
@@ -582,9 +623,9 @@ export class TransportManager extends EventEmitter {
   public async flush(): Promise<void> {
     const promises = Array.from(this.transports.values())
       .filter(transport => typeof transport.flush === 'function')
-      .map(transport => transport.flush!());
+      .map(transport => transport.flush?.());
 
-    await Promise.allSettled(promises);
+    await Promise.allSettled(promises.filter(p => p !== undefined));
   }
 
   /**
@@ -622,7 +663,13 @@ export class TransportManager extends EventEmitter {
     errors: number;
     lastError?: string;
   } | null }> {
-    const stats: Record<string, TransportStats & { performance: any }> = {};
+    const stats: Record<string, TransportStats & { performance: {
+      count: number;
+      avgTime: number;
+      totalTime: number;
+      errors: number;
+      lastError?: string;
+    } | null }> = {};
 
     for (const [name, transport] of this.transports) {
       const perfData = this.performanceData.get(name);
@@ -744,7 +791,11 @@ export class TransportManager extends EventEmitter {
     filters?: Array<(entry: LogEntry) => boolean>;
     transformers?: Array<(entry: LogEntry) => LogEntry>;
   } = {}): TransportManager {
-    const child = new TransportManager();
+    const child = new TransportManager({
+      maxPauseQueueSize: this.maxPauseQueueSize,
+      healthCheckIntervalMs: this.healthCheckIntervalMs,
+      useExternalRegistry: false // Child uses parent's transports
+    });
 
     // Share transports
     for (const [name, transport] of this.transports) {

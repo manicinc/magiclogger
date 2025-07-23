@@ -129,8 +129,8 @@ Features have zero cost when not used:
 
 ```typescript
 // Minimal bundle - only core logger and console transport
-import { Logger } from 'magiclogger/core';
-import { ConsoleTransport } from 'magiclogger/console';
+import { Logger } from 'magiclogger';
+import { ConsoleTransport } from 'magiclogger/transports';
 
 // vs full feature set
 import { Logger, HTTPTransport, S3Transport, AsyncBuffer } from 'magiclogger';

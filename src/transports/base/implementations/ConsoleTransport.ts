@@ -470,3 +470,34 @@ export class ConsoleTransport extends Transport {
     }
   }
 }
+
+/**
+ * Factory function to create a ConsoleTransport instance.
+ * 
+ * @param {Partial<ConsoleTransportOptions>} [options] - Console transport configuration options
+ * @returns {ConsoleTransport} New ConsoleTransport instance
+ * 
+ * @example
+ * ```typescript
+ * const transport = createConsoleTransport({
+ *   useColors: true,
+ *   showTimestamp: true
+ * });
+ * ```
+ */
+export function createConsoleTransport(options: Partial<ConsoleTransportOptions> = {}): ConsoleTransport {
+  const defaultOptions: ConsoleTransportOptions = {
+    name: 'console',
+    enabled: true,
+    useColors: true,
+    showTimestamp: true,
+    showLevel: true,
+    showLoggerId: false,
+    showTags: true,
+    showMetadata: false,
+    prefix: '',
+    ...options
+  };
+  
+  return new ConsoleTransport(defaultOptions);
+}

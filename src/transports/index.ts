@@ -3,58 +3,52 @@
 /**
  * MagicLogger Transport System
  * 
- * This module exports all transport-related functionality for MagicLogger.
- * Transports are responsible for delivering log entries to various destinations
- * such as files, databases, network endpoints, or streams.
+ * This module exports base transport functionality and types only.
+ * Individual transport implementations should be imported directly from their
+ * specific entry points to enable tree-shaking.
  * 
  * @module transports
+ * 
+ * @example
+ * ```typescript
+ * // ✅ Good - Tree-shakable imports
+ * import { Transport } from 'magiclogger/transports/base';
+ * import { ConsoleTransport } from 'magiclogger/console';
+ * import { FileTransport } from 'magiclogger/file';
+ * 
+ * // ❌ Bad - Imports everything
+ * import { ConsoleTransport, FileTransport } from 'magiclogger/transports';
+ * ```
  */
 
-import { Transport } from './base/Transport';
-import { BatchingTransport } from './base/BatchingTransport';
-import { NetworkTransport } from './base/NetworkTransport';
-import { TransportManager } from './base/TransportManager';
-import { ConsoleTransport } from './base/implementations/ConsoleTransport';
-import { FileTransport } from './base/implementations/FileTransport';
-import { S3Transport } from './base/implementations/S3Transport';
-import { HTTPTransport } from './base/implementations/HttpTransport';
-import { MongoDBTransport } from './base/implementations/MongoDBTransport';
-import { WebSocketTransport } from './base/implementations/WebSocketTransport';
-import { StreamTransport } from './base/implementations/StreamTransport';
-
-// Base classes
+// Base classes only - no implementations
 export { Transport } from './base/Transport';
-export { BatchingTransport } from './base/BatchingTransport';
-export { NetworkTransport } from './base/NetworkTransport';
 export { TransportManager } from './base/TransportManager';
 
-// Transport implementations
-export { ConsoleTransport } from './base/implementations/ConsoleTransport';
-export { FileTransport } from './base/implementations/FileTransport';
-export { S3Transport } from './base/implementations/S3Transport';
-export { HTTPTransport } from './base/implementations/HttpTransport';
-export { MongoDBTransport } from './base/implementations/MongoDBTransport';
-export { WebSocketTransport } from './base/implementations/WebSocketTransport';
-export { StreamTransport } from './base/implementations/StreamTransport';
+// Import types for local use  
+import type { TransportConfig, TransportManagerOptions, Transport as ITransport } from '../types/transport';
+import { TransportManager } from './base/TransportManager';
 
-// Re-export transport types
+// Re-export all types
 export type {
   // Core interfaces
-  Transport as ITransport,
-  TransportOptions,
-  TransportEvents,
-  TransportStats,
   LogEntry,
-  AggregationStats,
+  TransportOptions,
+  TransportStats,
+  TransportConfig,
+  TransportType,
   
   // Batching
   BatchingOptions,
+  BatchingTransportOptions,
   
   // Network
   NetworkTransportOptions,
   RetryOptions,
   
   // Implementation-specific
+  ConsoleTransportOptions,
+  FileTransportOptions,
   S3TransportOptions,
   HTTPTransportOptions,
   MongoDBTransportOptions,
@@ -65,128 +59,94 @@ export type {
   TransportManagerOptions,
 } from '../types/transport';
 
+// Re-export Transport interface as ITransport for backwards compatibility
+export type { Transport as ITransport } from './base/Transport';
+
+/**
+ * Factory type for creating transports dynamically
+ */
+export type TransportFactory = (config: TransportConfig) => ITransport;
+
+/**
+ * Registry for transport factories to enable tree-shaking
+ * Transports are registered only when explicitly imported
+ */
+export class TransportRegistry {
+  private static factories = new Map<string, TransportFactory>();
+
+  /**
+   * Register a transport factory
+   * @param {string} type - Transport type identifier
+   * @param {TransportFactory} factory - Factory function
+   */
+  static register(type: string, factory: TransportFactory): void {
+    this.factories.set(type, factory);
+  }
+
+  /**
+   * Get a transport factory
+   * @param {string} type - Transport type identifier
+   * @returns {TransportFactory | undefined} Factory function if found
+   */
+  static get(type: string): TransportFactory | undefined {
+    return this.factories.get(type);
+  }
+
+  /**
+   * Check if a transport type is registered
+   * @param {string} type - Transport type identifier
+   * @returns {boolean} True if registered
+   */
+  static has(type: string): boolean {
+    return this.factories.has(type);
+  }
+
+  /**
+   * Get all registered transport types
+   * @returns {string[]} Array of registered types
+   */
+  static getTypes(): string[] {
+    return Array.from(this.factories.keys());
+  }
+
+  /**
+   * Clear all registered factories
+   */
+  static clear(): void {
+    this.factories.clear();
+  }
+}
+
+// Set up global registry for TransportManager to access
+declare global {
+  interface Window {
+    __MAGICLOGGER_TRANSPORT_REGISTRY__?: typeof TransportRegistry;
+  }
+  
+  // eslint-disable-next-line no-var
+  var __MAGICLOGGER_TRANSPORT_REGISTRY__: typeof TransportRegistry | undefined;
+}
+
+// Make registry available globally for TransportManager
+if (typeof globalThis !== 'undefined') {
+  globalThis.__MAGICLOGGER_TRANSPORT_REGISTRY__ = TransportRegistry;
+} else if (typeof window !== 'undefined') {
+  window.__MAGICLOGGER_TRANSPORT_REGISTRY__ = TransportRegistry;
+}
+
 /**
  * Convenience function to create a pre-configured transport manager
- * with commonly used transports.
  * 
  * @param {Partial<TransportManagerOptions>} options - Manager options
  * @returns {TransportManager} Configured transport manager
- * 
- * @example
- * ```typescript
- * const manager = createDefaultTransportManager({
- *   enableAggregation: true
- * });
- * 
- * // Add console transport
- * await manager.add(new ConsoleTransport({ name: 'console' }));
- * 
- * // Add file transport
- * await manager.add(new FileTransport({
- *   name: 'file',
- *   filepath: './logs',
- *   rotation: 'daily'
- * }));
- * ```
  */
 export function createDefaultTransportManager(
-  _options: Partial<import('../types/transport').TransportManagerOptions> = {}
+  options: Partial<TransportManagerOptions> = {}
 ): TransportManager {
-  return new TransportManager();
-}
-
-/**
- * Utility function to create multiple transports from configuration.
- * 
- * @param {TransportConfig[]} configs - Array of transport configurations
- * @returns {Promise<Transport[]>} Array of initialized transports
- * 
- * @example
- * ```typescript
- * const transports = await createTransportsFromConfig([
- *   { type: 'console', options: { level: 'debug' } },
- *   { type: 'file', options: { filepath: './app.log' } },
- *   { type: 's3', options: { bucket: 'my-logs' } }
- * ]);
- * ```
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function createTransportsFromConfig(
-  configs: Array<{
-    type: 'console' | 'file' | 's3' | 'http' | 'mongodb' | 'websocket' | 'stream';
-    options: Record<string, unknown>;
-  }>
-): Promise<Transport[]> {
-  const transports: Transport[] = [];
-
-  for (const config of configs) {
-    let transport: Transport;
-
-    switch (config.type) {
-      case 'console':
-        transport = new ConsoleTransport(config.options as unknown as import('../types/transport').TransportOptions);
-        break;
-
-      case 'file':
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        transport = new FileTransport(config.options as any);
-        break;
-
-      case 's3':
-        transport = new S3Transport(config.options as unknown as import('../types/transport').S3TransportOptions);
-        break;
-
-      case 'http':
-        transport = new HTTPTransport(config.options as unknown as import('../types/transport').HTTPTransportOptions);
-        break;
-
-      case 'mongodb':
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        transport = new MongoDBTransport(config.options as any) as any;
-        break;
-
-      case 'websocket':
-        transport = new WebSocketTransport(config.options as unknown as import('../types/transport').WebSocketTransportOptions);
-        break;
-
-      case 'stream':
-        if (!config.options.stream) {
-          throw new Error('Stream transport requires stream option');
-        }
-        transport = new StreamTransport(config.options as unknown as import('../types/transport').StreamTransportOptions);
-        break;
-
-      default:
-        throw new Error(`Unknown transport type: ${config.type}`);
-    }
-
-    // Initialize transport
-    if (transport.init) {
-      await transport.init();
-    }
-
-    transports.push(transport);
-  }
-
-  return transports;
-}
-
-/**
- * Type guard to check if a transport supports batching.
- * 
- * @param {Transport} transport - Transport to check
- * @returns {boolean} True if transport supports batching
- */
-export function isBatchingTransport(transport: Transport): transport is BatchingTransport {
-  return 'maxBatchSize' in transport && typeof (transport as unknown as BatchingTransport).flush === 'function';
-}
-
-/**
- * Type guard to check if a transport is network-based.
- * 
- * @param {Transport} transport - Transport to check
- * @returns {boolean} True if transport is network-based
- */
-export function isNetworkTransport(transport: Transport): transport is NetworkTransport {
-  return 'retryOptions' in transport && 'performNetworkRequest' in transport;
+  const manager = new TransportManager({
+    useExternalRegistry: true,
+    ...options,
+  });
+  
+  return manager;
 }

@@ -65,6 +65,61 @@ const logger = new Logger({
 logger.info('Application started');
 ```
 
+## Tree-Shakeable Transport Imports
+
+MagicLogger is designed for optimal bundle sizes with tree-shakeable imports:
+
+### Import Patterns
+
+```typescript
+// ✅ Main logger (always needed)
+import { Logger } from 'magiclogger';
+
+// ✅ Tree-shakeable transports (import only what you need)
+import { 
+  ConsoleTransport, 
+  FileTransport, 
+  HTTPTransport,
+  S3Transport, 
+  MongoDBTransport 
+} from 'magiclogger/transports';
+
+// ✅ Convenience factories (recommended)
+import { 
+  createConsole, 
+  createFile, 
+  createHTTP 
+} from 'magiclogger/transports';
+```
+
+### Transport Categories
+
+**Core Transports** (no external dependencies):
+- `ConsoleTransport` - Terminal output with colors (~2KB)
+- `FileTransport` - File logging with rotation (~3KB)  
+- `StreamTransport` - Write to any Node.js stream (~1KB)
+- `HTTPTransport` - REST API endpoints (~4KB)
+
+**Optional Transports** (require external dependencies):
+- `S3Transport` - AWS S3 logging (+~500KB aws-sdk)
+- `MongoDBTransport` - MongoDB logging (+~2MB mongodb)
+- `WebSocketTransport` - Real-time logging (+~50KB ws)
+
+### Factory Functions
+
+Convenience factories provide smart defaults and async initialization:
+
+```typescript
+import { createConsole, createFile, createHTTP } from 'magiclogger/transports';
+
+const logger = new Logger();
+
+// Auto-generated names, optimized configurations
+logger.addTransport(await createConsole());                    // name: 'console'
+logger.addTransport(await createFile('./logs/app.log'));       // name: 'file-app-log'
+logger.addTransport(await createHTTP('https://api.logs.com')); // name: 'http-api.logs.com'
+```
+
 ## Logger Configuration
 
 ### ExtendedLoggerOptions
@@ -239,16 +294,18 @@ app.use((req, res, next) => {
 
 ## Transports
 
+## Transports
+
 ### Adding Transports
 
 ```typescript
+import { Logger } from 'magiclogger';
 import { 
-  Logger,
   ConsoleTransport,
   FileTransport,
   HTTPTransport,
   S3Transport 
-} from 'magiclogger';
+} from 'magiclogger/transports';
 
 // At initialization
 const logger = new Logger({
@@ -263,6 +320,17 @@ await logger.addTransport(new HTTPTransport({
   url: 'https://logs.example.com',
   auth: { type: 'bearer', token: 'secret' }
 }), 10); // priority: 10
+
+// Using convenience factories (recommended)
+import { createConsole, createFile, createHTTP } from 'magiclogger/transports';
+
+const logger = new Logger({
+  transports: [
+    await createConsole({ level: 'debug' }),
+    await createFile('./logs/app.log')
+  ]
+});
+```
 ```
 
 ### Transport Management
@@ -758,7 +826,8 @@ function createLogger(
 ### Production Setup
 
 ```typescript
-import { Logger, ConsoleTransport, FileTransport, S3Transport } from 'magiclogger';
+import { Logger } from 'magiclogger';
+import { ConsoleTransport, FileTransport, S3Transport } from 'magiclogger/transports';
 
 const logger = new Logger({
   id: process.env.SERVICE_NAME || 'api',

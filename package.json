@@ -16,8 +16,39 @@
         "types": "./dist/index.d.cts",
         "default": "./dist/index.cjs"
       }
+    },
+    "./transports": {
+      "import": {
+        "types": "./dist/transports.d.ts",
+        "default": "./dist/transports.js"
+      },
+      "require": {
+        "types": "./dist/transports.d.cts",
+        "default": "./dist/transports.cjs"
+      }
+    },
+    "./compatibility": {
+      "import": {
+        "types": "./dist/compatibility/index.d.ts",
+        "default": "./dist/compatibility/index.js"
+      },
+      "require": {
+        "types": "./dist/compatibility/index.d.cts",
+        "default": "./dist/compatibility/index.cjs"
+      }
+    },
+    "./types": {
+      "import": {
+        "types": "./dist/types/index.d.ts",
+        "default": "./dist/types/index.js"
+      },
+      "require": {
+        "types": "./dist/types/index.d.cts",
+        "default": "./dist/types/index.cjs"
+      }
     }
   },
+  "sideEffects": false,
   "files": [
     "dist",
     "!dist/examples"

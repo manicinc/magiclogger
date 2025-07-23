@@ -232,6 +232,64 @@ export interface BatchingTransportOptions extends TransportOptions, BatchingOpti
 }
 
 /**
+ * Transport type enumeration.
+ * Defines all supported transport types for the logger.
+ */
+export type TransportType = 
+  | 'console' 
+  | 'file' 
+  | 'http' 
+  | 'stream' 
+  | 's3' 
+  | 'mongodb' 
+  | 'websocket'
+  | 'syslog'
+  | 'elasticsearch'
+  | 'custom';
+
+/**
+ * Transport configuration for dynamic creation.
+ * Base configuration interface that all transport configs extend.
+ */
+export interface TransportConfig extends Record<string, unknown> {
+  /** Transport type identifier */
+  type: TransportType;
+  
+  /** Optional transport name (auto-generated if not provided) */
+  name?: string;
+  
+  /** Whether the transport is enabled */
+  enabled?: boolean;
+  
+  /** Minimum log level to handle */
+  level?: LogLevel;
+  
+  /** Specific levels to handle (overrides level if provided) */
+  levels?: LogLevel[];
+  
+  /** Tags to filter on */
+  tags?: string[];
+  
+  /** Tags to exclude */
+  excludeTags?: string[];
+  
+  /** Custom filter function */
+  filter?: (entry: LogEntry) => boolean;
+  
+  /** Output format */
+  format?: 'json' | 'plain' | 'custom';
+  
+  /** Custom formatter */
+  formatter?: (entry: LogEntry) => string | Buffer;
+  
+  /** Silent mode */
+  silent?: boolean;
+  
+  /** Operation timeout */
+  timeout?: number;
+}
+
+/**
  * Retry configuration for network transports.
  */
 export interface RetryOptions {
@@ -507,6 +565,119 @@ export interface S3TransportOptions extends NetworkTransportOptions {
    * Tags to apply to S3 objects.
    */
   objectTags?: Record<string, string>;
+}
+
+/**
+ * Console transport specific options.
+ */
+export interface ConsoleTransportOptions extends TransportOptions {
+  /**
+   * Whether to use colors in console output.
+   * @default true (when terminal supports it)
+   */
+  colorize?: boolean;
+
+  /**
+   * Whether to use stderr for error/warn levels.
+   * @default true
+   */
+  stderrLevels?: LogLevel[] | boolean;
+
+  /**
+   * Whether to inspect objects deeply.
+   * @default false
+   */
+  debugStdout?: boolean;
+
+  /**
+   * Console method mapping for different log levels.
+   */
+  consoleMethods?: Record<LogLevel, 'log' | 'info' | 'warn' | 'error' | 'debug'>;
+}
+
+/**
+ * File transport specific options.
+ */
+export interface FileTransportOptions extends TransportOptions {
+  /**
+   * Path to the log file.
+   */
+  filepath: string;
+
+  /**
+   * Whether the filepath is a directory.
+   * @default false
+   */
+  isDirectory?: boolean;
+
+  /**
+   * Maximum size of log file before rotation (in bytes).
+   * @default 10485760 (10MB)
+   */
+  maxFileSize?: number;
+
+  /**
+   * Maximum number of files to keep.
+   * @default 5
+   */
+  maxFiles?: number;
+
+  /**
+   * Whether to compress archived files.
+   * @default false
+   */
+  compress?: boolean;
+
+  /**
+   * Rotation strategy.
+   * @default 'none'
+   */
+  rotation?: 'size' | 'daily' | 'hourly' | 'none';
+
+  /**
+   * Whether to append to existing files.
+   * @default true
+   */
+  append?: boolean;
+
+  /**
+   * File encoding.
+   * @default 'utf8'
+   */
+  encoding?: BufferEncoding;
+
+  /**
+   * Whether to include timestamp in log lines.
+   * @default true
+   */
+  includeTimestamp?: boolean;
+
+  /**
+   * Whether to create directories if they don't exist.
+   * @default true
+   */
+  createDir?: boolean;
+
+  /**
+   * Number of days to retain log files.
+   */
+  retentionDays?: number;
+
+  /**
+   * Line ending to use.
+   * @default '\n'
+   */
+  eol?: string;
+
+  /**
+   * Maximum batch size for batching.
+   */
+  maxBatchSize?: number;
+
+  /**
+   * Maximum batch time for batching.
+   */
+  maxBatchTime?: number;
 }
 
 /**

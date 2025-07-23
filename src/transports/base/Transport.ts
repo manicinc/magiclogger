@@ -556,6 +556,15 @@ export abstract class Transport extends EventEmitter implements ITransport {
   }
 
   /**
+   * Check if the transport is currently enabled.
+   * 
+   * @returns {boolean} True if transport is enabled
+   */
+  public isEnabled(): boolean {
+    return this.enabled;
+  }
+
+  /**
    * Check if transport supports batching.
    * 
    * @returns {boolean} True if batching is supported
