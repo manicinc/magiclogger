@@ -265,13 +265,13 @@ describe('BaseCompatibleLogger', () => {
     });
 
     it('should create underlying Logger with transports when provided', () => {
-      const mockTransport: Partial<Transport> = {
+      const mockTransport = {
         name: 'test-transport',
         enabled: true,
         log: jest.fn().mockResolvedValue(undefined),
         close: jest.fn().mockResolvedValue(undefined),
         shouldLog: jest.fn().mockReturnValue(true),
-      };
+      } as unknown as Transport;
 
       const options: LogCompatibilityOptions = {
         name: 'test',
@@ -500,7 +500,7 @@ describe('BaseCompatibleLogger', () => {
       expect(serialized).toContain('"a":1');
       expect(serialized).toContain('"b":"test"');
       
-      // Should be parseable despite circular references
+      // Should be parsable despite circular references
       expect(() => JSON.parse(serialized)).not.toThrow();
     });
 
@@ -625,8 +625,8 @@ describe('BaseCompatibleLogger', () => {
   });
 
   describe('Transport Management', () => {
-    let mockTransport1: Partial<Transport>;
-    let mockTransport2: Partial<Transport>;
+    let mockTransport1: Transport;
+    let mockTransport2: Transport;
 
     beforeEach(() => {
       mockTransport1 = {
@@ -635,7 +635,7 @@ describe('BaseCompatibleLogger', () => {
         log: jest.fn().mockResolvedValue(undefined),
         close: jest.fn().mockResolvedValue(undefined),
         shouldLog: jest.fn().mockReturnValue(true),
-      };
+      } as unknown as Transport;
 
       mockTransport2 = {
         name: 'transport-2',
@@ -643,13 +643,13 @@ describe('BaseCompatibleLogger', () => {
         log: jest.fn().mockResolvedValue(undefined),
         close: jest.fn().mockResolvedValue(undefined),
         shouldLog: jest.fn().mockReturnValue(true),
-      };
+      } as unknown as Transport;
 
       jest.spyOn(mockLogger, 'addTransport').mockResolvedValue(undefined);
       jest.spyOn(mockLogger, 'removeTransport').mockResolvedValue(undefined);
       jest.spyOn(mockLogger, 'getTransport').mockImplementation((name) => {
-        if (name === 'transport-1') return mockTransport1 as Transport;
-        if (name === 'transport-2') return mockTransport2 as Transport;
+        if (name === 'transport-1') return mockTransport1;
+        if (name === 'transport-2') return mockTransport2;
         return undefined;
       });
       jest.spyOn(mockLogger, 'listTransports').mockReturnValue(['transport-1', 'transport-2']);
@@ -693,8 +693,8 @@ describe('BaseCompatibleLogger', () => {
       ]);
       
       jest.spyOn(mockLogger, 'getTransport').mockImplementation((name) => {
-        if (name === 'transport-1') return mockTransport1 as Transport;
-        if (name === 'transport-2') return mockTransport2 as Transport;
+        if (name === 'transport-1') return mockTransport1;
+        if (name === 'transport-2') return mockTransport2;
         return undefined; // transport-missing returns undefined
       });
 
@@ -879,7 +879,7 @@ describe('BaseCompatibleLogger', () => {
   describe('Lifecycle Methods', () => {
     it('should flush transports when async logger is available', async () => {
       const flushAndWaitSpy = jest.fn().mockResolvedValue(undefined);
-      (mockLogger as unknown as { async: { flushAndWait: jest.Mock } }).async = {
+      (mockLogger as unknown as { async?: { flushAndWait: jest.Mock } }).async = {
         flushAndWait: flushAndWaitSpy,
       };
 
@@ -888,7 +888,7 @@ describe('BaseCompatibleLogger', () => {
     });
 
     it('should handle flush gracefully when async logger is not available', async () => {
-      (mockLogger as unknown as { async: undefined }).async = undefined;
+      (mockLogger as unknown as { async?: undefined }).async = undefined;
       
       await expect(logger.flush()).resolves.toBeUndefined();
     });
@@ -1025,8 +1025,10 @@ describe('BaseCompatibleLogger', () => {
       const allMethods = ['info', 'warn', 'error', 'debug'];
       
       allMethods.forEach(method => {
-        const logMethod = logger[method as keyof TestCompatibleLogger] as (...args: unknown[]) => void;
-        logMethod('Test message');
+        const logMethod = logger[method as keyof TestCompatibleLogger] as (message: string) => void;
+        if (typeof logMethod === 'function') {
+          logMethod('Test message');
+        }
       });
 
       expect(mockLogger.info).toHaveBeenCalled();

@@ -4,32 +4,8 @@ import { Transport } from './Transport';
 import type {
   LogEntry,
   TransportStats,
+  BatchingTransportOptions,
 } from '../../types/transport';
-
-// Define the options interface directly here
-interface BatchingTransportOptions {
-  name: string;
-  enabled?: boolean;
-  level?: string;
-  levels?: string[];
-  tags?: string[];
-  excludeTags?: string[];
-  filter?: (entry: LogEntry) => boolean;
-  silent?: boolean;
-  timeout?: number;
-  format?: 'json' | 'plain' | 'custom';
-  formatter?: (entry: LogEntry) => string | Buffer;
-  maxBatchSize?: number;
-  maxBatchTime?: number;
-  maxBatchBytes?: number;
-  compress?: boolean;
-  batchSize?: number;
-  flushInterval?: number;
-  maxRetries?: number;
-  retryDelay?: number;
-  retryOnFailure?: boolean;
-  maxQueueSize?: number;
-}
 
 /**
  * Abstract base class for transports that batch log entries.
@@ -151,8 +127,8 @@ export abstract class BatchingTransport extends Transport {
     super(options);
 
     // Set batching parameters with defaults
-    this.maxBatchSize = options.maxBatchSize || options.batchSize || 100;
-    this.maxBatchTime = options.maxBatchTime || options.flushInterval || 5000;
+    this.maxBatchSize = options.maxBatchSize || 100;
+    this.maxBatchTime = options.maxBatchTime || 5000;
     this.maxBatchBytes = options.maxBatchBytes || 1024 * 1024; // 1MB default
     this.maxRetries = options.maxRetries || 3;
     this.retryDelay = options.retryDelay || 1000;

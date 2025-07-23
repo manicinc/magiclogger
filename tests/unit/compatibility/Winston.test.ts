@@ -3,9 +3,9 @@
 import {
   createWinstonCompatible,
   WinstonCompatibleLogger,
-  WinstonCompatibleOptions,
 } from '../../../src/compatibility/Winston';
 import { Logger } from '../../../src/Logger';
+import type { Transport } from '../../../src/transports/base/Transport';
 
 /**
  * Comprehensive test suite for WinstonCompatibleLogger.
@@ -123,7 +123,7 @@ describe('WinstonCompatibleLogger', () => {
   describe('Timestamp Formatting', () => {
     it('should format ISO timestamps', () => {
       const mockDate = new Date('2023-01-01T12:00:00.000Z');
-      jest.spyOn(global, 'Date').mockImplementation(() => mockDate as any);
+      jest.spyOn(global, 'Date').mockImplementation(() => mockDate as unknown as Date);
 
       const logger = createWinstonCompatible({
         timestamp: true,
@@ -140,7 +140,7 @@ describe('WinstonCompatibleLogger', () => {
     it('should format epoch timestamps', () => {
       const mockTime = 1672574400000;
       const mockDate = new Date(mockTime);
-      jest.spyOn(global, 'Date').mockImplementation(() => mockDate as any);
+      jest.spyOn(global, 'Date').mockImplementation(() => mockDate as unknown as Date);
 
       const logger = createWinstonCompatible({
         timestamp: true,
@@ -156,7 +156,7 @@ describe('WinstonCompatibleLogger', () => {
 
     it('should format HH:mm:ss timestamps', () => {
       const mockDate = new Date('2023-01-01T15:30:45.000Z');
-      jest.spyOn(global, 'Date').mockImplementation(() => mockDate as any);
+      jest.spyOn(global, 'Date').mockImplementation(() => mockDate as unknown as Date);
       mockDate.getHours = () => 15;
       mockDate.getMinutes = () => 30;
       mockDate.getSeconds = () => 45;
@@ -175,7 +175,7 @@ describe('WinstonCompatibleLogger', () => {
 
     it('should handle single digit time values', () => {
       const mockDate = new Date('2023-01-01T05:05:05.000Z');
-      jest.spyOn(global, 'Date').mockImplementation(() => mockDate as any);
+      jest.spyOn(global, 'Date').mockImplementation(() => mockDate as unknown as Date);
       mockDate.getHours = () => 5;
       mockDate.getMinutes = () => 5;
       mockDate.getSeconds = () => 5;
@@ -368,7 +368,7 @@ describe('WinstonCompatibleLogger', () => {
     });
 
     it('should handle circular references in %j', () => {
-      const circular: any = { a: 1 };
+      const circular: Record<string, unknown> = { a: 1 };
       circular.self = circular;
       
       winston.info('Circular: %j', circular);
@@ -409,7 +409,7 @@ describe('WinstonCompatibleLogger', () => {
     });
 
     it('should handle errors with additional properties', () => {
-      const error: any = new Error('Custom error');
+      const error = new Error('Custom error') as Error & { code?: string; statusCode?: number };
       error.code = 'ERR_CUSTOM';
       error.statusCode = 500;
       
@@ -434,6 +434,8 @@ describe('WinstonCompatibleLogger', () => {
         exitOnError: true,
       });
 
+      expect(logger).toBeDefined(); // Ensure logger is created
+
       // Simulate uncaught exception
       const error = new Error('Uncaught');
       process.emit('uncaughtException', error);
@@ -454,6 +456,8 @@ describe('WinstonCompatibleLogger', () => {
         handleRejections: true,
         exitOnError: true,
       });
+
+      expect(logger).toBeDefined(); // Ensure logger is created
 
       // Simulate unhandled rejection
       const reason = new Error('Rejected');
@@ -476,6 +480,8 @@ describe('WinstonCompatibleLogger', () => {
         handleExceptions: true,
         exitOnError: false,
       });
+
+      expect(logger).toBeDefined(); // Ensure logger is created
 
       const error = new Error('Non-fatal');
       process.emit('uncaughtException', error);
@@ -694,15 +700,71 @@ describe('WinstonCompatibleLogger', () => {
   });
 
   describe('Transport Compatibility Methods', () => {
+    // Mock transport that satisfies Transport interface
+    const mockTransport = {
+      name: 'test-transport',
+      enabled: true,
+      log: jest.fn().mockResolvedValue(undefined),
+      close: jest.fn().mockResolvedValue(undefined),
+      shouldLog: jest.fn().mockReturnValue(true),
+      // Add required Transport properties
+      options: {},
+      stats: { logsWritten: 0, errorsOccurred: 0, lastLogTime: null },
+      level: 'info',
+      silent: false,
+      timeout: 5000,
+      format: 'json' as const,
+      formatter: undefined,
+      levels: ['error', 'warn', 'info', 'debug'],
+      tags: [],
+      excludeTags: [],
+      filter: undefined,
+      init: jest.fn().mockResolvedValue(undefined),
+      flush: jest.fn().mockResolvedValue(undefined),
+      pause: jest.fn(),
+      resume: jest.fn(),
+      isPaused: jest.fn().mockReturnValue(false),
+      destroy: jest.fn().mockResolvedValue(undefined),
+      setLevel: jest.fn(),
+      getLevel: jest.fn().mockReturnValue('info'),
+      setFormat: jest.fn(),
+      getFormat: jest.fn().mockReturnValue('json'),
+      addTag: jest.fn(),
+      removeTag: jest.fn(),
+      clearTags: jest.fn(),
+      hasTag: jest.fn().mockReturnValue(false),
+      setFormatter: jest.fn(),
+      getFormatter: jest.fn().mockReturnValue(undefined),
+      setFilter: jest.fn(),
+      getFilter: jest.fn().mockReturnValue(undefined),
+      enable: jest.fn(),
+      disable: jest.fn(),
+      isEnabled: jest.fn().mockReturnValue(true),
+      setSilent: jest.fn(),
+      isSilent: jest.fn().mockReturnValue(false),
+      setTimeout: jest.fn(),
+      getTimeout: jest.fn().mockReturnValue(5000),
+      getStats: jest.fn().mockReturnValue({ logsWritten: 0, errorsOccurred: 0, lastLogTime: null }),
+      resetStats: jest.fn(),
+      clone: jest.fn(),
+      toString: jest.fn().mockReturnValue('[Transport test-transport]'),
+      toJSON: jest.fn().mockReturnValue({ name: 'test-transport', enabled: true }),
+      // Additional properties that may be required
+      initialized: false,
+      closing: false,
+      logBatch: jest.fn().mockResolvedValue(undefined),
+      formatEntry: jest.fn().mockReturnValue('formatted-entry'),
+    } as unknown as Transport;
+
     it('should warn when using add()', () => {
       const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
       
-      winston.add({} as any);
+      winston.add(mockTransport);
       
       expect(warnSpy).toHaveBeenCalledWith(
         '[Winston Compatibility] Transport management should be done through MagicLogger'
       );
-      expect(winston.add({})).toBe(winston); // Chainable
+      expect(winston.add(mockTransport)).toBe(winston); // Chainable
       
       warnSpy.mockRestore();
     });
@@ -710,12 +772,12 @@ describe('WinstonCompatibleLogger', () => {
     it('should warn when using remove()', () => {
       const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
       
-      winston.remove({} as any);
+      winston.remove(mockTransport);
       
       expect(warnSpy).toHaveBeenCalledWith(
         '[Winston Compatibility] Transport management should be done through MagicLogger'
       );
-      expect(winston.remove({})).toBe(winston); // Chainable
+      expect(winston.remove(mockTransport)).toBe(winston); // Chainable
       
       warnSpy.mockRestore();
     });
@@ -920,13 +982,13 @@ describe('WinstonCompatibleLogger', () => {
     });
 
     it('should handle null and undefined arguments', () => {
-      winston.info(null as any);
+      winston.info(null as unknown as string);
       expect(infoSpy).toHaveBeenCalledWith(
         expect.stringContaining('null'),
         expect.any(Object)
       );
 
-      winston.info(undefined as any);
+      winston.info(undefined as unknown as string);
       expect(infoSpy).toHaveBeenCalledWith(
         expect.stringContaining('undefined'),
         expect.any(Object)
@@ -934,7 +996,7 @@ describe('WinstonCompatibleLogger', () => {
     });
 
     it('should handle circular references in metadata', () => {
-      const circular: any = { a: 1 };
+      const circular: Record<string, unknown> = { a: 1 };
       circular.self = circular;
 
       winston.info('Circular', circular);

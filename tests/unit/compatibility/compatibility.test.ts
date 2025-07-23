@@ -8,6 +8,7 @@ import {
   BaseCompatibleLogger,
 } from '../../../src/compatibility';
 import { Logger } from '../../../src/Logger';
+import type { Transport } from '../../../src/transports/base/Transport';
 
 /**
  * Integration test suite for the compatibility layer.
@@ -416,7 +417,7 @@ describe('Magic Logger Compatibility Layer Integration', () => {
         clone: jest.fn(),
         toString: jest.fn().mockReturnValue('[Transport shared-transport]'),
         toJSON: jest.fn().mockReturnValue({ name: 'shared-transport', enabled: true }),
-      } as any;
+      } as unknown as Transport;
 
       await winston.addTransport(mockTransport);
 

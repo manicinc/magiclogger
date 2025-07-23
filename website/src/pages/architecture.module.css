@@ -1,0 +1,904 @@
+/**
+ * MagicLogger Architecture Page Styles
+ * Neumorphic design for the architecture deep-dive page
+ */
+
+/* Page Layout */
+.architecturePage {
+  background: var(--neo-bg);
+  min-height: 100vh;
+}
+
+/* Overview Section */
+.overviewSection {
+  padding: 8rem 0 4rem;
+  background: var(--neo-bg);
+  position: relative;
+  overflow: hidden;
+}
+
+.overviewSection::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--surface-gradient);
+  opacity: 0.5;
+  z-index: 0;
+}
+
+.overviewContent {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4rem;
+  align-items: center;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.overviewText {
+  animation: slideInLeft 0.8s ease-out;
+}
+
+.pageTitle {
+  font-size: 4rem;
+  font-weight: 900;
+  margin-bottom: 1rem;
+  line-height: 1.1;
+}
+
+.gradientText {
+  background: var(--primary-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  background-size: 200% 200%;
+  animation: gradientShift 4s ease infinite;
+}
+
+.pageSubtitle {
+  font-size: 1.5rem;
+  color: var(--ifm-color-content-secondary);
+  margin-bottom: 3rem;
+  line-height: 1.6;
+}
+
+.pillarsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+}
+
+.pillar {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--neo-radius-medium);
+  padding: 1.5rem;
+  transition: var(--neo-transition);
+}
+
+.pillar:hover {
+  transform: translateY(-5px);
+  border-color: var(--ifm-color-primary);
+  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.2);
+}
+
+.pillarIcon {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+  display: inline-block;
+  animation: float 4s ease-in-out infinite;
+}
+
+.pillar:nth-child(1) .pillarIcon { animation-delay: 0s; }
+.pillar:nth-child(2) .pillarIcon { animation-delay: 0.5s; }
+.pillar:nth-child(3) .pillarIcon { animation-delay: 1s; }
+.pillar:nth-child(4) .pillarIcon { animation-delay: 1.5s; }
+
+.pillarTitle {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: var(--ifm-color-content);
+}
+
+.pillarDescription {
+  font-size: 0.9rem;
+  color: var(--ifm-color-content-secondary);
+  line-height: 1.5;
+}
+
+.overviewDiagram {
+  animation: slideInRight 0.8s ease-out;
+  animation-delay: 0.2s;
+  animation-fill-mode: both;
+}
+
+.diagramCard {
+  background: var(--glass-bg-heavy);
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--neo-radius-medium);
+  padding: 2rem;
+  box-shadow: var(--neo-shadow-large);
+}
+
+.architectureSvg {
+  width: 100%;
+  height: auto;
+}
+
+.layerApp {
+  fill: #667eea;
+  opacity: 0.8;
+}
+
+.layerCompat {
+  fill: #764ba2;
+  opacity: 0.8;
+}
+
+.layerCore {
+  fill: #f093fb;
+  opacity: 0.8;
+}
+
+.layerSync {
+  fill: #4facfe;
+  opacity: 0.8;
+}
+
+.layerAsync {
+  fill: #00f2fe;
+  opacity: 0.8;
+}
+
+.layerTransport {
+  fill: #43e97b;
+  opacity: 0.8;
+}
+
+.layerText {
+  fill: white;
+  font-size: 16px;
+  font-weight: 700;
+  text-anchor: middle;
+}
+
+.layerTextSmall {
+  fill: white;
+  font-size: 14px;
+  font-weight: 600;
+  text-anchor: middle;
+}
+
+.connectionLine {
+  stroke: var(--glass-border);
+  stroke-width: 2;
+  stroke-dasharray: 5,5;
+  animation: dash 10s linear infinite;
+}
+
+/* Core Components Section */
+.componentsSection {
+  padding: 6rem 0;
+  background: var(--neo-bg-alt);
+  position: relative;
+}
+
+.sectionHeader {
+  text-align: center;
+  margin-bottom: 4rem;
+}
+
+.sectionTitle {
+  font-size: 3rem;
+  font-weight: 800;
+  margin-bottom: 1rem;
+  background: var(--primary-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.sectionSubtitle {
+  font-size: 1.25rem;
+  color: var(--ifm-color-content-secondary);
+}
+
+.componentsLayout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.componentNav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  position: sticky;
+  top: 2rem;
+  height: fit-content;
+}
+
+.componentNavItem {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--neo-radius-small);
+  padding: 1rem 1.5rem;
+  text-align: left;
+  cursor: pointer;
+  transition: var(--neo-transition);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--ifm-color-content);
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.componentNavItem:hover {
+  background: var(--glass-bg-heavy);
+  border-color: var(--ifm-color-primary);
+  transform: translateX(5px);
+}
+
+.componentNavItem.active {
+  background: var(--primary-gradient);
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 5px 20px rgba(102, 126, 234, 0.3);
+}
+
+.componentNavTitle {
+  font-weight: 600;
+}
+
+.componentNavArrow {
+  opacity: 0;
+  transform: translateX(-10px);
+  transition: var(--neo-transition);
+}
+
+.componentNavItem:hover .componentNavArrow,
+.componentNavItem.active .componentNavArrow {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.componentDetails {
+  animation: fadeIn 0.5s ease-out;
+}
+
+.componentCard {
+  background: var(--neo-surface);
+  border-radius: var(--neo-radius-medium);
+  padding: 3rem;
+  box-shadow: var(--neo-shadow-large);
+}
+
+.componentTitle {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: var(--ifm-color-content);
+}
+
+.componentDescription {
+  font-size: 1.15rem;
+  color: var(--ifm-color-content-secondary);
+  margin-bottom: 2rem;
+  line-height: 1.6;
+}
+
+.componentFeatures {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--neo-radius-small);
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.featuresTitle {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: var(--ifm-color-content);
+}
+
+.featuresList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.featureItem {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  color: var(--ifm-color-content-secondary);
+}
+
+.featureBullet {
+  color: var(--ifm-color-primary);
+  font-weight: 700;
+}
+
+.componentCode {
+  background: var(--neo-shadow-inset);
+  border-radius: var(--neo-radius-small);
+  overflow: hidden;
+}
+
+/* Performance Section */
+.performanceSection {
+  padding: 6rem 0;
+  background: var(--neo-bg);
+  position: relative;
+}
+
+.performanceGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.perfCard {
+  background: var(--glass-bg-heavy);
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--neo-radius-medium);
+  padding: 2rem;
+  transition: var(--neo-transition);
+  animation: fadeInUp 0.8s ease-out;
+  animation-fill-mode: both;
+}
+
+.perfCard:nth-child(1) { animation-delay: 0s; }
+.perfCard:nth-child(2) { animation-delay: 0.2s; }
+.perfCard:nth-child(3) { animation-delay: 0.4s; }
+
+.perfCard:hover {
+  transform: translateY(-10px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  border-color: var(--ifm-color-primary);
+}
+
+.perfIcon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  display: inline-block;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.perfTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: var(--ifm-color-content);
+}
+
+.perfDescription {
+  color: var(--ifm-color-content-secondary);
+  margin-bottom: 1.5rem;
+  line-height: 1.6;
+}
+
+/* Transport System Section */
+.transportSection {
+  padding: 6rem 0;
+  background: var(--neo-bg-alt);
+  position: relative;
+}
+
+.transportGrid {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 2rem;
+  max-width: 1200px;
+  margin: 0 auto 3rem;
+}
+
+.transportList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.transportItem {
+  background: var(--neo-surface);
+  border-radius: var(--neo-radius-medium);
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  cursor: pointer;
+  transition: var(--neo-transition);
+  box-shadow: var(--neo-shadow-small);
+}
+
+.transportItem:hover {
+  transform: translateX(10px);
+  box-shadow: var(--neo-shadow-medium);
+}
+
+.transportItem.active {
+  background: var(--primary-gradient);
+  color: white;
+  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+}
+
+.transportIcon {
+  font-size: 2rem;
+}
+
+.transportName {
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.transportDetails {
+  animation: fadeIn 0.5s ease-out;
+}
+
+.transportCard {
+  background: var(--neo-surface);
+  border-radius: var(--neo-radius-medium);
+  padding: 2.5rem;
+  box-shadow: var(--neo-shadow-large);
+}
+
+.transportHeader {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.transportDetailIcon {
+  font-size: 3rem;
+  animation: float 4s ease-in-out infinite;
+}
+
+.transportTitle {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--ifm-color-content);
+  margin: 0;
+}
+
+.transportDescription {
+  font-size: 1.15rem;
+  color: var(--ifm-color-content-secondary);
+  margin-bottom: 2rem;
+  line-height: 1.6;
+}
+
+.transportFeatures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.transportFeature {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  font-size: 0.9rem;
+  color: var(--ifm-color-content);
+}
+
+.featureCheck {
+  color: #10b981;
+  font-weight: 700;
+}
+
+.transportExample {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--neo-radius-small);
+  padding: 1.5rem;
+}
+
+.exampleTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: var(--ifm-color-content);
+}
+
+.transportFlow {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.flowTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 2rem;
+  color: var(--ifm-color-content);
+}
+
+.flowDiagram {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 2rem;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--neo-radius-medium);
+  overflow-x: auto;
+}
+
+.flowStep {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 80px;
+}
+
+.flowIcon {
+  width: 60px;
+  height: 60px;
+  background: var(--neo-surface);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  box-shadow: var(--neo-shadow-small);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.flowStep:nth-child(1) .flowIcon { animation-delay: 0s; }
+.flowStep:nth-child(3) .flowIcon { animation-delay: 0.2s; }
+.flowStep:nth-child(5) .flowIcon { animation-delay: 0.4s; }
+.flowStep:nth-child(7) .flowIcon { animation-delay: 0.6s; }
+.flowStep:nth-child(9) .flowIcon { animation-delay: 0.8s; }
+
+.flowLabel {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ifm-color-content);
+}
+
+.flowArrow {
+  font-size: 1.5rem;
+  color: var(--ifm-color-content-secondary);
+  opacity: 0.6;
+}
+
+/* Implementation Section */
+.implementationSection {
+  padding: 6rem 0;
+  background: var(--neo-bg);
+  position: relative;
+}
+
+.guideGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+  gap: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.guideCard {
+  background: var(--glass-bg-heavy);
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--neo-radius-medium);
+  padding: 2rem;
+  transition: var(--neo-transition);
+}
+
+.guideCard:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+  border-color: var(--ifm-color-primary);
+}
+
+.guideTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  color: var(--ifm-color-content);
+}
+
+/* CTA Section */
+.ctaSection {
+  padding: 6rem 0;
+  background: var(--primary-gradient);
+  position: relative;
+  overflow: hidden;
+}
+
+.ctaContent {
+  text-align: center;
+  max-width: 800px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+}
+
+.ctaTitle {
+  font-size: 3rem;
+  font-weight: 800;
+  color: white;
+  margin-bottom: 1rem;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.ctaSubtitle {
+  font-size: 1.5rem;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 2rem;
+}
+
+.ctaButtons {
+  display: flex;
+  gap: 1.5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.ctaButtons .button {
+  padding: 1rem 2.5rem !important;
+  font-size: 1.1rem !important;
+  font-weight: 600;
+  border-radius: var(--neo-radius-large) !important;
+}
+
+.ctaButtons .button--primary {
+  background: white !important;
+  color: var(--ifm-color-primary) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.ctaButtons .button--secondary {
+  background: rgba(255, 255, 255, 0.1) !important;
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(255, 255, 255, 0.3) !important;
+  color: white !important;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .overviewContent {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+  
+  .pillarsGrid {
+    grid-template-columns: 1fr;
+    max-width: 500px;
+    margin: 0 auto;
+  }
+  
+  .componentsLayout {
+    grid-template-columns: 1fr;
+  }
+  
+  .componentNav {
+    position: static;
+    flex-direction: row;
+    overflow-x: auto;
+    padding-bottom: 1rem;
+  }
+  
+  .componentNavItem {
+    min-width: 200px;
+  }
+  
+  .transportGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .transportList {
+    flex-direction: row;
+    overflow-x: auto;
+    padding-bottom: 1rem;
+  }
+  
+  .transportItem {
+    min-width: 200px;
+  }
+}
+
+@media (max-width: 996px) {
+  .pageTitle {
+    font-size: 3rem;
+  }
+  
+  .pageSubtitle {
+    font-size: 1.25rem;
+  }
+  
+  .performanceGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .guideGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .overviewSection {
+    padding: 6rem 0 3rem;
+  }
+  
+  .pageTitle {
+    font-size: 2.5rem;
+  }
+  
+  .pageSubtitle {
+    font-size: 1.1rem;
+  }
+  
+  .sectionTitle {
+    font-size: 2rem;
+  }
+  
+  .sectionSubtitle {
+    font-size: 1.1rem;
+  }
+  
+  .flowDiagram {
+    flex-wrap: wrap;
+  }
+  
+  .ctaTitle {
+    font-size: 2rem;
+  }
+  
+  .ctaSubtitle {
+    font-size: 1.2rem;
+  }
+  
+  .ctaButtons {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .ctaButtons .button {
+    width: 100%;
+    max-width: 300px;
+  }
+}
+
+@media (max-width: 480px) {
+  .componentCard {
+    padding: 2rem 1.5rem;
+  }
+  
+  .transportCard {
+    padding: 2rem 1.5rem;
+  }
+  
+  .perfCard {
+    padding: 1.5rem;
+  }
+  
+  .guideCard {
+    padding: 1.5rem;
+  }
+}
+
+/* Dark mode adjustments */
+[data-theme='dark'] .layerApp,
+[data-theme='dark'] .layerCompat,
+[data-theme='dark'] .layerCore,
+[data-theme='dark'] .layerSync,
+[data-theme='dark'] .layerAsync,
+[data-theme='dark'] .layerTransport {
+  opacity: 0.9;
+}
+
+[data-theme='dark'] .connectionLine {
+  stroke: rgba(255, 255, 255, 0.2);
+}
+
+/* Animations */
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  33% {
+    transform: translateY(-10px) rotate(5deg);
+  }
+  66% {
+    transform: translateY(-5px) rotate(-5deg);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+}
+
+@keyframes gradientShift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes dash {
+  to {
+    stroke-dashoffset: -50;
+  }
+}

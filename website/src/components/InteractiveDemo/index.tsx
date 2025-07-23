@@ -6,8 +6,25 @@ interface LogEntry {
   timestamp: string;
   level: string;
   message: string;
-  data?: any;
+  data?: unknown;
   styles?: string[];
+}
+
+// Type for the logger instance with all the methods we use
+interface LoggerInstance {
+  info: (message: string) => void;
+  warn: (message: string) => void;
+  error: (message: string) => void;
+  success: (message: string) => void;
+  debug: (message: string) => void;
+  custom: (message: string, colors: string[], prefix: string) => void;
+  header: (message: string) => void;
+  separator: (char: string) => void;
+  table: (data: Record<string, unknown>[]) => void;
+  time?: (label: string) => void;
+  timeEnd?: (label: string) => void;
+  performance?: (label: string, data: Record<string, unknown>) => void;
+  progress?: (percent: number, message: string) => void;
 }
 
 export default function InteractiveDemo() {
@@ -15,10 +32,10 @@ export default function InteractiveDemo() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const [demoStep, setDemoStep] = useState(0);
-  const [logger, setLoggerInstance] = useState<any>(null);
+  const [logger, setLoggerInstance] = useState<LoggerInstance | null>(null);
   
   const consoleRef = useRef<HTMLDivElement>(null);
-  const originalConsole = useRef<any>({});
+  const originalConsole = useRef<Record<string, (...args: unknown[]) => void>>({});
 
   useEffect(() => {
     // Load MagicLogger using dynamic import from source files
@@ -38,20 +55,20 @@ export default function InteractiveDemo() {
             // Don't specify theme or other Node.js specific options
           });
           
-          setLoggerInstance(loggerInstance);
+          setLoggerInstance(loggerInstance as LoggerInstance);
           
           // Store original console methods
           originalConsole.current = {
-            log: console.log,
-            info: console.info,
-            warn: console.warn,
-            error: console.error,
-            debug: console.debug
+            log: console.log.bind(console),
+            info: console.info.bind(console),
+            warn: console.warn.bind(console),
+            error: console.error.bind(console),
+            debug: console.debug.bind(console)
           };
           
           // Override console methods to capture output
-          const createInterceptor = (level: string, originalMethod: (...args: any[]) => void) => {
-            return (...args: any[]) => {
+          const createInterceptor = (level: string, originalMethod: (...args: unknown[]) => void) => {
+            return (...args: unknown[]) => {
               // Call the original method first
               originalMethod.apply(console, args);
               
@@ -101,7 +118,11 @@ export default function InteractiveDemo() {
 
     return () => {
       if (originalConsole.current.log) {
-        Object.assign(console, originalConsole.current);
+        console.log = originalConsole.current.log;
+        console.info = originalConsole.current.info;
+        console.warn = originalConsole.current.warn;
+        console.error = originalConsole.current.error;
+        console.debug = originalConsole.current.debug;
       }
     };
   }, []);
@@ -136,24 +157,32 @@ export default function InteractiveDemo() {
           { name: 'Charlie', age: 35, role: 'Manager' }
         ]);
         
-        logger.json({
+        logger.info(JSON.stringify({
           user: 'john_doe',
           action: 'login',
           timestamp: new Date().toISOString(),
           metadata: { ip: '192.168.1.1', userAgent: 'Chrome/91.0' }
-        });
+        }, null, 2));
       }
     },
     {
       title: '⚡ Performance Logging',
       action: () => {
         if (!logger) return;
-        logger.time('api_request');
+        if (logger.time) {
+          logger.time('api_request');
+        }
         
         setTimeout(() => {
-          logger.timeEnd('api_request');
-          logger.performance('Database Query', { duration: 45, rows: 1250 });
-          logger.progress(75, 'Processing data...');
+          if (logger.timeEnd) {
+            logger.timeEnd('api_request');
+          }
+          if (logger.performance) {
+            logger.performance('Database Query', { duration: 45, rows: 1250 });
+          }
+          if (logger.progress) {
+            logger.progress(75, 'Processing data...');
+          }
         }, 1000);
       }
     },
