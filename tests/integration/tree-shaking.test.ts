@@ -146,7 +146,8 @@ describe('Tree-shaking Integration', () => {
       // Verify ESM import syntax works
       const module = await import('../../src/transports');
       
-      expect(module.default).toBeUndefined(); // No default export
+      // Should only have named exports, no default export
+      expect('default' in module).toBe(false);
       expect(Object.keys(module).length).toBeGreaterThan(0);
       
       // Named exports should be available

@@ -12,18 +12,17 @@ export type { LogCompatibilityOptions } from './BaseCompatibleLogger';
 export { enhanceConsole } from './EnhancedConsole';
 export type {
   EnhancedConsole,
-  EnhancedConsoleMethods,
   EnhanceConsoleOptions,
 } from './EnhancedConsole';
 
 // Winston compatibility
-export { createWinstonCompatible } from './Winston';
-export type { WinstonCompatibleLogger, WinstonCompatibleOptions } from './Winston';
+export { createWinstonCompatible } from './WinstonCompatibleLogger';
+export type { WinstonCompatibleLogger, WinstonCompatibleOptions } from './WinstonCompatibleLogger';
 
 // Bunyan compatibility
-export { createBunyanCompatible } from './Bunyan';
-export type { BunyanCompatibleLogger, BunyanCompatibleOptions } from './Bunyan';
+export { createBunyanCompatible } from './BunyanCompatibleLogger';
+export type { BunyanCompatibleLogger, BunyanCompatibleOptions } from './BunyanCompatibleLogger';
 
 // Pino compatibility
-export { createPinoCompatible } from './Pino';
-export type { PinoCompatibleLogger, PinoCompatibleOptions } from './Pino';
+export { createPinoCompatible } from './PinoCompatibleLogger';
+export type { PinoCompatibleLogger, PinoCompatibleOptions } from './PinoCompatibleLogger';

@@ -185,6 +185,11 @@ export class FileTransport extends Transport {
   constructor(options: FileTransportOptions) {
     super(options);
 
+    // Validate required options
+    if (!options.filepath) {
+      throw new Error('FileTransport requires filepath option');
+    }
+
     // Parse filepath - handle relative paths correctly
     const fullPath = resolve(options.filepath);
     
@@ -219,6 +224,11 @@ export class FileTransport extends Transport {
    * @protected
    */
   protected async doInit(): Promise<void> {
+    // Check if running in browser environment
+    if (typeof window !== 'undefined') {
+      throw new Error('FileTransport is not supported in browser environments');
+    }
+
     // Ensure directory exists
     if (this.createDir) {
       await fs.mkdir(this.dirname, { recursive: true });

@@ -48,6 +48,23 @@ class TestTransport extends Transport {
     return this.formatEntry(entry);
   }
 
+  // Expose protected methods for testing
+  public testDoInit(): Promise<void> {
+    return this.doInit();
+  }
+
+  public testDoLog(entry: LogEntry): Promise<void> {
+    return this.doLog(entry);
+  }
+
+  public testDoLogBatch(entries: LogEntry[]): Promise<void> {
+    return this.doLogBatch(entries);
+  }
+
+  public testDoClose(): Promise<void> {
+    return this.doClose();
+  }
+
   public testHandleError(error: Error, entry?: LogEntry): void {
     this.handleError(error, entry);
   }
@@ -165,7 +182,7 @@ describe('Transport', () => {
 
     it('should handle init errors', async () => {
       const errorTransport = new TestTransport({ name: 'error' });
-      errorTransport.doInit = jest.fn().mockRejectedValue(new Error('Init failed'));
+      errorTransport.testDoInit = jest.fn().mockRejectedValue(new Error('Init failed'));
       
       const errorSpy = jest.fn();
       errorTransport.on('error', errorSpy);
@@ -226,7 +243,7 @@ describe('Transport', () => {
     });
 
     it('should update statistics on failure', async () => {
-      transport.doLog = jest.fn().mockRejectedValue(new Error('Log failed'));
+      transport.testDoLog = jest.fn().mockRejectedValue(new Error('Log failed'));
       
       await transport.log(mockEntry);
       
@@ -246,7 +263,7 @@ describe('Transport', () => {
     });
 
     it('should handle errors', async () => {
-      transport.doLog = jest.fn().mockRejectedValue(new Error('Transport error'));
+      transport.testDoLog = jest.fn().mockRejectedValue(new Error('Transport error'));
       const errorSpy = jest.fn();
       transport.on('error', errorSpy);
       
@@ -261,7 +278,7 @@ describe('Transport', () => {
         timeout: 100
       });
       
-      transport.doLog = jest.fn().mockImplementation(() => 
+      transport.testDoLog = jest.fn().mockImplementation(() => 
         new Promise(resolve => setTimeout(resolve, 200))
       );
       
@@ -309,18 +326,29 @@ describe('Transport', () => {
     });
 
     it('should fall back to individual logging if no batch method', async () => {
-      transport.doLogBatch = undefined;
+      // Create a transport without batch method
+      const noBatchTransport = new (class extends TestTransport {
+        protected async doLogBatch(_entries: LogEntry[]): Promise<void> {
+          throw new Error('Batch not supported');
+        }
+      })({ name: 'no-batch' });
       
       const entries = [mockEntry, { ...mockEntry, id: 'test-124' }];
-      await transport.logBatch(entries);
+      await noBatchTransport.logBatch(entries);
       
-      expect(transport.logCalls).toHaveLength(2);
+      expect(noBatchTransport.logCalls).toHaveLength(2);
     });
 
     it('should handle partial failures in individual mode', async () => {
-      transport.doLogBatch = undefined;
+      // Create a transport without batch method
+      const noBatchTransport = new (class extends TestTransport {
+        protected async doLogBatch(_entries: LogEntry[]): Promise<void> {
+          throw new Error('Batch not supported');
+        }
+      })({ name: 'no-batch-fail' });
+      
       let callCount = 0;
-      transport.doLog = jest.fn().mockImplementation(() => {
+      noBatchTransport.testDoLog = jest.fn().mockImplementation(() => {
         callCount++;
         if (callCount === 2) {
           return Promise.reject(new Error('Second failed'));
@@ -334,9 +362,9 @@ describe('Transport', () => {
         { ...mockEntry, id: 'test-125' }
       ];
       
-      await transport.logBatch(entries);
+      await noBatchTransport.logBatch(entries);
       
-      const stats = transport.getStats();
+      const stats = noBatchTransport.getStats();
       expect(stats.processed).toBe(3);
       expect(stats.succeeded).toBe(2);
       expect(stats.failed).toBe(1);
@@ -496,7 +524,7 @@ describe('Transport', () => {
     });
 
     it('should handle close errors', async () => {
-      transport.doClose = jest.fn().mockRejectedValue(new Error('Close failed'));
+      transport.testDoClose = jest.fn().mockRejectedValue(new Error('Close failed'));
       
       await expect(transport.close()).rejects.toThrow('Close failed');
     });
@@ -904,9 +932,12 @@ describe('Individual Transport Entry Points', () => {
       
       const factory = TransportRegistry.get('console');
       expect(factory).toBeDefined();
+
+      if (!factory) {
+        throw new Error('Console transport factory not found in registry');
+      }
       
-      // TypeScript assertion - we know factory exists from above test
-      const transport = (factory as any)({
+      const transport = (factory as (opts: Record<string, unknown>) => TestTransport)({
         type: 'console',
         name: 'registry-console',
         enabled: true
@@ -940,17 +971,19 @@ describe('Individual Transport Entry Points', () => {
       const factory = TransportRegistry.get('file');
       expect(factory).toBeDefined();
       
-      if (factory) {
-        const transport = factory({
-          type: 'file',
-          name: 'registry-file',
-          filepath: '/tmp/registry-test.log',
-          enabled: true
-        });
-        
-        expect(transport.name).toBe('registry-file');
-        expect(transport.enabled).toBe(true);
+      if (!factory) {
+        throw new Error('File transport factory not found in registry');
       }
+        
+      const transport = factory({
+        type: 'file',
+        name: 'registry-file',
+        filepath: '/tmp/registry-test.log',
+        enabled: true
+      });
+      
+      expect(transport.name).toBe('registry-file');
+      expect(transport.enabled).toBe(true);
     });
   });
 
@@ -977,17 +1010,19 @@ describe('Individual Transport Entry Points', () => {
       const factory = TransportRegistry.get('http');
       expect(factory).toBeDefined();
       
-      if (factory) {
-        const transport = factory({
-          type: 'http',
-          name: 'registry-http',
-          url: 'https://api.example.com/logs',
-          enabled: true
-        });
-        
-        expect(transport.name).toBe('registry-http');
-        expect(transport.enabled).toBe(true);
+      if (!factory) {
+        throw new Error('HTTP transport factory not found in registry');
       }
+
+      const transport = factory({
+        type: 'http',
+        name: 'registry-http',
+        url: 'https://api.example.com/logs',
+        enabled: true
+      });
+      
+      expect(transport.name).toBe('registry-http');
+      expect(transport.enabled).toBe(true);
     });
   });
 
@@ -1005,7 +1040,11 @@ describe('Individual Transport Entry Points', () => {
       const factory = TransportRegistry.get('console');
       expect(factory).toBeDefined();
       
-      const registryConsole = factory!({
+      if (!factory) {
+        throw new Error('Console transport factory not found in registry');
+      }
+      
+      const registryConsole = factory({
         type: 'console',
         name: 'mixed-registry-console'
       });

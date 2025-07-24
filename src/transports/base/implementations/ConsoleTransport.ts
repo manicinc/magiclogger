@@ -5,7 +5,7 @@ import type { LogEntry } from '../../../types/transport';
 import * as colorette from 'colorette';
 
 // Define the options interface directly here since TypeScript is having issues finding it
-interface ConsoleTransportOptions {
+export interface ConsoleTransportOptions {
   name: string;
   enabled?: boolean;
   level?: string;

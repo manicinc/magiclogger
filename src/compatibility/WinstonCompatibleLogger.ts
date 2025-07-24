@@ -1,103 +1,21 @@
-// File: src/compatibility/Winston.ts
-
-import { BaseCompatibleLogger } from './BaseCompatibleLogger';
-import type { LoggerOptions, ColorName } from '../types';
-import type { Transport } from '../transports/base/Transport';
-
 /**
- * Winston-compatible logger options interface.
- * Extends the base LoggerOptions with Winston-specific configuration.
+ * Winston Compatibility Module Entry Point
  * 
- * @interface WinstonCompatibleOptions
- * @extends {LoggerOptions}
+ * This module provides a Winston-compatible API for MagicLogger.
+ * Import this module directly for optimal tree-shaking.
+ * 
+ * @module compatibility/winston
  */
-export interface WinstonCompatibleOptions extends LoggerOptions {
-  /** Log level for the logger. @default 'info' */
-  level?: 'error' | 'warn' | 'info' | 'http' | 'verbose' | 'debug' | 'silly';
-  
-  /** Custom levels configuration mapping level names to numeric values */
-  levels?: Record<string, number>;
-  
-  /** Whether to exit process on error. @default true */
-  exitOnError?: boolean;
-  
-  /** Array of transport instances for log output */
-  transports?: Transport[];
-  
-  /** Exception handler transports */
-  exceptionHandlers?: Transport[];
-  
-  /** Rejection handler transports */
-  rejectionHandlers?: Transport[];
-  
-  /** Silent mode - suppresses all output. @default false */
-  silent?: boolean;
-  
-  /** Enable printf-style formatting. @default true */
-  printfFormatting?: boolean;
-  
-  /** Default metadata for all logs */
-  defaultMeta?: Record<string, unknown>;
-  
-  /** Default context (alias for defaultMeta) */
-  defaultContext?: Record<string, unknown>;
-  
-  /** Whether to add timestamps to logs. @default false */
-  timestamp?: boolean;
-  
-  /** Timestamp format style. @default 'HH:mm:ss' */
-  timestampFormat?: 'ISO' | 'epoch' | 'HH:mm:ss';
-  
-  /** Whether to handle uncaught exceptions. @default false */
-  handleExceptions?: boolean;
-  
-  /** Whether to handle unhandled rejections. @default false */
-  handleRejections?: boolean;
-  
-  /** Custom format function for log entries */
-  format?: (info: LogInfo) => string;
-  
-  /** Default tags to apply to all log entries */
-  defaultTags?: string[];
-  
-  /** Exception handling configuration */
-  exceptions?: {
-    /** Whether to handle exceptions */
-    handle?: boolean;
-    /** Whether to humanize error output */
-    humanizeErrors?: boolean;
-  };
-  
-  /** Rejection handling configuration */
-  rejections?: {
-    /** Whether to handle rejections */
-    handle?: boolean;
-    /** Whether to humanize error output */
-    humanizeErrors?: boolean;
-  };
-}
 
-/**
- * Log info structure for Winston format functions.
- * 
- * @interface LogInfo
- */
-interface LogInfo {
-  /** Log level */
-  level: string;
-  /** Log message */
-  message: string;
-  /** Optional timestamp */
-  timestamp?: string;
-  /** Additional metadata fields */
-  [key: string]: unknown;
-}
+export { 
+  WinstonCompatibleLogger,
+  createWinstonCompatible,
+  type WinstonCompatibleOptions 
+} from './WinstonCompatibleLogger';
 
-/**
- * Timer object for profiling operations.
- * 
- * @interface Timer
- * @private
+export type { 
+  LogCompatibilityOptions 
+} from './BaseCompatibleLogger';
  */
 interface Timer {
   /** Timer name identifier */

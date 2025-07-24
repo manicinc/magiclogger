@@ -4,7 +4,7 @@ import {
   createPinoCompatible,
   PinoCompatibleLogger,
   type PinoCompatibleOptions,
-} from '../../../src/compatibility/Pino';
+} from '../../../src/compatibility/PinoCompatibleLogger';
 import { Logger } from '../../../src/Logger';
 
 /**

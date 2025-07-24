@@ -27,6 +27,86 @@
         "default": "./dist/transports.cjs"
       }
     },
+    "./transports/console": {
+      "import": {
+        "types": "./dist/transports/console.d.ts",
+        "default": "./dist/transports/console.js"
+      },
+      "require": {
+        "types": "./dist/transports/console.d.cts",
+        "default": "./dist/transports/console.cjs"
+      }
+    },
+    "./transports/file": {
+      "import": {
+        "types": "./dist/transports/file.d.ts",
+        "default": "./dist/transports/file.js"
+      },
+      "require": {
+        "types": "./dist/transports/file.d.cts",
+        "default": "./dist/transports/file.cjs"
+      }
+    },
+    "./transports/http": {
+      "import": {
+        "types": "./dist/transports/http.d.ts",
+        "default": "./dist/transports/http.js"
+      },
+      "require": {
+        "types": "./dist/transports/http.d.cts",
+        "default": "./dist/transports/http.cjs"
+      }
+    },
+    "./transports/stream": {
+      "import": {
+        "types": "./dist/transports/stream.d.ts",
+        "default": "./dist/transports/stream.js"
+      },
+      "require": {
+        "types": "./dist/transports/stream.d.cts",
+        "default": "./dist/transports/stream.cjs"
+      }
+    },
+    "./transports/websocket": {
+      "import": {
+        "types": "./dist/transports/websocket.d.ts",
+        "default": "./dist/transports/websocket.js"
+      },
+      "require": {
+        "types": "./dist/transports/websocket.d.cts",
+        "default": "./dist/transports/websocket.cjs"
+      }
+    },
+    "./transports/s3": {
+      "import": {
+        "types": "./dist/transports/s3.d.ts",
+        "default": "./dist/transports/s3.js"
+      },
+      "require": {
+        "types": "./dist/transports/s3.d.cts",
+        "default": "./dist/transports/s3.cjs"
+      }
+    },
+    "./transports/mongodb": {
+      "import": {
+        "types": "./dist/transports/mongodb.d.ts",
+        "default": "./dist/transports/mongodb.js"
+      },
+      "require": {
+        "types": "./dist/transports/mongodb.d.cts",
+        "default": "./dist/transports/mongodb.cjs"
+      }
+    },
+    "./transports/base": {
+      "import": {
+        "types": "./dist/transports/base.d.ts",
+        "default": "./dist/transports/base.js"
+      },
+      "require": {
+        "types": "./dist/transports/base.d.cts",
+        "default": "./dist/transports/base.cjs"
+      }
+    },
     "./compatibility": {
       "import": {
         "types": "./dist/compatibility/index.d.ts",
@@ -35,6 +115,56 @@
       "require": {
         "types": "./dist/compatibility/index.d.cts",
         "default": "./dist/compatibility/index.cjs"
+      }
+    },
+    "./compatibility/winston": {
+      "import": {
+        "types": "./dist/compatibility/winston.d.ts",
+        "default": "./dist/compatibility/winston.js"
+      },
+      "require": {
+        "types": "./dist/compatibility/winston.d.cts",
+        "default": "./dist/compatibility/winston.cjs"
+      }
+    },
+    "./compatibility/bunyan": {
+      "import": {
+        "types": "./dist/compatibility/bunyan.d.ts",
+        "default": "./dist/compatibility/bunyan.js"
+      },
+      "require": {
+        "types": "./dist/compatibility/bunyan.d.cts",
+        "default": "./dist/compatibility/bunyan.cjs"
+      }
+    },
+    "./compatibility/pino": {
+      "import": {
+        "types": "./dist/compatibility/pino.d.ts",
+        "default": "./dist/compatibility/pino.js"
+      },
+      "require": {
+        "types": "./dist/compatibility/pino.d.cts",
+        "default": "./dist/compatibility/pino.cjs"
+      }
+    },
+    "./compatibility/console": {
+      "import": {
+        "types": "./dist/compatibility/console.d.ts",
+        "default": "./dist/compatibility/console.js"
+      },
+      "require": {
+        "types": "./dist/compatibility/console.d.cts",
+        "default": "./dist/compatibility/console.cjs"
+      }
+    },
+    "./compatibility/base": {
+      "import": {
+        "types": "./dist/compatibility/base.d.ts",
+        "default": "./dist/compatibility/base.js"
+      },
+      "require": {
+        "types": "./dist/compatibility/base.d.cts",
+        "default": "./dist/compatibility/base.cjs"
       }
     },
     "./types": {
@@ -46,16 +176,80 @@
         "types": "./dist/types/index.d.cts",
         "default": "./dist/types/index.cjs"
       }
-    }
+    },
+    "./core/colorizer": {
+      "import": {
+        "types": "./dist/core/colorizer.d.ts",
+        "default": "./dist/core/colorizer.js"
+      },
+      "require": {
+        "types": "./dist/core/colorizer.d.cts",
+        "default": "./dist/core/colorizer.cjs"
+      }
+    },
+    "./core/context-manager": {
+      "import": {
+        "types": "./dist/core/context-manager.d.ts",
+        "default": "./dist/core/context-manager.js"
+      },
+      "require": {
+        "types": "./dist/core/context-manager.d.cts",
+        "default": "./dist/core/context-manager.cjs"
+      }
+    },
+    "./core/tag-manager": {
+      "import": {
+        "types": "./dist/core/tag-manager.d.ts",
+        "default": "./dist/core/tag-manager.js"
+      },
+      "require": {
+        "types": "./dist/core/tag-manager.d.cts",
+        "default": "./dist/core/tag-manager.cjs"
+      }
+    },
+    "./core/formatter": {
+      "import": {
+        "types": "./dist/core/formatter.d.ts",
+        "default": "./dist/core/formatter.js"
+      },
+      "require": {
+        "types": "./dist/core/formatter.d.cts",
+        "default": "./dist/core/formatter.cjs"
+      }
+    },
+    "./async/logger": {
+      "import": {
+        "types": "./dist/async/logger.d.ts",
+        "default": "./dist/async/logger.js"
+      },
+      "require": {
+        "types": "./dist/async/logger.d.cts",
+        "default": "./dist/async/logger.cjs"
+      }
+    },
+    "./async/buffer": {
+      "import": {
+        "types": "./dist/async/buffer.d.ts",
+        "default": "./dist/async/buffer.js"
+      },
+      "require": {
+        "types": "./dist/async/buffer.d.cts",
+        "default": "./dist/async/buffer.cjs"
+      }
+    },
+    "./package.json": "./package.json"
   },
   "sideEffects": false,
   "files": [
     "dist",
-    "!dist/examples"
+    "!dist/examples",
+    "!dist/**/*.map",
+    "!dist/metafile-*.json"
   ],
   "scripts": {
     "demo": "npx tsx examples/animated-demo.ts",
     "demo:guided": "npx tsx examples/guided-animated-demo.ts",
+    "demo:tree-shaking": "npx tsx examples/tree-shaking-demo.ts",
     "demo:web": "npm run build && node -e \"const fs = require('fs-extra'); fs.copySync('dist', 'examples/web-demo/dist')\" && serve examples/web-demo",
     "docs": "cd website && npm start",
     "docs:build": "npm run build && cd website && npm install && npm run build",
@@ -66,6 +260,7 @@
     "check": "npm run format && npm run lint",
     "dev": "tsup --watch",
     "build": "npm run clean && tsup",
+    "build:analyze": "npm run build && npm run analyze:build",
     "build:examples": "tsup examples/*.ts --format=cjs --outDir=dist/examples",
     "build:examples:esm": "tsup examples/*.ts --format=esm --outDir=dist/examples --outExtension='.mjs'",
     "test": "jest",
@@ -79,7 +274,7 @@
     "test:coverage:badge": "node scripts/generate-coverage-badge.js",
     "analyze:build": "node scripts/analyze-build.js",
     "version:bump": "node scripts/version-bump.js",
-    "preflight": "npm run clean && npm run check && npm run lint && npm run test:coverage && npm run build && npm run test:coverage:badge && npm run analyze:build",
+    "preflight": "npm run clean && npm run check && npm run lint && npm run test:coverage && npm run build && npm run test:coverage:badge && npm run analyze:build && npm run test:treeshake",
     "prepublishOnly": "npm run test && npm run lint && npm run build && npm run test:coverage:badge && npm run analyze:build",
     "prepare": "npm run clean && husky",
     "version": "npm run format && git add -A src",
@@ -94,7 +289,17 @@
     "log",
     "styled",
     "formatting",
-    "ansi"
+    "ansi",
+    "tree-shakeable",
+    "zero-dependency",
+    "typescript",
+    "winston",
+    "bunyan",
+    "pino",
+    "structured-logging",
+    "transports",
+    "browser",
+    "node"
   ],
   "author": "Manic.agency",
   "license": "MIT",
@@ -142,6 +347,26 @@
     "tsup": "^8.0.1",
     "tsx": "^4.7.0",
     "typescript": "^5.0.4"
+  },
+  "peerDependencies": {
+    "@aws-sdk/client-s3": "^3.0.0",
+    "aws-sdk": "^2.0.0",
+    "mongodb": "^4.0.0 || ^5.0.0 || ^6.0.0",
+    "ws": "^8.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@aws-sdk/client-s3": {
+      "optional": true
+    },
+    "aws-sdk": {
+      "optional": true
+    },
+    "mongodb": {
+      "optional": true
+    },
+    "ws": {
+      "optional": true
+    }
   },
   "engines": {
     "node": ">=14.0.0"

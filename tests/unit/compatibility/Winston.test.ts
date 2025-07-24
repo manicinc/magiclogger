@@ -3,7 +3,7 @@
 import {
   createWinstonCompatible,
   WinstonCompatibleLogger,
-} from '../../../src/compatibility/Winston';
+} from '../../../src/compatibility/WinstonCompatibleLogger';
 import { Logger } from '../../../src/Logger';
 import type { Transport } from '../../../src/transports/base/Transport';
 

@@ -1,4 +1,4 @@
-// File: src/compatibility/Bunyan.ts
+// File: src/compatibility/BunyanCompatibleLogger.ts
 
 import { isBrowserEnvironment } from '../utils/environment';
 import { BROWSER_POLYFILLS } from '../utils/browser-polyfills';
