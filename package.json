@@ -17,16 +17,6 @@
         "default": "./dist/index.cjs"
       }
     },
-    "./transports": {
-      "import": {
-        "types": "./dist/transports.d.ts",
-        "default": "./dist/transports.js"
-      },
-      "require": {
-        "types": "./dist/transports.d.cts",
-        "default": "./dist/transports.cjs"
-      }
-    },
     "./transports/console": {
       "import": {
         "types": "./dist/transports/console.d.ts",
@@ -57,26 +47,6 @@
         "default": "./dist/transports/http.cjs"
       }
     },
-    "./transports/stream": {
-      "import": {
-        "types": "./dist/transports/stream.d.ts",
-        "default": "./dist/transports/stream.js"
-      },
-      "require": {
-        "types": "./dist/transports/stream.d.cts",
-        "default": "./dist/transports/stream.cjs"
-      }
-    },
-    "./transports/websocket": {
-      "import": {
-        "types": "./dist/transports/websocket.d.ts",
-        "default": "./dist/transports/websocket.js"
-      },
-      "require": {
-        "types": "./dist/transports/websocket.d.cts",
-        "default": "./dist/transports/websocket.cjs"
-      }
-    },
     "./transports/s3": {
       "import": {
         "types": "./dist/transports/s3.d.ts",
@@ -95,6 +65,26 @@
       "require": {
         "types": "./dist/transports/mongodb.d.cts",
         "default": "./dist/transports/mongodb.cjs"
+      }
+    },
+    "./transports/stream": {
+      "import": {
+        "types": "./dist/transports/stream.d.ts",
+        "default": "./dist/transports/stream.js"
+      },
+      "require": {
+        "types": "./dist/transports/stream.d.cts",
+        "default": "./dist/transports/stream.cjs"
+      }
+    },
+    "./transports/websocket": {
+      "import": {
+        "types": "./dist/transports/websocket.d.ts",
+        "default": "./dist/transports/websocket.js"
+      },
+      "require": {
+        "types": "./dist/transports/websocket.d.cts",
+        "default": "./dist/transports/websocket.cjs"
       }
     },
     "./transports/base": {
@@ -265,6 +255,7 @@
     "build:examples:esm": "tsup examples/*.ts --format=esm --outDir=dist/examples --outExtension='.mjs'",
     "test": "jest",
     "test:coverage": "jest --coverage",
+    "test:treeshake": "node scripts/test-tree-shaking.js",
     "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\" \"examples/**/*.ts\"",
     "lint:fix": "eslint \"src/**/*.ts\" \"tests/**/*.ts\" \"examples/**/*.ts\" --fix",
     "format": "prettier --write \"src/**/*.{ts,json}\" \"tests/**/*.{ts,json}\" \"examples/**/*.{ts,json}\"",

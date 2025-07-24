@@ -10,4 +10,4 @@
 export { 
   BaseCompatibleLogger,
   type LogCompatibilityOptions 
-} from './BaseCompatibleLogger';
+} from './loggers/BaseCompatibleLogger';

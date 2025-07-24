@@ -1,7 +1,7 @@
-// File: src/compatibility/BunyanCompatibleLogger.ts
+// File: src/compatibility/loggers/BunyanCompatibleLogger.ts
 
-import { isBrowserEnvironment } from '../utils/environment';
-import { BROWSER_POLYFILLS } from '../utils/browser-polyfills';
+import { isBrowserEnvironment } from '../../utils/environment';
+import { BROWSER_POLYFILLS } from '../../utils/browser-polyfills';
 import { BaseCompatibleLogger, LogCompatibilityOptions } from './BaseCompatibleLogger';
 
 /**

@@ -26,17 +26,20 @@
 // CORE EXPORTS
 // ==========================================
 
+// Import types and classes for internal use
+import { Logger, type LoggerOptions } from './Logger';
+
 /**
  * Main Logger class - the primary interface for logging.
  * Tree-shakeable: Only imports what's needed, no default transports.
  */
 export { Logger } from './Logger';
+export type { LoggerOptions } from './Logger';
 
 /**
  * Core logger types
  */
 export type { 
-  LoggerOptions,
   LogLevel 
 } from './types';
 

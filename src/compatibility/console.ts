@@ -23,4 +23,4 @@ export {
   EnhancedConsole,
   enhanceConsole,
   type EnhanceConsoleOptions
-} from './EnhancedConsole';
+} from './loggers/EnhancedConsole';

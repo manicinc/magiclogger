@@ -4,8 +4,7 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "isolatedModules": true,
-    "baseUrl": ".",                        // ✅ required for paths
-    "rootDir": "./src",                    // ✅ required to resolve export map
+    "baseUrl": ".",
     "paths": {
       "magiclogger": ["./src/index.ts"],
       "magiclogger/*": ["./src/*"]

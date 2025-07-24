@@ -14,13 +14,37 @@ Before diving into the implementation, here's our approach for optimal bundle si
       "require": "./dist/index.cjs",
       "types": "./dist/index.d.ts"
     },
-    "./console": {
+    "./transports/console": {
       "import": "./dist/transports/console.js",
       "types": "./dist/transports/console.d.ts"
+    },
+    "./transports/file": {
+      "import": "./dist/transports/file.js",
+      "types": "./dist/transports/file.d.ts"
+    },
+    "./transports/http": {
+      "import": "./dist/transports/http.js",
+      "types": "./dist/transports/http.d.ts"
+    },
+    "./transports/s3": {
+      "import": "./dist/transports/s3.js",
+      "types": "./dist/transports/s3.d.ts"
+    },
+    "./transports/mongodb": {
+      "import": "./dist/transports/mongodb.js",
+      "types": "./dist/transports/mongodb.d.ts"
     },
     "./compatibility/winston": {
       "import": "./dist/compatibility/winston.js",
       "types": "./dist/compatibility/winston.d.ts"
+    },
+    "./compatibility/bunyan": {
+      "import": "./dist/compatibility/bunyan.js",
+      "types": "./dist/compatibility/bunyan.d.ts"
+    },
+    "./compatibility/pino": {
+      "import": "./dist/compatibility/pino.js",
+      "types": "./dist/compatibility/pino.d.ts"
     }
   },
   "sideEffects": false
@@ -31,11 +55,12 @@ Before diving into the implementation, here's our approach for optimal bundle si
 
 ```typescript
 // ❌ Bad - imports everything
-import { Logger } from 'magiclogger';
+import { Logger, ConsoleTransport, FileTransport } from 'magiclogger';
 
 // ✅ Good - tree-shakeable
-import { Logger } from 'magiclogger/core';
-import { ConsoleTransport } from 'magiclogger/console';
+import { Logger } from 'magiclogger';
+import { ConsoleTransport } from 'magiclogger/transports/console';
+import { FileTransport } from 'magiclogger/transports/file';
 import { createWinstonCompatible } from 'magiclogger/compatibility/winston';
 ```
 
@@ -95,10 +120,13 @@ MagicLogger provides:
 ```typescript
 // Import only what you need for minimal bundle size
 import { Logger } from 'magiclogger';
-import { ConsoleTransport, FileTransport } from 'magiclogger/transports';
+import { ConsoleTransport } from 'magiclogger/transports/console';
+import { FileTransport } from 'magiclogger/transports/file';
 
-// Or use convenience factories
-import { createConsole, createFile } from 'magiclogger/transports';
+// Or use compatibility layers
+import { createWinstonCompatible } from 'magiclogger/compatibility/winston';
+import { createPinoCompatible } from 'magiclogger/compatibility/pino';
+import { createBunyanCompatible } from 'magiclogger/compatibility/bunyan';
 
 // Create logger
 const logger = new Logger();
@@ -129,7 +157,8 @@ logger.error('Something went wrong', new Error('Database connection failed'));
 
 ```typescript
 import { Logger } from 'magiclogger';
-import { ConsoleTransport, FileTransport } from 'magiclogger/transports';
+import { ConsoleTransport } from 'magiclogger/transports/console';
+import { FileTransport } from 'magiclogger/transports/file';
 
 const logger = new Logger();
 
@@ -166,7 +195,7 @@ if (process.env.NODE_ENV === 'production') {
 // import winston from 'winston';
 
 // With this (tree-shakeable):
-import { createWinstonCompatible } from 'magiclogger/compat/winston';
+import { createWinstonCompatible } from 'magiclogger/compatibility/winston';
 const winston = createWinstonCompatible();
 
 // Your existing Winston code works unchanged
@@ -190,22 +219,27 @@ import { Logger, COLORS, TransportManager } from 'magiclogger';
 #### 🎯 **Tree-Shakeable Transport Import**
 ```typescript
 // Import only the transports you need
-import { ConsoleTransport, FileTransport, HTTPTransport } from 'magiclogger/transports';
+import { ConsoleTransport } from 'magiclogger/transports/console';
+import { FileTransport } from 'magiclogger/transports/file';
+import { HTTPTransport } from 'magiclogger/transports/http';
 // Bundle size: ~8KB (core transports only)
 
 // Optional transports (larger dependencies)
-import { S3Transport, MongoDBTransport } from 'magiclogger/transports';
+import { S3Transport } from 'magiclogger/transports/s3';
+import { MongoDBTransport } from 'magiclogger/transports/mongodb';
 // Bundle size: +500KB (S3), +2MB (MongoDB) - only when imported
 ```
 
 #### ⚡ **Convenience Factories**
 ```typescript
-// Async factory functions with smart defaults
-import { createConsole, createFile, createHTTP } from 'magiclogger/transports';
+// Use direct imports for better tree-shaking
+import { ConsoleTransport } from 'magiclogger/transports/console';
+import { FileTransport } from 'magiclogger/transports/file';
+import { HTTPTransport } from 'magiclogger/transports/http';
 
-const console = await createConsole(); // name: 'console'
-const file = await createFile('./app.log'); // name: 'file-app-log'
-const http = await createHTTP('https://api.logs.com'); // name: 'http-api.logs.com'
+const console = new ConsoleTransport({ name: 'console' });
+const file = new FileTransport({ name: 'file', filepath: './app.log' });
+const http = new HTTPTransport({ name: 'http', url: 'https://api.logs.com' });
 ```
 
 ### Transport Categories
@@ -237,7 +271,9 @@ These require external dependencies and are only bundled when explicitly importe
 
 ```typescript
 // Only bundled when imported
-import { S3Transport, MongoDBTransport, WebSocketTransport } from 'magiclogger/transports';
+import { S3Transport } from 'magiclogger/transports/s3';
+import { MongoDBTransport } from 'magiclogger/transports/mongodb';
+import { WebSocketTransport } from 'magiclogger/transports/websocket';
 ```
 
 ### Bundle Size Analysis
@@ -245,16 +281,16 @@ import { S3Transport, MongoDBTransport, WebSocketTransport } from 'magiclogger/t
 | Import Strategy | Bundle Size | Use Case |
 |----------------|-------------|----------|
 | `import { Logger } from 'magiclogger'` | ~15KB | Simple apps, development |
-| `import { ConsoleTransport } from 'magiclogger/transports'` | ~2KB | Console-only logging |
-| `import { createFile } from 'magiclogger/transports'` | ~3KB | File-only logging |
+| `import { ConsoleTransport } from 'magiclogger/transports/console'` | ~2KB | Console-only logging |
+| `import { FileTransport } from 'magiclogger/transports/file'` | ~3KB | File-only logging |
 | Core transports (all 4) | ~10KB | Production apps |
 | + S3Transport | ~510KB | Cloud logging |
 | + MongoDBTransport | ~2MB | Database logging |
 
 ```typescript
 // These only add to bundle when imported
-import { S3Transport } from 'magiclogger/transports';        // +~150KB (AWS SDK)
-import { MongoDBTransport } from 'magiclogger/transports'; // +~90KB (MongoDB driver)
+import { S3Transport } from 'magiclogger/transports/s3';        // +~150KB (AWS SDK)
+import { MongoDBTransport } from 'magiclogger/transports/mongodb'; // +~90KB (MongoDB driver)
 ```
 
 ### Bundle Size Impact
@@ -276,38 +312,38 @@ import { Logger } from 'magiclogger';
 const logger = new Logger();
 
 // ✅ Add console output (~12KB total)
-import { ConsoleTransport } from 'magiclogger/transports';
+import { ConsoleTransport } from 'magiclogger/transports/console';
 logger.addTransport(new ConsoleTransport({ name: 'console' }));
 
 // ✅ Add file logging (~18KB total)
-import { FileTransport } from 'magiclogger/transports';
+import { FileTransport } from 'magiclogger/transports/file';
 logger.addTransport(new FileTransport({
   name: 'file',
   filepath: './logs/app.log'
 }));
 
 // ✅ Add HTTP endpoint (~22KB total)
-import { HTTPTransport } from 'magiclogger/transports';
+import { HTTPTransport } from 'magiclogger/transports/http';
 logger.addTransport(new HTTPTransport({
   name: 'http',
   url: 'https://logs.example.com/api'
 }));
 
 // ✅ Add cloud storage (only when needed - +~150KB)
-import { S3Transport } from 'magiclogger/transports';
+import { S3Transport } from 'magiclogger/transports/s3';
 logger.addTransport(new S3Transport({
   name: 's3',
   bucket: 'my-logs',
   region: 'us-east-1'
 }));
 
-// ✅ Convenience factories (recommended)
-import { createConsole, createFile, createHTTP } from 'magiclogger/transports';
-logger.addTransport(await createConsole());
-logger.addTransport(await createFile('./logs/app.log'));
-logger.addTransport(await createHTTP('https://logs.example.com/api'));
+// ✅ Use compatibility layers
+import { createWinstonCompatible } from 'magiclogger/compatibility/winston';
+import { createPinoCompatible } from 'magiclogger/compatibility/pino';
+const winston = createWinstonCompatible();
+const pino = createPinoCompatible();
 
-// ❌ Avoid - imports everything
+// ❌ Avoid - imports everything (if this existed)
 import { Logger, ConsoleTransport, S3Transport } from 'magiclogger';
 ```
 

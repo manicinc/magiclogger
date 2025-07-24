@@ -201,7 +201,8 @@ export class Colorizer {
     return Array.from(text)
       .map((char, index) => {
         const colorIndex = index % rainbowColors.length;
-        return this.color(char, rainbowColors[colorIndex], useColors);
+        const color = rainbowColors[colorIndex];
+        return color ? this.color(char, color, useColors) : char;
       })
       .join('');
   }
@@ -214,36 +215,6 @@ export class Colorizer {
   public static isLinkLike(text: string): boolean {
     if (!text || typeof text !== 'string') return false;
     return IS_PATH_REGEX.test(text);
-  }
-
-  /**
-   * Get the appropriate reset code for a color.
-   * 
-   * @param {ColorName} color - Color to get reset for
-   * @returns {string} Reset code
-   * @private
-   * @static
-   */
-  private static getResetCode(color: ColorName): string {
-    // Background colors
-    if (typeof color === 'string' && color.startsWith('bg')) {
-      return COLORS.reset;
-    }
-
-    // Style modifiers have specific reset codes
-    switch (color) {
-      case 'bold':
-      case 'dim':
-      case 'italic':
-      case 'underline':
-      case 'inverse':
-      case 'hidden':
-      case 'strikethrough':
-        return COLORS.reset;
-      default:
-        // Foreground colors
-        return COLORS.reset;
-    }
   }
 
   /**
@@ -295,8 +266,8 @@ export class Colorizer {
       // Dynamic import to avoid bundler issues
       import('os').then(os => {
         const osRelease = os.release().split('.');
-        const major = parseInt(osRelease[0], 10);
-        const build = parseInt(osRelease[2], 10);
+        const major = parseInt(osRelease[0] || '0', 10);
+        const build = parseInt(osRelease[2] || '0', 10);
         this._supportsColor = major >= 10 && build >= 14931;
       }).catch(() => {
         this._supportsColor = false;
@@ -330,8 +301,8 @@ export class Colorizer {
   private static addToCache(key: string, value: string): void {
     if (this.codeCache.size >= this.MAX_CACHE_SIZE) {
       // Remove oldest entry
-      const firstKey = this.codeCache.keys().next().value as string | undefined;
-      if (firstKey) {
+      const firstKey = this.codeCache.keys().next().value;
+      if (firstKey !== undefined) {
         this.codeCache.delete(firstKey);
       }
     }

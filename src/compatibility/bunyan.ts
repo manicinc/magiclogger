@@ -23,9 +23,9 @@ export {
   BunyanCompatibleLogger,
   createBunyanCompatible,
   type BunyanCompatibleOptions 
-} from './BunyanCompatibleLogger';
+} from './loggers/BunyanCompatibleLogger';
 
 // Re-export base types that Bunyan compatibility might need
 export type { 
   LogCompatibilityOptions 
-} from './BaseCompatibleLogger';
+} from './loggers/BaseCompatibleLogger';

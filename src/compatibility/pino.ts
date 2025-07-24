@@ -23,12 +23,12 @@ export {
   PinoCompatibleLogger,
   createPinoCompatible,
   type PinoCompatibleOptions 
-} from './PinoCompatibleLogger';
+} from './loggers/PinoCompatibleLogger';
 
 // Re-export base types that Pino compatibility might need
 export type { 
   LogCompatibilityOptions 
-} from './BaseCompatibleLogger';
+} from './loggers/BaseCompatibleLogger';
 
 // Re-export static properties for Pino compatibility
 export const levels = {

@@ -5,24 +5,24 @@
  */
 
 // Base compatibility layer
-export { BaseCompatibleLogger } from './BaseCompatibleLogger';
-export type { LogCompatibilityOptions } from './BaseCompatibleLogger';
+export { BaseCompatibleLogger } from './loggers/BaseCompatibleLogger';
+export type { LogCompatibilityOptions } from './loggers/BaseCompatibleLogger';
 
 // Console enhancement
-export { enhanceConsole } from './EnhancedConsole';
+export { enhanceConsole } from './loggers/EnhancedConsole';
 export type {
   EnhancedConsole,
   EnhanceConsoleOptions,
-} from './EnhancedConsole';
+} from './loggers/EnhancedConsole';
 
 // Winston compatibility
-export { createWinstonCompatible } from './WinstonCompatibleLogger';
-export type { WinstonCompatibleLogger, WinstonCompatibleOptions } from './WinstonCompatibleLogger';
+export { createWinstonCompatible } from './loggers/WinstonCompatibleLogger';
+export type { WinstonCompatibleLogger, WinstonCompatibleOptions } from './loggers/WinstonCompatibleLogger';
 
 // Bunyan compatibility
-export { createBunyanCompatible } from './BunyanCompatibleLogger';
-export type { BunyanCompatibleLogger, BunyanCompatibleOptions } from './BunyanCompatibleLogger';
+export { createBunyanCompatible } from './loggers/BunyanCompatibleLogger';
+export type { BunyanCompatibleLogger, BunyanCompatibleOptions } from './loggers/BunyanCompatibleLogger';
 
 // Pino compatibility
-export { createPinoCompatible } from './PinoCompatibleLogger';
-export type { PinoCompatibleLogger, PinoCompatibleOptions } from './PinoCompatibleLogger';
+export { createPinoCompatible } from './loggers/PinoCompatibleLogger';
+export type { PinoCompatibleLogger, PinoCompatibleOptions } from './loggers/PinoCompatibleLogger';

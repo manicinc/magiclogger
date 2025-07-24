@@ -23,9 +23,9 @@ export {
   WinstonCompatibleLogger,
   createWinstonCompatible,
   type WinstonCompatibleOptions 
-} from './WinstonCompatibleLogger';
+} from './loggers/WinstonCompatibleLogger';
 
 // Re-export base types that Winston compatibility might need
 export type { 
   LogCompatibilityOptions 
-} from './BaseCompatibleLogger';
+} from './loggers/BaseCompatibleLogger';
