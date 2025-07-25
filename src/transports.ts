@@ -38,12 +38,12 @@ export function createStream(stream: NodeJS.WritableStream, options?: Record<str
 }
 
 export function createHTTP(url: string, options?: Record<string, unknown>) {
-  const hostname = new URL(url).hostname.replace(/\./g, '-');
+  const hostname = new URL(url).hostname;
   return new HTTPTransport({ name: `http-${hostname}`, url, ...options });
 }
 
-// Legacy exports for compatibility
-export const TransportRegistry = {};
+// Export TransportRegistry from the main transports module
+export { TransportRegistry } from './transports/index';
 export class NetworkTransport {}
 export class BatchingTransport {}
 

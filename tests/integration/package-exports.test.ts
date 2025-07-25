@@ -57,7 +57,7 @@ describe('Package.json Exports', () => {
     
     it('should export console transport module', async () => {
       // Simulate: import { ConsoleTransport } from 'magiclogger/console'
-      const consoleModule = await import('../../src/console');
+      const consoleModule = await import('../../src/transports/console');
       
       expect(consoleModule.ConsoleTransport).toBeDefined();
       expect(consoleModule.createConsoleTransport).toBeDefined();
@@ -65,7 +65,7 @@ describe('Package.json Exports', () => {
 
     it('should export file transport module', async () => {
       // Simulate: import { FileTransport } from 'magiclogger/file'
-      const fileModule = await import('../../src/file');
+      const fileModule = await import('../../src/transports/file');
       
       expect(fileModule.FileTransport).toBeDefined();
       expect(fileModule.createFileTransport).toBeDefined();
@@ -73,7 +73,7 @@ describe('Package.json Exports', () => {
 
     it('should export http transport module', async () => {
       // Simulate: import { HTTPTransport } from 'magiclogger/http'
-      const httpModule = await import('../../src/http');
+      const httpModule = await import('../../src/transports/http');
       
       expect(httpModule.HTTPTransport).toBeDefined();
       expect(typeof httpModule.HTTPTransport).toBe('function');
@@ -156,7 +156,7 @@ describe('Package.json Exports', () => {
 
     it('should support single transport import', async () => {
       // Simulate: import { ConsoleTransport } from 'magiclogger/console'
-      const { ConsoleTransport } = await import('../../src/console');
+      const { ConsoleTransport } = await import('../../src/transports/console');
       
       const transport = new ConsoleTransport({ name: 'single-transport' });
       expect(transport.name).toBe('single-transport');
@@ -202,8 +202,8 @@ describe('Package.json Exports', () => {
       const { Logger, COLORS } = await import('../../src/index');
       
       // Individual transports
-      const { ConsoleTransport } = await import('../../src/console');
-      const { FileTransport } = await import('../../src/file');
+      const { ConsoleTransport } = await import('../../src/transports/console');
+      const { FileTransport } = await import('../../src/transports/file');
       
       // Combined transports
       const { createHTTP } = await import('../../src/transports');

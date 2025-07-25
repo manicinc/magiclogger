@@ -1,4 +1,4 @@
-import { createBunyanCompatible, BunyanCompatibleLogger } from '../../../src/compatibility/Bunyan';
+import { createBunyanCompatible, BunyanCompatibleLogger } from '../../../src/compatibility/loggers/BunyanCompatibleLogger';
 
 describe('BunyanCompatibleLogger', () => {
   let logger: BunyanCompatibleLogger;
@@ -9,7 +9,7 @@ describe('BunyanCompatibleLogger', () => {
 
   it('should create a Bunyan-compatible logger', () => {
     expect(logger).toBeInstanceOf(BunyanCompatibleLogger);
-    expect(logger.loggerName).toBe('test-app');
+    expect(logger.getName()).toBe('test-app');
   });
 
   it('should log messages with Bunyan-style format', () => {

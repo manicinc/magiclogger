@@ -15,8 +15,8 @@ if (isBrowserEnvironment()) {
   listThemes = () => ['default'];
 } else {
   // Node.js implementation - use conditional imports
-  let fs: any;
-  let path: any;
+  let fs: typeof import('fs') | undefined;
+  let path: typeof import('path') | undefined;
 
   try {
     // Use function constructor to avoid static analysis
@@ -25,8 +25,8 @@ if (isBrowserEnvironment()) {
     path = dynamicRequire('path');
   } catch {
     // Fallback for environments where require is not available
-    fs = null;
-    path = null;
+    fs = undefined;
+    path = undefined;
   }
 
   let themesCache: Record<string, ThemeDefinition> | null = null;

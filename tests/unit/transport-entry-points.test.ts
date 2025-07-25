@@ -12,7 +12,7 @@ describe('Individual Transport Entry Points', () => {
   describe('console.ts entry point', () => {
     
     it('should export ConsoleTransport', async () => {
-      const consoleModule = await import('../../src/console');
+      const consoleModule = await import('../../src/transports/console');
       
       expect(consoleModule.ConsoleTransport).toBeDefined();
       expect(typeof consoleModule.ConsoleTransport).toBe('function');
@@ -20,12 +20,12 @@ describe('Individual Transport Entry Points', () => {
 
     it('should export ConsoleTransportOptions type', async () => {
       // Type-only import test - if this compiles, types are exported
-      const consoleModule = await import('../../src/console');
+      const consoleModule = await import('../../src/transports/console');
       expect(consoleModule).toBeDefined();
     });
 
     it('should export createConsoleTransport factory', async () => {
-      const consoleModule = await import('../../src/console');
+      const consoleModule = await import('../../src/transports/console');
       
       expect(consoleModule.createConsoleTransport).toBeDefined();
       expect(typeof consoleModule.createConsoleTransport).toBe('function');
@@ -33,7 +33,7 @@ describe('Individual Transport Entry Points', () => {
 
     it('should register console transport with TransportRegistry', async () => {
       // Import the module to trigger registration
-      await import('../../src/console');
+      await import('../../src/transports/console');
       
       const { TransportRegistry } = await import('../../src/transports');
       
@@ -49,26 +49,26 @@ describe('Individual Transport Entry Points', () => {
   describe('file.ts entry point', () => {
     
     it('should export FileTransport', async () => {
-      const fileModule = await import('../../src/file');
+      const fileModule = await import('../../src/transports/file');
       
       expect(fileModule.FileTransport).toBeDefined();
       expect(typeof fileModule.FileTransport).toBe('function');
     });
 
     it('should export FileTransportOptions type', async () => {
-      const fileModule = await import('../../src/file');
+      const fileModule = await import('../../src/transports/file');
       expect(fileModule).toBeDefined();
     });
 
     it('should export createFileTransport factory', async () => {
-      const fileModule = await import('../../src/file');
+      const fileModule = await import('../../src/transports/file');
       
       expect(fileModule.createFileTransport).toBeDefined();
       expect(typeof fileModule.createFileTransport).toBe('function');
     });
 
     it('should register file transport with TransportRegistry', async () => {
-      await import('../../src/file');
+      await import('../../src/transports/file');
       
       const { TransportRegistry } = await import('../../src/transports');
       
@@ -84,26 +84,26 @@ describe('Individual Transport Entry Points', () => {
   describe('http.ts entry point', () => {
     
     it('should export HTTPTransport', async () => {
-      const httpModule = await import('../../src/http');
+      const httpModule = await import('../../src/transports/http');
       
       expect(httpModule.HTTPTransport).toBeDefined();
       expect(typeof httpModule.HTTPTransport).toBe('function');
     });
 
     it('should export HTTPTransportOptions type', async () => {
-      const httpModule = await import('../../src/http');
+      const httpModule = await import('../../src/transports/http');
       expect(httpModule).toBeDefined();
     });
 
     it('should export HTTPTransport class', async () => {
-      const httpModule = await import('../../src/http');
+      const httpModule = await import('../../src/transports/http');
       
       expect(httpModule.HTTPTransport).toBeDefined();
       expect(typeof httpModule.HTTPTransport).toBe('function');
     });
 
     it('should register HTTP transport with TransportRegistry', async () => {
-      await import('../../src/http');
+      await import('../../src/transports/http');
       
       const { TransportRegistry } = await import('../../src/transports');
       
@@ -119,9 +119,9 @@ describe('Individual Transport Entry Points', () => {
   describe('Cross-transport compatibility', () => {
     
     it('should allow mixing imports from different entry points', async () => {
-      const consoleModule = await import('../../src/console');
-      const fileModule = await import('../../src/file');
-      const httpModule = await import('../../src/http');
+      const consoleModule = await import('../../src/transports/console');
+      const fileModule = await import('../../src/transports/file');
+      const httpModule = await import('../../src/transports/http');
       
       expect(consoleModule.ConsoleTransport).toBeDefined();
       expect(fileModule.FileTransport).toBeDefined();
@@ -145,8 +145,8 @@ describe('Individual Transport Entry Points', () => {
 
     it('should work with the main transports module', async () => {
       // Import from individual entry points
-      const { ConsoleTransport } = await import('../../src/console');
-      const { FileTransport } = await import('../../src/file');
+      const { ConsoleTransport } = await import('../../src/transports/console');
+      const { FileTransport } = await import('../../src/transports/file');
       
       // Import from main transports module
       const transportsModule = await import('../../src/transports');
@@ -161,7 +161,7 @@ describe('Individual Transport Entry Points', () => {
     
     it('should support selective loading', async () => {
       // Test that we can import just one transport without loading others
-      const { ConsoleTransport } = await import('../../src/console');
+      const { ConsoleTransport } = await import('../../src/transports/console');
       
       const transport = new ConsoleTransport({ name: 'selective-test' });
       expect(transport.name).toBe('selective-test');
@@ -171,8 +171,8 @@ describe('Individual Transport Entry Points', () => {
 
     it('should have minimal overhead per transport', async () => {
       // Each entry point should be lightweight
-      const consoleModule = await import('../../src/console');
-      const fileModule = await import('../../src/file');
+      const consoleModule = await import('../../src/transports/console');
+      const fileModule = await import('../../src/transports/file');
       
       // Should export exactly what we expect, no more
       const consoleKeys = Object.keys(consoleModule);
@@ -190,9 +190,9 @@ describe('Individual Transport Entry Points', () => {
     
     it('should not conflict when multiple entry points are imported', async () => {
       // Import all entry points
-      await import('../../src/console');
-      await import('../../src/file');
-      await import('../../src/http');
+      await import('../../src/transports/console');
+      await import('../../src/transports/file');
+      await import('../../src/transports/http');
       
       const { TransportRegistry } = await import('../../src/transports');
       

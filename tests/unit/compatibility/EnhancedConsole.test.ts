@@ -1,6 +1,6 @@
 // File: tests/unit/compatibility/EnhancedConsole.test.ts
 
-import { enhanceConsole } from '../../../src/compatibility/EnhancedConsole';
+import { enhanceConsole } from '../../../src/compatibility/loggers/EnhancedConsole';
 import { Logger } from '../../../src/Logger';
 import type { ColorName } from '../../../src/types';
 

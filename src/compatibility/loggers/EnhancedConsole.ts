@@ -239,7 +239,7 @@ export function enhanceConsole(options: EnhanceConsoleOptions = {}): {
 
       // Remove enhanced methods
       enhancedMethods.forEach(method => {
-        delete (console as any)[method];
+        delete (console as unknown as Record<string, unknown>)[method];
       });
 
       delete extendedConsole[recursionGuard as unknown as string];

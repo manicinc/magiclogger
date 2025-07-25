@@ -71,7 +71,7 @@ const CONDITIONAL_STYLES = {
 
 // Build the final COLORS object with dynamic getters for conditional styles
 const buildColors = () => {
-  const colors = { ...BASE_ANSI } as any;
+  const colors = { ...BASE_ANSI } as Record<string, string>;
 
   // Add conditional styles with dynamic getters
   for (const [styleName, ansiCode] of Object.entries(CONDITIONAL_STYLES)) {

@@ -29,10 +29,20 @@ interface WorkerConfig {
 }
 
 interface WorkerResponse {
-  type: 'processed' | 'error' | 'metrics' | 'ready';
+  type: 'processed' | 'error' | 'metrics' | 'ready' | 'file-ready' | 'network-ready' | 'config-updated';
   count?: number;
   error?: string;
   metrics?: WorkerMetrics;
+  data?: string;
+  batch?: NetworkBatch;
+  config?: WorkerConfig;
+}
+
+interface NetworkBatch {
+  endpoint: string;
+  data: string | object[];
+  timestamp: string;
+  count: number;
 }
 
 interface WorkerMetrics {
@@ -190,7 +200,7 @@ function prepareFileData(data: string | object[]): void {
   self.postMessage({
     type: 'file-ready',
     data: fileData,
-  } as any);
+  } as WorkerResponse);
 }
 
 /**
@@ -212,7 +222,7 @@ function batchForNetwork(data: string | object[], endpoint: string): void {
   self.postMessage({
     type: 'network-ready',
     batch,
-  } as any);
+  } as WorkerResponse);
 }
 
 /**
@@ -226,7 +236,7 @@ function updateConfig(newConfig: WorkerConfig): void {
   self.postMessage({
     type: 'config-updated',
     config: { ...config },
-  } as any);
+  } as WorkerResponse);
 }
 
 /**
