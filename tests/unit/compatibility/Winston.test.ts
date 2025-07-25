@@ -3,7 +3,7 @@
 import {
   createWinstonCompatible,
   WinstonCompatibleLogger,
-} from '../../../src/compatibility/WinstonCompatibleLogger';
+} from '../../../src/compatibility/loggers/WinstonCompatibleLogger';
 import { Logger } from '../../../src/Logger';
 import type { Transport } from '../../../src/transports/base/Transport';
 
@@ -18,7 +18,7 @@ import type { Transport } from '../../../src/transports/base/Transport';
  * - Child loggers
  * - Profile and timer methods
  * - Transport compatibility methods
- * 
+ *
  * @group compatibility
  * @group winston
  */
@@ -56,7 +56,7 @@ describe('WinstonCompatibleLogger', () => {
   describe('Constructor and Configuration', () => {
     it('should create logger with default options', () => {
       const logger = createWinstonCompatible();
-      
+
       expect(logger).toBeInstanceOf(WinstonCompatibleLogger);
       expect(logger['level']).toBe('info');
       expect(logger['timestamp']).toBe(false);
@@ -68,8 +68,8 @@ describe('WinstonCompatibleLogger', () => {
     });
 
     it('should initialize with all configuration options', () => {
-      const format = jest.fn((info) => JSON.stringify(info));
-      
+      const format = jest.fn(info => JSON.stringify(info));
+
       const logger = createWinstonCompatible({
         level: 'debug',
         timestamp: true,
@@ -97,7 +97,7 @@ describe('WinstonCompatibleLogger', () => {
 
     it('should configure exception handling', () => {
       const processOnSpy = jest.spyOn(process, 'on');
-      
+
       createWinstonCompatible({
         handleExceptions: true,
         handleRejections: true,
@@ -109,7 +109,7 @@ describe('WinstonCompatibleLogger', () => {
 
     it('should not set up handlers when disabled', () => {
       const processOnSpy = jest.spyOn(process, 'on');
-      
+
       createWinstonCompatible({
         handleExceptions: false,
         handleRejections: false,
@@ -131,10 +131,8 @@ describe('WinstonCompatibleLogger', () => {
       });
 
       logger.info('Test');
-      
-      expect(infoSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[2023-01-01T12:00:00.000Z]')
-      );
+
+      expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining('[2023-01-01T12:00:00.000Z]'));
     });
 
     it('should format epoch timestamps', () => {
@@ -148,10 +146,8 @@ describe('WinstonCompatibleLogger', () => {
       });
 
       logger.info('Test');
-      
-      expect(infoSpy).toHaveBeenCalledWith(
-        expect.stringContaining(`[${mockTime}]`)
-      );
+
+      expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining(`[${mockTime}]`));
     });
 
     it('should format HH:mm:ss timestamps', () => {
@@ -167,10 +163,8 @@ describe('WinstonCompatibleLogger', () => {
       });
 
       logger.info('Test');
-      
-      expect(infoSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[15:30:45]')
-      );
+
+      expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining('[15:30:45]'));
     });
 
     it('should handle single digit time values', () => {
@@ -186,10 +180,8 @@ describe('WinstonCompatibleLogger', () => {
       });
 
       logger.info('Test');
-      
-      expect(infoSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[05:05:05]')
-      );
+
+      expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining('[05:05:05]'));
     });
 
     it('should not include timestamp when disabled', () => {
@@ -198,7 +190,7 @@ describe('WinstonCompatibleLogger', () => {
       });
 
       logger.info('No timestamp');
-      
+
       const call = infoSpy.mock.calls[0][0];
       expect(call).not.toMatch(/\[\d/); // No bracket-enclosed numbers
       expect(call).toBe('No timestamp');
@@ -243,7 +235,7 @@ describe('WinstonCompatibleLogger', () => {
     describe('Winston-specific methods', () => {
       it('should log verbose messages when verbose is true', () => {
         const logger = createWinstonCompatible({ verbose: true });
-        
+
         logger.verbose('Verbose message');
         expect(debugSpy).toHaveBeenCalledWith(
           expect.stringContaining('Verbose message'),
@@ -253,7 +245,7 @@ describe('WinstonCompatibleLogger', () => {
 
       it('should not log verbose messages when verbose is false', () => {
         const logger = createWinstonCompatible({ verbose: false });
-        
+
         logger.verbose('Should not log');
         expect(debugSpy).not.toHaveBeenCalled();
       });
@@ -270,7 +262,7 @@ describe('WinstonCompatibleLogger', () => {
     describe('Method signatures', () => {
       it('should handle string-only logging', () => {
         winston.info('Simple message');
-        
+
         expect(infoSpy).toHaveBeenCalledWith(
           expect.stringContaining('Simple message'),
           expect.objectContaining({})
@@ -280,7 +272,7 @@ describe('WinstonCompatibleLogger', () => {
       it('should handle string with metadata', () => {
         const meta = { userId: 123, action: 'login' };
         winston.info('User action', meta);
-        
+
         expect(infoSpy).toHaveBeenCalledWith(
           expect.stringContaining('User action'),
           expect.objectContaining(meta)
@@ -289,7 +281,7 @@ describe('WinstonCompatibleLogger', () => {
 
       it('should handle string with splat arguments', () => {
         winston.info('User %s performed %s', 'john', 'login', { extra: 'data' });
-        
+
         expect(infoSpy).toHaveBeenCalledWith(
           expect.stringContaining('User john performed login'),
           expect.objectContaining({ extra: 'data' })
@@ -299,7 +291,7 @@ describe('WinstonCompatibleLogger', () => {
       it('should handle object-only logging', () => {
         const obj = { message: 'Object message', level: 'info', data: 'test' };
         winston.info(obj);
-        
+
         expect(infoSpy).toHaveBeenCalledWith(
           expect.stringContaining('Object message'),
           expect.objectContaining({ level: 'info', data: 'test' })
@@ -309,7 +301,7 @@ describe('WinstonCompatibleLogger', () => {
       it('should handle metadata with splat', () => {
         const meta = { userId: 123 };
         winston.info('Multiple: %s, %d', 'string', 42, meta);
-        
+
         expect(infoSpy).toHaveBeenCalledWith(
           expect.stringContaining('Multiple: string, 42'),
           expect.objectContaining({ userId: 123 })
@@ -370,7 +362,7 @@ describe('WinstonCompatibleLogger', () => {
     it('should handle circular references in %j', () => {
       const circular: Record<string, unknown> = { a: 1 };
       circular.self = circular;
-      
+
       winston.info('Circular: %j', circular);
       expect(infoSpy).toHaveBeenCalledWith(
         expect.stringContaining('[Circular]'),
@@ -380,7 +372,7 @@ describe('WinstonCompatibleLogger', () => {
 
     it('should disable printf when printfFormatting is false', () => {
       const logger = createWinstonCompatible({ printfFormatting: false });
-      
+
       logger.info('No formatting: %s', 'test');
       expect(infoSpy).toHaveBeenCalledWith(
         expect.stringContaining('No formatting: %s'),
@@ -393,9 +385,9 @@ describe('WinstonCompatibleLogger', () => {
     it('should serialize Error objects', () => {
       const error = new Error('Test error');
       error.stack = 'Error: Test error\n    at Test.suite';
-      
+
       winston.error('Error occurred', { error });
-      
+
       expect(errorSpy).toHaveBeenCalledWith(
         expect.stringContaining('Error occurred'),
         expect.objectContaining({
@@ -403,7 +395,7 @@ describe('WinstonCompatibleLogger', () => {
             errorName: 'Error',
             errorMessage: 'Test error',
             errorStack: error.stack,
-          })
+          }),
         })
       );
     });
@@ -412,23 +404,23 @@ describe('WinstonCompatibleLogger', () => {
       const error = new Error('Custom error') as Error & { code?: string; statusCode?: number };
       error.code = 'ERR_CUSTOM';
       error.statusCode = 500;
-      
+
       winston.error('Custom error', { error });
-      
+
       expect(errorSpy).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
           error: expect.objectContaining({
             code: 'ERR_CUSTOM',
             statusCode: 500,
-          })
+          }),
         })
       );
     });
 
     it('should handle exception events when enabled', () => {
       const exitSpy = jest.spyOn(process, 'exit').mockImplementation(() => undefined as never);
-      
+
       const logger = createWinstonCompatible({
         handleExceptions: true,
         exitOnError: true,
@@ -445,13 +437,13 @@ describe('WinstonCompatibleLogger', () => {
         expect.any(Object)
       );
       expect(exitSpy).toHaveBeenCalledWith(1);
-      
+
       exitSpy.mockRestore();
     });
 
     it('should handle rejection events when enabled', () => {
       const exitSpy = jest.spyOn(process, 'exit').mockImplementation(() => undefined as never);
-      
+
       const logger = createWinstonCompatible({
         handleRejections: true,
         exitOnError: true,
@@ -469,13 +461,13 @@ describe('WinstonCompatibleLogger', () => {
         expect.any(Object)
       );
       expect(exitSpy).toHaveBeenCalledWith(1);
-      
+
       exitSpy.mockRestore();
     });
 
     it('should not exit when exitOnError is false', () => {
       const exitSpy = jest.spyOn(process, 'exit').mockImplementation(() => undefined as never);
-      
+
       const logger = createWinstonCompatible({
         handleExceptions: true,
         exitOnError: false,
@@ -488,7 +480,7 @@ describe('WinstonCompatibleLogger', () => {
 
       expect(errorSpy).toHaveBeenCalled();
       expect(exitSpy).not.toHaveBeenCalled();
-      
+
       exitSpy.mockRestore();
     });
   });
@@ -524,7 +516,7 @@ describe('WinstonCompatibleLogger', () => {
 
     it('should route verbose and silly through log()', () => {
       const logger = createWinstonCompatible({ verbose: true });
-      
+
       logger.log('verbose', 'Verbose via log');
       expect(debugSpy).toHaveBeenCalledWith(
         expect.stringContaining('Verbose via log'),
@@ -549,14 +541,12 @@ describe('WinstonCompatibleLogger', () => {
 
     it('should throw for unknown levels when strictLevels is true', () => {
       const logger = createWinstonCompatible({ strictLevels: true });
-      
-      expect(() => logger.log('unknown', 'Message')).toThrow(
-        'Unknown log level: unknown'
-      );
+
+      expect(() => logger.log('unknown', 'Message')).toThrow('Unknown log level: unknown');
     });
 
     it('should apply custom format function', () => {
-      const format = jest.fn((info) => `FORMATTED: ${info.message}`);
+      const format = jest.fn(info => `FORMATTED: ${info.message}`);
       const logger = createWinstonCompatible({ format });
 
       logger.log('info', 'Test message', { extra: 'data' });
@@ -567,11 +557,8 @@ describe('WinstonCompatibleLogger', () => {
         timestamp: expect.any(String),
         extra: 'data',
       });
-      
-      expect(infoSpy).toHaveBeenCalledWith(
-        'FORMATTED: Test message',
-        expect.any(Object)
-      );
+
+      expect(infoSpy).toHaveBeenCalledWith('FORMATTED: Test message', expect.any(Object));
     });
   });
 
@@ -600,11 +587,8 @@ describe('WinstonCompatibleLogger', () => {
 
     it('should handle empty metadata', () => {
       winston.info('No metadata');
-      
-      expect(infoSpy).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({})
-      );
+
+      expect(infoSpy).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({}));
     });
 
     it('should preserve existing metadata properties', () => {
@@ -758,40 +742,40 @@ describe('WinstonCompatibleLogger', () => {
 
     it('should warn when using add()', () => {
       const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
-      
+
       winston.add(mockTransport);
-      
+
       expect(warnSpy).toHaveBeenCalledWith(
         '[Winston Compatibility] Transport management should be done through MagicLogger'
       );
       expect(winston.add(mockTransport)).toBe(winston); // Chainable
-      
+
       warnSpy.mockRestore();
     });
 
     it('should warn when using remove()', () => {
       const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
-      
+
       winston.remove(mockTransport);
-      
+
       expect(warnSpy).toHaveBeenCalledWith(
         '[Winston Compatibility] Transport management should be done through MagicLogger'
       );
       expect(winston.remove(mockTransport)).toBe(winston); // Chainable
-      
+
       warnSpy.mockRestore();
     });
 
     it('should warn when using clear()', () => {
       const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
-      
+
       winston.clear();
-      
+
       expect(warnSpy).toHaveBeenCalledWith(
         '[Winston Compatibility] Transport management should be done through MagicLogger'
       );
       expect(winston.clear()).toBe(winston); // Chainable
-      
+
       warnSpy.mockRestore();
     });
   });
@@ -799,14 +783,12 @@ describe('WinstonCompatibleLogger', () => {
   describe('Query Interface', () => {
     it('should warn when no query handlers registered', async () => {
       const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
-      
+
       const results = await winston.query({ from: new Date() });
-      
-      expect(warnSpy).toHaveBeenCalledWith(
-        '[Winston Compatibility] No query handlers registered'
-      );
+
+      expect(warnSpy).toHaveBeenCalledWith('[Winston Compatibility] No query handlers registered');
       expect(results).toEqual([]);
-      
+
       warnSpy.mockRestore();
     });
 
@@ -815,10 +797,8 @@ describe('WinstonCompatibleLogger', () => {
         { message: 'Log 1', level: 'info' },
         { message: 'Log 2', level: 'error' },
       ]);
-      
-      const handler2 = jest.fn().mockResolvedValue([
-        { message: 'Log 3', level: 'warn' },
-      ]);
+
+      const handler2 = jest.fn().mockResolvedValue([{ message: 'Log 3', level: 'warn' }]);
 
       winston.addQueryHandler(handler1);
       winston.addQueryHandler(handler2);
@@ -849,19 +829,17 @@ describe('WinstonCompatibleLogger', () => {
   describe('Stream Interface', () => {
     it('should return stream-like object', () => {
       const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
-      
+
       const stream = winston.stream({ level: 'info' });
-      
-      expect(warnSpy).toHaveBeenCalledWith(
-        '[Winston Compatibility] Streaming not implemented'
-      );
+
+      expect(warnSpy).toHaveBeenCalledWith('[Winston Compatibility] Streaming not implemented');
       expect(stream).toHaveProperty('on');
       expect(stream).toHaveProperty('destroy');
       expect(stream.on()).toBe(winston);
-      
+
       // Should not throw
       expect(() => stream.destroy()).not.toThrow();
-      
+
       warnSpy.mockRestore();
     });
   });
@@ -869,14 +847,15 @@ describe('WinstonCompatibleLogger', () => {
   describe('Profile Method', () => {
     it('should start profiling on first call', () => {
       winston.profile('operation-1');
-      
+
       expect(winston['profileData'].has('operation-1')).toBe(true);
       expect(winston['profileData'].get('operation-1')).toHaveProperty('start');
     });
 
     it('should end profiling and log duration on second call', () => {
       const startTime = Date.now() - 1234; // 1.234 seconds ago
-      jest.spyOn(Date, 'now')
+      jest
+        .spyOn(Date, 'now')
         .mockReturnValueOnce(startTime)
         .mockReturnValueOnce(startTime + 1234);
 
@@ -891,13 +870,13 @@ describe('WinstonCompatibleLogger', () => {
           extra: 'data',
         })
       );
-      
+
       expect(winston['profileData'].has('operation-2')).toBe(false);
     });
 
     it('should format durations correctly', () => {
       const formatter = winston['formatDuration'];
-      
+
       expect(formatter(123)).toBe('123ms');
       expect(formatter(1234)).toBe('1.23s');
       expect(formatter(12345)).toBe('12.35s');
@@ -909,15 +888,13 @@ describe('WinstonCompatibleLogger', () => {
   describe('Timer Method', () => {
     it('should create timer object', () => {
       const timer = winston.startTimer();
-      
+
       expect(timer).toHaveProperty('done');
       expect(typeof timer.done).toBe('function');
     });
 
     it('should log duration when done() is called', () => {
-      jest.spyOn(Date, 'now')
-        .mockReturnValueOnce(1000)
-        .mockReturnValueOnce(2500);
+      jest.spyOn(Date, 'now').mockReturnValueOnce(1000).mockReturnValueOnce(2500);
 
       const timer = winston.startTimer();
       timer.done({ operation: 'test' });
@@ -949,7 +926,7 @@ describe('WinstonCompatibleLogger', () => {
   describe('Level Checking', () => {
     it('should check if level is enabled', () => {
       winston['level'] = 'warn';
-      
+
       expect(winston.isLevelEnabled('silly')).toBe(false);
       expect(winston.isLevelEnabled('debug')).toBe(false);
       expect(winston.isLevelEnabled('verbose')).toBe(false);
@@ -983,10 +960,7 @@ describe('WinstonCompatibleLogger', () => {
 
     it('should handle null and undefined arguments', () => {
       winston.info(null as unknown as string);
-      expect(infoSpy).toHaveBeenCalledWith(
-        expect.stringContaining('null'),
-        expect.any(Object)
-      );
+      expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining('null'), expect.any(Object));
 
       winston.info(undefined as unknown as string);
       expect(infoSpy).toHaveBeenCalledWith(
@@ -1006,7 +980,7 @@ describe('WinstonCompatibleLogger', () => {
     it('should handle very long messages', () => {
       const longMessage = 'x'.repeat(10000);
       winston.info(longMessage);
-      
+
       expect(infoSpy).toHaveBeenCalledWith(
         expect.stringContaining(longMessage),
         expect.any(Object)
@@ -1065,7 +1039,7 @@ describe('WinstonCompatibleLogger', () => {
       }
 
       const duration = Date.now() - start;
-      
+
       expect(infoSpy).toHaveBeenCalledTimes(iterations);
       expect(duration).toBeLessThan(1000); // Should complete quickly
     });

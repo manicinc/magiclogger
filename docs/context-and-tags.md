@@ -650,6 +650,6 @@ logger.info('Hello world', { userId: '123' });
 Context and tags are powerful features that enable structured, searchable, and well-organized logging. Use context for rich metadata and tags for categorization and filtering. The new `ContextManager` and `TagManager` components provide advanced functionality for complex logging scenarios.
 
 For more information, see:
-- [Transport Documentation](./transport.md)
+- [Transport Documentation](./intro.md#-multiple-transports)
 - [API Reference](./api_usage.md)
 - [Examples](https://github.com/manicinc/magiclogger/tree/main/examples)

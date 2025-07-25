@@ -2,10 +2,10 @@
 
 /**
  * Core types for MagicLogger.
- * 
+ *
  * This module exports all the type definitions used throughout the library.
  * Types are organized into logical groups for better maintainability.
- * 
+ *
  * @module types
  */
 
@@ -17,6 +17,10 @@ export * from './console';
 export * from './terminal';
 export * from './theme';
 export * from './preset';
+
+// Re-export constants that are commonly used with types
+export { COLORS } from '../constants/colors';
+export { PRESETS } from '../constants/preset';
 
 // Async-specific types
 export interface AsyncOptions {
@@ -88,15 +92,9 @@ export interface ContextMinificationOptions {
 }
 
 // Re-export commonly used types at the top level for convenience
-export type {
-  LogLevel,
-  LoggerOptions,
-  ThemeDefinition,
-} from './logger';
+export type { LogLevel, LoggerOptions, ThemeDefinition } from './logger';
 
-export type {
-  ColorName,
-} from './colors';
+export type { ColorName } from './colors';
 
 export type {
   Transport,

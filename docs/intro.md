@@ -509,7 +509,7 @@ logger.addTransport(new SlackTransport({
 ## 📚 Learn More
 
 - **[API Reference](./api_usage.md)** - Complete API documentation
-- **[Transport Guide](./transport.md)** - All transport options
+- **[Transport Guide](./intro.md#-multiple-transports)** - All transport options
 - **[Styling Guide](./styling.md)** - Colors, tables, and formatting
 - **[Browser Storage](./browser_storage.md)** - Client-side logging
 - **[Terminal Support](./terminal_support.md)** - Terminal detection

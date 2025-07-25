@@ -14,13 +14,25 @@ if (isBrowserEnvironment()) {
   };
   listThemes = () => ['default'];
 } else {
-  // Node.js implementation - dynamically import to avoid webpack bundling
-  const fs = eval('require')('fs');
-  const path = eval('require')('path');
-  
+  // Node.js implementation - use conditional imports
+  let fs: any;
+  let path: any;
+
+  try {
+    // Use function constructor to avoid static analysis
+    const dynamicRequire = new Function('id', 'return require(id)');
+    fs = dynamicRequire('fs');
+    path = dynamicRequire('path');
+  } catch {
+    // Fallback for environments where require is not available
+    fs = null;
+    path = null;
+  }
+
   let themesCache: Record<string, ThemeDefinition> | null = null;
 
   const findThemesJson = (): string | null => {
+    if (!fs || !path) return null;
     let currentDir = __dirname;
     for (let i = 0; i < 5; i++) {
       const themesPath = path.join(currentDir, 'themes.json');
@@ -34,6 +46,12 @@ if (isBrowserEnvironment()) {
 
   loadThemes = () => {
     if (themesCache) {
+      return themesCache;
+    }
+
+    if (!fs) {
+      console.warn('File system not available. Using empty themes cache.');
+      themesCache = {};
       return themesCache;
     }
 

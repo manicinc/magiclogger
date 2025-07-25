@@ -103,6 +103,6 @@ const users: User[] = [
   { id: 3, name: 'Charlie', role: 'Moderator' },
 ];
 
-logger.table(users);
+logger.table(users as unknown as Record<string, unknown>[]);
 
 console.log('\nTypeScript example complete!');

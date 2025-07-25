@@ -2,18 +2,18 @@
 
 /**
  * MagicLogger - Tree-Shakeable Logging Library
- * 
+ *
  * Main entry point for the MagicLogger library.
  * Exports only the essential components for optimal tree-shaking.
- * 
+ *
  * @module magiclogger
- * 
+ *
  * @example
  * ```typescript
  * // Basic usage
  * import { Logger } from 'magiclogger';
  * const logger = new Logger();
- * 
+ *
  * // With transports (import separately for tree-shaking)
  * import { ConsoleTransport } from 'magiclogger/transports/console';
  * const logger = new Logger({
@@ -39,9 +39,7 @@ export type { LoggerOptions } from './Logger';
 /**
  * Core logger types
  */
-export type { 
-  LogLevel 
-} from './types';
+export type { LogLevel } from './types';
 
 // ==========================================
 // STYLING & THEMING EXPORTS
@@ -96,12 +94,12 @@ export type {
   TransportType,
   TransportStats,
   TransportEvents,
-  
+
   // Configuration types
   BatchingOptions,
   RetryOptions,
   ConnectionState,
-  
+
   // Transport-specific options
   ConsoleTransportOptions,
   FileTransportOptions,
@@ -115,16 +113,44 @@ export type {
 } from './types/transport';
 
 // ==========================================
+// COMPATIBILITY FUNCTIONS
+// ==========================================
+
+/**
+ * Console enhancement for adding custom log methods.
+ * Import individually for better tree-shaking: 'magiclogger/compatibility/console'
+ */
+export { enhanceConsole } from './compatibility/loggers/EnhancedConsole';
+
+/**
+ * Winston-compatible logger creation.
+ * Import individually for better tree-shaking: 'magiclogger/compatibility/winston'
+ */
+export { createWinstonCompatible } from './compatibility/loggers/WinstonCompatibleLogger';
+
+/**
+ * Bunyan-compatible logger creation.
+ * Import individually for better tree-shaking: 'magiclogger/compatibility/bunyan'
+ */
+export { createBunyanCompatible } from './compatibility/loggers/BunyanCompatibleLogger';
+
+/**
+ * Pino-compatible logger creation.
+ * Import individually for better tree-shaking: 'magiclogger/compatibility/pino'
+ */
+export { createPinoCompatible } from './compatibility/loggers/PinoCompatibleLogger';
+
+// ==========================================
 // CONVENIENCE FUNCTIONS
 // ==========================================
 
 /**
  * Creates a new Logger instance with the given options.
  * Convenience function for creating loggers.
- * 
+ *
  * @param {Partial<LoggerOptions>} [options={}] - Logger options
  * @returns {Logger} New logger instance
- * 
+ *
  * @example
  * ```typescript
  * const logger = createLogger({
@@ -150,9 +176,9 @@ let defaultLogger: Logger | null = null;
 /**
  * Gets the default logger instance (singleton pattern).
  * Creates one if it doesn't exist.
- * 
+ *
  * @returns {Logger} The default logger instance
- * 
+ *
  * @example
  * ```typescript
  * import { getDefaultLogger } from 'magiclogger';
@@ -170,9 +196,9 @@ export function getDefaultLogger(): Logger {
 /**
  * Sets a custom default logger instance.
  * Useful for replacing the default logger with a pre-configured one.
- * 
+ *
  * @param {Logger} logger - Logger instance to set as default
- * 
+ *
  * @example
  * ```typescript
  * const customLogger = new Logger({ id: 'custom' });
@@ -206,24 +232,24 @@ export type { TransportManagerOptions } from './types/transport';
 
 /**
  * Tree-Shaking Guide:
- * 
+ *
  * 1. Import transports individually:
  *    ```typescript
  *    import { ConsoleTransport } from 'magiclogger/transports/console';
  *    import { FileTransport } from 'magiclogger/transports/file';
  *    ```
- * 
+ *
  * 2. Import compatibility layers individually:
  *    ```typescript
  *    import { createWinstonCompatible } from 'magiclogger/compatibility/winston';
  *    import { createPinoCompatible } from 'magiclogger/compatibility/pino';
  *    ```
- * 
+ *
  * 3. Import core utilities individually (if needed):
  *    ```typescript
  *    import { ContextManager } from 'magiclogger/core/context-manager';
  *    import { TagManager } from 'magiclogger/core/tag-manager';
  *    ```
- * 
+ *
  * This ensures your bundle only includes the code you actually use.
  */

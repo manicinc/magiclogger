@@ -1,9 +1,9 @@
-// File: src/compatibility/EnhancedConsole.ts
+// File: src/compatibility/loggers/EnhancedConsole.ts
 
-import { Logger } from '../Logger';
-import { ColorName, StylePreset } from '../types';
-import { Colorizer } from '../core/Colorizer';
-import type { LoggerOptions } from '../types';
+import { Logger } from '../../Logger';
+import { ColorName, StylePreset } from '../../types';
+import { Colorizer } from '../../core/Colorizer';
+import type { LoggerOptions } from '../../types';
 
 /**
  * Options for enhancing the console
@@ -17,8 +17,17 @@ export interface EnhanceConsoleOptions extends LoggerOptions {
  */
 function isStylePreset(value: string): value is StylePreset {
   const validPresets: StylePreset[] = [
-    'info', 'success', 'warning', 'error', 'debug',
-    'important', 'highlight', 'muted', 'special', 'code', 'header'
+    'info',
+    'success',
+    'warning',
+    'error',
+    'debug',
+    'important',
+    'highlight',
+    'muted',
+    'special',
+    'code',
+    'header',
   ];
   return validPresets.includes(value as StylePreset);
 }
@@ -157,7 +166,12 @@ export class EnhancedConsole {
 interface EnhancedMethods {
   success?: (message: string, ...args: unknown[]) => void;
   header?: (title: string, colors?: ColorName[]) => void;
-  progress?: (value: number, length?: number, completeChar?: string, incompleteChar?: string) => void;
+  progress?: (
+    value: number,
+    length?: number,
+    completeChar?: string,
+    incompleteChar?: string
+  ) => void;
   custom?: (msg: string, colors?: ColorName[], prefix?: string) => void;
   styled?: (msg: string, preset: string) => void;
   color?: (...colors: ColorName[]) => (text: string) => string;
@@ -167,9 +181,10 @@ interface EnhancedMethods {
 /**
  * Type for the enhanced console - Console with our additional methods
  */
-type ExtendedConsole = Console & EnhancedMethods & {
-  [key: string]: unknown;
-};
+type ExtendedConsole = Console &
+  EnhancedMethods & {
+    [key: string]: unknown;
+  };
 
 /**
  * Enhance the global console object with Magic Logger's functionality
@@ -191,7 +206,13 @@ export function enhanceConsole(options: EnhanceConsoleOptions = {}): {
 
   // Store references to our enhanced methods for cleanup
   const enhancedMethods: (keyof EnhancedMethods)[] = [
-    'success', 'header', 'progress', 'custom', 'styled', 'color', 'colorParts'
+    'success',
+    'header',
+    'progress',
+    'custom',
+    'styled',
+    'color',
+    'colorParts',
   ];
 
   // Explicitly add enhanced methods to console
@@ -220,7 +241,7 @@ export function enhanceConsole(options: EnhanceConsoleOptions = {}): {
       enhancedMethods.forEach(method => {
         delete (console as any)[method];
       });
-      
+
       delete extendedConsole[recursionGuard as unknown as string];
     },
   };

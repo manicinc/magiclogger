@@ -1,7 +1,7 @@
 import { Logger } from 'magiclogger';
 import * as fs from 'fs';
-import type { ColorName } from 'magiclogger';
-import { ThemeManager } from 'magiclogger/theme/ThemeManager';
+import type { ColorName, ThemeDefinition } from 'magiclogger';
+import { getTheme, listThemes } from 'magiclogger/theme';
 
 import { fileURLToPath } from 'url';
 import path from 'path';
@@ -19,24 +19,28 @@ try {
   console.warn('Manual theme file not found or invalid:', err);
 }
 
-// Use ThemeManager to get all preloaded themes
-const themeManager = new ThemeManager();
-const preloadedThemes = Object.entries(themeManager['themes'] ?? {});
+// Use theme functions to get all available themes
+const availableThemes = listThemes();
 
-console.log('\n=== MagicLogger Theme Demo (Preloaded) ===\n');
+console.log('\n=== MagicLogger Theme Demo ===\n');
 
-for (const [themeName, theme] of preloadedThemes) {
+for (const themeName of availableThemes) {
   console.log(`\n>>> Theme: ${themeName.toUpperCase()}`);
+
+  const theme = getTheme(themeName);
+  if (!theme) continue;
 
   const logger = new Logger({ verbose: true });
 
   for (const level of Object.keys(theme)) {
-    const colors = theme[level] as ColorName[];
-    logger.custom(
-      `This is a '${level}' level message in ${themeName} theme`,
-      colors,
-      level.toUpperCase()
-    );
+    const colors = theme[level as keyof ThemeDefinition] as ColorName[];
+    if (Array.isArray(colors)) {
+      logger.custom(
+        `This is a '${level}' level message in ${themeName} theme`,
+        colors,
+        level.toUpperCase()
+      );
+    }
   }
 
   logger.header(
@@ -46,10 +50,10 @@ for (const [themeName, theme] of preloadedThemes) {
 
   logger.table(
     [
-      { level: 'info', color: theme.info?.join(', ') },
-      { level: 'success', color: theme.success?.join(', ') },
-      { level: 'warning', color: theme.warning?.join(', ') },
-      { level: 'error', color: theme.error?.join(', ') },
+      { level: 'info', color: (theme.info as ColorName[])?.join(', ') || 'cyan, bold' },
+      { level: 'success', color: (theme.success as ColorName[])?.join(', ') || 'green, bold' },
+      { level: 'warning', color: (theme.warning as ColorName[])?.join(', ') || 'yellow, bold' },
+      { level: 'error', color: (theme.error as ColorName[])?.join(', ') || 'red, bold' },
     ],
     (theme.header as ColorName[]) || ['brightWhite', 'bold']
   );

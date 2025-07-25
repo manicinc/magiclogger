@@ -4,13 +4,13 @@ import type { LogEntry } from '../../types/transport';
 
 /**
  * Web Worker for processing log entries in the background.
- * 
+ *
  * This worker handles:
  * - Log formatting and serialization
  * - Batching for network transports
  * - File writing preparation
  * - Metric collection
- * 
+ *
  * The worker runs in a separate thread, ensuring the main thread
  * remains responsive even during heavy logging.
  */
@@ -95,7 +95,7 @@ self.addEventListener('message', (event: MessageEvent<WorkerMessage>) => {
 
 /**
  * Process a batch of log entries.
- * 
+ *
  * @param {LogEntry[]} entries - Log entries to process
  */
 function processLogs(entries: LogEntry[]): void {
@@ -135,7 +135,6 @@ function processLogs(entries: LogEntry[]): void {
       count: entries.length,
       metrics: { ...metrics },
     } as WorkerResponse);
-
   } catch (error) {
     metrics.errors++;
     sendError(`Processing error: ${error}`);
@@ -144,7 +143,7 @@ function processLogs(entries: LogEntry[]): void {
 
 /**
  * Format log entries based on configuration.
- * 
+ *
  * @param {LogEntry[]} entries - Entries to format
  * @returns {string | object[]} Formatted entries
  */
@@ -152,20 +151,22 @@ function formatEntries(entries: LogEntry[]): string | object[] {
   switch (config.formatType) {
     case 'json':
       return entries.map(entry => ({
-        timestamp: entry.timestamp.toISOString(),
+        timestamp: entry.timestamp,
         level: entry.level,
         message: entry.message,
         ...entry.metadata,
       }));
 
     case 'text':
-      return entries.map(entry => {
-        const timestamp = entry.timestamp.toISOString();
-        const level = entry.level.toUpperCase().padEnd(7);
-        const context = entry.context ? `[${entry.context}] ` : '';
-        const tags = entry.tags?.length ? `{${entry.tags.join(', ')}} ` : '';
-        return `${timestamp} ${level} ${context}${tags}${entry.message}`;
-      }).join('\n');
+      return entries
+        .map(entry => {
+          const timestamp = entry.timestamp;
+          const level = entry.level.toUpperCase().padEnd(7);
+          const context = entry.context ? `[${entry.context}] ` : '';
+          const tags = entry.tags?.length ? `{${entry.tags.join(', ')}} ` : '';
+          return `${timestamp} ${level} ${context}${tags}${entry.message}`;
+        })
+        .join('\n');
 
     case 'custom':
       // Custom formatting logic here
@@ -178,14 +179,12 @@ function formatEntries(entries: LogEntry[]): string | object[] {
 
 /**
  * Prepare data for file writing.
- * 
+ *
  * @param {string | object[]} data - Formatted data
  */
 function prepareFileData(data: string | object[]): void {
   // Convert to string if needed
-  const fileData = typeof data === 'string' 
-    ? data 
-    : JSON.stringify(data, null, 2);
+  const fileData = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
 
   // Send prepared data back to main thread
   self.postMessage({
@@ -196,7 +195,7 @@ function prepareFileData(data: string | object[]): void {
 
 /**
  * Batch data for network transport.
- * 
+ *
  * @param {string | object[]} data - Formatted data
  * @param {string} endpoint - Network endpoint
  */
@@ -218,12 +217,12 @@ function batchForNetwork(data: string | object[], endpoint: string): void {
 
 /**
  * Update worker configuration.
- * 
+ *
  * @param {WorkerConfig} newConfig - New configuration
  */
 function updateConfig(newConfig: WorkerConfig): void {
   config = { ...config, ...newConfig };
-  
+
   self.postMessage({
     type: 'config-updated',
     config: { ...config },
@@ -232,7 +231,7 @@ function updateConfig(newConfig: WorkerConfig): void {
 
 /**
  * Update performance metrics.
- * 
+ *
  * @param {number} count - Number of entries processed
  * @param {number} time - Processing time in milliseconds
  */
@@ -246,13 +245,12 @@ function updateMetrics(count: number, time: number): void {
     processingTimes.shift();
   }
 
-  metrics.avgProcessingTime = 
-    processingTimes.reduce((a, b) => a + b, 0) / processingTimes.length;
+  metrics.avgProcessingTime = processingTimes.reduce((a, b) => a + b, 0) / processingTimes.length;
 }
 
 /**
  * Send error message to main thread.
- * 
+ *
  * @param {string} message - Error message
  */
 function sendError(message: string): void {

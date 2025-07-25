@@ -9,14 +9,14 @@ import type { StyleName } from '../types/terminal';
 
 /**
  * Static utility class for applying ANSI color codes.
- * 
+ *
  * This class provides low-level color application functionality
  * used by other components. It handles:
  * - ANSI escape code generation
  * - Color validation
  * - Terminal capability detection
  * - Performance optimizations
- * 
+ *
  * @class Colorizer
  */
 export class Colorizer {
@@ -142,9 +142,9 @@ export class Colorizer {
   public static applyPreset(text: string, preset: StylePreset, useColors = true): string {
     if (!useColors) return text;
 
-    // Get the preset colors array
+    // Get the preset colors array and convert to mutable array
     const presetColors = PRESETS[preset as keyof typeof PRESETS] || [];
-    return this.applyColors(text, presetColors, useColors);
+    return this.applyColors(text, [...presetColors], useColors);
   }
 
   /**
@@ -219,7 +219,7 @@ export class Colorizer {
 
   /**
    * Check if the terminal supports color.
-   * 
+   *
    * @returns {boolean} True if colors are supported
    * @static
    */
@@ -264,14 +264,16 @@ export class Colorizer {
     if (process.platform === 'win32') {
       // Windows 10 build 14931+ supports ANSI
       // Dynamic import to avoid bundler issues
-      import('os').then(os => {
-        const osRelease = os.release().split('.');
-        const major = parseInt(osRelease[0] || '0', 10);
-        const build = parseInt(osRelease[2] || '0', 10);
-        this._supportsColor = major >= 10 && build >= 14931;
-      }).catch(() => {
-        this._supportsColor = false;
-      });
+      import('os')
+        .then(os => {
+          const osRelease = os.release().split('.');
+          const major = parseInt(osRelease[0] || '0', 10);
+          const build = parseInt(osRelease[2] || '0', 10);
+          this._supportsColor = major >= 10 && build >= 14931;
+        })
+        .catch(() => {
+          this._supportsColor = false;
+        });
     } else {
       // Unix-like systems generally support colors
       this._supportsColor = true;
@@ -282,7 +284,7 @@ export class Colorizer {
 
   /**
    * Force color support on or off.
-   * 
+   *
    * @param {boolean} supported - Whether colors are supported
    * @static
    */
@@ -292,7 +294,7 @@ export class Colorizer {
 
   /**
    * Add to cache with size management.
-   * 
+   *
    * @param {string} key - Cache key
    * @param {string} value - Cache value
    * @private
@@ -320,7 +322,7 @@ export class Colorizer {
 
   /**
    * Strip ANSI codes from text.
-   * 
+   *
    * @param {string} text - Text with ANSI codes
    * @returns {string} Plain text
    * @static
@@ -332,7 +334,7 @@ export class Colorizer {
 
   /**
    * Get color level support.
-   * 
+   *
    * @returns {number} Color level (0, 1, 2, or 3)
    * @static
    */
@@ -351,7 +353,9 @@ export class Colorizer {
     }
 
     // 256 color support
-    if (/^screen|^xterm|^vt100|^vt220|^rxvt|color|ansi|cygwin|linux/i.test(process.env.TERM || '')) {
+    if (
+      /^screen|^xterm|^vt100|^vt220|^rxvt|color|ansi|cygwin|linux/i.test(process.env.TERM || '')
+    ) {
       return 2;
     }
 
@@ -361,7 +365,7 @@ export class Colorizer {
 
   /**
    * Check if text has ANSI codes.
-   * 
+   *
    * @param {string} text - Text to check
    * @returns {boolean} True if has ANSI codes
    * @static
@@ -373,7 +377,7 @@ export class Colorizer {
 
   /**
    * Get visible length of text (excluding ANSI codes).
-   * 
+   *
    * @param {string} text - Text to measure
    * @returns {number} Visible length
    * @static
@@ -554,7 +558,7 @@ export class Colorizer {
 
   /**
    * Create a color function for repeated use.
-   * 
+   *
    * @param {...ColorName[]} colors - Colors to apply
    * @returns {Function} Color function
    * @static

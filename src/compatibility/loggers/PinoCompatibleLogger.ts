@@ -1,7 +1,7 @@
-// File: src/compatibility/Pino.ts
+// File: src/compatibility/loggers/PinoCompatibleLogger.ts
 
 import { BaseCompatibleLogger } from './BaseCompatibleLogger';
-import type { LoggerOptions } from '../types';
+import type { LoggerOptions } from '../../types';
 
 /**
  * Pino log method type with all supported signatures
@@ -152,10 +152,10 @@ export interface PinoCompatibleOptions extends LoggerOptions {
 /**
  * Pino-compatible logger implementation.
  * Provides full compatibility with the Pino logging library API.
- * 
+ *
  * @class PinoCompatibleLogger
  * @extends {BaseCompatibleLogger}
- * 
+ *
  * @example
  * ```typescript
  * const logger = createPinoCompatible({
@@ -164,12 +164,12 @@ export interface PinoCompatibleOptions extends LoggerOptions {
  *   base: { pid: process.pid },
  *   prettyPrint: true
  * });
- * 
+ *
  * // Pino-style logging
  * logger.info('Hello world');
  * logger.info({ user: 'john' }, 'User logged in');
  * logger.error(new Error('Oops'), 'An error occurred');
- * 
+ *
  * // Child loggers
  * const child = logger.child({ component: 'auth' });
  * child.info('Processing auth request');
@@ -245,7 +245,7 @@ export class PinoCompatibleLogger extends BaseCompatibleLogger {
    */
   constructor(options: PinoCompatibleOptions = {}) {
     super(options);
-    
+
     // Handle numeric level
     if (typeof options.level === 'number') {
       this._levelNum = options.level;
@@ -264,9 +264,9 @@ export class PinoCompatibleLogger extends BaseCompatibleLogger {
     this.onlyMessage = options.onlyMessage || false;
     this.enabled = options.enabled !== false;
     this.redact = options.redact;
-    this.serializers = { 
-      ...PinoCompatibleLogger.stdSerializers, 
-      ...(options.serializers || {})
+    this.serializers = {
+      ...PinoCompatibleLogger.stdSerializers,
+      ...(options.serializers || {}),
     };
     this.mixin = options.mixin;
     this.formatters = options.formatters;
@@ -296,7 +296,7 @@ export class PinoCompatibleLogger extends BaseCompatibleLogger {
     if (!this.enabled) return null;
 
     const levelNum = PinoCompatibleLogger.levels[level] || 30;
-    
+
     // Skip if below current level
     if (levelNum < this._levelNum) {
       return null;
@@ -376,7 +376,7 @@ export class PinoCompatibleLogger extends BaseCompatibleLogger {
    */
   protected applySerializers(fields: Record<string, unknown>): Record<string, unknown> {
     const serialized: Record<string, unknown> = {};
-    
+
     for (const [key, value] of Object.entries(fields)) {
       if (this.serializers[key]) {
         serialized[key] = this.serializers[key](value);
@@ -384,7 +384,7 @@ export class PinoCompatibleLogger extends BaseCompatibleLogger {
         serialized[key] = value;
       }
     }
-    
+
     return serialized;
   }
 
@@ -414,11 +414,15 @@ export class PinoCompatibleLogger extends BaseCompatibleLogger {
    * @param {string[]} pathParts - Path parts
    * @param {string | CensorFunction} censor - Censor value or function
    */
-  private redactPath(obj: Record<string, unknown>, pathParts: string[], censor: string | CensorFunction): void {
+  private redactPath(
+    obj: Record<string, unknown>,
+    pathParts: string[],
+    censor: string | CensorFunction
+  ): void {
     if (!obj || typeof obj !== 'object') return;
 
     const [current, ...rest] = pathParts;
-    
+
     // Handle wildcards
     if (current === '*') {
       if (Array.isArray(obj)) {
@@ -456,9 +460,7 @@ export class PinoCompatibleLogger extends BaseCompatibleLogger {
     // Final path part
     if (rest.length === 0) {
       if (current in obj) {
-        obj[current] = typeof censor === 'function' 
-          ? censor(obj[current], pathParts) 
-          : censor;
+        obj[current] = typeof censor === 'function' ? censor(obj[current], pathParts) : censor;
       }
     } else if (current in obj) {
       const value = obj[current];
@@ -481,7 +483,7 @@ export class PinoCompatibleLogger extends BaseCompatibleLogger {
     let metadata: Record<string, unknown> = {};
 
     if (this.onlyMessage) {
-      output = (record as Record<string, unknown>)[this.messageKey] as string || '';
+      output = ((record as Record<string, unknown>)[this.messageKey] as string) || '';
     } else if (this.prettyPrint) {
       const result = this.prettyFormat(level, record);
       output = result.message;
@@ -520,7 +522,10 @@ export class PinoCompatibleLogger extends BaseCompatibleLogger {
    * @param {object} record - Log record
    * @returns {{ message: string, metadata: Record<string, unknown> }} Formatted output
    */
-  private prettyFormat(level: string, record: object): { message: string; metadata: Record<string, unknown> } {
+  private prettyFormat(
+    level: string,
+    record: object
+  ): { message: string; metadata: Record<string, unknown> } {
     const rec = record as Record<string, unknown>;
     const parts: string[] = [];
     const metadata: Record<string, unknown> = {};
@@ -644,10 +649,8 @@ export class PinoCompatibleLogger extends BaseCompatibleLogger {
    * @returns {boolean} Whether level is enabled
    */
   public isLevelEnabled(level: string | number): boolean {
-    const levelNum = typeof level === 'number' 
-      ? level 
-      : PinoCompatibleLogger.levels[level] || 30;
-    
+    const levelNum = typeof level === 'number' ? level : PinoCompatibleLogger.levels[level] || 30;
+
     return levelNum >= this._levelNum;
   }
 
@@ -744,7 +747,7 @@ export class PinoCompatibleLogger extends BaseCompatibleLogger {
  * @function createPinoCompatible
  * @param {PinoCompatibleOptions} options - Logger options
  * @returns {PinoCompatibleLogger} New Pino-compatible logger instance
- * 
+ *
  * @example
  * ```typescript
  * const logger = createPinoCompatible({

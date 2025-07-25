@@ -4,14 +4,14 @@ import { Logger } from '../../../src/Logger';
 import {
   BaseCompatibleLogger,
   LogCompatibilityOptions,
-} from '../../../src/compatibility/BaseCompatibleLogger';
+} from '../../../src/compatibility/loggers/BaseCompatibleLogger';
 import type { Transport } from '../../../src/transports/base/Transport';
 
 /**
  * Concrete implementation of BaseCompatibleLogger for testing purposes.
  * This class implements all abstract methods required by the base class
  * and adds method tracking for test assertions.
- * 
+ *
  * @class TestCompatibleLogger
  * @extends {BaseCompatibleLogger}
  */
@@ -25,7 +25,7 @@ class TestCompatibleLogger extends BaseCompatibleLogger {
   /**
    * Implement abstract info method.
    * Logs an info-level message to the underlying logger.
-   * 
+   *
    * @param {...unknown} args - Arguments passed to the info method
    */
   public info(...args: unknown[]): void {
@@ -37,7 +37,7 @@ class TestCompatibleLogger extends BaseCompatibleLogger {
   /**
    * Implement abstract warn method.
    * Logs a warning-level message to the underlying logger.
-   * 
+   *
    * @param {...unknown} args - Arguments passed to the warn method
    */
   public warn(...args: unknown[]): void {
@@ -49,7 +49,7 @@ class TestCompatibleLogger extends BaseCompatibleLogger {
   /**
    * Implement abstract error method.
    * Logs an error-level message to the underlying logger.
-   * 
+   *
    * @param {...unknown} args - Arguments passed to the error method
    */
   public error(...args: unknown[]): void {
@@ -61,7 +61,7 @@ class TestCompatibleLogger extends BaseCompatibleLogger {
   /**
    * Implement abstract debug method.
    * Logs a debug-level message to the underlying logger.
-   * 
+   *
    * @param {...unknown} args - Arguments passed to the debug method
    */
   public debug(...args: unknown[]): void {
@@ -73,17 +73,17 @@ class TestCompatibleLogger extends BaseCompatibleLogger {
   /**
    * Implement abstract log method.
    * Logs a message at any specified level.
-   * 
+   *
    * @param {string} level - Log level
    * @param {...unknown} args - Arguments passed to the log method
    * @throws {Error} When strictLevels is true and level is unknown
    */
   public log(level: string, ...args: unknown[]): void {
     this.methodCalls.push({ method: 'log', args: [level, ...args] });
-    
+
     const normalizedLevel = this.normalizeLevel(level);
     const { message, meta } = this.parseArgs(args);
-    
+
     switch (normalizedLevel) {
       case 'info':
         this.logger.info(message, meta);
@@ -111,7 +111,7 @@ class TestCompatibleLogger extends BaseCompatibleLogger {
   /**
    * Implement abstract child method.
    * Creates a child logger with merged configuration.
-   * 
+   *
    * @param {Record<string, unknown>} options - Child logger options
    * @returns {TestCompatibleLogger} New child logger instance
    */
@@ -124,7 +124,7 @@ class TestCompatibleLogger extends BaseCompatibleLogger {
       // Deep merge objects
       context: { ...this.getConfig().context, ...(options.context as Record<string, unknown>) },
     };
-    
+
     const child = new TestCompatibleLogger(childOptions);
     this.children.set(child, child);
     return child;
@@ -133,7 +133,7 @@ class TestCompatibleLogger extends BaseCompatibleLogger {
   /**
    * Helper method to parse various argument formats.
    * Handles string messages, objects with message property, and metadata.
-   * 
+   *
    * @private
    * @param {unknown[]} args - Arguments to parse
    * @returns {{ message: string; meta?: Record<string, unknown> }} Parsed message and metadata
@@ -142,27 +142,27 @@ class TestCompatibleLogger extends BaseCompatibleLogger {
     if (args.length === 0) {
       return { message: '' };
     }
-    
+
     if (typeof args[0] === 'string') {
       return {
         message: args[0],
         meta: args[1] as Record<string, unknown>,
       };
     }
-    
+
     if (typeof args[0] === 'object' && args[0] !== null) {
       return {
         message: this.safeSerialize(args[0]),
         meta: args[0] as Record<string, unknown>,
       };
     }
-    
+
     return { message: String(args[0]) };
   }
 
   /**
    * Override getConfig to return full configuration.
-   * 
+   *
    * @returns {LogCompatibilityOptions} Current configuration
    */
   public getConfig(): LogCompatibilityOptions {
@@ -187,7 +187,7 @@ describe('BaseCompatibleLogger', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     // Create test instance with default configuration
     logger = new TestCompatibleLogger({
       name: 'test-logger',
@@ -207,7 +207,7 @@ describe('BaseCompatibleLogger', () => {
   describe('Constructor and Configuration', () => {
     it('should initialize with default options when none provided', () => {
       const defaultLogger = new TestCompatibleLogger();
-      
+
       expect(defaultLogger.getName()).toBe('app');
       expect(defaultLogger.getFormat()).toBe('plain');
       expect(defaultLogger.isVerbose()).toBe(false);
@@ -228,7 +228,7 @@ describe('BaseCompatibleLogger', () => {
         logDir: '/custom/logs',
         logRetentionDays: 60,
         strictLevels: true,
-        formatter: (entry) => `Custom: ${entry}`,
+        formatter: entry => `Custom: ${entry}`,
       });
 
       expect(customLogger.getName()).toBe('custom-app');
@@ -250,7 +250,7 @@ describe('BaseCompatibleLogger', () => {
       // Test verbose setter
       logger.setVerbose(false);
       expect(logger.isVerbose()).toBe(false);
-      
+
       // Verify underlying logger is updated
       expect(mockLogger.setVerbose).toHaveBeenCalledWith(false);
 
@@ -315,7 +315,7 @@ describe('BaseCompatibleLogger', () => {
     describe('info()', () => {
       it('should log simple info messages', () => {
         logger.info('Test info message');
-        
+
         expect(mockLogger.info).toHaveBeenCalledWith('Test info message', undefined);
         expect(logger.methodCalls).toContainEqual({
           method: 'info',
@@ -326,7 +326,7 @@ describe('BaseCompatibleLogger', () => {
       it('should log info messages with metadata', () => {
         const meta = { userId: 123, action: 'login', timestamp: Date.now() };
         logger.info('User logged in', meta);
-        
+
         expect(mockLogger.info).toHaveBeenCalledWith('User logged in', meta);
         expect(logger.methodCalls).toContainEqual({
           method: 'info',
@@ -337,7 +337,7 @@ describe('BaseCompatibleLogger', () => {
       it('should handle object-only logging', () => {
         const obj = { message: 'Object message', data: { value: 42 } };
         logger.info(obj);
-        
+
         expect(mockLogger.info).toHaveBeenCalledWith(
           expect.stringContaining('Object message'),
           obj
@@ -367,7 +367,7 @@ describe('BaseCompatibleLogger', () => {
       it('should log errors with Error objects', () => {
         const error = new Error('Test error');
         error.stack = 'Error: Test error\n    at Test.suite';
-        
+
         logger.error('Error occurred', error);
         expect(mockLogger.error).toHaveBeenCalledWith('Error occurred', error);
       });
@@ -375,7 +375,7 @@ describe('BaseCompatibleLogger', () => {
       it('should log errors with metadata containing error', () => {
         const error = new Error('Database connection failed');
         const meta = { error, retries: 3, host: 'localhost' };
-        
+
         logger.error('Connection error', meta);
         expect(mockLogger.error).toHaveBeenCalledWith('Connection error', meta);
       });
@@ -393,7 +393,7 @@ describe('BaseCompatibleLogger', () => {
           params: [1, 2, 3],
           timing: { start: 100, end: 150, duration: 50 },
         };
-        
+
         logger.debug('Database query', debugData);
         expect(mockLogger.debug).toHaveBeenCalledWith('Database query', debugData);
       });
@@ -430,30 +430,18 @@ describe('BaseCompatibleLogger', () => {
 
       it('should handle custom levels when strictLevels is false', () => {
         logger.log('custom', 'Custom level message');
-        expect(mockLogger.custom).toHaveBeenCalledWith(
-          'Custom level message',
-          ['white'],
-          'CUSTOM'
-        );
+        expect(mockLogger.custom).toHaveBeenCalledWith('Custom level message', ['white'], 'CUSTOM');
 
         logger.log('trace', 'Trace level message');
-        expect(mockLogger.custom).toHaveBeenCalledWith(
-          'Trace level message',
-          ['white'],
-          'TRACE'
-        );
+        expect(mockLogger.custom).toHaveBeenCalledWith('Trace level message', ['white'], 'TRACE');
       });
 
       it('should throw error for unknown levels when strictLevels is true', () => {
         const strictLogger = new TestCompatibleLogger({ strictLevels: true });
-        
-        expect(() => strictLogger.log('unknown', 'Message')).toThrow(
-          'Unknown log level: unknown'
-        );
-        
-        expect(() => strictLogger.log('custom', 'Message')).toThrow(
-          'Unknown log level: custom'
-        );
+
+        expect(() => strictLogger.log('unknown', 'Message')).toThrow('Unknown log level: unknown');
+
+        expect(() => strictLogger.log('custom', 'Message')).toThrow('Unknown log level: custom');
       });
 
       it('should handle empty arguments', () => {
@@ -485,7 +473,7 @@ describe('BaseCompatibleLogger', () => {
     it('should serialize simple objects correctly', () => {
       const obj = { a: 1, b: 'test', c: true, d: null };
       const serialized = logger['safeSerialize'](obj);
-      
+
       expect(serialized).toBe('{"a":1,"b":"test","c":true,"d":null}');
       expect(JSON.parse(serialized)).toEqual(obj);
     });
@@ -494,12 +482,12 @@ describe('BaseCompatibleLogger', () => {
       const circular: Record<string, unknown> = { a: 1, b: 'test' };
       circular.self = circular;
       circular.nested = { parent: circular };
-      
+
       const serialized = logger['safeSerialize'](circular);
       expect(serialized).toContain('[Circular]');
       expect(serialized).toContain('"a":1');
       expect(serialized).toContain('"b":"test"');
-      
+
       // Should be parsable despite circular references
       expect(() => JSON.parse(serialized)).not.toThrow();
     });
@@ -520,7 +508,7 @@ describe('BaseCompatibleLogger', () => {
     it('should handle BigInt serialization error', () => {
       const objWithBigInt = { value: BigInt(123), other: 'data' };
       const result = logger['safeSerialize'](objWithBigInt);
-      
+
       expect(result).toContain('[Unable to serialize:');
       // BigInt serialization throws TypeError
       expect(result).toContain('TypeError');
@@ -531,11 +519,13 @@ describe('BaseCompatibleLogger', () => {
         array: [1, 2, { nested: true }],
         date: new Date('2023-01-01'),
         regex: /test/gi,
-        func: function() { return 'test'; },
+        func: function () {
+          return 'test';
+        },
         undef: undefined,
         symbol: Symbol('test'),
       };
-      
+
       const serialized = logger['safeSerialize'](complex);
       expect(serialized).toContain('"array":[1,2,{"nested":true}]');
       expect(serialized).toContain('"date":"2023-01-01T00:00:00.000Z"');
@@ -546,47 +536,47 @@ describe('BaseCompatibleLogger', () => {
   describe('Format Entry', () => {
     it('should format entries as JSON when format is json', () => {
       logger.setFormat('json');
-      
+
       const entry = { message: 'Test', level: 'info', timestamp: Date.now() };
       const formatted = logger['formatEntry'](entry);
-      
+
       expect(formatted).toBe(JSON.stringify(entry));
       expect(JSON.parse(formatted)).toEqual(entry);
     });
 
     it('should format strings as-is when format is plain', () => {
       logger.setFormat('plain');
-      
+
       const message = 'Plain text message';
       const formatted = logger['formatEntry'](message);
-      
+
       expect(formatted).toBe(message);
     });
 
     it('should extract message property from objects in plain format', () => {
       logger.setFormat('plain');
-      
-      const entry = { 
-        message: 'Object message', 
+
+      const entry = {
+        message: 'Object message',
         extra: 'data',
-        timestamp: Date.now() 
+        timestamp: Date.now(),
       };
       const formatted = logger['formatEntry'](entry);
-      
+
       expect(formatted).toBe('Object message');
     });
 
     it('should serialize objects without message property in plain format', () => {
       logger.setFormat('plain');
-      
+
       const entry = { data: 'value', count: 42 };
       const formatted = logger['formatEntry'](entry);
-      
+
       expect(formatted).toBe(JSON.stringify(entry));
     });
 
     it('should use custom formatter when format is custom', () => {
-      const customFormatter = jest.fn((entry) => `CUSTOM: ${JSON.stringify(entry)}`);
+      const customFormatter = jest.fn(entry => `CUSTOM: ${JSON.stringify(entry)}`);
       const customLogger = new TestCompatibleLogger({
         format: 'custom',
         formatter: customFormatter,
@@ -594,17 +584,17 @@ describe('BaseCompatibleLogger', () => {
 
       const entry = { message: 'Test', level: 'info' };
       const formatted = customLogger['formatEntry'](entry);
-      
+
       expect(customFormatter).toHaveBeenCalledWith(entry);
       expect(formatted).toBe(`CUSTOM: ${JSON.stringify(entry)}`);
     });
 
     it('should fall back to plain format when custom formatter is missing', () => {
       const customLogger = new TestCompatibleLogger({ format: 'custom' });
-      
+
       const message = 'Fallback message';
       const formatted = customLogger['formatEntry'](message);
-      
+
       expect(formatted).toBe(message);
     });
 
@@ -612,7 +602,7 @@ describe('BaseCompatibleLogger', () => {
       const errorFormatter = jest.fn(() => {
         throw new Error('Formatter error');
       });
-      
+
       const customLogger = new TestCompatibleLogger({
         format: 'custom',
         formatter: errorFormatter,
@@ -647,7 +637,7 @@ describe('BaseCompatibleLogger', () => {
 
       jest.spyOn(mockLogger, 'addTransport').mockResolvedValue(undefined);
       jest.spyOn(mockLogger, 'removeTransport').mockResolvedValue(undefined);
-      jest.spyOn(mockLogger, 'getTransport').mockImplementation((name) => {
+      jest.spyOn(mockLogger, 'getTransport').mockImplementation(name => {
         if (name === 'transport-1') return mockTransport1;
         if (name === 'transport-2') return mockTransport2;
         return undefined;
@@ -658,7 +648,7 @@ describe('BaseCompatibleLogger', () => {
     it('should add transports to underlying logger', async () => {
       await logger.addTransport(mockTransport1 as Transport);
       expect(mockLogger.addTransport).toHaveBeenCalledWith(mockTransport1);
-      
+
       await logger.addTransport(mockTransport2 as Transport);
       expect(mockLogger.addTransport).toHaveBeenCalledWith(mockTransport2);
     });
@@ -678,7 +668,7 @@ describe('BaseCompatibleLogger', () => {
 
     it('should get list of transports', () => {
       const transports = logger.getTransports();
-      
+
       expect(transports).toHaveLength(2);
       expect(transports).toContainEqual(expect.objectContaining({ name: 'transport-1' }));
       expect(transports).toContainEqual(expect.objectContaining({ name: 'transport-2' }));
@@ -686,13 +676,11 @@ describe('BaseCompatibleLogger', () => {
     });
 
     it('should filter out undefined transports', () => {
-      jest.spyOn(mockLogger, 'listTransports').mockReturnValue([
-        'transport-1',
-        'transport-missing',
-        'transport-2',
-      ]);
-      
-      jest.spyOn(mockLogger, 'getTransport').mockImplementation((name) => {
+      jest
+        .spyOn(mockLogger, 'listTransports')
+        .mockReturnValue(['transport-1', 'transport-missing', 'transport-2']);
+
+      jest.spyOn(mockLogger, 'getTransport').mockImplementation(name => {
         if (name === 'transport-1') return mockTransport1;
         if (name === 'transport-2') return mockTransport2;
         return undefined; // transport-missing returns undefined
@@ -705,7 +693,7 @@ describe('BaseCompatibleLogger', () => {
 
     it('should handle empty transport list', () => {
       jest.spyOn(mockLogger, 'listTransports').mockReturnValue([]);
-      
+
       const transports = logger.getTransports();
       expect(transports).toEqual([]);
     });
@@ -715,11 +703,11 @@ describe('BaseCompatibleLogger', () => {
     it('should add timestamp to metadata if not present', () => {
       const meta = { userId: 123, action: 'test' };
       const enhanced = logger['enhanceMetadata'](meta);
-      
+
       expect(enhanced).toHaveProperty('timestamp');
       expect(enhanced.userId).toBe(123);
       expect(enhanced.action).toBe('test');
-      
+
       // Verify timestamp is valid ISO string
       const timestamp = enhanced.timestamp as string;
       expect(new Date(timestamp).toISOString()).toBe(timestamp);
@@ -729,7 +717,7 @@ describe('BaseCompatibleLogger', () => {
       const originalTimestamp = '2023-01-01T00:00:00.000Z';
       const meta = { timestamp: originalTimestamp, data: 'test' };
       const enhanced = logger['enhanceMetadata'](meta);
-      
+
       expect(enhanced.timestamp).toBe(originalTimestamp);
       expect(enhanced.data).toBe('test');
     });
@@ -737,7 +725,7 @@ describe('BaseCompatibleLogger', () => {
     it('should add logger name to metadata', () => {
       const meta = { data: 'test' };
       const enhanced = logger['enhanceMetadata'](meta);
-      
+
       expect(enhanced.logger).toBe('test-logger');
       expect(enhanced.data).toBe('test');
     });
@@ -745,13 +733,13 @@ describe('BaseCompatibleLogger', () => {
     it('should preserve existing logger name', () => {
       const meta = { logger: 'custom-logger', data: 'test' };
       const enhanced = logger['enhanceMetadata'](meta);
-      
+
       expect(enhanced.logger).toBe('custom-logger');
     });
 
     it('should handle empty metadata', () => {
       const enhanced = logger['enhanceMetadata']({});
-      
+
       expect(enhanced).toHaveProperty('timestamp');
       expect(enhanced).toHaveProperty('logger');
       expect(Object.keys(enhanced).length).toBeGreaterThanOrEqual(2);
@@ -771,7 +759,7 @@ describe('BaseCompatibleLogger', () => {
   describe('Level Validation', () => {
     it('should validate all standard log levels', () => {
       const validLevels = ['debug', 'info', 'warn', 'error', 'success'];
-      
+
       validLevels.forEach(level => {
         expect(logger['isValidLevel'](level)).toBe(true);
       });
@@ -779,7 +767,7 @@ describe('BaseCompatibleLogger', () => {
 
     it('should reject non-standard levels', () => {
       const invalidLevels = ['custom', 'fatal', 'trace', 'verbose', 'silly'];
-      
+
       invalidLevels.forEach(level => {
         expect(logger['isValidLevel'](level)).toBe(false);
       });
@@ -811,7 +799,7 @@ describe('BaseCompatibleLogger', () => {
 
       expect(child).toBeInstanceOf(TestCompatibleLogger);
       expect(child.getName()).toBe('child-logger');
-      
+
       const config = child.getConfig();
       expect(config.tags).toEqual(['child']);
       expect(config.context).toEqual({ childId: 456 });
@@ -889,7 +877,7 @@ describe('BaseCompatibleLogger', () => {
 
     it('should handle flush gracefully when async logger is not available', async () => {
       (mockLogger as unknown as { async?: undefined }).async = undefined;
-      
+
       await expect(logger.flush()).resolves.toBeUndefined();
     });
 
@@ -905,14 +893,10 @@ describe('BaseCompatibleLogger', () => {
       const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
 
       logger.pause();
-      expect(warnSpy).toHaveBeenCalledWith(
-        'pause() is not implemented in the underlying Logger'
-      );
+      expect(warnSpy).toHaveBeenCalledWith('pause() is not implemented in the underlying Logger');
 
       logger.resume();
-      expect(warnSpy).toHaveBeenCalledWith(
-        'resume() is not implemented in the underlying Logger'
-      );
+      expect(warnSpy).toHaveBeenCalledWith('resume() is not implemented in the underlying Logger');
 
       expect(logger.isPaused()).toBe(false);
 
@@ -924,7 +908,7 @@ describe('BaseCompatibleLogger', () => {
     it('should handle very long messages', () => {
       const longMessage = 'x'.repeat(10000);
       logger.info(longMessage);
-      
+
       expect(mockLogger.info).toHaveBeenCalledWith(longMessage, undefined);
     });
 
@@ -936,7 +920,7 @@ describe('BaseCompatibleLogger', () => {
 
       const deepObject = createDeepObject(100);
       logger.info('Deep object', deepObject);
-      
+
       expect(mockLogger.info).toHaveBeenCalledWith('Deep object', deepObject);
     });
 
@@ -982,7 +966,7 @@ describe('BaseCompatibleLogger', () => {
 
     it('should get complete configuration snapshot', () => {
       const config = logger.getConfig();
-      
+
       expect(config).toEqual({
         name: 'test-logger',
         format: 'plain',
@@ -1000,10 +984,10 @@ describe('BaseCompatibleLogger', () => {
     it('should return new config object each time to prevent mutations', () => {
       const config1 = logger.getConfig();
       const config2 = logger.getConfig();
-      
+
       expect(config1).toEqual(config2);
       expect(config1).not.toBe(config2); // Different object references
-      
+
       // Mutating one should not affect the other
       config1.name = 'mutated';
       expect(config2.name).toBe('test-logger');
@@ -1023,7 +1007,7 @@ describe('BaseCompatibleLogger', () => {
   describe('Integration with Underlying Logger', () => {
     it('should properly delegate all log methods', () => {
       const allMethods = ['info', 'warn', 'error', 'debug'];
-      
+
       allMethods.forEach(method => {
         const logMethod = logger[method as keyof TestCompatibleLogger] as (message: string) => void;
         if (typeof logMethod === 'function') {

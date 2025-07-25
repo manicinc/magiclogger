@@ -5,10 +5,7 @@
  * for a fictional 'SimpleLogger' library.
  */
 
-import {
-  BaseCompatibleLogger,
-  LogCompatibilityOptions,
-} from 'magiclogger/compatibility/BaseCompatibleLogger';
+import { BaseCompatibleLogger, LogCompatibilityOptions } from 'magiclogger/compatibility/base';
 // import { ColorName } from 'magiclogger/types';
 
 /**
@@ -28,10 +25,10 @@ export interface SimpleLoggerOptions extends LogCompatibilityOptions {
   withTimestamp?: boolean;
 
   /**
-   * Custom format for output
+   * Custom format style when using 'custom' format
    * @default 'standard'
    */
-  format?: 'standard' | 'compact' | 'detailed';
+  customFormat?: 'standard' | 'compact' | 'detailed';
 }
 
 /**
@@ -50,9 +47,14 @@ export class SimpleLoggerAdapter extends BaseCompatibleLogger {
   private withTimestamp: boolean;
 
   /**
-   * Output format
+   * Custom output format style
    */
-  private format: 'standard' | 'compact' | 'detailed';
+  private customFormat: 'standard' | 'compact' | 'detailed';
+
+  /**
+   * Stored options for child logger creation
+   */
+  private options: SimpleLoggerOptions;
 
   /**
    * Creates a new SimpleLogger adapter
@@ -62,9 +64,10 @@ export class SimpleLoggerAdapter extends BaseCompatibleLogger {
   constructor(options?: SimpleLoggerOptions) {
     super(options);
 
+    this.options = options || {};
     this.appId = options?.appId || 'myapp';
     this.withTimestamp = options?.withTimestamp !== false;
-    this.format = options?.format || 'standard';
+    this.customFormat = options?.customFormat || 'standard';
   }
 
   /**
@@ -82,7 +85,7 @@ export class SimpleLoggerAdapter extends BaseCompatibleLogger {
   }
 
   /**
-   * Format message according to selected format
+   * Format message according to selected custom format
    *
    * @param level - Log level
    * @param message - Message to format
@@ -92,7 +95,7 @@ export class SimpleLoggerAdapter extends BaseCompatibleLogger {
   protected formatMessage(level: string, message: string): string {
     const timestamp = this.getTimestamp();
 
-    switch (this.format) {
+    switch (this.customFormat) {
       case 'compact':
         return `${timestamp}[${level[0].toUpperCase()}] ${message}`;
 
@@ -182,13 +185,38 @@ export class SimpleLoggerAdapter extends BaseCompatibleLogger {
   }
 
   /**
+   * Warning method (required by BaseCompatibleLogger)
+   *
+   * @param args - Arguments to log
+   */
+  warn(...args: unknown[]): void {
+    const message = args.join(' ');
+    this.log('warning', message);
+  }
+
+  /**
+   * Create a child logger (required by BaseCompatibleLogger)
+   *
+   * @param options - Child logger options
+   * @returns New child logger instance
+   */
+  child(options: Record<string, unknown>): BaseCompatibleLogger {
+    const childOptions: SimpleLoggerOptions = {
+      ...this.options,
+      appId: (options.appId as string) || this.appId,
+      customFormat: this.customFormat,
+    };
+    return new SimpleLoggerAdapter(childOptions);
+  }
+
+  /**
    * SimpleLogger-specific method for structured logging
    *
    * @param level - Log level
    * @param data - Data object to log
    * @param message - Optional message
    */
-  logStructured(level: string, data: Record<string, any>, message?: string): void {
+  logStructured(level: string, data: Record<string, unknown>, message?: string): void {
     const serializedData = this.safeSerialize(data);
     const fullMessage = message ? `${message} ${serializedData}` : serializedData;
 
@@ -218,14 +246,25 @@ export class SimpleLoggerAdapter extends BaseCompatibleLogger {
   }
 
   /**
-   * Set the output format
+   * Set the output format - override base implementation
+   * Maps compatibility formats to SimpleLogger formats
    *
-   * @param format - New format
-   * @returns This instance for chaining
+   * @param format - Base format type
    */
-  setFormat(format: 'standard' | 'compact' | 'detailed'): this {
-    this.format = format;
-    return this;
+  public setFormat(format: 'json' | 'plain' | 'custom'): void {
+    // Map base formats to SimpleLogger formats
+    switch (format) {
+      case 'json':
+        this.customFormat = 'detailed';
+        break;
+      case 'plain':
+        this.customFormat = 'standard';
+        break;
+      case 'custom':
+        this.customFormat = 'compact';
+        break;
+    }
+    super.setFormat(format);
   }
 }
 

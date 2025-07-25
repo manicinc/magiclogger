@@ -1,11 +1,29 @@
-// File: src/constants/presets.ts
+// File: src/constants/preset.ts
 
 import type { StylePreset, ColorName } from '../types';
 import { getTheme } from '../theme';
 
 /**
+ * Default style presets mapping preset names to color/style arrays.
+ * This is the default theme preset configuration.
+ */
+export const PRESETS = {
+  info: ['cyan', 'bold'] as ColorName[],
+  success: ['green', 'bold'] as ColorName[],
+  warning: ['yellow', 'bold'] as ColorName[],
+  error: ['brightRed', 'bold'] as ColorName[],
+  debug: ['gray', 'italic'] as ColorName[],
+  important: ['magenta', 'bold', 'underline'] as ColorName[],
+  highlight: ['brightYellow', 'bold'] as ColorName[],
+  muted: ['dim'] as ColorName[],
+  special: ['brightCyan', 'bold'] as ColorName[],
+  code: ['brightGreen'] as ColorName[],
+  header: ['brightWhite', 'bgBlue', 'bold'] as ColorName[],
+};
+
+/**
  * Get preset colors from the current theme.
- * 
+ *
  * @param {StylePreset | string} preset - Preset name
  * @param {string} themeName - Theme name (defaults to 'default')
  * @returns {ColorName[]} Colors for the preset
@@ -20,7 +38,7 @@ export function getPresetColors(preset: StylePreset | string, themeName = 'defau
 
 /**
  * Get all available preset names from current theme.
- * 
+ *
  * @param {string} themeName - Theme name (defaults to 'default')
  * @returns {string[]} Preset names
  */
@@ -34,7 +52,7 @@ export function getPresetNames(themeName = 'default'): string[] {
 
 /**
  * Check if a preset exists in the current theme.
- * 
+ *
  * @param {string} name - Preset name
  * @param {string} themeName - Theme name (defaults to 'default')
  * @returns {boolean} Whether preset exists
@@ -49,7 +67,7 @@ export function hasPreset(name: string, themeName = 'default'): boolean {
 
 /**
  * Get preset from the current theme.
- * 
+ *
  * @param {string} name - Preset name
  * @param {string} themeName - Theme name (defaults to 'default')
  * @returns {ColorName[] | undefined} Preset colors
@@ -65,27 +83,15 @@ export function getPreset(name: string, themeName = 'default'): ColorName[] | un
 /**
  * Core presets that map to theme entries.
  * This provides backward compatibility with the PRESETS constant.
- * 
- * @const PRESETS
+ *
+ * @const PRESETS_COMPAT - For compatibility with existing code
  */
-export const PRESETS = {
-  info: ['cyan', 'bold'] as ColorName[],
-  success: ['green', 'bold'] as ColorName[],
-  warning: ['yellow', 'bold'] as ColorName[],
-  error: ['brightRed', 'bold'] as ColorName[],
-  debug: ['gray', 'italic'] as ColorName[],
-  important: ['magenta', 'bold', 'underline'] as ColorName[],
-  highlight: ['brightYellow', 'bold'] as ColorName[],
-  muted: ['dim'] as ColorName[],
-  special: ['brightCyan', 'bold'] as ColorName[],
-  code: ['brightGreen'] as ColorName[],
-  header: ['brightWhite', 'bgBlue', 'bold'] as ColorName[],
-} as const;
+export const PRESETS_COMPAT = PRESETS;
 
 /**
  * Extended presets for additional use cases.
  * These can be added to themes.json as needed.
- * 
+ *
  * @const EXTENDED_PRESETS
  */
 export const EXTENDED_PRESETS: Record<string, ColorName[]> = {
@@ -95,25 +101,25 @@ export const EXTENDED_PRESETS: Record<string, ColorName[]> = {
   complete: ['green', 'bold'],
   failed: ['red', 'bold'],
   cancelled: ['gray', 'strikethrough'],
-  
+
   // Category presets
   database: ['blue', 'bold'],
   network: ['magenta'],
   security: ['red', 'underline'],
   performance: ['yellow'],
   system: ['cyan', 'dim'],
-  
+
   // Action presets
   create: ['green'],
   update: ['yellow'],
   delete: ['red'],
   read: ['blue'],
-  
+
   // Notification presets
   alert: ['red', 'bold', 'bgYellow'],
   notice: ['blue', 'bgWhite'],
   tip: ['green', 'italic'],
-  
+
   // Development presets
   trace: ['gray', 'dim'],
   verbose: ['gray'],
@@ -123,7 +129,7 @@ export const EXTENDED_PRESETS: Record<string, ColorName[]> = {
 
 /**
  * Get all presets from theme and extended presets.
- * 
+ *
  * @param {string} themeName - Theme name (defaults to 'default')
  * @returns {Record<string, ColorName[]>} All presets
  */

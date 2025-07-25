@@ -1,41 +1,41 @@
-// File: src/compatibility/BaseCompatibleLogger.ts
+// File: src/compatibility/loggers/BaseCompatibleLogger.ts
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { Logger } from '../Logger';
-import type { LoggerOptions, LogLevel } from '../types';
-import { Transport } from '../transports/base/Transport';
-import type { ExtendedLoggerOptions } from '../Logger';
+import { Logger } from '../../Logger';
+import type { LoggerOptions, LogLevel } from '../../types';
+import { Transport } from '../../transports/base/Transport';
+import type { ExtendedLoggerOptions } from '../../Logger';
 
 /**
  * Base options for compatibility logger implementations.
  * Extends LoggerOptions with compatibility-specific configuration.
- * 
+ *
  * @interface LogCompatibilityOptions
  * @extends {LoggerOptions}
  */
 export interface LogCompatibilityOptions extends LoggerOptions {
   /** Logger name for identification. @default 'app' */
   name?: string;
-  
+
   /** Array of transports to use for logging */
   transports?: Transport[];
-  
+
   /** Output format type. @default 'plain' */
   format?: 'json' | 'plain' | 'custom';
-  
+
   /** Whether to enforce strict level checking. @default false */
   strictLevels?: boolean;
-  
+
   /** Custom formatter function for log entries */
   formatter?: (entry: any) => string;
-  
+
   /** Whether to write logs to disk. @default false */
   writeToDisk?: boolean;
-  
+
   /** Directory for log files. @default './logs' */
   logDir?: string;
-  
+
   /** Number of days to retain log files. @default 30 */
   logRetentionDays?: number;
 }
@@ -43,7 +43,7 @@ export interface LogCompatibilityOptions extends LoggerOptions {
 /**
  * Abstract base class for logger compatibility layers.
  * Provides common functionality for Winston, Bunyan, and Pino compatibility implementations.
- * 
+ *
  * Features:
  * - Shared configuration management
  * - Common method implementations
@@ -51,10 +51,10 @@ export interface LogCompatibilityOptions extends LoggerOptions {
  * - Transport management
  * - Metadata enhancement
  * - Child logger support
- * 
+ *
  * @abstract
  * @class BaseCompatibleLogger
- * 
+ *
  * @example
  * ```typescript
  * class MyCompatibleLogger extends BaseCompatibleLogger {
@@ -68,40 +68,40 @@ export interface LogCompatibilityOptions extends LoggerOptions {
 export abstract class BaseCompatibleLogger {
   /** Underlying MagicLogger instance */
   protected logger: Logger;
-  
+
   /** Logger name identifier */
   protected name: string;
-  
+
   /** Output format type */
   protected format: 'json' | 'plain' | 'custom';
-  
+
   /** Custom formatter function */
   protected formatter?: (entry: any) => string;
-  
+
   /** Verbose mode flag */
   protected _verbose: boolean;
-  
+
   /** Whether to use colors in output */
   protected useColors: boolean;
-  
+
   /** Whether to write logs to disk */
   protected writeToDisk: boolean;
-  
+
   /** Log directory path */
   protected logDir: string;
-  
+
   /** Log retention period in days */
   protected logRetentionDays: number;
-  
+
   /** Whether to enforce strict level checking */
   protected strictLevels: boolean;
-  
+
   /** Storage for child logger references */
   protected children: WeakMap<object, BaseCompatibleLogger> = new WeakMap();
 
   /**
    * Creates a new BaseCompatibleLogger instance.
-   * 
+   *
    * @constructor
    * @param {LogCompatibilityOptions} [options={}] - Logger configuration options
    */
@@ -134,7 +134,7 @@ export abstract class BaseCompatibleLogger {
 
   /**
    * Gets the logger name.
-   * 
+   *
    * @public
    * @returns {string} Logger name
    */
@@ -144,7 +144,7 @@ export abstract class BaseCompatibleLogger {
 
   /**
    * Sets the logger name.
-   * 
+   *
    * @public
    * @param {string} name - New logger name
    */
@@ -154,7 +154,7 @@ export abstract class BaseCompatibleLogger {
 
   /**
    * Gets the current logger configuration.
-   * 
+   *
    * @protected
    * @returns {LogCompatibilityOptions} Current configuration object
    */
@@ -174,7 +174,7 @@ export abstract class BaseCompatibleLogger {
 
   /**
    * Sets verbose mode.
-   * 
+   *
    * @public
    * @param {boolean} enabled - Whether to enable verbose mode
    */
@@ -185,7 +185,7 @@ export abstract class BaseCompatibleLogger {
 
   /**
    * Checks if verbose mode is enabled.
-   * 
+   *
    * @public
    * @returns {boolean} True if verbose mode is enabled
    */
@@ -195,7 +195,7 @@ export abstract class BaseCompatibleLogger {
 
   /**
    * Enables or disables color output.
-   * 
+   *
    * @public
    * @param {boolean} enabled - Whether to enable colors
    */
@@ -206,7 +206,7 @@ export abstract class BaseCompatibleLogger {
 
   /**
    * Checks if colors are enabled.
-   * 
+   *
    * @public
    * @returns {boolean} True if colors are enabled
    */
@@ -216,7 +216,7 @@ export abstract class BaseCompatibleLogger {
 
   /**
    * Sets the output format.
-   * 
+   *
    * @public
    * @param {'json' | 'plain' | 'custom'} format - Output format type
    */
@@ -226,7 +226,7 @@ export abstract class BaseCompatibleLogger {
 
   /**
    * Gets the current output format.
-   * 
+   *
    * @public
    * @returns {string} Current output format
    */
@@ -236,7 +236,7 @@ export abstract class BaseCompatibleLogger {
 
   /**
    * Safely serializes an object to JSON, handling circular references.
-   * 
+   *
    * @protected
    * @param {any} obj - Object to serialize
    * @returns {string} JSON string or error message
@@ -251,7 +251,7 @@ export abstract class BaseCompatibleLogger {
 
   /**
    * Creates a replacer function for JSON.stringify that handles circular references.
-   * 
+   *
    * @private
    * @returns {(key: string, value: any) => any} Replacer function
    */
@@ -270,7 +270,7 @@ export abstract class BaseCompatibleLogger {
 
   /**
    * Formats a log entry based on the configured format.
-   * 
+   *
    * @protected
    * @param {any} entry - Log entry to format
    * @returns {string} Formatted entry string
@@ -279,7 +279,7 @@ export abstract class BaseCompatibleLogger {
     switch (this.format) {
       case 'json':
         return this.safeSerialize(entry);
-      
+
       case 'custom':
         if (this.formatter) {
           try {
@@ -288,8 +288,8 @@ export abstract class BaseCompatibleLogger {
             // Fall through to plain format on error
           }
         }
-        // Fall through to plain if no formatter or error
-      
+      // Fall through to plain if no formatter or error
+
       case 'plain':
       default:
         if (typeof entry === 'string') {
@@ -304,7 +304,7 @@ export abstract class BaseCompatibleLogger {
 
   /**
    * Adds a transport to the underlying logger.
-   * 
+   *
    * @public
    * @param {Transport} transport - Transport to add
    * @returns {Promise<void>} Promise that resolves when transport is added
@@ -315,7 +315,7 @@ export abstract class BaseCompatibleLogger {
 
   /**
    * Removes a transport from the underlying logger.
-   * 
+   *
    * @public
    * @param {string} name - Name of the transport to remove
    * @returns {Promise<void>} Promise that resolves when transport is removed
@@ -326,7 +326,7 @@ export abstract class BaseCompatibleLogger {
 
   /**
    * Clears all transports from the underlying logger.
-   * 
+   *
    * @public
    */
   public clearTransports(): void {
@@ -338,7 +338,7 @@ export abstract class BaseCompatibleLogger {
 
   /**
    * Gets all configured transports.
-   * 
+   *
    * @public
    * @returns {Transport[]} Array of transport instances
    */
@@ -353,7 +353,7 @@ export abstract class BaseCompatibleLogger {
    * Flushes all transports.
    * Since the Logger class doesn't have a direct flush method,
    * this provides a no-op implementation that can be overridden.
-   * 
+   *
    * @public
    * @returns {Promise<void>} Promise that resolves when flush completes
    */
@@ -365,7 +365,7 @@ export abstract class BaseCompatibleLogger {
 
   /**
    * Closes the logger and all transports.
-   * 
+   *
    * @public
    * @returns {Promise<void>} Promise that resolves when logger is closed
    */
@@ -376,7 +376,7 @@ export abstract class BaseCompatibleLogger {
   /**
    * Pauses logging (compatibility method).
    * Note: The underlying Logger doesn't support pausing.
-   * 
+   *
    * @public
    */
   public pause(): void {
@@ -386,7 +386,7 @@ export abstract class BaseCompatibleLogger {
   /**
    * Resumes logging (compatibility method).
    * Note: The underlying Logger doesn't support resuming.
-   * 
+   *
    * @public
    */
   public resume(): void {
@@ -396,7 +396,7 @@ export abstract class BaseCompatibleLogger {
   /**
    * Checks if logger is paused.
    * Note: Always returns false as pausing is not supported.
-   * 
+   *
    * @public
    * @returns {boolean} Always returns false
    */
@@ -406,7 +406,7 @@ export abstract class BaseCompatibleLogger {
 
   /**
    * Gets the underlying MagicLogger instance.
-   * 
+   *
    * @public
    * @returns {Logger} MagicLogger instance
    */
@@ -416,7 +416,7 @@ export abstract class BaseCompatibleLogger {
 
   /**
    * Enhances metadata with timestamp and logger name.
-   * 
+   *
    * @protected
    * @param {any} meta - Original metadata
    * @returns {any} Enhanced metadata with additional fields
@@ -437,7 +437,7 @@ export abstract class BaseCompatibleLogger {
 
   /**
    * Validates if a log level is valid.
-   * 
+   *
    * @protected
    * @param {string} level - Level to validate
    * @returns {boolean} True if level is valid
@@ -450,11 +450,11 @@ export abstract class BaseCompatibleLogger {
 
   /**
    * Normalizes level aliases to standard level names.
-   * 
+   *
    * @protected
    * @param {string} level - Level to normalize
    * @returns {LogLevel} Normalized level name
-   * 
+   *
    * @example
    * normalizeLevel('warning') // returns 'warn'
    * normalizeLevel('err') // returns 'error'
@@ -462,7 +462,7 @@ export abstract class BaseCompatibleLogger {
    */
   protected normalizeLevel(level: string): LogLevel {
     const normalized = level.toLowerCase();
-    
+
     switch (normalized) {
       case 'warning':
         return 'warn';
@@ -478,7 +478,7 @@ export abstract class BaseCompatibleLogger {
   /**
    * Logs an info-level message.
    * Must be implemented by subclasses.
-   * 
+   *
    * @abstract
    * @public
    * @param {...any[]} args - Log arguments
@@ -488,7 +488,7 @@ export abstract class BaseCompatibleLogger {
   /**
    * Logs a warning-level message.
    * Must be implemented by subclasses.
-   * 
+   *
    * @abstract
    * @public
    * @param {...any[]} args - Log arguments
@@ -498,7 +498,7 @@ export abstract class BaseCompatibleLogger {
   /**
    * Logs an error-level message.
    * Must be implemented by subclasses.
-   * 
+   *
    * @abstract
    * @public
    * @param {...any[]} args - Log arguments
@@ -508,7 +508,7 @@ export abstract class BaseCompatibleLogger {
   /**
    * Logs a debug-level message.
    * Must be implemented by subclasses.
-   * 
+   *
    * @abstract
    * @public
    * @param {...any[]} args - Log arguments
@@ -518,7 +518,7 @@ export abstract class BaseCompatibleLogger {
   /**
    * Generic log method with level specification.
    * Must be implemented by subclasses.
-   * 
+   *
    * @abstract
    * @public
    * @param {string} level - Log level
@@ -529,7 +529,7 @@ export abstract class BaseCompatibleLogger {
   /**
    * Creates a child logger with additional context.
    * Must be implemented by subclasses.
-   * 
+   *
    * @abstract
    * @public
    * @param {any} options - Child logger options

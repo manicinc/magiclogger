@@ -968,4 +968,4 @@ logger.info(
 );
 ```
 
-For more details on transports, see the [Transport Documentation](./transport.md).
+For more details on transports, see the [Transport Documentation](./intro.md#-multiple-transports).

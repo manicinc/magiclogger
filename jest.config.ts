@@ -28,6 +28,47 @@ const config: Config.InitialOptions = {
   },
   // Add this to use the setup file
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
+  // Configure different test environments based on file patterns
+  projects: [
+    {
+      displayName: 'node',
+      testMatch: ['<rootDir>/tests/**/!(Browser)*.test.ts'],
+      testEnvironment: 'node',
+      preset: 'ts-jest',
+      transform: {
+        '^.+\\.tsx?$': [
+          'ts-jest',
+          {
+            tsconfig: 'tsconfig.jest.json',
+          },
+        ],
+      },
+      moduleNameMapper: {
+        magiclogger$: '<rootDir>/src/index.ts',
+        'magiclogger/(.*)$': '<rootDir>/src/$1',
+      },
+      setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
+    },
+    {
+      displayName: 'jsdom',
+      testMatch: ['<rootDir>/tests/**/Browser*.test.ts'],
+      testEnvironment: 'jsdom',
+      preset: 'ts-jest',
+      transform: {
+        '^.+\\.tsx?$': [
+          'ts-jest',
+          {
+            tsconfig: 'tsconfig.jest.json',
+          },
+        ],
+      },
+      moduleNameMapper: {
+        magiclogger$: '<rootDir>/src/index.ts',
+        'magiclogger/(.*)$': '<rootDir>/src/$1',
+      },
+      setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
+    },
+  ],
 };
 
 export default config;

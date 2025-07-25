@@ -17,6 +17,16 @@
         "default": "./dist/index.cjs"
       }
     },
+    "./transports": {
+      "import": {
+        "types": "./dist/transports.d.ts",
+        "default": "./dist/transports.js"
+      },
+      "require": {
+        "types": "./dist/transports.d.cts",
+        "default": "./dist/transports.cjs"
+      }
+    },
     "./transports/console": {
       "import": {
         "types": "./dist/transports/console.d.ts",
@@ -325,6 +335,7 @@
     "fs-extra": "^11.3.0",
     "husky": "^9.0.11",
     "jest": "^29.5.0",
+    "jest-environment-jsdom": "^29.7.0",
     "lint-staged": "^15.2.0",
     "path-browserify": "^1.0.1",
     "prettier": "^2.8.7",
