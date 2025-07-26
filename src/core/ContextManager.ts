@@ -448,7 +448,12 @@ export class ContextManager extends EventEmitter {
       const objValue = value as Record<string, unknown>;
       for (const key in objValue) {
         if (Object.prototype.hasOwnProperty.call(objValue, key)) {
-          sanitized[key] = this.basicSanitize(objValue[key]);
+          // Redact sensitive keys
+          if (this.isSensitiveKey(key)) {
+            sanitized[key] = '[REDACTED]';
+          } else {
+            sanitized[key] = this.basicSanitize(objValue[key]);
+          }
         }
       }
       return sanitized;
@@ -556,58 +561,94 @@ export class ContextManager extends EventEmitter {
   }
 
   /**
+   * Validate structure for circular references and depth.
+   * 
+   * @param {unknown} value - Value to validate
+   * @param {number} depth - Current depth
+   * @param {WeakSet<object>} seen - Seen objects for circular reference detection
+   */
+  private validateStructure(value: unknown, depth: number, seen: WeakSet<object>): void {
+    if (depth > this.options.maxDepth) {
+      throw new Error(`Maximum depth exceeded: ${this.options.maxDepth}`);
+    }
+
+    if (value && typeof value === 'object') {
+      if (seen.has(value as object)) {
+        throw new Error('Circular reference detected');
+      }
+
+      seen.add(value as object);
+
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          this.validateStructure(item, depth + 1, seen);
+        }
+      } else {
+        for (const val of Object.values(value as Record<string, unknown>)) {
+          this.validateStructure(val, depth + 1, seen);
+        }
+      }
+
+      seen.delete(value as object);
+    }
+  }
+
+  /**
    * Validate context against rules.
    * 
    * @param {Record<string, unknown>} context - Context to validate
    * @returns {ContextValidationResult} Validation result
    */
   public validate(context: Record<string, unknown>): ContextValidationResult {
-    if (!this.validationRules) {
-      return { valid: true };
-    }
-
     const errors: string[] = [];
     const warnings: string[] = [];
 
-    // Check required fields
-    if (this.validationRules.required) {
-      for (const field of this.validationRules.required) {
-        if (!(field in context)) {
-          errors.push(`Required field missing: ${field}`);
-        }
-      }
+    // Always check for circular references and depth
+    try {
+      this.validateStructure(context, 0, new WeakSet());
+    } catch (error: unknown) {
+      errors.push((error as Error).message);
     }
 
-    // Check types
-    if (this.validationRules.types) {
-      for (const [field, expectedType] of Object.entries(this.validationRules.types)) {
-        if (field in context) {
-          const actualType = typeof context[field];
-          if (actualType !== expectedType) {
-            errors.push(`Field ${field} has wrong type: expected ${expectedType}, got ${actualType}`);
+    // Additional validation rules (only if configured)
+    if (this.validationRules) {
+      // Check required fields
+      if (this.validationRules.required) {
+        for (const field of this.validationRules.required) {
+          if (!(field in context)) {
+            errors.push(`Required field missing: ${field}`);
           }
         }
       }
-    }
 
-    // Custom validation
-    if (this.validationRules.custom) {
-      try {
-        if (!this.validationRules.custom(context)) {
-          errors.push('Custom validation failed');
+      // Check types
+      if (this.validationRules.types) {
+        for (const [field, expectedType] of Object.entries(this.validationRules.types)) {
+          if (field in context) {
+            const actualType = typeof context[field];
+            if (actualType !== expectedType) {
+              errors.push(`Field ${field} has wrong type: expected ${expectedType}, got ${actualType}`);
+            }
+          }
         }
-      } catch (error) {
-        warnings.push(`Custom validation error: ${error}`);
+      }
+
+      // Custom validation
+      if (this.validationRules.custom) {
+        try {
+          if (!this.validationRules.custom(context)) {
+            errors.push('Custom validation failed');
+          }
+        } catch (error) {
+          warnings.push(`Custom validation error: ${error}`);
+        }
       }
     }
 
     const result: ContextValidationResult = {
       valid: errors.length === 0,
+      errors: errors,
     };
-
-    if (errors.length > 0) {
-      result.errors = errors;
-    }
 
     if (warnings.length > 0) {
       result.warnings = warnings;

@@ -1,3 +1,18 @@
+// ===== CRITICAL: Timer polyfills must be first =====
+// Ensure Node.js timer globals are available immediately
+if (typeof global.setInterval === 'undefined') {
+  global.setInterval = setInterval;
+}
+if (typeof global.clearInterval === 'undefined') {
+  global.clearInterval = clearInterval;
+}
+if (typeof global.setTimeout === 'undefined') {
+  global.setTimeout = setTimeout;
+}
+if (typeof global.clearTimeout === 'undefined') {
+  global.clearTimeout = clearTimeout;
+}
+
 // Import required modules
 const fs = jest.requireActual('fs');
 const path = jest.requireActual('path');
@@ -326,16 +341,16 @@ export function createStatsMock(
  * @param targetClass The class to spy on
  * @returns A jest mock function that tracks constructor calls
  */
-export function spyOnConstructor<T extends new (...args: any[]) => any>(
+export function spyOnConstructor<T extends new (...args: unknown[]) => unknown>(
   targetClass: T
-): jest.Mock<T, ConstructorParameters<T>> {
+): jest.Mock<InstanceType<T>, ConstructorParameters<T>> {
   const originalConstructor = targetClass;
 
   // Create a mock constructor function
   const mockConstructor = jest.fn((...args: ConstructorParameters<T>) => {
     // Create a new instance using the original constructor
     return new originalConstructor(...args);
-  });
+  }) as jest.Mock<InstanceType<T>, ConstructorParameters<T>>;
 
   // Replace the original constructor with our mock
   Object.defineProperty(targetClass, 'constructor', {
@@ -353,7 +368,7 @@ export function spyOnConstructor<T extends new (...args: any[]) => any>(
  * @returns A jest mocked version of the class
  */
 export function createMockedClass<T>(
-  targetClass: new (...args: any[]) => T
+  targetClass: new (...args: unknown[]) => T
 ): jest.MockedClass<typeof targetClass> {
   return targetClass as jest.MockedClass<typeof targetClass>;
 }
@@ -375,8 +390,10 @@ export function getMockedLogger(options = {}): Logger & LoggerInternal {
  */
 export function getMockedNodeLogger(options = {}): NodeLogger & LoggerInternal {
   const logger = new NodeLogger(options) as NodeLogger & LoggerInternal;
-  // Ensure we have a FileManager for tests
+  // Ensure we have a FileManager for tests using any to bypass private property access
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   if (!(logger as any).fileManager) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (logger as any).fileManager = new FileManager(LOG_DIR, 30);
   }
   return logger;

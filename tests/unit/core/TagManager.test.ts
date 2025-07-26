@@ -1,6 +1,6 @@
 // File: tests/unit/core/TagManager.test.ts
 
-import { TagManager, TagManagerOptions, TagNormalizationRules, TagValidationRules, TagFilterOptions, TagMatchCriteria, TagExtractionOptions } from '../../../src/core/TagManager';
+import { TagManager, TagManagerOptions, TagNormalizationRules, TagValidationRules } from '../../../src/core/TagManager';
 import { EventEmitter } from 'events';
 
 describe('TagManager', () => {
@@ -177,9 +177,8 @@ describe('TagManager', () => {
       
       expect(result.valid).toBe(false);
       expect(result.invalid).toEqual(['INVALID', '123', 'has-dash']);
-      if (result.errors && result.errors['INVALID']) {
-        expect(result.errors['INVALID']).toContain('Tag contains invalid characters');
-      }
+      expect(result.errors).toBeDefined();
+      expect(result.errors?.['INVALID']).toContain('Tag contains invalid characters');
     });
 
     it('should check reserved tags', () => {
@@ -193,9 +192,8 @@ describe('TagManager', () => {
       
       expect(result.valid).toBe(false);
       expect(result.invalid).toContain('admin');
-      if (result.errors && result.errors['admin']) {
-        expect(result.errors['admin']).toContain('Tag is reserved');
-      }
+      expect(result.errors).toBeDefined();
+      expect(result.errors?.['admin']).toContain('Tag is reserved');
     });
 
     it('should run custom validation', () => {
@@ -223,9 +221,8 @@ describe('TagManager', () => {
       const result = tagManager.validate(['test']);
       
       expect(result.valid).toBe(false);
-      if (result.errors && result.errors['test']) {
-        expect(result.errors['test']).toContain('Validation error: Error: Validation failed');
-      }
+      expect(result.errors).toBeDefined();
+      expect(result.errors?.['test']).toContain('Validation error: Error: Validation failed');
     });
 
     it('should skip validation when disabled', () => {
@@ -574,7 +571,7 @@ describe('TagManager', () => {
     it('should get comprehensive statistics', () => {
       // Add many tags
       for (let i = 0; i < 20; i++) {
-        const tags = [];
+        const tags = [] as string[];
         for (let j = 0; j <= i; j++) {
           tags.push(`tag${j}`);
         }
@@ -757,7 +754,8 @@ describe('TagManager', () => {
       // Set up rules
       tagManager.setNormalizationRules({
         toLowerCase: true,
-        replaceSpaces: true
+        replaceSpaces: true,
+        removeSpecialChars: false
       });
       
       tagManager.setValidationRules({

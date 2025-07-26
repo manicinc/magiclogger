@@ -2,6 +2,30 @@
 
 import type { LogEntry } from '../types/transport';
 
+// Robust timer availability check and polyfill
+const ensureTimers = () => {
+  if (typeof global !== 'undefined') {
+    // Try to get Node.js timers if global timers are missing
+    try {
+      if (!global.setInterval || !global.clearInterval) {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const nodeTimers = require('timers');
+        global.setInterval = global.setInterval || nodeTimers.setInterval;
+        global.clearInterval = global.clearInterval || nodeTimers.clearInterval;
+      }
+    } catch (error) {
+      // If require fails, try to use built-in timers
+      if (typeof setInterval !== 'undefined' && typeof clearInterval !== 'undefined') {
+        global.setInterval = global.setInterval || setInterval;
+        global.clearInterval = global.clearInterval || clearInterval;
+      }
+    }
+  }
+};
+
+// Initialize timers
+ensureTimers();
+
 /**
  * Configuration options for AsyncBuffer.
  */

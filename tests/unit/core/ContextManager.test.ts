@@ -94,21 +94,22 @@ describe('ContextManager', () => {
     });
 
     it('should detect circular references', () => {
-      const context: any = { user: 'john' };
+      const context: Record<string, unknown> = { user: 'john' };
       context.self = context;
       
       const result = contextManager.validate(context);
       
       expect(result.valid).toBe(false);
       expect(result.errors).toBeDefined();
-      expect(result.errors!.length).toBeGreaterThan(0);
+      expect(result.errors?.length).toBeGreaterThan(0);
     });
 
     it('should validate max depth', () => {
-      const deepContext: any = { level1: { level2: { level3: { level4: { level5: { level6: {} } } } } } };
+      const contextManager = new ContextManager({ maxDepth: 3 });
+      const deepContext: Record<string, unknown> = { level1: { level2: { level3: { level4: { level5: { level6: {} } } } } } };
       const result = contextManager.validate(deepContext);
       
-      // Assuming default maxDepth is less than 6
+      // maxDepth is 3, but we have 6 levels
       expect(result.valid).toBe(false);
       expect(result.errors).toBeDefined();
     });
@@ -135,8 +136,8 @@ describe('ContextManager', () => {
       };
       
       const unflattened = contextManager.unflatten(flattened);
-      expect((unflattened as any).user.name).toBe('john');
-      expect((unflattened as any).user.details.age).toBe(30);
+      expect((unflattened as { user: { name: string; details: { age: number } } }).user.name).toBe('john');
+      expect((unflattened as { user: { name: string; details: { age: number } } }).user.details.age).toBe(30);
     });
 
     it('should extract specific fields', () => {
@@ -144,7 +145,7 @@ describe('ContextManager', () => {
       const extracted = contextManager.extract(context, ['user', 'action']);
       
       expect(extracted).toEqual({ user: 'john', action: 'login' });
-      expect((extracted as any).password).toBeUndefined();
+      expect((extracted as Record<string, unknown>).password).toBeUndefined();
     });
   });
 
@@ -270,17 +271,17 @@ describe('ContextManager', () => {
 
   describe('error handling', () => {
     it('should handle invalid inputs gracefully', () => {
-      expect(() => contextManager.set(null as any)).not.toThrow();
-      expect(() => contextManager.set(undefined as any)).not.toThrow();
-      expect(() => contextManager.set('string' as any)).not.toThrow();
+      expect(() => contextManager.set(null as unknown as Record<string, unknown>)).not.toThrow();
+      expect(() => contextManager.set(undefined as unknown as Record<string, unknown>)).not.toThrow();
+      expect(() => contextManager.set('string' as unknown as Record<string, unknown>)).not.toThrow();
       
       // Context should remain empty or convert to object
       expect(contextManager.get()).toBeDefined();
     });
 
     it('should handle circular references in merge', () => {
-      const obj1: any = { a: 1 };
-      const obj2: any = { b: 2 };
+      const obj1: Record<string, unknown> = { a: 1 };
+      const obj2: Record<string, unknown> = { b: 2 };
       obj1.circular = obj1;
       obj2.circular = obj2;
       

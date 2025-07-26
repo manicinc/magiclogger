@@ -1,38 +1,41 @@
+// Mock the BrowserLogger module first
+jest.mock('../../../src/core/BrowserLogger', () => {
+  const MockBrowserLoggerClass = jest.fn().mockImplementation((_options) => {
+    const instance = {
+      getLogs: jest.fn().mockReturnValue(['Test log']),
+      clearLogs: jest.fn(),
+      downloadLogs: jest.fn(),
+      setStorageEnabled: jest.fn(),
+      // Add other methods that might be called
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+      debug: jest.fn(),
+      success: jest.fn(),
+      header: jest.fn(),
+      table: jest.fn(),
+      progressBar: jest.fn(),
+      custom: jest.fn(),
+      styled: jest.fn(),
+      separator: jest.fn(),
+      close: jest.fn(),
+    };
+    
+    // Set the prototype to make instanceof work
+    Object.setPrototypeOf(instance, MockBrowserLoggerClass.prototype);
+    return instance;
+  });
+  
+  return {
+    BrowserLogger: MockBrowserLoggerClass,
+  };
+});
+
 import { Logger } from '../../../src/Logger';
 import { BrowserLogger } from '../../../src/core/BrowserLogger';
 
-// Create a proper mock for BrowserLogger
-const MockBrowserLogger = jest.fn().mockImplementation((_options) => {
-  const instance = {
-    getLogs: jest.fn().mockReturnValue(['Test log']),
-    clearLogs: jest.fn(),
-    downloadLogs: jest.fn(),
-    setStorageEnabled: jest.fn(),
-    // Add other methods that might be called
-    info: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn(),
-    debug: jest.fn(),
-    success: jest.fn(),
-    header: jest.fn(),
-    table: jest.fn(),
-    progressBar: jest.fn(),
-    custom: jest.fn(),
-    styled: jest.fn(),
-    separator: jest.fn(),
-    close: jest.fn(),
-  };
-  
-  // Make the instance appear to be an instance of BrowserLogger
-  Object.setPrototypeOf(instance, BrowserLogger.prototype);
-  
-  return instance;
-});
-
-// Mock the BrowserLogger module
-jest.mock('../../../src/core/BrowserLogger', () => ({
-  BrowserLogger: MockBrowserLogger,
-}));
+// Get reference to the mocked constructor for tests
+const MockBrowserLogger = BrowserLogger as jest.MockedClass<typeof BrowserLogger>;
 
 // Mock window detection
 let windowMock: Record<string, unknown> | undefined = {};
@@ -44,7 +47,13 @@ Object.defineProperty(global, 'window', {
 describe('Logger Browser Integration', () => {
   // Helper to toggle browser environment
   const setBrowserEnvironment = (isBrowser: boolean) => {
-    windowMock = isBrowser ? { document: {} } : undefined;
+    windowMock = isBrowser ? { 
+      document: {},
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      location: { href: 'http://localhost' },
+      navigator: { userAgent: 'test' },
+    } : undefined;
   };
 
   beforeEach(() => {
@@ -56,7 +65,16 @@ describe('Logger Browser Integration', () => {
     // Set as browser environment
     setBrowserEnvironment(true);
 
+    // Debug: Check if window is set up correctly
+    console.log('Window object:', global.window);
+    console.log('Window detection result:', typeof window !== 'undefined');
+
     const logger = new Logger();
+    
+    // Debug: Check what type of logger instance was created
+    console.log('Logger instance constructor:', logger['loggerInstance'].constructor.name);
+    console.log('Is BrowserLogger mock called?', MockBrowserLogger.mock.calls.length);
+    
     expect(logger['loggerInstance']).toBeInstanceOf(BrowserLogger);
     expect(MockBrowserLogger).toHaveBeenCalled();
   });

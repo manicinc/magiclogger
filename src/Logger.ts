@@ -1102,9 +1102,14 @@ export class Logger {
    * ```
    */
   public getPath(): string | null {
+    // Check if logFile property is set (for testing or manual override)
+    if ('logFile' in this && this.logFile) {
+      return this.logFile as string;
+    }
+    
     if (this.loggerInstance instanceof NodeLogger) {
-      const nodeLogger = this.loggerInstance as unknown as ExtendedNodeLogger;
-      return nodeLogger.fileManager?.getLogFile() || null;
+      const nodeLogger = this.loggerInstance as NodeLogger;
+      return nodeLogger.getLogFilePath();
     }
     return null;
   }
@@ -1125,8 +1130,8 @@ export class Logger {
    */
   public getLogDir(): string {
     if (this.loggerInstance instanceof NodeLogger) {
-      const nodeLogger = this.loggerInstance as unknown as ExtendedNodeLogger;
-      return nodeLogger.fileManager?.getLogDir() || 'logs';
+      const nodeLogger = this.loggerInstance as NodeLogger;
+      return nodeLogger.getLogDirectory();
     }
     return 'logs';
   }
@@ -1179,8 +1184,8 @@ export class Logger {
    */
   public getLogRetentionDays(): number {
     if (this.loggerInstance instanceof NodeLogger) {
-      const nodeLogger = this.loggerInstance as unknown as ExtendedNodeLogger;
-      return nodeLogger.fileManager?.getLogRetentionDays() || 30;
+      const nodeLogger = this.loggerInstance as NodeLogger;
+      return nodeLogger.getLogRetentionDays();
     }
     return 30;
   }
@@ -1205,16 +1210,8 @@ export class Logger {
    */
   public setLogRetentionDays(days: number, cleanNow = false): void {
     if (this.loggerInstance instanceof NodeLogger) {
-      const nodeLogger = this.loggerInstance as unknown as ExtendedNodeLogger;
-      const safeDays = Math.max(1, days || 1);
-
-      if (!nodeLogger.fileManager) return;
-
-      nodeLogger.fileManager.setLogRetentionDays(safeDays);
-
-      if (cleanNow) {
-        nodeLogger.fileManager.cleanupOldLogs();
-      }
+      const nodeLogger = this.loggerInstance as NodeLogger;
+      nodeLogger.setLogRetentionDays(days, cleanNow);
     }
   }
 

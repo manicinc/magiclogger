@@ -136,30 +136,30 @@ describe('transports.ts module', () => {
     
     describe('createConsole', () => {
       
-      it('should create a ConsoleTransport with default name', async () => {
-        const transport = await createConsole();
+      it('should create a ConsoleTransport with default name', () => {
+        const transport = createConsole();
         
         expect(transport).toBeInstanceOf(ConsoleTransport);
         expect(transport.name).toBe('console');
         expect(transport.enabled).toBe(true);
       });
 
-      it('should create a ConsoleTransport with custom options', async () => {
+      it('should create a ConsoleTransport with custom options', () => {
         const options: Partial<ConsoleTransportOptions> = {
           name: 'custom-console',
           colorize: false,
           enabled: false
         };
 
-        const transport = await createConsole(options);
+        const transport = createConsole(options);
         
         expect(transport).toBeInstanceOf(ConsoleTransport);
         expect(transport.name).toBe('custom-console');
         expect(transport.enabled).toBe(false);
       });
 
-      it('should override default name when provided in options', async () => {
-        const transport = await createConsole({ name: 'my-console' });
+      it('should override default name when provided in options', () => {
+        const transport = createConsole({ name: 'my-console' });
         
         expect(transport.name).toBe('my-console');
       });
@@ -167,15 +167,15 @@ describe('transports.ts module', () => {
 
     describe('createFile', () => {
       
-      it('should create a FileTransport with generated name', async () => {
+      it('should create a FileTransport with generated name', () => {
         const filepath = '/tmp/test.log';
-        const transport = await createFile(filepath);
+        const transport = createFile(filepath);
         
         expect(transport).toBeInstanceOf(FileTransport);
         expect(transport.name).toBe('file--tmp-test-log');
       });
 
-      it('should create a FileTransport with custom options', async () => {
+      it('should create a FileTransport with custom options', () => {
         const filepath = '/var/log/app.log';
         const options: Partial<FileTransportOptions> = {
           name: 'app-logs',
@@ -184,15 +184,15 @@ describe('transports.ts module', () => {
           enabled: false
         };
 
-        const transport = await createFile(filepath, options);
+        const transport = createFile(filepath, options);
         
         expect(transport).toBeInstanceOf(FileTransport);
         expect(transport.name).toBe('app-logs');
         expect(transport.enabled).toBe(false);
       });
 
-      it('should sanitize filepath for name generation', async () => {
-        const transport = await createFile('/path/with/special-chars_123.log');
+      it('should sanitize filepath for name generation', () => {
+        const transport = createFile('/path/with/special-chars_123.log');
         
         expect(transport.name).toBe('file--path-with-special-chars-123-log');
       });
@@ -200,15 +200,15 @@ describe('transports.ts module', () => {
 
     describe('createHTTP', () => {
       
-      it('should create an HTTPTransport with hostname-based name', async () => {
+      it('should create an HTTPTransport with hostname-based name', () => {
         const url = 'https://api.example.com/logs';
-        const transport = await createHTTP(url);
+        const transport = createHTTP(url);
         
         expect(transport).toBeInstanceOf(HTTPTransport);
         expect(transport.name).toBe('http-api.example.com');
       });
 
-      it('should create an HTTPTransport with custom options', async () => {
+      it('should create an HTTPTransport with custom options', () => {
         const url = 'http://localhost:3000/api/logs';
         const options: Partial<HTTPTransportOptions> = {
           name: 'local-api',
@@ -216,14 +216,14 @@ describe('transports.ts module', () => {
           enabled: false
         };
 
-        const transport = await createHTTP(url, options);
+        const transport = createHTTP(url, options);
         
         expect(transport).toBeInstanceOf(HTTPTransport);
         expect(transport.name).toBe('local-api');
         expect(transport.enabled).toBe(false);
       });
 
-      it('should handle different URL formats for name generation', async () => {
+      it('should handle different URL formats for name generation', () => {
         const tests = [
           { url: 'https://logs.company.io:8080/endpoint', expected: 'http-logs.company.io' },
           { url: 'http://127.0.0.1:9200/_bulk', expected: 'http-127.0.0.1' },
@@ -231,7 +231,7 @@ describe('transports.ts module', () => {
         ];
 
         for (const test of tests) {
-          const transport = await createHTTP(test.url);
+          const transport = createHTTP(test.url);
           expect(transport.name).toBe(test.expected);
         }
       });
@@ -239,20 +239,20 @@ describe('transports.ts module', () => {
 
     describe('createStream', () => {
       
-      it('should create a StreamTransport with default name', async () => {
+      it('should create a StreamTransport with default name', () => {
         const stream = new Writable({
           write(chunk, encoding, callback) {
             callback();
           }
         });
 
-        const transport = await createStream(stream);
+        const transport = createStream(stream);
         
         expect(transport).toBeInstanceOf(StreamTransport);
         expect(transport.name).toBe('stream');
       });
 
-      it('should create a StreamTransport with custom options', async () => {
+      it('should create a StreamTransport with custom options', () => {
         const stream = new Writable({
           write(chunk, encoding, callback) {
             callback();
@@ -265,7 +265,7 @@ describe('transports.ts module', () => {
           enabled: false
         };
 
-        const transport = await createStream(stream, options);
+        const transport = createStream(stream, options);
         
         expect(transport).toBeInstanceOf(StreamTransport);
         expect(transport.name).toBe('custom-stream');
@@ -292,9 +292,9 @@ describe('transports.ts module', () => {
       expect(WebSocketTransport).toBeDefined();
     });
 
-    it('should not break when importing subset of exports', async () => {
+    it('should not break when importing subset of exports', () => {
       // Simulate tree-shaken imports by only using specific exports
-      const consoleTransport = await createConsole({ name: 'tree-shake-test' });
+      const consoleTransport = createConsole({ name: 'tree-shake-test' });
       expect(consoleTransport.name).toBe('tree-shake-test');
       
       // This should work even if other transports aren't used
@@ -315,14 +315,14 @@ describe('transports.ts module', () => {
 
   describe('Error handling in factory functions', () => {
     
-    it('should handle invalid URLs in createHTTP gracefully', async () => {
-      await expect(createHTTP('not-a-valid-url')).rejects.toThrow();
+    it('should handle invalid URLs in createHTTP gracefully', () => {
+      expect(() => createHTTP('not-a-valid-url')).toThrow();
     });
 
-    it('should handle null/undefined options in factories', async () => {
+    it('should handle null/undefined options in factories', () => {
       // These should not throw
-      await expect(createConsole(undefined)).resolves.toBeInstanceOf(ConsoleTransport);
-      await expect(createFile('/tmp/test.log', undefined)).resolves.toBeInstanceOf(FileTransport);
+      expect(createConsole(undefined)).toBeInstanceOf(ConsoleTransport);
+      expect(createFile('/tmp/test.log', undefined)).toBeInstanceOf(FileTransport);
     });
   });
 });

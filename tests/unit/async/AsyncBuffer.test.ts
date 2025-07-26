@@ -1,6 +1,6 @@
 // File: tests/unit/async/AsyncBuffer.test.ts
 
-import { AsyncBuffer, AsyncBufferOptions } from '../../../src/async/AsyncBuffer';
+import { AsyncBuffer } from '../../../src/async/AsyncBuffer';
 import type { LogEntry } from '../../../src/types/transport';
 
 describe('AsyncBuffer', () => {
@@ -156,11 +156,16 @@ describe('AsyncBuffer', () => {
       
       // Fill buffer
       const entries = Array.from({ length: 4 }, (_, i) => createLogEntry(String(i)));
-      entries[0] = buffer.add(entries[0]) ? entries[0] : null;
-      entries[1] = buffer.add(entries[1]) ? entries[1] : null;
-      entries[2] = buffer.add(entries[2]) ? entries[2] : null;
+      const addResults = [
+        buffer.add(entries[0]),
+        buffer.add(entries[1]),
+        buffer.add(entries[2]),
+      ];
       const added = buffer.add(entries[3]);
       
+      expect(addResults[0]).toBe(true);
+      expect(addResults[1]).toBe(true);
+      expect(addResults[2]).toBe(true);
       expect(added).toBe(false); // Fourth entry dropped
       
       buffer.flush();
@@ -558,7 +563,7 @@ describe('AsyncBuffer', () => {
       buffer.add(createLogEntry('2'));
       
       // Manually corrupt buffer (simulating edge case)
-      (buffer as any).buffer[1] = null;
+      (buffer as unknown as { buffer: (LogEntry | null)[] }).buffer[1] = null;
       
       // Flush should handle null gracefully
       buffer.flush();

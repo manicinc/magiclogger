@@ -261,6 +261,23 @@ export class TransportManager extends EventEmitter {
   }
 
   /**
+   * Add a transport instance directly to the manager.
+   * This is an alias for registerTransport for backward compatibility.
+   * 
+   * @param {Transport} transport - Transport instance to add
+   * @param {number} [priority] - Optional priority for the transport
+   * @returns {Promise<Transport>} The added transport
+   */
+  public async add(transport: Transport, priority?: number): Promise<Transport> {
+    await this.registerTransport(transport);
+    if (priority !== undefined) {
+      // Handle priority if needed - for now we'll just add it
+      // TODO: Implement priority ordering
+    }
+    return transport;
+  }
+
+  /**
    * Register an already instantiated transport with the manager.
    * 
    * @param {Transport} transport - Transport instance to register
@@ -348,6 +365,51 @@ export class TransportManager extends EventEmitter {
    */
   public hasTransport(name: string): boolean {
     return this.transports.has(name);
+  }
+
+  /**
+   * List all transport names.
+   * 
+   * @returns {string[]} Array of transport names
+   */
+  public list(): string[] {
+    return this.getTransportNames();
+  }
+
+  /**
+   * Remove a transport by name.
+   * 
+   * @param {string} name - Transport name
+   * @returns {Promise<void>} Resolves when removed
+   */
+  public async remove(name: string): Promise<void> {
+    return this.removeTransport(name);
+  }
+
+  /**
+   * Get a transport by name.
+   * 
+   * @param {string} name - Transport name
+   * @returns {Transport | undefined} Transport instance or undefined
+   */
+  public get(name: string): Transport | undefined {
+    return this.getTransport(name);
+  }
+
+  /**
+   * Enable or disable a transport.
+   * 
+   * @param {string} name - Transport name
+   * @param {boolean} enabled - Whether to enable the transport
+   */
+  public setEnabled(name: string, enabled: boolean): void {
+    const transport = this.transports.get(name);
+    if (!transport) {
+      throw new Error(`Transport '${name}' not found`);
+    }
+
+    transport.enabled = enabled;
+    this.emit('transportToggled', name, enabled);
   }
 
   /**

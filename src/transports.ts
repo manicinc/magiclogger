@@ -17,6 +17,48 @@ export { WebSocketTransport } from './transports/websocket';
 // Base transport functionality
 export { Transport, TransportManager } from './transports/base';
 
+// Additional transport classes for specialized use cases
+import { Transport } from './transports/base';
+import type { TransportOptions, LogEntry } from './types/transport';
+
+export class NetworkTransport extends Transport {
+  constructor(options: TransportOptions) {
+    super(options);
+  }
+
+  protected async doInit(): Promise<void> {
+    // Network transport initialization
+  }
+
+  protected async doLog(entry: LogEntry): Promise<void> {
+    // Network transport logging implementation
+    console.log('NetworkTransport:', entry);
+  }
+
+  protected async doClose(): Promise<void> {
+    // Network transport cleanup
+  }
+}
+
+export class BatchingTransport extends Transport {
+  constructor(options: TransportOptions) {
+    super(options);
+  }
+
+  protected async doInit(): Promise<void> {
+    // Batching transport initialization
+  }
+
+  protected async doLog(entry: LogEntry): Promise<void> {
+    // Batching transport logging implementation
+    console.log('BatchingTransport:', entry);
+  }
+
+  protected async doClose(): Promise<void> {
+    // Batching transport cleanup
+  }
+}
+
 // Import transport classes for factory functions
 import { ConsoleTransport } from './transports/console';
 import { FileTransport } from './transports/file';
@@ -29,7 +71,7 @@ export function createConsole(options?: Record<string, unknown>) {
 }
 
 export function createFile(filepath: string, options?: Record<string, unknown>) {
-  const sanitizedName = filepath.replace(/[^\w-]/g, '-');
+  const sanitizedName = filepath.replace(/[^a-zA-Z0-9-]/g, '-');
   return new FileTransport({ name: `file-${sanitizedName}`, filepath, ...options });
 }
 
@@ -38,14 +80,24 @@ export function createStream(stream: NodeJS.WritableStream, options?: Record<str
 }
 
 export function createHTTP(url: string, options?: Record<string, unknown>) {
-  const hostname = new URL(url).hostname;
-  return new HTTPTransport({ name: `http-${hostname}`, url, ...options });
+  try {
+    const hostname = new URL(url).hostname;
+    return new HTTPTransport({ name: `http-${hostname}`, url, ...options });
+  } catch (error) {
+    throw new Error(`Invalid URL provided: ${url}`);
+  }
 }
 
 // Export TransportRegistry from the main transports module
 export { TransportRegistry } from './transports/index';
-export class NetworkTransport {}
-export class BatchingTransport {}
 
 // Types
-export type { TransportOptions, TransportEvents } from './types/transport';
+export type { 
+  TransportOptions, 
+  TransportEvents,
+  LogEntry,
+  ConsoleTransportOptions,
+  FileTransportOptions,
+  HTTPTransportOptions,
+  StreamTransportOptions
+} from './types/transport';

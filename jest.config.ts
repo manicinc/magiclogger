@@ -27,6 +27,7 @@ const config: Config.InitialOptions = {
     },
   },
   // Add this to use the setup file
+  setupFiles: ['<rootDir>/jest.polyfills.js'],
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   // Configure different test environments based on file patterns
   projects: [
@@ -47,6 +48,7 @@ const config: Config.InitialOptions = {
         magiclogger$: '<rootDir>/src/index.ts',
         'magiclogger/(.*)$': '<rootDir>/src/$1',
       },
+      setupFiles: ['<rootDir>/jest.polyfills.js'],
       setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
     },
     {
@@ -66,6 +68,7 @@ const config: Config.InitialOptions = {
         magiclogger$: '<rootDir>/src/index.ts',
         'magiclogger/(.*)$': '<rootDir>/src/$1',
       },
+      setupFiles: ['<rootDir>/jest.polyfills.js'],
       setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
     },
   ],
