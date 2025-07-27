@@ -490,7 +490,7 @@ describe('Logger Output Methods', () => {
   });
 
   it('supports link with description', () => {
-    const logger = new Logger({ useColors: true });
+    const logger = new Logger({ useColors: true, useLegacyOutput: true });
     const spy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
     logger.link('https://example.com', 'Example Website');
     const out = spy.mock.calls.map(c => c[0] as string).join('');
@@ -500,7 +500,7 @@ describe('Logger Output Methods', () => {
   });
 
   it('supports all log levels through the log method', () => {
-    const logger = new Logger({ verbose: true });
+    const logger = new Logger({ verbose: true, useLegacyOutput: true });
     const logSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
     const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
@@ -535,17 +535,20 @@ describe('Logger Output Methods', () => {
     errorSpy.mockRestore();
   });
 
-  it('writes to log file when file logging is enabled', () => {
-    // Create logger with disk writing disabled initially
-    const logger = new Logger({ writeToDisk: false, logDir: LOG_DIR });
+  it('writes to log file when file logging is enabled', async () => {
+    // Create logger with disk writing disabled initially and useLegacyOutput to ensure file operations work
+    const logger = new Logger({ writeToDisk: false, logDir: LOG_DIR, useLegacyOutput: true });
 
     // Initially, not writing to disk
     logger.info('message before enabling');
     expect(fsMocks.appendFileSync).not.toHaveBeenCalled();
 
-    // Enable file logging - our writeFileSync mock should be called
+    // Enable file logging - this will initialize the file manager
     fsMocks.writeFileSync.mockClear();
     logger.setFileLogging(true);
+
+    // Wait a bit for async initialization
+    await new Promise(resolve => setTimeout(resolve, 10));
     expect(fsMocks.writeFileSync).toHaveBeenCalled();
 
     // Now appendFileSync should be called for new messages

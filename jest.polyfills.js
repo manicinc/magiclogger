@@ -8,6 +8,7 @@ global.setTimeout = setTimeout;
 global.clearTimeout = clearTimeout;
 
 // Also ensure they're available on globalThis for modern environments
+/* global globalThis */
 if (typeof globalThis !== 'undefined') {
   globalThis.setInterval = setInterval;
   globalThis.clearInterval = clearInterval;

@@ -2,11 +2,11 @@
 
 import { EventEmitter } from 'events';
 import { Transport } from './Transport';
-import type { 
-  TransportConfig, 
-  LogEntry, 
+import type {
+  TransportConfig,
+  LogEntry,
   TransportType,
-  TransportStats 
+  TransportStats,
 } from '../../types/transport';
 
 /**
@@ -16,28 +16,28 @@ type TransportFactory = (config: TransportConfig) => Transport;
 
 /**
  * TransportManager handles all transport operations for the logger.
- * 
+ *
  * This version uses a registry pattern to avoid importing all transports,
  * enabling proper tree-shaking. Transports must be registered before use.
- * 
+ *
  * @class TransportManager
  * @extends {EventEmitter}
- * 
+ *
  * @example
  * ```typescript
  * // Register transports you need
  * import { TransportManager, TransportRegistry } from 'magiclogger/transports/base';
  * import { ConsoleTransport } from 'magiclogger/console';
  * import { FileTransport } from 'magiclogger/file';
- * 
+ *
  * // Register factories
  * TransportRegistry.register('console', (config) => new ConsoleTransport(config));
  * TransportRegistry.register('file', (config) => new FileTransport(config));
- * 
+ *
  * // Or use the helper to register core transports
  * import { registerCoreTransports } from 'magiclogger/transports/base';
  * await registerCoreTransports();
- * 
+ *
  * // Now create manager and add transports
  * const manager = new TransportManager();
  * await manager.addTransport({ type: 'console', level: 'info' });
@@ -49,6 +49,12 @@ export class TransportManager extends EventEmitter {
    * @private
    */
   private transports: Map<string, Transport> = new Map();
+
+  /**
+   * Transport priorities for ordering.
+   * @private
+   */
+  private transportPriorities: Map<string, number> = new Map();
 
   /**
    * Transport factories registry.
@@ -93,12 +99,15 @@ export class TransportManager extends EventEmitter {
    * Performance tracking data.
    * @private
    */
-  private performanceData: Map<string, {
-    count: number;
-    totalTime: number;
-    errors: number;
-    lastError?: Error;
-  }> = new Map();
+  private performanceData: Map<
+    string,
+    {
+      count: number;
+      totalTime: number;
+      errors: number;
+      lastError?: Error;
+    }
+  > = new Map();
 
   /**
    * Global transport filters.
@@ -119,6 +128,44 @@ export class TransportManager extends EventEmitter {
   private healthCheckInterval?: NodeJS.Timeout;
 
   /**
+   * Stop processing transports after first successful log.
+   * @private
+   */
+  private readonly stopOnSuccess: boolean;
+
+  /**
+   * Default timeout for transport operations.
+   * @private
+   */
+  private readonly defaultTimeout?: number;
+
+  /**
+   * Global error handler for transport errors.
+   * @private
+   */
+  private errorHandler?: (error: Error, transport: Transport, entry?: LogEntry) => void;
+
+  /**
+   * Aggregation manager for log aggregation.
+   * @private
+   */
+  private aggregationManager: {
+    enabled: boolean;
+    interval: number;
+    targets: string[];
+    fields: string[];
+    timer?: NodeJS.Timeout;
+    stats: Record<string, unknown>;
+    logBuffer: LogEntry[];
+  } | null = null;
+
+  /**
+   * Indicates if manager is closing.
+   * @private
+   */
+  private isClosing = false;
+
+  /**
    * Health check interval in ms.
    * @private
    */
@@ -126,23 +173,95 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Creates a new TransportManager instance.
-   * 
-   * @param {object} options - Configuration options
+   *
+   * @param {TransportManagerOptions} options - Configuration options
    */
-  constructor(options: {
-    maxPauseQueueSize?: number;
-    healthCheckIntervalMs?: number;
-    useExternalRegistry?: boolean;
-  } = {}) {
+  constructor(
+    options: {
+      maxPauseQueueSize?: number;
+      healthCheckIntervalMs?: number;
+      useExternalRegistry?: boolean;
+      stopOnSuccess?: boolean;
+      defaultTimeout?: number;
+      errorHandler?: (error: Error, transport: Transport, entry?: LogEntry) => void;
+      enableAggregation?: boolean;
+      aggregation?: {
+        interval?: number;
+        targets?: string[];
+        fields?: Array<'level' | 'tags' | 'loggerId' | 'custom'>;
+      };
+    } = {}
+  ) {
     super();
-    
+
     this.maxPauseQueueSize = options.maxPauseQueueSize || 10000;
     this.healthCheckIntervalMs = options.healthCheckIntervalMs || 60000;
-    
+    this.stopOnSuccess = options.stopOnSuccess || false;
+    this.defaultTimeout = options.defaultTimeout;
+    this.errorHandler = options.errorHandler;
+
+    // Set max listeners for better event handling
+    this.setMaxListeners(50);
+
     // Use external registry if requested (for tree-shaking)
     if (options.useExternalRegistry !== false) {
       this.setupExternalRegistry();
     }
+
+    // Initialize aggregation if enabled
+    if (options.enableAggregation) {
+      this.initializeAggregation(options.aggregation);
+    }
+  }
+
+  /**
+   * Initialize aggregation system.
+   * @private
+   */
+  private initializeAggregation(
+    options: {
+      interval?: number;
+      targets?: string[];
+      fields?: Array<'level' | 'tags' | 'loggerId' | 'custom'>;
+    } = {}
+  ): void {
+    this.aggregationManager = {
+      enabled: true,
+      interval: options.interval || 60000,
+      targets: options.targets || [],
+      fields: options.fields || ['level'],
+      stats: {},
+      logBuffer: [],
+    };
+
+    // Start aggregation timer
+    this.aggregationManager.timer = setInterval(() => {
+      this.performAggregation();
+    }, this.aggregationManager.interval);
+  }
+
+  /**
+   * Perform log aggregation and emit results.
+   * @private
+   */
+  private performAggregation(): void {
+    if (!this.aggregationManager?.enabled) return;
+
+    // Create aggregation report
+    const report = {
+      period: {
+        start: new Date(Date.now() - this.aggregationManager.interval),
+        end: new Date(),
+      },
+      total: this.aggregationManager.logBuffer.length,
+      // Add more aggregation logic as needed
+    };
+
+    // Emit aggregation event
+    this.emit('aggregation', report);
+
+    // Reset buffer
+    this.aggregationManager.logBuffer = [];
   }
 
   /**
@@ -170,7 +289,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Initialize the transport manager.
-   * 
+   *
    * @returns {Promise<void>} Resolves when initialized
    */
   public async initialize(): Promise<void> {
@@ -185,7 +304,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Register a transport factory.
-   * 
+   *
    * @param {string} type - Transport type
    * @param {TransportFactory} factory - Factory function
    */
@@ -201,18 +320,18 @@ export class TransportManager extends EventEmitter {
   private getFactory(type: string): TransportFactory | undefined {
     // Check local factories first
     let factory = this.factories.get(type);
-    
+
     // Then check external registry
     if (!factory && this.externalRegistry) {
       factory = this.externalRegistry.get(type);
     }
-    
+
     return factory;
   }
 
   /**
    * Add a transport to the manager.
-   * 
+   *
    * @param {TransportConfig} config - Transport configuration
    * @returns {Promise<Transport>} The added transport
    */
@@ -230,8 +349,8 @@ export class TransportManager extends EventEmitter {
     if (!factory) {
       throw new Error(
         `Unknown transport type: ${config.type}. ` +
-        `Make sure to register the transport factory or import it first. ` +
-        `Example: import { ${config.type}Transport } from 'magiclogger/${config.type}'`
+          `Make sure to register the transport factory or import it first. ` +
+          `Example: import { ${config.type}Transport } from 'magiclogger/${config.type}'`
       );
     }
 
@@ -255,7 +374,7 @@ export class TransportManager extends EventEmitter {
       errors: 0,
     });
 
-    this.emit('transportAdded', { name, type: config.type });
+    this.emit('transportAdded', name);
 
     return transport;
   }
@@ -263,23 +382,26 @@ export class TransportManager extends EventEmitter {
   /**
    * Add a transport instance directly to the manager.
    * This is an alias for registerTransport for backward compatibility.
-   * 
+   *
    * @param {Transport} transport - Transport instance to add
    * @param {number} [priority] - Optional priority for the transport
    * @returns {Promise<Transport>} The added transport
    */
   public async add(transport: Transport, priority?: number): Promise<Transport> {
+    if (this.isClosing) {
+      throw new Error('Cannot add transport: manager is closing');
+    }
+
     await this.registerTransport(transport);
     if (priority !== undefined) {
-      // Handle priority if needed - for now we'll just add it
-      // TODO: Implement priority ordering
+      this.transportPriorities.set(transport.name, priority);
     }
     return transport;
   }
 
   /**
    * Register an already instantiated transport with the manager.
-   * 
+   *
    * @param {Transport} transport - Transport instance to register
    * @returns {Promise<void>} Resolves when transport is registered
    */
@@ -304,12 +426,12 @@ export class TransportManager extends EventEmitter {
       errors: 0,
     });
 
-    this.emit('transportAdded', { name, type: 'custom' });
+    this.emit('transportAdded', name);
   }
 
   /**
    * Remove a transport from the manager.
-   * 
+   *
    * @param {string} name - Transport name
    * @returns {Promise<void>} Resolves when removed
    */
@@ -325,13 +447,14 @@ export class TransportManager extends EventEmitter {
     // Remove from maps
     this.transports.delete(name);
     this.performanceData.delete(name);
+    this.transportPriorities.delete(name);
 
-    this.emit('transportRemoved', { name });
+    this.emit('transportRemoved', name);
   }
 
   /**
    * Get a transport by name.
-   * 
+   *
    * @param {string} name - Transport name
    * @returns {Transport | undefined} Transport instance
    */
@@ -341,7 +464,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Get all transports.
-   * 
+   *
    * @returns {Transport[]} Array of transports
    */
   public getTransports(): Transport[] {
@@ -350,16 +473,22 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Get transport names.
-   * 
+   *
    * @returns {string[]} Transport names
    */
   public getTransportNames(): string[] {
-    return Array.from(this.transports.keys());
+    const names = Array.from(this.transports.keys());
+    // Sort by priority (highest first)
+    return names.sort((a, b) => {
+      const priorityA = this.transportPriorities.get(a) || 0;
+      const priorityB = this.transportPriorities.get(b) || 0;
+      return priorityB - priorityA;
+    });
   }
 
   /**
    * Check if a transport exists.
-   * 
+   *
    * @param {string} name - Transport name
    * @returns {boolean} Whether transport exists
    */
@@ -369,7 +498,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * List all transport names.
-   * 
+   *
    * @returns {string[]} Array of transport names
    */
   public list(): string[] {
@@ -378,7 +507,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Remove a transport by name.
-   * 
+   *
    * @param {string} name - Transport name
    * @returns {Promise<void>} Resolves when removed
    */
@@ -388,7 +517,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Get a transport by name.
-   * 
+   *
    * @param {string} name - Transport name
    * @returns {Transport | undefined} Transport instance or undefined
    */
@@ -398,7 +527,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Enable or disable a transport.
-   * 
+   *
    * @param {string} name - Transport name
    * @param {boolean} enabled - Whether to enable the transport
    */
@@ -414,11 +543,16 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Log an entry to all transports.
-   * 
+   *
    * @param {LogEntry} entry - Log entry
    * @returns {Promise<void>} Resolves when logged
    */
   public async log(entry: LogEntry): Promise<void> {
+    // Check if closing
+    if (this.isClosing) {
+      return;
+    }
+
     // Check if paused
     if (this.paused) {
       this.queueEntry(entry);
@@ -438,36 +572,102 @@ export class TransportManager extends EventEmitter {
       transformedEntry = transformer(transformedEntry);
     }
 
-    // Get enabled transports
-    const enabledTransports = Array.from(this.transports.values())
-      .filter(transport => transport.isEnabled());
+    // Add to aggregation buffer if enabled
+    if (this.aggregationManager?.enabled) {
+      this.aggregationManager.logBuffer.push(transformedEntry);
+    }
 
-    if (enabledTransports.length === 0) {
-      this.emit('noTransports', { entry: transformedEntry });
+    // Get enabled transports that should log this entry
+    const availableTransports = Array.from(this.transports.values()).filter(
+      transport => transport.isEnabled() && transport.shouldLog(transformedEntry)
+    );
+
+    if (availableTransports.length === 0) {
+      this.emit('noTransports', transformedEntry);
       return;
     }
 
-    // Log to all transports in parallel
-    const promises = enabledTransports.map(transport => 
+    // Sort by priority if we're in stopOnSuccess mode
+    if (this.stopOnSuccess) {
+      availableTransports.sort((a, b) => {
+        const priorityA = this.transportPriorities.get(a.name) || 0;
+        const priorityB = this.transportPriorities.get(b.name) || 0;
+        return priorityB - priorityA; // Higher priority first
+      });
+
+      // Try transports in order until one succeeds
+      const successfulTransports: string[] = [];
+      const failedTransports: Array<{ transport: string; error: Error }> = [];
+
+      for (const transport of availableTransports) {
+        try {
+          await this.logToTransport(transport, transformedEntry);
+          successfulTransports.push(transport.name);
+          break; // Stop after first success
+        } catch (error) {
+          failedTransports.push({
+            transport: transport.name,
+            error: error as Error,
+          });
+        }
+      }
+
+      // Emit appropriate events
+      if (successfulTransports.length > 0) {
+        this.emit('logged', transformedEntry, successfulTransports);
+      } else {
+        this.emit('allTransportsFailed', transformedEntry, failedTransports);
+      }
+
+      // Handle partial failures if we have both success and failures
+      if (successfulTransports.length > 0 && failedTransports.length > 0) {
+        this.emit('partialFailure', transformedEntry, successfulTransports, failedTransports);
+      }
+
+      return;
+    }
+
+    // Log to all transports in parallel (default mode)
+    const promises = availableTransports.map(transport =>
       this.logToTransport(transport, transformedEntry)
     );
 
     // Wait for all transports
     const results = await Promise.allSettled(promises);
 
-    // Check for errors
-    const errors = results
-      .filter(result => result.status === 'rejected')
-      .map(result => (result as PromiseRejectedResult).reason);
+    // Process results
+    const successfulTransports: string[] = [];
+    const failedTransports: Array<{ transport: string; error: Error }> = [];
 
-    if (errors.length > 0) {
-      this.emit('logErrors', { errors, entry: transformedEntry });
+    results.forEach((result, index) => {
+      const transport = availableTransports[index];
+      if (result.status === 'fulfilled') {
+        successfulTransports.push(transport.name);
+      } else {
+        failedTransports.push({
+          transport: transport.name,
+          error: result.reason as Error,
+        });
+      }
+    });
+
+    // Emit events
+    if (successfulTransports.length > 0) {
+      this.emit('logged', transformedEntry, successfulTransports);
+    }
+
+    if (failedTransports.length > 0) {
+      if (successfulTransports.length > 0) {
+        this.emit('partialFailure', transformedEntry, successfulTransports, failedTransports);
+      } else {
+        this.emit('allTransportsFailed', transformedEntry, failedTransports);
+      }
     }
   }
 
   /**
    * Log to a specific transport with performance tracking.
-   * 
+   *
    * @param {Transport} transport - Transport to log to
    * @param {LogEntry} entry - Log entry
    * @returns {Promise<void>} Resolves when logged
@@ -479,7 +679,7 @@ export class TransportManager extends EventEmitter {
 
     try {
       await transport.log(entry);
-      
+
       // Update performance data
       if (perfData) {
         const duration = Number(process.hrtime.bigint() - startTime) / 1000000; // Convert to ms
@@ -500,7 +700,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Log multiple entries efficiently.
-   * 
+   *
    * @param {LogEntry[]} entries - Log entries
    * @returns {Promise<void>} Resolves when all logged
    */
@@ -527,8 +727,9 @@ export class TransportManager extends EventEmitter {
     if (processedEntries.length === 0) return;
 
     // Get enabled transports that support batching
-    const transports = Array.from(this.transports.values())
-      .filter(transport => transport.isEnabled());
+    const transports = Array.from(this.transports.values()).filter(transport =>
+      transport.isEnabled()
+    );
 
     // Group by batching support
     const batchingTransports = transports.filter(t => t.supportsBatching());
@@ -556,7 +757,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Set up event handlers for a transport.
-   * 
+   *
    * @param {Transport} transport - Transport to set up
    * @private
    */
@@ -564,11 +765,18 @@ export class TransportManager extends EventEmitter {
     transport.on('error', (...args: unknown[]) => {
       const error = args[0] as Error;
       const entry = args[1] as LogEntry | undefined;
-      this.emit('transportError', {
-        transport: transport.name,
-        error,
-        entry,
-      });
+
+      // Call global error handler if configured
+      if (this.errorHandler) {
+        try {
+          this.errorHandler(error, transport, entry);
+        } catch (handlerError) {
+          console.error('Error in error handler:', handlerError);
+        }
+      }
+
+      // Emit with the expected signature: transportName, error, entry
+      this.emit('transportError', transport.name, error, entry);
     });
 
     transport.on('ready', () => {
@@ -594,7 +802,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Resume logging and flush queue.
-   * 
+   *
    * @returns {Promise<void>} Resolves when queue is flushed
    */
   public async resume(): Promise<void> {
@@ -613,7 +821,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Queue an entry when paused.
-   * 
+   *
    * @param {LogEntry} entry - Entry to queue
    * @private
    */
@@ -629,7 +837,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Add a global filter.
-   * 
+   *
    * @param {Function} filter - Filter function
    */
   public addGlobalFilter(filter: (entry: LogEntry) => boolean): void {
@@ -638,7 +846,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Remove a global filter.
-   * 
+   *
    * @param {Function} filter - Filter function
    */
   public removeGlobalFilter(filter: (entry: LogEntry) => boolean): void {
@@ -650,7 +858,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Add a global transformer.
-   * 
+   *
    * @param {Function} transformer - Transformer function
    */
   public addGlobalTransformer(transformer: (entry: LogEntry) => LogEntry): void {
@@ -659,7 +867,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Remove a global transformer.
-   * 
+   *
    * @param {Function} transformer - Transformer function
    */
   public removeGlobalTransformer(transformer: (entry: LogEntry) => LogEntry): void {
@@ -679,7 +887,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Flush all transports.
-   * 
+   *
    * @returns {Promise<void>} Resolves when all flushed
    */
   public async flush(): Promise<void> {
@@ -692,22 +900,46 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Close all transports and clean up.
-   * 
+   *
    * @returns {Promise<void>} Resolves when closed
    */
   public async close(): Promise<void> {
+    if (this.isClosing) {
+      return; // Already closing or closed
+    }
+
+    this.isClosing = true;
+    this.emit('closing');
+
+    // Stop aggregation timer
+    if (this.aggregationManager?.timer) {
+      clearInterval(this.aggregationManager.timer);
+      this.aggregationManager.timer = undefined;
+    }
+
+    // Flush final aggregation if enabled
+    if (this.aggregationManager?.enabled) {
+      this.performAggregation();
+    }
+
     // Stop health monitoring
     this.stopHealthMonitoring();
 
     // Close all transports
-    const promises = Array.from(this.transports.values())
-      .map(transport => transport.close());
+    const promises = Array.from(this.transports.values()).map(async transport => {
+      try {
+        await transport.close();
+      } catch (error) {
+        console.error(`Error closing transport '${transport.name}':`, error);
+      }
+    });
 
     await Promise.allSettled(promises);
 
     // Clear maps
     this.transports.clear();
     this.performanceData.clear();
+    this.transportPriorities.clear();
 
     this.initialized = false;
     this.emit('closed');
@@ -715,23 +947,47 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Get statistics for all transports.
-   * 
+   *
    * @returns {Record<string, TransportStats>} Transport statistics
    */
-  public getStats(): Record<string, TransportStats & { performance: {
-    count: number;
-    avgTime: number;
-    totalTime: number;
-    errors: number;
-    lastError?: string;
-  } | null }> {
-    const stats: Record<string, TransportStats & { performance: {
-      count: number;
-      avgTime: number;
-      totalTime: number;
-      errors: number;
-      lastError?: string;
-    } | null }> = {};
+  public getStats(): Record<
+    string,
+    TransportStats & {
+      performance: {
+        count: number;
+        avgTime: number;
+        totalTime: number;
+        errors: number;
+        lastError?: string;
+      } | null;
+    }
+  > & {
+    _manager?: {
+      transportCount: number;
+      activeTransports: number;
+      aggregationEnabled: boolean;
+      currentAggregation?: unknown;
+    };
+  } {
+    const stats: Record<
+      string,
+      TransportStats & {
+        performance: {
+          count: number;
+          avgTime: number;
+          totalTime: number;
+          errors: number;
+          lastError?: string;
+        } | null;
+      }
+    > & {
+      _manager?: {
+        transportCount: number;
+        activeTransports: number;
+        aggregationEnabled: boolean;
+        currentAggregation?: unknown;
+      };
+    } = {};
 
     for (const [name, transport] of this.transports) {
       const perfData = this.performanceData.get(name);
@@ -739,15 +995,26 @@ export class TransportManager extends EventEmitter {
 
       stats[name] = {
         ...transportStats,
-        performance: perfData ? {
-          count: perfData.count,
-          avgTime: perfData.count > 0 ? perfData.totalTime / perfData.count : 0,
-          totalTime: perfData.totalTime,
-          errors: perfData.errors,
-          lastError: perfData.lastError?.message,
-        } : null,
+        performance: perfData
+          ? {
+              count: perfData.count,
+              avgTime: perfData.count > 0 ? perfData.totalTime / perfData.count : 0,
+              totalTime: perfData.totalTime,
+              errors: perfData.errors,
+              lastError: perfData.lastError?.message,
+            }
+          : null,
       };
     }
+
+    // Add manager stats
+    const enabledTransports = Array.from(this.transports.values()).filter(t => t.isEnabled());
+    stats._manager = {
+      transportCount: this.transports.size,
+      activeTransports: enabledTransports.length,
+      aggregationEnabled: this.aggregationManager?.enabled === true,
+      currentAggregation: this.aggregationManager ? {} : undefined,
+    };
 
     return stats;
   }
@@ -772,7 +1039,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Enable a transport.
-   * 
+   *
    * @param {string} name - Transport name
    */
   public enableTransport(name: string): void {
@@ -784,7 +1051,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Disable a transport.
-   * 
+   *
    * @param {string} name - Transport name
    */
   public disableTransport(name: string): void {
@@ -796,7 +1063,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Check health of all transports.
-   * 
+   *
    * @returns {Promise<Record<string, boolean>>} Health status
    */
   public async checkHealth(): Promise<Record<string, boolean>> {
@@ -820,7 +1087,7 @@ export class TransportManager extends EventEmitter {
   private startHealthMonitoring(): void {
     this.healthCheckInterval = setInterval(async () => {
       const health = await this.checkHealth();
-      
+
       // Check for unhealthy transports
       const unhealthy = Object.entries(health)
         .filter(([_, isHealthy]) => !isHealthy)
@@ -845,18 +1112,20 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Create a child manager with shared transports.
-   * 
+   *
    * @param {object} options - Child options
    * @returns {TransportManager} Child manager
    */
-  public child(options: {
-    filters?: Array<(entry: LogEntry) => boolean>;
-    transformers?: Array<(entry: LogEntry) => LogEntry>;
-  } = {}): TransportManager {
+  public child(
+    options: {
+      filters?: Array<(entry: LogEntry) => boolean>;
+      transformers?: Array<(entry: LogEntry) => LogEntry>;
+    } = {}
+  ): TransportManager {
     const child = new TransportManager({
       maxPauseQueueSize: this.maxPauseQueueSize,
       healthCheckIntervalMs: this.healthCheckIntervalMs,
-      useExternalRegistry: false // Child uses parent's transports
+      useExternalRegistry: false, // Child uses parent's transports
     });
 
     // Share transports

@@ -132,7 +132,10 @@ describe('WinstonCompatibleLogger', () => {
 
       logger.info('Test');
 
-      expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining('[2023-01-01T12:00:00.000Z]'));
+      expect(infoSpy).toHaveBeenCalledWith(
+        expect.stringContaining('[2023-01-01T12:00:00.000Z]'),
+        expect.any(Object)
+      );
     });
 
     it('should format epoch timestamps', () => {
@@ -147,7 +150,10 @@ describe('WinstonCompatibleLogger', () => {
 
       logger.info('Test');
 
-      expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining(`[${mockTime}]`));
+      expect(infoSpy).toHaveBeenCalledWith(
+        expect.stringContaining(`[${mockTime}]`),
+        expect.any(Object)
+      );
     });
 
     it('should format HH:mm:ss timestamps', () => {
@@ -164,7 +170,10 @@ describe('WinstonCompatibleLogger', () => {
 
       logger.info('Test');
 
-      expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining('[15:30:45]'));
+      expect(infoSpy).toHaveBeenCalledWith(
+        expect.stringContaining('[15:30:45]'),
+        expect.any(Object)
+      );
     });
 
     it('should handle single digit time values', () => {
