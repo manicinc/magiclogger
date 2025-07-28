@@ -406,14 +406,14 @@ export class BunyanCompatibleLogger extends BaseCompatibleLogger {
     // Find the first stack frame outside this file
     for (let i = 3; i < stack.length; i++) {
       const line = stack[i];
-      if (line.includes('BunyanCompatibleLogger')) continue;
+      if (!line || line.includes('BunyanCompatibleLogger')) continue;
       
       const match = line.match(/at\s+(?:(.+?)\s+)?\((.+?):(\d+):(\d+)\)/);
       if (match) {
         return {
-          file: match[2],
+          file: match[2] || 'unknown',
           line: parseInt(match[3], 10),
-          func: match[1],
+          func: match[1] || undefined,
         };
       }
     }
@@ -456,7 +456,27 @@ export class BunyanCompatibleLogger extends BaseCompatibleLogger {
       }
       
       if (Object.keys(displayFields).length > 0) {
-        parts.push(JSON.stringify(displayFields));
+        // Safe JSON stringification that handles BigInt and other special values
+        try {
+          parts.push(JSON.stringify(displayFields, (_key, value) => {
+            if (typeof value === 'bigint') {
+              return value.toString() + 'n';
+            }
+            if (typeof value === 'function') {
+              return '[Function]';
+            }
+            if (typeof value === 'symbol') {
+              return value.toString();
+            }
+            if (value instanceof Date) {
+              return value.toISOString();
+            }
+            return value;
+          }));
+        } catch (error) {
+          // Fallback for any other serialization issues
+          parts.push('[Object: could not serialize]');
+        }
       }
 
       output = parts.join(' ');

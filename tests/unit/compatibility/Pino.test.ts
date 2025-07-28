@@ -111,6 +111,7 @@ describe('PinoCompatibleLogger', () => {
 
   describe('Standard Log Methods', () => {
     it('should support trace level', () => {
+      pino.level = 'trace'; // Enable trace level
       pino.trace('Trace message');
       expect(debugSpy).toHaveBeenCalledWith(
         expect.stringContaining('TRACE: Trace message'),
@@ -119,6 +120,7 @@ describe('PinoCompatibleLogger', () => {
     });
 
     it('should support debug level', () => {
+      pino.level = 'debug'; // Enable debug level
       pino.debug('Debug message');
       expect(debugSpy).toHaveBeenCalledWith(
         expect.stringContaining('Debug message'),
@@ -342,7 +344,7 @@ describe('PinoCompatibleLogger', () => {
       
       logger.error({ err: error }, 'Error occurred');
       
-      const call = logSpy.mock.calls[0][0];
+      const call = errorSpy.mock.calls[0][0];
       const parsed = JSON.parse(call);
       
       expect(parsed.err).toEqual({
@@ -690,12 +692,14 @@ describe('PinoCompatibleLogger', () => {
 
   describe('Edge Cases', () => {
     it('should handle empty log calls', () => {
-      pino.info('');
+      const testPino = createPinoCompatible({ prettyPrint: false });
+      testPino.info('');
       expect(logSpy).toHaveBeenCalledWith('', expect.any(Object));
     });
 
     it('should handle null and undefined', () => {
-      pino.info(null as unknown as string);
+      const testPino = createPinoCompatible({ prettyPrint: false });
+      testPino.info(null as unknown as string);
       expect(logSpy).toHaveBeenCalledWith(
         expect.stringContaining('null'),
         expect.any(Object)

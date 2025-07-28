@@ -106,7 +106,7 @@ export abstract class BaseCompatibleLogger {
    * @param {LogCompatibilityOptions} [options={}] - Logger configuration options
    */
   constructor(options: LogCompatibilityOptions = {}) {
-    this.name = options.name || 'app';
+    this.name = options.name !== undefined ? options.name : 'app';
     this.format = options.format || 'plain';
     this.formatter = options.formatter;
     this._verbose = options.verbose || false;

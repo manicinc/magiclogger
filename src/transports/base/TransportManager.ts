@@ -762,6 +762,12 @@ export class TransportManager extends EventEmitter {
    * @private
    */
   private setupTransportHandlers(transport: Transport): void {
+    // Check if transport implements EventEmitter interface
+    if (typeof transport.on !== 'function') {
+      console.warn(`Transport '${transport.name}' does not implement EventEmitter interface`);
+      return;
+    }
+
     transport.on('error', (...args: unknown[]) => {
       const error = args[0] as Error;
       const entry = args[1] as LogEntry | undefined;

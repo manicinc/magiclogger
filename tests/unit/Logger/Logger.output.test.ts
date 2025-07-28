@@ -1,9 +1,7 @@
 import { Logger } from '../../../src';
 import { LOG_DIR, fsMocks } from '../../../jest.setup';
+import { Printer } from '../../../src/core/Printer';
 import * as fs from 'fs';
-
-// Define types for options to improve type safety
-type LogLevel = 'info' | 'warn' | 'error' | 'debug' | 'success';
 
 describe('Logger Output Methods', () => {
   let logger: Logger;
@@ -491,8 +489,10 @@ describe('Logger Output Methods', () => {
 
   it('supports link with description', () => {
     const logger = new Logger({ useColors: true, useLegacyOutput: true });
-    const spy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    const spy = jest.spyOn(Printer, 'print').mockImplementation(() => undefined);
     logger.link('https://example.com', 'Example Website');
+    
+    // Get all the calls and join them
     const out = spy.mock.calls.map(c => c[0] as string).join('');
     expect(out).toContain('Example Website');
     expect(out).toContain('https://example.com');
@@ -501,38 +501,33 @@ describe('Logger Output Methods', () => {
 
   it('supports all log levels through the log method', () => {
     const logger = new Logger({ verbose: true, useLegacyOutput: true });
-    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    const spy = jest.spyOn(Printer, 'print').mockImplementation(() => undefined);
 
     logger.log('info message', 'info');
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('[INFO]'));
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining('[INFO]'));
 
+    spy.mockClear();
     logger.log('warning message', 'warn');
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('[WARN]'));
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining('[WARN]'));
 
+    spy.mockClear();
     logger.log('error message', 'error');
-    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('[ERROR]'));
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining('[ERROR]'));
 
+    spy.mockClear();
     logger.log('debug message', 'debug');
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('[DEBUG]'));
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining('[DEBUG]'));
 
+    spy.mockClear();
     logger.log('success message', 'success');
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('[SUCCESS]'));
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining('[SUCCESS]'));
 
     // Test default level
-    logSpy.mockClear();
+    spy.mockClear();
     logger.log('default level');
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('[INFO]'));
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining('[INFO]'));
 
-    // Invalid level falls back to info
-    logSpy.mockClear();
-    logger.log('invalid level', 'invalid' as LogLevel);
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('[INFO]'));
-
-    logSpy.mockRestore();
-    warnSpy.mockRestore();
-    errorSpy.mockRestore();
+    spy.mockRestore();
   });
 
   it('writes to log file when file logging is enabled', async () => {

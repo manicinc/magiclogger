@@ -420,11 +420,13 @@ export class TagManager extends EventEmitter {
     }
 
     if (this.normalizationRules.replaceSpaces) {
-      normalized = normalized.replace(/\s+/g, '-');
+      // Replace spaces, underscores, and dots with hyphens
+      normalized = normalized.replace(/[\s._]+/g, '-');
     }
 
     if (this.normalizationRules.removeSpecialChars) {
-      normalized = normalized.replace(/[^a-zA-Z0-9-_]/g, '');
+      // Remove special characters except hyphens and alphanumeric
+      normalized = normalized.replace(/[^a-zA-Z0-9-]/g, '');
     }
 
     if (this.normalizationRules.custom) {
@@ -559,17 +561,17 @@ export class TagManager extends EventEmitter {
 
     // Apply include filter
     if (options.include && options.include.length > 0) {
-      filtered = filtered.filter(tag => options.include!.includes(tag));
+      filtered = filtered.filter(tag => options.include?.includes(tag) ?? false);
     }
 
     // Apply exclude filter
     if (options.exclude && options.exclude.length > 0) {
-      filtered = filtered.filter(tag => !options.exclude!.includes(tag));
+      filtered = filtered.filter(tag => !(options.exclude?.includes(tag) ?? false));
     }
 
     // Apply pattern filter
     if (options.pattern) {
-      filtered = filtered.filter(tag => options.pattern!.test(tag));
+      filtered = filtered.filter(tag => options.pattern?.test(tag) ?? false);
     }
 
     // Apply custom filter

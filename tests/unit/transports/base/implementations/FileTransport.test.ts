@@ -33,7 +33,28 @@ const mockFs = {
     readdir: jest.fn(),
   },
   createWriteStream: jest.fn(() => mockWriteStream),
+  existsSync: jest.fn(() => true),
+  mkdirSync: jest.fn(),
+  readdirSync: jest.fn(() => []),
+  statSync: jest.fn(() => ({ 
+    isFile: () => true,
+    mtime: new Date('2023-01-01'),
+    size: 1000 
+  })),
+  unlinkSync: jest.fn(),
 };
+
+// Mock path module
+jest.mock('path', () => ({
+  resolve: jest.fn((p) => p || '/default/path'),
+  dirname: jest.fn(() => '/logs'),
+  basename: jest.fn((p, ext) => ext ? 'app' : 'app.log'),
+  extname: jest.fn(() => '.log'),
+  join: jest.fn((...parts) => parts.join('/')),
+}));
+
+// Mock fs module  
+jest.mock('fs', () => mockFs);
 
 const mockPath = {
   resolve: jest.fn((p) => p || '/default/path'),
@@ -44,7 +65,6 @@ const mockPath = {
 };
 
 jest.mock('fs', () => mockFs);
-jest.mock('path', () => mockPath);
 
 // Mock global window check
 const originalWindow = global.window;

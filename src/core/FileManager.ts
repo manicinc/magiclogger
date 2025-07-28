@@ -1,6 +1,9 @@
 import { isBrowserEnvironment } from '../utils/environment';
 import { BROWSER_POLYFILLS } from '../utils/browser-polyfills';
-import { Stats } from 'fs';
+
+// Type for modules that can be either real Node.js modules or browser polyfills
+type FileSystemModule = typeof import('fs') | typeof BROWSER_POLYFILLS.fs;
+type PathModule = typeof import('path') | typeof BROWSER_POLYFILLS.path;
 
 // Dynamic import for Node.js modules
 const importNodeModules = async () => {
@@ -16,14 +19,26 @@ const importNodeModules = async () => {
   return BROWSER_POLYFILLS;
 };
 
+// Synchronous import for Node.js modules
+const importNodeModulesSync = (): { fs: FileSystemModule; path: PathModule } => {
+  if (!isBrowserEnvironment()) {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const fs = require('fs');
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const path = require('path');
+    return { fs, path };
+  }
+  return BROWSER_POLYFILLS;
+};
+
 /**
  * Provides file-based logging utilities for NodeLogger.
  * Handles log file initialization, writing, rotation, and cleanup.
  */
 export class FileManager {
   private logFile: string | null = null;
-  private fs: any;
-  private path: any;
+  private fs!: FileSystemModule;
+  private path!: PathModule;
 
   /**
    * Constructs a new FileManager.
@@ -31,7 +46,20 @@ export class FileManager {
    * @param logRetentionDays Number of days to retain log files.
    */
   constructor(private logDir: string, private logRetentionDays: number = 30) {
-    this.initializeModules();
+    // Initialize modules synchronously in constructor
+    this.initializeModulesSync();
+  }
+
+  /**
+   * Initialize Node.js or browser modules synchronously
+   */
+  private initializeModulesSync() {
+    const modules = importNodeModulesSync();
+    this.fs = modules.fs as FileSystemModule;
+    this.path = modules.path as PathModule;
+
+    // Resolve log directory after modules are loaded
+    this.logDir = this.resolveLogDir(this.logDir);
   }
 
   /**
@@ -39,8 +67,8 @@ export class FileManager {
    */
   private async initializeModules() {
     const modules = await importNodeModules();
-    this.fs = modules.fs;
-    this.path = modules.path;
+    this.fs = modules.fs as FileSystemModule;
+    this.path = modules.path as PathModule;
 
     // Resolve log directory after modules are loaded
     this.logDir = this.resolveLogDir(this.logDir);
@@ -52,10 +80,7 @@ export class FileManager {
    * @returns The absolute directory path.
    */
   public resolveLogDir(dirPath: string): string {
-    // Ensure modules are loaded before using path methods
-    if (!this.path) {
-      throw new Error('File modules not initialized');
-    }
+    // Modules are now guaranteed to be initialized
     return this.path.isAbsolute(dirPath) ? dirPath : this.path.resolve(process.cwd(), dirPath);
   }
 
@@ -64,11 +89,6 @@ export class FileManager {
    * @returns The path to the new log file.
    */
   public async initLogFile(): Promise<string | null> {
-    // Ensure modules are loaded
-    if (!this.fs || !this.path) {
-      await this.initializeModules();
-    }
-
     try {
       if (!this.fs.existsSync(this.logDir)) {
         this.fs.mkdirSync(this.logDir, { recursive: true });
@@ -87,13 +107,17 @@ export class FileManager {
   /**
    * Appends a line to the current log file.
    * @param content The content to append.
+   * @returns {boolean} True if successful, false if error occurred
    */
-  public appendToFile(content: string): void {
-    if (!this.logFile) return;
+  public appendToFile(content: string): boolean {
+    if (!this.logFile) return false;
     try {
       this.fs.appendFileSync(this.logFile, `${content}\n`);
+      return true;
     } catch (err) {
       console.error('[FileManager] Failed to append to log file:', err);
+      this.logFile = null;
+      return false;
     }
   }
 
@@ -101,11 +125,6 @@ export class FileManager {
    * Cleans up log files older than the retention period.
    */
   public async cleanupOldLogs(): Promise<void> {
-    // Ensure modules are loaded
-    if (!this.fs || !this.path) {
-      await this.initializeModules();
-    }
-
     try {
       if (!this.fs.existsSync(this.logDir)) return;
       const now = Date.now();
@@ -115,7 +134,7 @@ export class FileManager {
       files.forEach((fileName: string) => {
         const filePath: string = this.path.join(this.logDir, fileName);
         try {
-          const stats: Stats = this.fs.statSync(filePath);
+          const stats = this.fs.statSync(filePath);
           if (!stats.isDirectory() && stats.mtimeMs < cutoff) {
             this.fs.unlinkSync(filePath);
           }
@@ -177,10 +196,6 @@ export class FileManager {
    * @param dirPath Directory path to clean
    */
   public async cleanupDirectory(dirPath: string): Promise<void> {
-    if (!this.fs || !this.path) {
-      await this.initializeModules();
-    }
-
     try {
       if (!this.fs.existsSync(dirPath)) return;
 

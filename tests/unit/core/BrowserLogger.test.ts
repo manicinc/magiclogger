@@ -1,3 +1,13 @@
+// Mock Printer methods BEFORE imports due to Jest hoisting
+jest.mock('../../../src/core/Printer', () => ({
+  Printer: {
+    print: jest.fn(),
+    printProgress: jest.fn(),
+    printTable: jest.fn(),
+    setUseColors: jest.fn(),
+  },
+}));
+
 import { BrowserLogger } from '../../../src/core/BrowserLogger';
 import { Printer } from '../../../src/core/Printer';
 import { ColorName } from '../../../src/types';
@@ -8,27 +18,28 @@ const mockLocalStorage = global.localStorage as jest.Mocked<typeof localStorage>
   _resetStore: () => void;
 };
 
-// Mock Printer methods
-jest.mock('../../../src/core/Printer', () => ({
-  Printer: {
-    print: jest.fn(),
-    printProgress: jest.fn(),
-    printTable: jest.fn(),
-    setUseColors: jest.fn(),
-  },
-}));
-
 describe('BrowserLogger', () => {
+  let consoleLogSpy: jest.SpyInstance;
+
   beforeEach(() => {
+    // Clear calls but preserve mock implementations
     jest.clearAllMocks();
+    
     mockLocalStorage.clear();
+    consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {
+      // Mock implementation
+    });
+  });
+
+  afterEach(() => {
+    consoleLogSpy.mockRestore();
   });
 
   it('initializes with default options', () => {
     const logger = new BrowserLogger();
     expect(logger).toBeDefined();
     expect(logger['storeInBrowser']).toBeFalsy();
-    expect(logger['storageManager']).toBeNull();
+    expect(logger['storageManager']).toBeUndefined();
   });
 
   it('initializes with browser storage enabled', () => {
@@ -44,16 +55,14 @@ describe('BrowserLogger', () => {
 
   it('logs messages to console', () => {
     const logger = new BrowserLogger();
-
+    
     logger.info('Info message');
     logger.warn('Warning message');
     logger.error('Error message');
     logger.success('Success message');
 
-    expect(Printer.print).toHaveBeenCalledTimes(4);
-  });
-
-  it('stores logs when browser storage is enabled', () => {
+    expect(consoleLogSpy).toHaveBeenCalledTimes(4);
+  });  it('stores logs when browser storage is enabled', () => {
     const logger = new BrowserLogger({ storeInBrowser: true });
 
     logger.info('Info message');
@@ -73,12 +82,15 @@ describe('BrowserLogger', () => {
     // Create logger with verbose disabled
     const quietLogger = new BrowserLogger({ verbose: false });
     quietLogger.debug('Should not be printed');
-    expect(Printer.print).not.toHaveBeenCalled();
+    expect(consoleLogSpy).not.toHaveBeenCalled();
+
+    // Reset spy
+    consoleLogSpy.mockClear();
 
     // Create logger with verbose enabled
     const verboseLogger = new BrowserLogger({ verbose: true });
     verboseLogger.debug('Should be printed');
-    expect(Printer.print).toHaveBeenCalledTimes(1);
+    expect(consoleLogSpy).toHaveBeenCalledTimes(1);
   });
 
   it('supports custom styling', () => {
@@ -87,7 +99,7 @@ describe('BrowserLogger', () => {
     logger.custom('Custom message', ['red', 'bold'], 'CUSTOM');
     logger.styled('Styled message', 'error');
 
-    expect(Printer.print).toHaveBeenCalledTimes(2);
+    expect(consoleLogSpy).toHaveBeenCalledTimes(2);
   });
 
   it('handles browser storage operations', () => {

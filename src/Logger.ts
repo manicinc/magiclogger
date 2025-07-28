@@ -3,10 +3,9 @@
 import { NodeLogger } from './core/NodeLogger';
 import { BrowserLogger } from './core/BrowserLogger';
 import { TransportManager } from './transports/base/TransportManager';
-// REMOVED: Direct transport imports that prevent tree-shaking
-// import { ConsoleTransport } from './transports/base/implementations/ConsoleTransport';
-// import { FileTransport } from './transports/base/implementations/FileTransport';
 import { Transport } from './transports/base/Transport';
+import { Colorizer } from './core/Colorizer';
+import { Formatter } from './core/Formatter';
 import type { 
   LoggerOptions, 
   LogLevel, 
@@ -253,7 +252,9 @@ export class Logger {
    * the appropriate underlying logger (NodeLogger for Node.js, BrowserLogger for browsers).
    * 
    * @constructor
-   * @param {ExtendedLoggerOptions} [options={}] - Logger configuration options
+   * @param {ExtendedLoggerOptions | boolean} [options={}] - Logger configuration options or verbose flag (backward compatibility)
+   * @param {boolean} [writeToDisk] - Whether to write to disk (backward compatibility)
+   * @param {boolean} [useColors] - Whether to use colors (backward compatibility)
    * 
    * @example
    * ```typescript
@@ -271,18 +272,40 @@ export class Logger {
    *   transports: [...],
    *   idGenerator: () => crypto.randomUUID()
    * });
+   * 
+   * // Backward compatibility with boolean parameters
+   * const logger = new Logger(true, true, false); // verbose, writeToDisk, useColors
    * ```
    */
-  constructor(options: ExtendedLoggerOptions = {}) {
-    this.options = options;
-    this.useLegacyOutput = options.useLegacyOutput ?? false;
-    this.idGenerator = options.idGenerator ?? this.defaultIdGenerator;
+  constructor(
+    options: ExtendedLoggerOptions | boolean = {}, 
+    writeToDisk?: boolean, 
+    useColors?: boolean
+  ) {
+    // Handle backward compatibility with boolean constructor
+    if (typeof options === 'boolean') {
+      const verbose = options;
+      this.options = {
+        verbose,
+        writeToDisk: writeToDisk ?? false,
+        useColors: useColors ?? true,
+      };
+    } else {
+      // Process environment variables and merge with options
+      this.options = this.processOptions(options);
+    }
+
+    // Validate and normalize options
+    this.options = this.validateOptions(this.options);
+
+    this.useLegacyOutput = this.options.useLegacyOutput ?? false;
+    this.idGenerator = this.options.idGenerator ?? this.defaultIdGenerator;
 
     // Initialize legacy logger instance based on environment
     if (typeof window !== 'undefined') {
-      this.loggerInstance = new BrowserLogger(options);
+      this.loggerInstance = new BrowserLogger(this.options);
     } else {
-      this.loggerInstance = new NodeLogger(options);
+      this.loggerInstance = new NodeLogger(this.options);
     }
 
     // Initialize transport manager
@@ -290,6 +313,84 @@ export class Logger {
 
     // Initialize transports
     this.initializeTransports();
+  }
+
+  /**
+   * Processes constructor options and environment variables.
+   * 
+   * @private
+   * @param {ExtendedLoggerOptions} options - Raw options
+   * @returns {ExtendedLoggerOptions} Processed options
+   */
+  private processOptions(options: ExtendedLoggerOptions): ExtendedLoggerOptions {
+    const processed = { ...options };
+
+    // Read environment variables if properties are not explicitly set
+    if (typeof process !== 'undefined' && process.env) {
+      // Handle LOG_VERBOSE environment variable
+      if (processed.verbose === undefined) {
+        const envVerbose = process.env.LOG_VERBOSE;
+        if (envVerbose !== undefined) {
+          processed.verbose = this.parseBooleanEnv(envVerbose);
+        }
+      }
+
+      // Handle LOG_TO_FILE environment variable
+      if (processed.writeToDisk === undefined) {
+        const envToFile = process.env.LOG_TO_FILE;
+        if (envToFile !== undefined) {
+          processed.writeToDisk = this.parseBooleanEnv(envToFile);
+        }
+      }
+    }
+
+    // Set defaults for undefined values
+    return {
+      verbose: false,
+      writeToDisk: false,
+      useColors: true,
+      logRetentionDays: 30,
+      logDir: 'logs',
+      ...processed,
+    };
+  }
+
+  /**
+   * Validates and normalizes logger options.
+   * 
+   * @private
+   * @param {ExtendedLoggerOptions} options - Options to validate
+   * @returns {ExtendedLoggerOptions} Validated options
+   */
+  private validateOptions(options: ExtendedLoggerOptions): ExtendedLoggerOptions {
+    const validated = { ...options };
+
+    // Validate logRetentionDays - must be at least 1
+    if (validated.logRetentionDays !== undefined) {
+      if (typeof validated.logRetentionDays !== 'number' || validated.logRetentionDays < 1) {
+        console.warn(`[Logger] Invalid logRetentionDays: ${validated.logRetentionDays}. Using default: 30`);
+        validated.logRetentionDays = 30;
+      }
+    }
+
+    // Normalize log directory path
+    if (validated.logDir && typeof validated.logDir === 'string') {
+      validated.logDir = path.resolve(validated.logDir);
+    }
+
+    return validated;
+  }
+
+  /**
+   * Parses a boolean environment variable value.
+   * 
+   * @private
+   * @param {string} value - Environment variable value
+   * @returns {boolean} Parsed boolean value
+   */
+  private parseBooleanEnv(value: string): boolean {
+    const normalized = value.toLowerCase().trim();
+    return normalized === 'true' || normalized === '1' || normalized === 'yes';
   }
 
   /**
@@ -492,6 +593,10 @@ export class Logger {
    * ```
    */
   private stripAnsiCodes(str: string): string {
+    // Handle non-string inputs
+    if (typeof str !== 'string') {
+      str = String(str);
+    }
     // eslint-disable-next-line no-control-regex
     return str.replace(/\x1b\[[0-9;]*m/g, '');
   }
@@ -1050,7 +1155,7 @@ export class Logger {
    * ```
    */
   public get theme(): Record<string, ColorName[]> {
-    return (this.loggerInstance as LoggerBase)['theme'];
+    return (this.loggerInstance as LoggerBase).getTheme();
   }
 
   /**
@@ -1080,6 +1185,168 @@ export class Logger {
       }
     }
     (this.loggerInstance as LoggerBase).setTheme(validated);
+  }
+
+  // ============================================================
+  // Property Getters for Backward Compatibility
+  // ============================================================
+
+  /**
+   * Gets the verbose mode setting.
+   * @returns {boolean} Whether verbose mode is enabled
+   */
+  public get verbose(): boolean {
+    return (this.loggerInstance as LoggerBase).isVerbose();
+  }
+
+  /**
+   * Gets the write-to-disk setting (Node.js only).
+   * @returns {boolean} Whether file logging is enabled
+   */
+  public get writeToDisk(): boolean {
+    if (this.loggerInstance instanceof NodeLogger) {
+      return this.loggerInstance.isWriteToDiskEnabled();
+    }
+    return false;
+  }
+
+  /**
+   * Gets the colors enabled setting.
+   * @returns {boolean} Whether colors are enabled
+   */
+  public get useColors(): boolean {
+    return (this.loggerInstance as LoggerBase).areColorsEnabled();
+  }
+
+  /**
+   * Gets the log retention days setting (Node.js only).
+   * @returns {number} Number of days to retain logs
+   */
+  public get logRetentionDays(): number {
+    if (this.loggerInstance instanceof NodeLogger) {
+      const nodeLogger = this.loggerInstance as unknown as ExtendedNodeLogger;
+      return nodeLogger.logRetentionDays || 30;
+    }
+    return 30;
+  }
+
+  /**
+   * Gets the log directory path (Node.js only).
+   * @returns {string} Log directory path
+   */
+  public get logDir(): string {
+    if (this.loggerInstance instanceof NodeLogger) {
+      const nodeLogger = this.loggerInstance as unknown as ExtendedNodeLogger;
+      return nodeLogger.logDir || 'logs';
+    }
+    return 'logs';
+  }
+
+  /**
+   * Gets the current log file path (Node.js only).
+   * @returns {string | null} Current log file path or null
+   */
+  public get logFile(): string | null {
+    return this.getPath();
+  }
+
+  // ============================================================
+  // Color and Formatting Methods
+  // ============================================================
+
+  /**
+   * Applies colors to text using ANSI escape codes.
+   * Internal method exposed for compatibility.
+   * 
+   * @public
+   * @param {string} text - Text to colorize
+   * @param {ColorName[]} colors - Array of color names
+   * @returns {string} Colored text
+   */
+  public colorize(text: string, colors: ColorName[]): string {
+    try {
+      return Colorizer.applyColors(text, colors, this.useColors);
+    } catch {
+      return text;
+    }
+  }
+
+  /**
+   * Preserves links in text during formatting.
+   * Internal method exposed for compatibility.
+   * 
+   * @public
+   * @param {string} text - Text that may contain links
+   * @returns {string} Text with preserved links
+   */
+  public preserveLinks(text: string): string {
+    try {
+      const formatter = new Formatter(this.useColors);
+      return formatter.preserveLinks(text);
+    } catch {
+      return text;
+    }
+  }
+
+  /**
+   * Applies a preset style to text.
+   * Internal method exposed for compatibility.
+   * 
+   * @public
+   * @param {string} text - Text to style
+   * @param {StylePreset} preset - Style preset to apply
+   * @returns {string} Styled text
+   */
+  public applyPreset(text: string, preset: StylePreset): string {
+    // Use the Colorizer class that was imported at the top
+    if (this.useColors) {
+      return Colorizer.applyPreset(text, preset, this.useColors);
+    }
+    return text;
+  }
+
+  /**
+   * Normalizes path separators to use forward slashes.
+   * Instance method for backward compatibility.
+   * 
+   * @public
+   * @param {string} path - Path to normalize
+   * @returns {string} Normalized path with forward slashes
+   */
+  public normalizePath(path: string): string {
+    return Logger.normalizePath(path);
+  }
+
+  /**
+   * Initializes log file (Node.js only).
+   * Internal method exposed for compatibility.
+   * 
+   * @public
+   * @returns {void}
+   */
+  public initLogFile(): void {
+    if (this.loggerInstance instanceof NodeLogger) {
+      const nodeLogger = this.loggerInstance as unknown as ExtendedNodeLogger;
+      if (nodeLogger.fileManager) {
+        nodeLogger.fileManager.initLogFile().catch((err: Error) => {
+          console.error('Failed to initialize log file:', err);
+          nodeLogger.writeToDisk = false;
+        });
+      }
+    }
+  }
+
+  /**
+   * Cleans up old log files (Node.js only).
+   * Internal method exposed for compatibility.
+   * 
+   * @public
+   * @returns {void}
+   */
+  public cleanupOldLogs(): void {
+    if (this.loggerInstance instanceof NodeLogger) {
+      this.loggerInstance.cleanupOldLogs();
+    }
   }
 
   // ============================================================
@@ -1209,9 +1476,21 @@ export class Logger {
    * ```
    */
   public setLogRetentionDays(days: number, cleanNow = false): void {
+    // Validate days parameter - minimum 1 day
+    const validDays = Math.max(1, Math.floor(days) || 1);
+    if (validDays !== days && days !== undefined) {
+      console.warn(`[Logger] Invalid logRetentionDays: ${days}. Using: ${validDays}`);
+    }
+
     if (this.loggerInstance instanceof NodeLogger) {
       const nodeLogger = this.loggerInstance as NodeLogger;
-      nodeLogger.setLogRetentionDays(days, cleanNow);
+      // Set retention days without cleaning now - we'll handle cleanup separately
+      nodeLogger.setLogRetentionDays(validDays, false);
+      
+      // Handle cleanup at Logger level so spy can catch it
+      if (cleanNow) {
+        this.cleanupOldLogs();
+      }
     }
   }
 

@@ -2,6 +2,8 @@
 
 import { LoggerBase } from './LoggerBase';
 import { Formatter } from './Formatter';
+import { BrowserStorageManager } from './BrowserStorageManager';
+import { Printer } from './Printer';
 import type { LoggerOptions, ColorName, StylePreset } from '../types';
 
 /**
@@ -78,6 +80,12 @@ export class BrowserLogger extends LoggerBase {
   private storageQueue: string[] = [];
 
   /**
+   * Browser storage manager instance.
+   * @private
+   */
+  private storageManager?: BrowserStorageManager;
+
+  /**
    * Whether storage is being processed.
    * @private
    */
@@ -131,6 +139,15 @@ export class BrowserLogger extends LoggerBase {
    * @private
    */
   private async initializeStorage(): Promise<void> {
+    // Create storage manager if not already exists
+    if (!this.storageManager) {
+      this.storageManager = new BrowserStorageManager({
+        storageName: this.storageName,
+        maxEntries: this.maxStoredLogs,
+        useLocalStorage: this.useLocalStorage
+      });
+    }
+
     if (this.useLocalStorage) {
       // Test localStorage availability
       try {
@@ -290,17 +307,15 @@ export class BrowserLogger extends LoggerBase {
    * Log with custom styling.
    * 
    * @param {string} message - Message to log
-   * @param {ColorName[]} colors - CSS styles to apply
+   * @param {ColorName[]} _colors - CSS styles to apply (unused in browser implementation)
    * @param {string} prefix - Prefix label
    */
-  public custom(message: string, colors: ColorName[] = ['white'], prefix = 'LOG'): void {
-    const styles = this.getConsoleStyles(colors);
-    const formattedMessage = `%c[${prefix}]%c ${message}`;
-    
-    console.log(formattedMessage, styles.prefix, styles.message);
+  public custom(message: string, _colors: ColorName[] = ['white'], prefix = 'LOG'): void {
+    const formattedMessage = `[${prefix}] ${message}`;
+    console.log(formattedMessage);
     
     if (this.storeInBrowser) {
-      this.storeLog(`[${prefix}] ${message}`);
+      this.storeLog(formattedMessage);
     }
   }
 
@@ -311,18 +326,13 @@ export class BrowserLogger extends LoggerBase {
    * @param {StylePreset} preset - Style preset
    */
   public styled(message: string, preset: StylePreset): void {
-    const presetColors = this.getPresetColors(preset);
     const prefix = preset.toUpperCase();
+    const formattedMessage = `[${prefix}] ${message}`;
     
-    if (this.useColors) {
-      const styles = this.getConsoleStyles(presetColors);
-      console.log(`%c[${prefix}]%c ${message}`, styles.prefix, styles.message);
-    } else {
-      console.log(`[${prefix}] ${message}`);
-    }
+    console.log(formattedMessage);
 
     if (this.storeInBrowser) {
-      this.storeLog(`[${prefix}] ${message}`);
+      this.storeLog(formattedMessage);
     }
   }
 
@@ -353,16 +363,16 @@ export class BrowserLogger extends LoggerBase {
    * Display a table.
    * 
    * @param {Record<string, unknown>[]} data - Table data
-   * @param {ColorName[]} _headerColor - Header color (unused in browser)
+   * @param {ColorName[]} headerColor - Header color
    */
-  public table(data: Record<string, unknown>[], _headerColor: ColorName[] = ['brightWhite', 'bold']): void {
+  public table(data: Record<string, unknown>[], headerColor: ColorName[] = ['brightWhite', 'bold']): void {
     if (!data || data.length === 0) {
       console.log('No data to display');
       return;
     }
 
-    // Use native console.table for best browser support
-    console.table(data);
+    // Use Printer for table display
+    Printer.printTable(data, headerColor);
     
     if (this.storeInBrowser) {
       this.storeLog(`[TABLE] ${JSON.stringify(data)}`);
@@ -391,15 +401,7 @@ export class BrowserLogger extends LoggerBase {
     const bar = complete + incomplete;
     const percent = `${safe.toFixed(1)}%`;
     
-    if (this.useColors) {
-      console.log(
-        `%c${complete}%c${incomplete} ${percent}`,
-        'color: #00ff00',
-        'color: #666666'
-      );
-    } else {
-      console.log(`${bar} ${percent}`);
-    }
+    Printer.print(`${bar} ${percent}`);
 
     if (this.storeInBrowser && safe >= 100) {
       this.storeLog(`[PROGRESS] 100% complete`);
@@ -414,16 +416,9 @@ export class BrowserLogger extends LoggerBase {
    */
   public link(url: string, description?: string): void {
     const label = description || url;
+    const formattedMessage = `[${label}]: ${url}`;
     
-    if (this.useColors) {
-      console.log(
-        `%c[${label}]%c: ${url}`,
-        'color: #00ccff; text-decoration: underline; cursor: pointer',
-        'color: inherit'
-      );
-    } else {
-      console.log(`[${label}]: ${url}`);
-    }
+    Printer.print(formattedMessage);
 
     if (this.storeInBrowser) {
       this.storeLog(`[LINK] ${label}: ${url}`);
@@ -642,10 +637,16 @@ export class BrowserLogger extends LoggerBase {
   private storeLog(log: string): void {
     if (!this.storeInBrowser) return;
 
-    this.storageQueue.push(log);
+    // Use storage manager if available
+    if (this.storageManager) {
+      this.storageManager.addLog(log);
+    } else {
+      // Fallback to queue-based storage
+      this.storageQueue.push(log);
 
-    if (!this.processingStorage) {
-      this.processStorageQueue();
+      if (!this.processingStorage) {
+        this.processStorageQueue();
+      }
     }
   }
 
@@ -797,6 +798,12 @@ export class BrowserLogger extends LoggerBase {
   public getLogs(): string[] | null {
     if (!this.storeInBrowser) return null;
 
+    // Use storage manager if available
+    if (this.storageManager) {
+      return this.storageManager.getLogs();
+    }
+
+    // Fallback to localStorage
     try {
       if (this.useLocalStorage) {
         const stored = localStorage.getItem(this.storageName);
@@ -853,19 +860,25 @@ export class BrowserLogger extends LoggerBase {
   public clearLogs(): void {
     if (!this.storeInBrowser) return;
 
-    try {
-      if (this.useLocalStorage) {
-        localStorage.removeItem(this.storageName);
-      } else if (this.db) {
-        const transaction = this.db.transaction(['logs'], 'readwrite');
-        const store = transaction.objectStore('logs');
-        store.clear();
+    // Use storage manager if available
+    if (this.storageManager) {
+      this.storageManager.clearLogs();
+    } else {
+      // Fallback to direct storage access
+      try {
+        if (this.useLocalStorage) {
+          localStorage.removeItem(this.storageName);
+        } else if (this.db) {
+          const transaction = this.db.transaction(['logs'], 'readwrite');
+          const store = transaction.objectStore('logs');
+          store.clear();
+        }
+      } catch (error) {
+        console.error('[BrowserLogger] Failed to clear logs:', error);
       }
-      
-      this.emit('logsCleared');
-    } catch (error) {
-      console.error('[BrowserLogger] Failed to clear logs:', error);
     }
+    
+    this.emit('logsCleared');
   }
 
   /**
@@ -911,7 +924,7 @@ export class BrowserLogger extends LoggerBase {
   public setStorageEnabled(enabled: boolean): void {
     this.storeInBrowser = enabled;
 
-    if (enabled && !this.db && !this.useLocalStorage) {
+    if (enabled && !this.storageManager) {
       this.initializeStorage().catch(err => {
         console.error('[BrowserLogger] Failed to enable storage:', err);
         this.storeInBrowser = false;
@@ -1002,6 +1015,63 @@ export class BrowserLogger extends LoggerBase {
       default:
         return logs.join('\n');
     }
+  }
+
+  // ============================================================
+  // Node.js Compatibility Methods (No-ops in browser)
+  // ============================================================
+
+  /**
+   * Get log file path (browser compatibility - returns null).
+   * @returns {null} Always null in browser environment
+   */
+  public getLogFilePath(): null {
+    return null;
+  }
+
+  /**
+   * Get log directory (browser compatibility).
+   * @returns {string} Returns 'browser' to indicate browser environment
+   */
+  public getLogDirectory(): string {
+    return 'browser';
+  }
+
+  /**
+   * Get log retention days (browser compatibility).
+   * @returns {number} Returns 0 as browser logs don't use file retention
+   */
+  public getLogRetentionDays(): number {
+    return 0;
+  }
+
+  /**
+   * Set file logging (browser compatibility - maps to storage enabled).
+   * @param {boolean} enabled - Whether to enable storage
+   */
+  public setFileLogging(enabled: boolean): void {
+    this.storeInBrowser = enabled;
+    if (enabled && !this.storageManager) {
+      this.initializeStorage();
+    }
+  }
+
+  // Node.js compatibility methods (no-op in browser)
+  
+  /**
+   * Set log directory (Node.js compatibility - no-op in browser).
+   * @param {string} _directory - Directory path (ignored in browser)
+   */
+  public setLogDirectory(_directory: string): void {
+    // No-op in browser environment
+  }
+
+  /**
+   * Set log retention days (Node.js compatibility - no-op in browser).
+   * @param {number} _days - Number of days to retain logs (ignored in browser)
+   */
+  public setLogRetentionDays(_days: number): void {
+    // No-op in browser environment
   }
 
   /**

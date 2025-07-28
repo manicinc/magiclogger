@@ -4,8 +4,8 @@ import { LoggerBase } from './LoggerBase';
 import { ContextManager } from './ContextManager';
 import { TagManager } from './TagManager';
 import type { LoggerOptions, ColorName, StylePreset } from '../types';
-import { FileManager } from './FileManager';
-import { Formatter } from './Formatter';
+import { FileManager } from './FileManager';  
+import {Formatter } from './Formatter';
 import { Printer } from './Printer';
 import { PRESETS } from '../constants';
 
@@ -289,8 +289,9 @@ export class NodeLogger extends LoggerBase {
     return this.fileManager?.getLogRetentionDays() || this.logRetentionDays || 30;
   }
 
+
   /**
-   * Sets the log retention period
+   * Sets the log retention period and optionally cleans up old logs immediately.
    * @param days Number of days to retain logs
    * @param cleanNow Whether to clean old logs immediately
    */
@@ -299,10 +300,32 @@ export class NodeLogger extends LoggerBase {
 
     if (this.fileManager) {
       this.fileManager.setLogRetentionDays(this.logRetentionDays);
+    }
 
-      if (cleanNow) {
-        this.fileManager.cleanupOldLogs();
-      }
+    if (cleanNow) {
+      this.cleanupOldLogs();
+    }
+  }
+
+  /**
+   * Gets whether file logging is enabled
+   * @returns {boolean} Whether file logging is enabled
+   */
+  public isWriteToDiskEnabled(): boolean {
+    return this.writeToDisk;
+  }
+
+  /**
+   * Cleans up old log files based on retention period.
+   * @public
+   */
+  public cleanupOldLogs(): void {
+    if (this.fileManager) {
+      this.fileManager.cleanupOldLogs();
+    } else {
+      // Create temporary FileManager for cleanup even if file logging is disabled
+      const tempFileManager = new FileManager(this.logDir, this.logRetentionDays);
+      tempFileManager.cleanupOldLogs();
     }
   }
 
@@ -327,7 +350,10 @@ export class NodeLogger extends LoggerBase {
    */
   private writeFile(line: string): void {
     if (this.fileManager && this.writeToDisk) {
-      this.fileManager.appendToFile(line);
+      const success = this.fileManager.appendToFile(line);
+      if (!success) {
+        this.writeToDisk = false;
+      }
     }
   }
 

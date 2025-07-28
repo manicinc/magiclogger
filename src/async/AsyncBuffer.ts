@@ -397,14 +397,25 @@ export class AsyncBuffer {
       return;
     }
 
-    this.flushTimer = setInterval(() => {
+    // Use consistent timer method selection
+    let timerFunction: typeof setInterval;
+    if (typeof global !== 'undefined' && (global as { setInterval?: typeof setInterval }).setInterval) {
+      timerFunction = (global as { setInterval: typeof setInterval }).setInterval;
+    } else if (typeof setInterval !== 'undefined') {
+      timerFunction = setInterval;
+    } else {
+      console.warn('setInterval not available, flush timer cannot be started');
+      return;
+    }
+
+    this.flushTimer = timerFunction(() => {
       if (!this.closing) {
         this.flush();
       }
     }, this.flushInterval);
 
     // Ensure timer doesn't prevent process exit
-    if (this.flushTimer.unref) {
+    if (this.flushTimer && this.flushTimer.unref) {
       this.flushTimer.unref();
     }
   }
@@ -415,7 +426,15 @@ export class AsyncBuffer {
    */
   private stopFlushTimer(): void {
     if (this.flushTimer) {
-      clearInterval(this.flushTimer);
+      // Use the same method we used to set the timer
+      if (typeof global !== 'undefined' && (global as { clearInterval?: typeof clearInterval }).clearInterval) {
+        (global as { clearInterval: typeof clearInterval }).clearInterval(this.flushTimer);
+      } else if (typeof clearInterval !== 'undefined') {
+        clearInterval(this.flushTimer);
+      } else {
+        // Fallback for environments without clearInterval
+        console.warn('clearInterval not available, timer may not be properly cleared');
+      }
       this.flushTimer = null;
     }
   }

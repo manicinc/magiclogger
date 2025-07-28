@@ -495,7 +495,7 @@ export class PinoCompatibleLogger extends BaseCompatibleLogger {
     // Route to appropriate logger method
     switch (level) {
       case 'trace':
-        this.logger.debug(`TRACE: ${output}`, metadata);
+        this.logger.debug(this.prettyPrint ? output : `TRACE: ${output}`, metadata);
         break;
       case 'debug':
         this.logger.debug(output, metadata);
@@ -510,7 +510,7 @@ export class PinoCompatibleLogger extends BaseCompatibleLogger {
         this.logger.error(output, metadata);
         break;
       case 'fatal':
-        this.logger.error(`FATAL: ${output}`, metadata);
+        this.logger.error(this.prettyPrint ? output : `FATAL: ${output}`, metadata);
         break;
     }
   }
@@ -539,15 +539,27 @@ export class PinoCompatibleLogger extends BaseCompatibleLogger {
     // Level
     parts.push(`[${level.toUpperCase()}]`);
 
-    // Message
+    // Message or object content
     if (rec[this.messageKey]) {
       parts.push(rec[this.messageKey] as string);
+    } else {
+      // If no message, include the object content for object-only logging
+      const objContent = { ...rec };
+      delete objContent[this.timestampKey];
+      delete objContent[this.levelKey];
+      delete objContent[this.messageKey];
+      
+      if (Object.keys(objContent).length > 0) {
+        parts.push(JSON.stringify(objContent));
+      }
     }
 
-    // Additional fields
-    for (const [key, value] of Object.entries(rec)) {
-      if (key !== this.timestampKey && key !== this.levelKey && key !== this.messageKey) {
-        metadata[key] = value;
+    // Additional fields (only when there's an explicit message)
+    if (rec[this.messageKey]) {
+      for (const [key, value] of Object.entries(rec)) {
+        if (key !== this.timestampKey && key !== this.levelKey && key !== this.messageKey) {
+          metadata[key] = value;
+        }
       }
     }
 
@@ -677,8 +689,11 @@ export class PinoCompatibleLogger extends BaseCompatibleLogger {
 
   public set level(value: string | number) {
     if (typeof value === 'number') {
-      this._levelNum = value;
-      this._level = this.getLevelName(value);
+      // For invalid numeric levels, find the closest valid level or default to info
+      const validLevels = Object.values(PinoCompatibleLogger.levels).sort((a, b) => a - b);
+      const closestLevel = validLevels.find(level => level >= value) || 30; // Default to info (30)
+      this._levelNum = closestLevel;
+      this._level = this.getLevelName(closestLevel);
     } else {
       this._level = value;
       this._levelNum = PinoCompatibleLogger.levels[value] || 30;

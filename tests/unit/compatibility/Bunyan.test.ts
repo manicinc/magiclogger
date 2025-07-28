@@ -1,10 +1,23 @@
 import { createBunyanCompatible, BunyanCompatibleLogger } from '../../../src/compatibility/loggers/BunyanCompatibleLogger';
+import { Logger } from '../../../src/Logger';
 
 describe('BunyanCompatibleLogger', () => {
   let logger: BunyanCompatibleLogger;
+  let infoSpy: jest.SpyInstance;
+  let errorSpy: jest.SpyInstance;
+  let warnSpy: jest.SpyInstance;
 
   beforeEach(() => {
+    // Mock underlying Logger methods
+    infoSpy = jest.spyOn(Logger.prototype, 'info').mockImplementation(() => undefined);
+    errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    
     logger = createBunyanCompatible({ name: 'test-app' });
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   it('should create a Bunyan-compatible logger', () => {
@@ -13,34 +26,22 @@ describe('BunyanCompatibleLogger', () => {
   });
 
   it('should log messages with Bunyan-style format', () => {
-    const spy = jest.spyOn(logger, 'log').mockImplementation(jest.fn());
     logger.info('test message');
-    expect(spy).toHaveBeenCalledWith(expect.stringContaining('test message'), 'info');
-    spy.mockRestore();
+    expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining('test message'));
   });
 
   it('should handle object logging', () => {
-    const spy = jest.spyOn(logger, 'log').mockImplementation(jest.fn());
     logger.info({ userId: 123 }, 'user action');
-    expect(spy).toHaveBeenCalledWith(expect.stringContaining('userId'), 'info');
-    spy.mockRestore();
+    expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining('userId'));
   });
 
   it('should support different log levels', () => {
-    const infoSpy = jest.spyOn(logger, 'log').mockImplementation(jest.fn());
-    const errorSpy = jest.spyOn(logger, 'log').mockImplementation(jest.fn());
-    const warnSpy = jest.spyOn(logger, 'log').mockImplementation(jest.fn());
-
     logger.info('info message');
     logger.error('error message');
     logger.warn('warn message');
 
-    expect(infoSpy).toHaveBeenCalledWith('info message', 'info');
-    expect(errorSpy).toHaveBeenCalledWith('error message', 'error');
-    expect(warnSpy).toHaveBeenCalledWith('warn message', 'warn');
-
-    infoSpy.mockRestore();
-    errorSpy.mockRestore();
-    warnSpy.mockRestore();
+    expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining('info message'));
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('error message'));
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('warn message'));
   });
 });

@@ -83,11 +83,22 @@ export class ThemeManager {
   }
 
   /**
+   * Get all available themes
+   */
+  get themes(): Record<string, ThemeDefinition> {
+    return this.availableThemes;
+  }
+
+  /**
    * Load available themes from the file system
    */
   private loadAvailableThemes(): void {
     try {
       this.availableThemes = loadThemes();
+      // If no themes were loaded, use default theme
+      if (Object.keys(this.availableThemes).length === 0) {
+        this.availableThemes = { default: DEFAULT_THEME };
+      }
     } catch (error) {
       // Fallback to default theme if loading fails
       this.availableThemes = { default: DEFAULT_THEME };

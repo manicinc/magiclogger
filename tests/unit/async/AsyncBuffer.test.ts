@@ -77,13 +77,20 @@ describe('AsyncBuffer', () => {
     });
 
     it('should not start flush timer if interval <= 0', () => {
-      const setIntervalSpy = jest.spyOn(global, 'setInterval');
-      buffer = new AsyncBuffer({
-        onFlush: mockFlushHandler,
-        flushInterval: 0,
+      // Create spy before creating buffer
+      const setIntervalSpy = jest.spyOn(global, 'setInterval').mockImplementation(() => {
+        throw new Error('setInterval should not be called');
       });
       
-      expect(setIntervalSpy).not.toHaveBeenCalled();
+      // This should not throw an error if timer is not started
+      expect(() => {
+        buffer = new AsyncBuffer({
+          onFlush: mockFlushHandler,
+          flushInterval: 0,
+        });
+      }).not.toThrow();
+      
+      setIntervalSpy.mockRestore();
     });
   });
 
