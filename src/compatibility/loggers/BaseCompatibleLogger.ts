@@ -257,7 +257,7 @@ export abstract class BaseCompatibleLogger {
    */
   private getCircularReplacer(): (key: string, value: any) => any {
     const seen = new WeakSet();
-    return (key: string, value: any) => {
+    return (_key: string, value: any) => {
       if (typeof value === 'object' && value !== null) {
         if (seen.has(value)) {
           return '[Circular]';
@@ -288,18 +288,27 @@ export abstract class BaseCompatibleLogger {
             // Fall through to plain format on error
           }
         }
-      // Fall through to plain if no formatter or error
+        // If no formatter or formatter failed, use plain format
+        return this.formatAsPlain(entry);
 
       case 'plain':
       default:
-        if (typeof entry === 'string') {
-          return entry;
-        }
-        if (typeof entry === 'object' && entry.message) {
-          return entry.message;
-        }
-        return this.safeSerialize(entry);
+        return this.formatAsPlain(entry);
     }
+  }
+
+  /**
+   * Format entry as plain text.
+   * @private
+   */
+  private formatAsPlain(entry: unknown): string {
+    if (typeof entry === 'string') {
+      return entry;
+    }
+    if (typeof entry === 'object' && entry && 'message' in entry) {
+      return String((entry as { message: unknown }).message);
+    }
+    return this.safeSerialize(entry);
   }
 
   /**

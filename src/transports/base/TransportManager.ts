@@ -134,12 +134,6 @@ export class TransportManager extends EventEmitter {
   private readonly stopOnSuccess: boolean;
 
   /**
-   * Default timeout for transport operations.
-   * @private
-   */
-  private readonly defaultTimeout?: number;
-
-  /**
    * Global error handler for transport errors.
    * @private
    */
@@ -197,7 +191,6 @@ export class TransportManager extends EventEmitter {
     this.maxPauseQueueSize = options.maxPauseQueueSize || 10000;
     this.healthCheckIntervalMs = options.healthCheckIntervalMs || 60000;
     this.stopOnSuccess = options.stopOnSuccess || false;
-    this.defaultTimeout = options.defaultTimeout;
     this.errorHandler = options.errorHandler;
 
     // Set max listeners for better event handling
@@ -641,6 +634,11 @@ export class TransportManager extends EventEmitter {
 
     results.forEach((result, index) => {
       const transport = availableTransports[index];
+      if (!transport) {
+        // Skip if transport is undefined (shouldn't happen but handle gracefully)
+        return;
+      }
+      
       if (result.status === 'fulfilled') {
         successfulTransports.push(transport.name);
       } else {

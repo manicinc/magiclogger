@@ -410,11 +410,14 @@ export class BunyanCompatibleLogger extends BaseCompatibleLogger {
       
       const match = line.match(/at\s+(?:(.+?)\s+)?\((.+?):(\d+):(\d+)\)/);
       if (match) {
-        return {
-          file: match[2] || 'unknown',
-          line: parseInt(match[3], 10),
-          func: match[1] || undefined,
+        const result: BunyanRecord['src'] = {
+          file: match[2] ? match[2] : 'unknown',
+          line: parseInt(match[3] || '0', 10),
         };
+        if (match[1]) {
+          result.func = match[1].trim();
+        }
+        return result;
       }
     }
 

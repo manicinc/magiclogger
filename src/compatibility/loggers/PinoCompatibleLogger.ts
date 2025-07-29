@@ -423,6 +423,9 @@ export class PinoCompatibleLogger extends BaseCompatibleLogger {
 
     const [current, ...rest] = pathParts;
 
+    // Check if current path part exists
+    if (!current) return;
+
     // Handle wildcards
     if (current === '*') {
       if (Array.isArray(obj)) {
@@ -444,7 +447,7 @@ export class PinoCompatibleLogger extends BaseCompatibleLogger {
 
     // Handle array notation
     const arrayMatch = current.match(/^(.+)\[\*\]$/);
-    if (arrayMatch) {
+    if (arrayMatch && arrayMatch[1]) {
       const arrayKey = arrayMatch[1];
       if (arrayKey in obj && Array.isArray(obj[arrayKey])) {
         const arr = obj[arrayKey] as unknown[];
