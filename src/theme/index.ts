@@ -9,7 +9,6 @@ if (isBrowserEnvironment()) {
   // Browser implementation - no file system access
   loadThemes = () => ({});
   getTheme = (_name: string) => {
-    // Return undefined for browser, themes would need to be provided differently
     return undefined;
   };
   listThemes = () => ['default'];
@@ -19,12 +18,10 @@ if (isBrowserEnvironment()) {
   let path: typeof import('path') | undefined;
 
   try {
-    // Use function constructor to avoid static analysis
     const dynamicRequire = new Function('id', 'return require(id)');
     fs = dynamicRequire('fs');
     path = dynamicRequire('path');
   } catch {
-    // Fallback for environments where require is not available
     fs = undefined;
     path = undefined;
   }
@@ -33,11 +30,35 @@ if (isBrowserEnvironment()) {
 
   const findThemesJson = (): string | null => {
     if (!fs || !path) return null;
-    let currentDir = __dirname;
+
+    // First try a stable fallback path relative to cwd (for ESM/test environments)
+    const fallback = path.resolve(process.cwd(), 'src', 'theme', 'themes.json');
+    try {
+      if (fs.existsSync(fallback)) {
+        return fallback;
+      }
+    } catch {
+      // ignore
+    }
+
+    // Then attempt to walk up from module directory if available
+    let baseDir: string;
+    try {
+      // eslint-disable-next-line no-undef
+      baseDir = typeof __dirname === 'string' ? __dirname : process.cwd();
+    } catch {
+      baseDir = process.cwd();
+    }
+
+    let currentDir = baseDir;
     for (let i = 0; i < 5; i++) {
       const themesPath = path.join(currentDir, 'themes.json');
-      if (fs.existsSync(themesPath)) {
-        return themesPath;
+      try {
+        if (fs.existsSync(themesPath)) {
+          return themesPath;
+        }
+      } catch {
+        // ignore and continue upwards
       }
       currentDir = path.dirname(currentDir);
     }
@@ -45,12 +66,17 @@ if (isBrowserEnvironment()) {
   };
 
   loadThemes = () => {
+    // In tests, avoid caching so fs mocks are respected per test
+    if (process.env && process.env.NODE_ENV === 'test') {
+      themesCache = null;
+    }
+
     if (themesCache) {
       return themesCache;
     }
 
-    if (!fs) {
-      console.warn('File system not available. Using empty themes cache.');
+    if (!fs || !path) {
+      console.warn('[ThemeManager] Theme file not found', 'fs/path unavailable');
       themesCache = {};
       return themesCache;
     }
@@ -59,13 +85,18 @@ if (isBrowserEnvironment()) {
     if (themesPath) {
       try {
         const themesJson = fs.readFileSync(themesPath, 'utf-8');
-        themesCache = JSON.parse(themesJson);
+        try {
+          themesCache = JSON.parse(themesJson);
+        } catch (error) {
+          console.warn('[ThemeManager] Failed to parse themes.json:', error as Error);
+          themesCache = {};
+        }
       } catch (error) {
-        console.error('Error loading themes.json:', error);
+        console.warn('[ThemeManager] Failed to read themes.json:', error as Error);
         themesCache = {};
       }
     } else {
-      console.warn('themes.json not found. Using empty themes cache.');
+      console.warn('[ThemeManager] Theme file not found', 'themes.json');
       themesCache = {};
     }
     return themesCache ?? {};

@@ -216,6 +216,9 @@ export class WinstonCompatibleLogger extends BaseCompatibleLogger {
   /** Verbose mode enabled flag (renamed from verbose to avoid conflict) */
   protected verboseEnabled: boolean;
 
+  /** Strict levels flag */
+  protected strictLevels: boolean;
+
   /** Public profile data map for Winston compatibility */
   public profileData: Map<string, { start: number; metadata?: Record<string, unknown> }>;
 
@@ -264,6 +267,7 @@ export class WinstonCompatibleLogger extends BaseCompatibleLogger {
     this.formatFn = format;
     this.profileData = new Map();
     this.verboseEnabled = options.verbose || false;
+    this.strictLevels = options.strictLevels || false;
 
     // Handle exception and rejection handlers
     if (this.handleExceptions) {
@@ -329,7 +333,13 @@ export class WinstonCompatibleLogger extends BaseCompatibleLogger {
    */
   public isLevelEnabled(level: string): boolean {
     const currentLevelValue = this.levels[this.level] ?? Infinity;
-    const targetLevelValue = this.levels[level] ?? -1;
+    const targetLevelValue = this.levels[level];
+    
+    // Return false for unknown levels
+    if (targetLevelValue === undefined) {
+      return false;
+    }
+    
     return targetLevelValue <= currentLevelValue;
   }
 
@@ -348,9 +358,23 @@ export class WinstonCompatibleLogger extends BaseCompatibleLogger {
    * logger.log('info', { message: 'User action', userId: 123 });
    */
   public log(level: string, message: string | Record<string, unknown>, ...args: unknown[]): void {
-    if (this.silent || !this.isLevelEnabled(level)) {
+    if (this.silent) {
       return;
     }
+
+    // Check for strict levels
+    if (this.strictLevels && this.levels[level] === undefined) {
+      throw new Error(`Unknown log level: ${level}`);
+    }
+
+    // Special handling for verbose level - check verboseEnabled flag
+    if (level === 'verbose' && !this.verboseEnabled && !this.isLevelEnabled(level)) {
+      return;
+    } else if (level !== 'verbose' && level !== 'silly' && this.levels[level] !== undefined && !this.isLevelEnabled(level)) {
+      // Only filter out known levels that are disabled (except verbose and silly which have special handling)
+      return;
+    }
+    // Unknown levels and silly are allowed to pass through
 
     let msg: string;
     let meta: Record<string, unknown> = { ...this.defaultMeta };
@@ -435,9 +459,7 @@ export class WinstonCompatibleLogger extends BaseCompatibleLogger {
         break;
       default:
         if (level === 'verbose') {
-          if (this.verboseEnabled || this.isLevelEnabled('verbose')) {
-            this.logger.debug(message, meta);
-          }
+          this.logger.debug(message, meta);
         } else if (level === 'silly') {
           this.logger.debug(`SILLY: ${message}`, meta);
         } else if (level === 'http') {
@@ -632,6 +654,8 @@ export class WinstonCompatibleLogger extends BaseCompatibleLogger {
         'level' in options ||
         'transports' in options ||
         'defaultMeta' in options ||
+        'defaultTags' in options ||
+        'defaultContext' in options ||
         'format' in options
       );
 
@@ -658,6 +682,10 @@ export class WinstonCompatibleLogger extends BaseCompatibleLogger {
           ...(winstonOptions.defaultContext || {}),
         },
         defaultTags: [...(this.defaultTags || []), ...(winstonOptions.defaultTags || [])],
+        defaultContext: {
+          ...this.defaultContext,
+          ...(winstonOptions.defaultContext || {}),
+        },
       };
     }
 

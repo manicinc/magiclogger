@@ -173,7 +173,7 @@ export class AsyncBuffer {
   constructor(options: AsyncBufferOptions) {
     this.capacity = options.size || 10000;
     this.flushSize = options.flushSize || 1000;
-    this.flushInterval = options.flushInterval || 100;
+    this.flushInterval = options.flushInterval ?? 100; // Use nullish coalescing to allow 0
     this.onFlush = options.onFlush;
     this.overflowStrategy = options.overflowStrategy || 'drop-oldest';
     this.enableMetrics = options.enableMetrics || false;

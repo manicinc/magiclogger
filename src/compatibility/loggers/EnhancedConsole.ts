@@ -36,9 +36,10 @@ function isStylePreset(value: string): value is StylePreset {
  * Enhanced console that extends the standard console with additional formatting and logging capabilities.
  */
 export class EnhancedConsole {
-  private logger: Logger;
+  public logger: Logger;
   private useColors = true;
   private originalConsole: Console;
+  private exitHandler?: () => void;
 
   constructor(options: EnhanceConsoleOptions = {}) {
     this.logger = new Logger(options);
@@ -46,52 +47,83 @@ export class EnhancedConsole {
     this.originalConsole = { ...console };
 
     if (options.restoreOnExit && typeof process !== 'undefined') {
-      process.on('exit', () => this.restoreOriginalConsole());
+      this.exitHandler = () => this.restoreOriginalConsole();
+      process.on('exit', this.exitHandler);
     }
   }
 
-  log(message: string, ...args: unknown[]): void {
+  private safeStringify(value: unknown): string {
+    if (typeof value === 'string') {
+      return value;
+    } else if (typeof value === 'symbol') {
+      return value.toString();
+    } else if (typeof value === 'bigint') {
+      return value.toString();
+    } else if (value === null) {
+      return 'null';
+    } else if (value === undefined) {
+      return 'undefined';
+    } else {
+      try {
+        return String(value);
+      } catch {
+        return '[Object]';
+      }
+    }
+  }
+
+  log(message: unknown, ...args: unknown[]): void {
     // If there are additional arguments, delegate to original console
     if (args.length > 0) {
       this.originalConsole.log(message, ...args);
     } else {
-      this.logger.info(message);
+      // Convert message to string safely for logger
+      const messageStr = this.safeStringify(message);
+      this.logger.info(messageStr);
     }
   }
 
-  info(message: string, ...args: unknown[]): void {
+  info(message: unknown, ...args: unknown[]): void {
     // If there are additional arguments, delegate to original console
     if (args.length > 0) {
       this.originalConsole.info(message, ...args);
     } else {
-      this.logger.info(message);
+      // Convert message to string safely for logger
+      const messageStr = this.safeStringify(message);
+      this.logger.info(messageStr);
     }
   }
 
-  warn(message: string, ...args: unknown[]): void {
+  warn(message: unknown, ...args: unknown[]): void {
     // If there are additional arguments, delegate to original console
     if (args.length > 0) {
       this.originalConsole.warn(message, ...args);
     } else {
-      this.logger.warn(message);
+      // Convert message to string safely for logger
+      const messageStr = this.safeStringify(message);
+      this.logger.warn(messageStr);
     }
   }
 
-  error(message: string, ...args: unknown[]): void {
+  error(message: unknown, ...args: unknown[]): void {
     // If there are additional arguments, delegate to original console
     if (args.length > 0) {
       this.originalConsole.error(message, ...args);
     } else {
-      this.logger.error(message);
+      // Convert message to string safely for logger
+      const messageStr = this.safeStringify(message);
+      this.logger.error(messageStr);
     }
   }
 
-  debug(message: string, ...args: unknown[]): void {
+  debug(message: unknown, ...args: unknown[]): void {
     // If there are additional arguments, delegate to original console
     if (args.length > 0) {
       this.originalConsole.debug(message, ...args);
     } else {
-      this.logger.debug(message);
+      // Convert message to string safely for logger
+      const messageStr = this.safeStringify(message);
+      this.logger.debug(messageStr);
     }
   }
 
@@ -108,11 +140,11 @@ export class EnhancedConsole {
   }
 
   table(data: Record<string, unknown>[]): void {
-    this.logger.table(data);
+    this.logger.table(data, ['brightWhite', 'bold']);
   }
 
   custom(msg: string, colors?: ColorName[], prefix?: string): void {
-    this.logger.custom(msg, colors, prefix);
+    this.logger.custom(msg, colors, prefix || 'LOG');
   }
 
   styled(msg: string, preset: string): void {
@@ -157,6 +189,12 @@ export class EnhancedConsole {
     for (const key in original) {
       target[key] = original[key];
     }
+    
+    // Remove the exit event listener if it exists
+    if (this.exitHandler && typeof process !== 'undefined') {
+      process.off('exit', this.exitHandler);
+      this.exitHandler = undefined;
+    }
   }
 }
 
@@ -172,6 +210,7 @@ interface EnhancedMethods {
     completeChar?: string,
     incompleteChar?: string
   ) => void;
+  table?: (data: Record<string, unknown>[]) => void;
   custom?: (msg: string, colors?: ColorName[], prefix?: string) => void;
   styled?: (msg: string, preset: string) => void;
   color?: (...colors: ColorName[]) => (text: string) => string;
@@ -194,7 +233,7 @@ export function enhanceConsole(options: EnhanceConsoleOptions = {}): {
   restoreConsole: () => void;
 } {
   const enhanced = new EnhancedConsole(options);
-  const logger = new Logger(options);
+  const logger = enhanced.logger; // Use the same logger instance
 
   // Store original console methods
   const originalConsole = { ...console };
@@ -202,13 +241,14 @@ export function enhanceConsole(options: EnhanceConsoleOptions = {}): {
   // Add recursion guard symbol
   const recursionGuard = Symbol('recursionGuard');
   const extendedConsole = console as ExtendedConsole;
-  extendedConsole[recursionGuard as unknown as string] = false;
+  (extendedConsole as unknown as Record<symbol, boolean>)[recursionGuard] = false;
 
   // Store references to our enhanced methods for cleanup
   const enhancedMethods: (keyof EnhancedMethods)[] = [
     'success',
     'header',
     'progress',
+    'table',
     'custom',
     'styled',
     'color',
@@ -219,6 +259,7 @@ export function enhanceConsole(options: EnhanceConsoleOptions = {}): {
   extendedConsole.success = enhanced.success.bind(enhanced);
   extendedConsole.header = enhanced.header.bind(enhanced);
   extendedConsole.progress = enhanced.progress.bind(enhanced);
+  extendedConsole.table = enhanced.table.bind(enhanced);
   extendedConsole.custom = enhanced.custom.bind(enhanced);
   extendedConsole.styled = enhanced.styled.bind(enhanced);
   extendedConsole.color = enhanced.color.bind(enhanced);
@@ -242,7 +283,11 @@ export function enhanceConsole(options: EnhanceConsoleOptions = {}): {
         delete (console as unknown as Record<string, unknown>)[method];
       });
 
-      delete extendedConsole[recursionGuard as unknown as string];
+      // Remove the recursion guard symbol properly
+      Reflect.deleteProperty(console, recursionGuard);
+      
+      // Clean up the enhanced instance (including process event listeners)
+      enhanced.restoreOriginalConsole();
     },
   };
 }

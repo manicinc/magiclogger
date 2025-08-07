@@ -7,7 +7,12 @@ export function getModuleDirname(_importMeta: ImportMeta): string {
   }
 
   // Fallback for CommonJS
-  return process.cwd();
+  if (typeof process !== 'undefined' && process.cwd) {
+    return process.cwd();
+  }
+  
+  // Browser fallback
+  return '/';
 }
 
 export async function readFileCompat(filePath: string, encoding: BufferEncoding = 'utf-8') {

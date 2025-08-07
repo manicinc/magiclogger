@@ -180,7 +180,7 @@ export class AsyncLogger {
   ) {
     this.createEntry = createEntry;
     this.useWorkers = options.useWorkers || false;
-    this.workerCount = options.workerCount || 2;
+    this.workerCount = options.workerCount ?? 2;
     this.workerPath = options.workerPath || './workers/log-processor.worker.js';
     this.enableMetrics = options.enableMetrics ?? true;
     this.originalFlushHandler = options.onFlush;

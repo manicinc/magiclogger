@@ -20,6 +20,7 @@ import type {
   BatchingTransportOptions,
   Transport,
 } from '../../types/transport';
+import type { EventEmitter } from 'events';
 
 /**
  * Extended options for network transports.
@@ -1020,9 +1021,9 @@ export abstract class NetworkTransport extends BatchingTransport {
    * @protected
    */
   protected emitExtended(event: string, ...args: unknown[]): void {
-    // Cast to any to allow extended events
-    const extendedEvents = this.emit as (event: string, ...args: unknown[]) => boolean;
-    extendedEvents(event, ...args);
+    // Emit extended events using inherited EventEmitter functionality
+    // Cast to EventEmitter to bypass transport event restrictions
+    (this as EventEmitter).emit(event, ...args);
   }
 
   /**

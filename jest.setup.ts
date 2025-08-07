@@ -431,6 +431,11 @@ export function getMockedBrowserStorage(options = {}): BrowserStorageManager {
 // Cleanup logs directory
 // ----------------------
 function cleanupRealLogs() {
+  // Guard against undefined process (browser environment)
+  if (typeof process === 'undefined') {
+    return;
+  }
+  
   const logsDir = pathModule.resolve(process.cwd(), 'logs');
 
   try {

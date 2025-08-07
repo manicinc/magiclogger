@@ -2,10 +2,7 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { FileTransport, type FileTransportOptions, createFileTransport } from '../../../../../src/transports/base/implementations/FileTransport';
-import type { LogEntry } from '../../../../../src/types/transport';
-
-// Mock fs module
+// Mock fs module BEFORE importing FileTransport
 const mockWriteStream = {
   write: jest.fn((data, callback) => {
     if (callback) callback();
@@ -26,7 +23,7 @@ const mockWriteStream = {
 const mockFs = {
   promises: {
     mkdir: jest.fn().mockResolvedValue(undefined),
-    stat: jest.fn().mockRejectedValue(new Error('File not found')),
+    stat: jest.fn().mockResolvedValue({ size: 1024 }),
     readFile: jest.fn(),
     writeFile: jest.fn(),
     unlink: jest.fn(),
@@ -44,6 +41,9 @@ const mockFs = {
   unlinkSync: jest.fn(),
 };
 
+// Mock fs module  
+jest.mock('fs', () => mockFs);
+
 // Mock path module
 jest.mock('path', () => ({
   resolve: jest.fn((p) => p || '/default/path'),
@@ -53,18 +53,9 @@ jest.mock('path', () => ({
   join: jest.fn((...parts) => parts.join('/')),
 }));
 
-// Mock fs module  
-jest.mock('fs', () => mockFs);
-
-const mockPath = {
-  resolve: jest.fn((p) => p || '/default/path'),
-  dirname: jest.fn(() => '/logs'),
-  basename: jest.fn((p, ext) => ext ? 'app' : 'app.log'),
-  extname: jest.fn(() => '.log'),
-  join: jest.fn((...parts) => parts.join('/')),
-};
-
-jest.mock('fs', () => mockFs);
+// NOW import FileTransport after mocks are set up
+import { FileTransport, type FileTransportOptions, createFileTransport } from '../../../../../src/transports/base/implementations/FileTransport';
+import type { LogEntry } from '../../../../../src/types/transport';
 
 // Mock global window check
 const originalWindow = global.window;
@@ -106,13 +97,6 @@ describe('FileTransport', () => {
     mockFs.createWriteStream.mockReturnValue(mockWriteStream);
     mockFs.promises.mkdir.mockResolvedValue(undefined);
     mockFs.promises.stat.mockRejectedValue(new Error('File not found'));
-
-    // Reset path mocks
-    mockPath.resolve.mockImplementation((p) => p || '/default/path');
-    mockPath.dirname.mockReturnValue('/logs');
-    mockPath.basename.mockImplementation((p, ext) => ext ? 'app' : 'app.log');
-    mockPath.extname.mockReturnValue('.log');
-    mockPath.join.mockImplementation((...parts) => parts.join('/'));
 
     transport = new FileTransport({
       name: 'file',

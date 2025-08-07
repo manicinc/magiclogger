@@ -294,13 +294,9 @@ class TerminalCapabilityDetector {
   }
 
   public isStyleSupported(style: string): boolean {
-    // Handle test environment specially - for tests, we'll say all styles are supported
-    if (isNodeEnvironment() && process?.env?.NODE_ENV === 'test') {
-      return true;
-    }
-
     // For actual usage, return the detected support
-    return (this.support.styles as any)[style] ?? true;
+    const styles = this.support.styles as Record<string, boolean>;
+    return styles[style] ?? true;
   }
 
   public getFallbackStyle(style: string): string {
@@ -314,9 +310,9 @@ class TerminalCapabilityDetector {
 
     // Fallback mapping for unsupported styles - updated to match test expectations
     const fallbacks: Record<string, string> = {
-      italic: 'normal',
-      dim: 'gray',
-      strikethrough: 'normal',
+      italic: 'dim',
+      dim: 'gray', 
+      strikethrough: 'underline',
       blink: 'bold',
       hidden: 'normal',
       doubleUnderline: 'underline',

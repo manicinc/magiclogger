@@ -335,21 +335,16 @@ export class FileTransport extends Transport {
         const data: Record<string, unknown> = {
           ...entry,
         };
-        
-        // Remove timestamp if not needed
         if (!this.includeTimestamp) {
           delete data.timestamp;
           delete data.timestampMs;
         }
-        
         output = JSON.stringify(data);
         break;
       }
-
       case 'plain':
         output = this.formatPlain(entry);
         break;
-
       case 'custom':
         if (this.formatter) {
           const result = this.formatter(entry);
@@ -358,12 +353,43 @@ export class FileTransport extends Transport {
           output = this.formatPlain(entry);
         }
         break;
-
       default:
         output = this.formatPlain(entry);
     }
-
     return output + this.eol;
+  }
+
+  /**
+   * Format a log entry in plain text form.
+   * Includes timestamp (if enabled), level, message, and error details.
+   *
+   * @param entry Log entry
+   * @returns Plain formatted string (no trailing EOL)
+   */
+  protected formatPlain(entry: LogEntry): string {
+    const parts: string[] = [];
+
+    if (this.includeTimestamp && entry.timestamp) {
+      parts.push(entry.timestamp);
+    }
+
+    // Level tag in brackets, uppercased
+    parts.push(`[${entry.level.toUpperCase()}]`);
+
+    // Main message
+    parts.push(entry.message);
+
+    // Error details (message and stack)
+    if (entry.error) {
+      if (entry.error.message) {
+        parts.push(`Error: ${entry.error.message}`);
+      }
+      if (entry.error.stack) {
+        parts.push(`Stack: ${entry.error.stack}`);
+      }
+    }
+
+    return parts.join(' ');
   }
 
   /**

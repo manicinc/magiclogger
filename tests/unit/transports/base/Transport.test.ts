@@ -365,6 +365,12 @@ describe('Transport', () => {
     it('should handle partial failures in individual mode', async () => {
       // Create a transport without batch method
       const noBatchTransport = new TestTransport({ name: 'no-batch-fail' });
+      
+      // Add error event handler to prevent unhandled error warnings
+      noBatchTransport.on('error', () => {
+        // Ignore errors in tests - they're expected
+      });
+      
       noBatchTransport.testDoLogBatchOverride = jest
         .fn()
         .mockRejectedValue(new Error('Batch not supported'));
@@ -672,6 +678,11 @@ describe('Transport', () => {
         silent: false,
       });
 
+      // Add error event handler to prevent unhandled error warnings
+      transport.on('error', () => {
+        // Ignore errors in tests - they're expected
+      });
+
       transport.testHandleError(new Error('Visible error'));
 
       expect(consoleSpy).toHaveBeenCalledWith('[not-silent] Transport error:', 'Visible error');
@@ -689,6 +700,11 @@ describe('Transport', () => {
       transport = new TestTransport({
         name: 'silent',
         silent: true,
+      });
+
+      // Add error event handler to prevent unhandled error warnings
+      transport.on('error', () => {
+        // Ignore errors in tests - they're expected
       });
 
       transport.testHandleError(new Error('Silent error'));

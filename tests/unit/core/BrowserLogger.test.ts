@@ -1,16 +1,12 @@
-// Mock Printer methods BEFORE imports due to Jest hoisting
-jest.mock('../../../src/core/Printer', () => ({
-  Printer: {
-    print: jest.fn(),
-    printProgress: jest.fn(),
-    printTable: jest.fn(),
-    setUseColors: jest.fn(),
-  },
-}));
-
 import { BrowserLogger } from '../../../src/core/BrowserLogger';
 import { Printer } from '../../../src/core/Printer';
 import { ColorName } from '../../../src/types';
+
+// Mock Printer methods using jest.spyOn
+jest.spyOn(Printer, 'print').mockImplementation(() => { /* mock implementation */ });
+jest.spyOn(Printer, 'printProgress').mockImplementation(() => { /* mock implementation */ });
+jest.spyOn(Printer, 'printTable').mockImplementation(() => { /* mock implementation */ });
+jest.spyOn(Printer, 'setUseColors').mockImplementation(() => { /* mock implementation */ });
 
 // Use the global localStorage mock from jest.setup.ts
 const mockLocalStorage = global.localStorage as jest.Mocked<typeof localStorage> & {
@@ -22,7 +18,7 @@ describe('BrowserLogger', () => {
   let consoleLogSpy: jest.SpyInstance;
 
   beforeEach(() => {
-    // Clear calls but preserve mock implementations
+    // Clear all mocks and spies
     jest.clearAllMocks();
     
     mockLocalStorage.clear();
@@ -145,7 +141,20 @@ describe('BrowserLogger', () => {
 
     // Test table
     const tableData = [{ name: 'Test', value: 123 }];
+    
+    // Debug: Check if Printer is properly mocked
+    expect(jest.isMockFunction(Printer.printTable)).toBe(true);
+    
+    // Debug: Check data before calling table
+    console.log('Table data:', tableData);
+    console.log('Data length:', tableData.length);
+    console.log('Data is array:', Array.isArray(tableData));
+    
     logger.table(tableData);
+    
+    // Debug: Check if mock was called
+    console.log('Printer.printTable calls:', (Printer.printTable as jest.Mock).mock.calls);
+    
     expect(Printer.printTable).toHaveBeenCalledWith(tableData, expect.any(Array));
 
     // Test link

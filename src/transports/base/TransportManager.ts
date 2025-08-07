@@ -2,6 +2,7 @@
 
 import { EventEmitter } from 'events';
 import { Transport } from './Transport';
+import { isBrowserEnvironment } from '../../utils/environment';
 import type {
   TransportConfig,
   LogEntry,
@@ -134,6 +135,12 @@ export class TransportManager extends EventEmitter {
   private readonly stopOnSuccess: boolean;
 
   /**
+   * Default timeout for transport operations.
+   * @private
+   */
+  private readonly defaultTimeout: number;
+
+  /**
    * Global error handler for transport errors.
    * @private
    */
@@ -191,6 +198,7 @@ export class TransportManager extends EventEmitter {
     this.maxPauseQueueSize = options.maxPauseQueueSize || 10000;
     this.healthCheckIntervalMs = options.healthCheckIntervalMs || 60000;
     this.stopOnSuccess = options.stopOnSuccess || false;
+    this.defaultTimeout = options.defaultTimeout || 30000;
     this.errorHandler = options.errorHandler;
 
     // Set max listeners for better event handling
@@ -238,7 +246,56 @@ export class TransportManager extends EventEmitter {
    * @private
    */
   private performAggregation(): void {
-    if (!this.aggregationManager?.enabled) return;
+    if (!this.aggregationManager?.enabled || this.aggregationManager.logBuffer.length === 0) return;
+
+    const buffer = this.aggregationManager.logBuffer;
+    const stats: Record<string, unknown> = {};
+
+    // Calculate total
+    stats.total = buffer.length;
+
+    // Calculate by level
+    if (this.aggregationManager.fields.includes('level')) {
+      const byLevel: Record<string, number> = {};
+      buffer.forEach(entry => {
+        byLevel[entry.level] = (byLevel[entry.level] || 0) + 1;
+      });
+      stats.byLevel = byLevel;
+    }
+
+    // Calculate by logger ID
+    if (this.aggregationManager.fields.includes('loggerId')) {
+      const byLogger: Record<string, number> = {};
+      buffer.forEach(entry => {
+        const loggerId = entry.loggerId || 'unknown';
+        byLogger[loggerId] = (byLogger[loggerId] || 0) + 1;
+      });
+      stats.byLogger = byLogger;
+    }
+
+    // Calculate by tags
+    if (this.aggregationManager.fields.includes('tags')) {
+      const byTags: Record<string, number> = {};
+      buffer.forEach(entry => {
+        if (entry.tags) {
+          entry.tags.forEach(tag => {
+            byTags[tag] = (byTags[tag] || 0) + 1;
+          });
+        }
+      });
+      stats.byTags = byTags;
+    }
+
+    // Calculate error rate
+    const errorLevels = ['error', 'fatal'];
+    const errorCount = buffer.filter(entry => errorLevels.includes(entry.level)).length;
+    stats.errorRate = buffer.length > 0 ? errorCount / buffer.length : 0;
+
+    // Calculate average size (approximate)
+    const totalSize = buffer.reduce((sum, entry) => {
+      return sum + JSON.stringify(entry).length;
+    }, 0);
+    stats.averageSize = buffer.length > 0 ? Math.round(totalSize / buffer.length) : 0;
 
     // Create aggregation report
     const report = {
@@ -246,9 +303,33 @@ export class TransportManager extends EventEmitter {
         start: new Date(Date.now() - this.aggregationManager.interval),
         end: new Date(),
       },
-      total: this.aggregationManager.logBuffer.length,
-      // Add more aggregation logic as needed
+      stats,
     };
+
+    // Send to target transports
+    if (this.aggregationManager.targets.length > 0) {
+      const aggregationEntry = {
+        id: this.generateId(),
+        timestamp: new Date().toISOString(),
+        timestampMs: Date.now(),
+        level: 'info' as const,
+        message: 'Aggregation report',
+        plainMessage: 'Aggregation report',
+        loggerId: 'transport-manager',
+        tags: ['aggregation'],
+        context: report,
+      };
+
+      // Send to each target transport
+      this.aggregationManager.targets.forEach(targetName => {
+        const transport = this.transports.get(targetName);
+        if (transport && transport.isEnabled()) {
+          transport.log(aggregationEntry).catch(error => {
+            this.handleError(error, transport, aggregationEntry);
+          });
+        }
+      });
+    }
 
     // Emit aggregation event
     this.emit('aggregation', report);
@@ -568,6 +649,13 @@ export class TransportManager extends EventEmitter {
     // Add to aggregation buffer if enabled
     if (this.aggregationManager?.enabled) {
       this.aggregationManager.logBuffer.push(transformedEntry);
+      
+      // Limit buffer size to prevent memory issues
+      const maxBufferSize = 10000; // Configurable limit
+      if (this.aggregationManager.logBuffer.length > maxBufferSize) {
+        // Remove oldest entries
+        this.aggregationManager.logBuffer = this.aggregationManager.logBuffer.slice(-maxBufferSize);
+      }
     }
 
     // Get enabled transports that should log this entry
@@ -672,15 +760,26 @@ export class TransportManager extends EventEmitter {
    * @private
    */
   private async logToTransport(transport: Transport, entry: LogEntry): Promise<void> {
-    const startTime = process.hrtime.bigint();
+    const startTime = isBrowserEnvironment() 
+      ? BigInt(Math.floor(performance.now() * 1000000)) // Convert ms to ns for consistency
+      : (typeof process !== 'undefined' && process.hrtime?.bigint) ? process.hrtime.bigint() : BigInt(Date.now() * 1000000);
     const perfData = this.performanceData.get(transport.name);
 
     try {
-      await transport.log(entry);
+      // Apply timeout from TransportManager if specified
+      const logOperation = transport.log(entry);
+      if (this.defaultTimeout > 0) {
+        await this.withTimeout(logOperation, this.defaultTimeout);
+      } else {
+        await logOperation;
+      }
 
       // Update performance data
       if (perfData) {
-        const duration = Number(process.hrtime.bigint() - startTime) / 1000000; // Convert to ms
+        const endTime = isBrowserEnvironment() 
+          ? BigInt(Math.floor(performance.now() * 1000000)) // Convert ms to ns for consistency
+          : (typeof process !== 'undefined' && process.hrtime?.bigint) ? process.hrtime.bigint() : BigInt(Date.now() * 1000000);
+        const duration = Number(endTime - startTime) / 1000000; // Convert to ms
         perfData.count++;
         perfData.totalTime += duration;
       }
@@ -694,6 +793,27 @@ export class TransportManager extends EventEmitter {
       // Re-throw to be handled by caller
       throw error;
     }
+  }
+
+  /**
+   * Apply timeout to a promise.
+   * 
+   * @param {Promise<T>} promise - Promise to timeout
+   * @param {number} ms - Timeout in milliseconds
+   * @returns {Promise<T>} Promise with timeout
+   * @private
+   */
+  private async withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        reject(new Error(`Operation timed out after ${ms}ms`));
+      }, ms);
+
+      promise
+        .then(resolve)
+        .catch(reject)
+        .finally(() => clearTimeout(timeoutId));
+    });
   }
 
   /**
@@ -1085,6 +1205,25 @@ export class TransportManager extends EventEmitter {
   }
 
   /**
+   * Generate a unique ID for tracking purposes.
+   * 
+   * @returns {string} A unique identifier
+   * @private
+   */
+  private generateId(): string {
+    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  /**
+   * Get the current aggregation buffer size (for testing).
+   * 
+   * @returns {number} Buffer size
+   */
+  public getAggregationBufferSize(): number {
+    return this.aggregationManager?.logBuffer?.length || 0;
+  }
+
+  /**
    * Start health monitoring.
    * @private
    */
@@ -1154,5 +1293,27 @@ export class TransportManager extends EventEmitter {
     child.initialized = true;
 
     return child;
+  }
+
+  /**
+   * Handle errors from transports.
+   * 
+   * @param {Error} error - The error that occurred
+   * @param {Transport} [transport] - The transport that failed
+   * @param {LogEntry} [entry] - The log entry being processed
+   * @private
+   */
+  private handleError(error: Error, transport?: Transport, entry?: LogEntry): void {
+    this.emit('transportError', {
+      error,
+      transport: transport?.name,
+      entry,
+      timestamp: new Date().toISOString()
+    });
+
+    // Log error to console if no other transports are available
+    if (this.transports.size === 0 || (this.transports.size === 1 && transport && this.transports.has(transport.name))) {
+      console.error(`[TransportManager] ${transport?.name || 'Unknown'} transport error:`, error.message);
+    }
   }
 }

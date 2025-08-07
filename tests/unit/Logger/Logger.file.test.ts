@@ -20,18 +20,11 @@ describe('Logger File Operations', () => {
   });
 
   it('handles appendToFile errors when directory does not exist', () => {
-    const logger = new Logger({ writeToDisk: false });
+    // Create logger with writeToDisk enabled to trigger file operations
+    const logger = new Logger({ writeToDisk: true, logDir: LOG_DIR });
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
 
-    Object.defineProperty(logger, 'logFile', {
-      value: '/nonexistent/dir/file.log',
-      writable: true,
-    });
-    Object.defineProperty(logger, 'writeToDisk', {
-      value: true,
-      writable: true,
-    });
-
+    // Mock appendFileSync to throw an error
     fsMocks.appendFileSync.mockImplementation(() => {
       throw new Error('ENOENT: no such file or directory');
     });
@@ -39,8 +32,8 @@ describe('Logger File Operations', () => {
     logger.info('Test message');
 
     expect(errorSpy).toHaveBeenCalled();
-    expect(logger['writeToDisk']).toBe(false);
-    expect(logger['logFile']).toBeNull();
+    expect(logger.writeToDisk).toBe(false); // Should be disabled after error
+    expect(logger.logFile).toBeNull(); // Should be cleared after error
 
     errorSpy.mockRestore();
   });
@@ -147,9 +140,11 @@ describe('Logger File Operations', () => {
 
   it('getPath returns the correct log file path', () => {
     const logger = new Logger({ writeToDisk: true, logDir: LOG_DIR });
-    const mockPath = path.join(LOG_DIR, 'run-test.log');
-    Object.defineProperty(logger, 'logFile', { value: mockPath, writable: true });
-    expect(logger.getPath()).toBe(mockPath);
+    const logPath = logger.getPath();
+    
+    expect(logPath).toBeTruthy();
+    expect(logPath).toMatch(/log-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z\.log$/);
+    expect(logPath).toContain(LOG_DIR);
   });
 
   it('getLogDir returns the correct log directory', () => {

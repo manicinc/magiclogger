@@ -234,6 +234,8 @@ export abstract class Transport extends EventEmitter implements ITransport {
     } catch (error) {
       this.stats.failed++;
       this.handleError(error as Error, entry);
+      // Re-throw error so TransportManager can handle fallback logic
+      throw error;
     }
   }
 

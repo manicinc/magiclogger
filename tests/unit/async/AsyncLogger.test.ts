@@ -434,9 +434,8 @@ describe('AsyncLogger', () => {
     });
 
     it('should fallback to direct processing when no workers available', () => {
-      // Temporarily restore console.error for this test
-      (console.error as jest.Mock).mockRestore();
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
 
       asyncLogger = new AsyncLogger(
         {
@@ -447,21 +446,25 @@ describe('AsyncLogger', () => {
         mockCreateEntry
       );
 
-      // Get the flush handler
-      const workerFlushHandler = (AsyncBuffer as jest.MockedClass<typeof AsyncBuffer>).mock
-        .calls[0][0].onFlush;
+      // Verify initialization log was called with 0 workers
+      expect(consoleLogSpy).toHaveBeenCalledWith('[AsyncLogger] Initialized 0 worker threads');
 
+      // Verify that no workers were created
+      const workers = (asyncLogger as unknown as { workers: unknown[] }).workers;
+      expect(workers).toHaveLength(0);
+
+      // Call the sendToWorker method directly to test fallback
       const entries = [createMockEntry('info', 'Test')];
-      workerFlushHandler(entries);
+      (asyncLogger as unknown as { sendToWorker: (entries: unknown[]) => void }).sendToWorker(entries);
 
+      // Should log error and fallback to original handler
       expect(consoleSpy).toHaveBeenCalledWith(
         '[AsyncLogger] No workers available, falling back to direct processing'
       );
       expect(mockOnFlush).toHaveBeenCalledWith(entries);
 
       consoleSpy.mockRestore();
-      // Re-mock console.error for other tests
-      jest.spyOn(console, 'error').mockImplementation(() => undefined);
+      consoleLogSpy.mockRestore();
     });
 
     it('should handle worker send failure', () => {
@@ -590,7 +593,7 @@ describe('AsyncLogger', () => {
   });
 
   describe('edge cases', () => {
-    it('should handle async flush handler errors', () => {
+    it('should handle async flush handler errors', async () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
       mockOnFlush.mockRejectedValue(new Error('Async flush failed'));
@@ -614,14 +617,15 @@ describe('AsyncLogger', () => {
       const entries = [createMockEntry('info', 'Test')];
       workerFlushHandler(entries);
 
-      // Wait for promise to reject
-      setImmediate(() => {
-        expect(consoleSpy).toHaveBeenCalledWith(
-          '[AsyncLogger] Flush handler error:',
-          expect.any(Error)
-        );
-        consoleSpy.mockRestore();
-      });
+      // Wait for the promise rejection to be handled
+      await new Promise(resolve => setTimeout(resolve, 0));
+      
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[AsyncLogger] Flush handler error:',
+        expect.any(Error)
+      );
+      
+      consoleSpy.mockRestore();
     });
 
     it('should handle unknown worker message types', () => {

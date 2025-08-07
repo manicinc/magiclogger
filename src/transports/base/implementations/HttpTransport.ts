@@ -19,6 +19,80 @@ import type {
 } from '../../../types/transport';
 
 /**
+ * Circuit breaker states
+ */
+enum CircuitState {
+  CLOSED = 'closed',
+  OPEN = 'open',
+  HALF_OPEN = 'half-open'
+}
+
+/**
+ * Circuit breaker for HTTP endpoints
+ */
+class CircuitBreaker {
+  private state = CircuitState.CLOSED;
+  private failures = 0;
+  private successCount = 0;
+  private lastFailureTime = 0;
+  private readonly failureThreshold: number;
+  private readonly resetTimeout: number;
+  private readonly successThreshold: number;
+
+  constructor(
+    failureThreshold = 5,
+    resetTimeout = 60000, // 1 minute
+    successThreshold = 3
+  ) {
+    this.failureThreshold = failureThreshold;
+    this.resetTimeout = resetTimeout;
+    this.successThreshold = successThreshold;
+  }
+
+  recordSuccess(): void {
+    this.failures = 0;
+    
+    if (this.state === CircuitState.HALF_OPEN) {
+      this.successCount++;
+      if (this.successCount >= this.successThreshold) {
+        this.state = CircuitState.CLOSED;
+        this.successCount = 0;
+      }
+    }
+  }
+
+  recordFailure(): void {
+    this.failures++;
+    this.lastFailureTime = Date.now();
+    this.successCount = 0;
+
+    if (this.failures >= this.failureThreshold) {
+      this.state = CircuitState.OPEN;
+    }
+  }
+
+  canAttempt(): boolean {
+    if (this.state === CircuitState.CLOSED) {
+      return true;
+    }
+
+    if (this.state === CircuitState.OPEN) {
+      if (Date.now() - this.lastFailureTime > this.resetTimeout) {
+        this.state = CircuitState.HALF_OPEN;
+        return true;
+      }
+      return false;
+    }
+
+    return true; // HALF_OPEN state
+  }
+
+  getState(): CircuitState {
+    return this.state;
+  }
+}
+
+/**
  * HTTP transport for sending logs to HTTP endpoints.
  * 
  * Features:
@@ -133,11 +207,28 @@ export class HTTPTransport extends NetworkTransport {
   private readonly authRefreshInterval = 5 * 60 * 1000;
 
   /**
+   * Circuit breaker instance.
+   * @private
+   */
+  private internalCircuitBreaker: CircuitBreaker;
+
+  /**
+   * Whether compression is enabled.
+   * @private
+   */
+  private readonly compressionEnabled: boolean;
+
+  /**
    * Creates a new HTTPTransport instance.
    * 
    * @param {HTTPTransportOptions} options - Transport configuration
    */
   constructor(options: HTTPTransportOptions) {
+    // Validate required options
+    if (!options.url) {
+      throw new Error('HTTPTransport requires url option');
+    }
+
     const networkOptions: NetworkTransportOptions = {
       ...options,
       // HTTP specific defaults
@@ -149,9 +240,13 @@ export class HTTPTransport extends NetworkTransport {
 
     super(networkOptions);
 
-    this.targetUrl = new URL(options.url);
-    this.url = options.url; // Set parent's url property
-    this.method = options.method || 'POST';
+    try {
+      this.targetUrl = new URL(options.url);
+    } catch (error) {
+      throw new Error(`Invalid URL: ${options.url}`);
+    }
+    
+    this.method = options.method?.toUpperCase() || 'POST';
     this.auth = options.auth;
     this.bodyFormat = options.bodyFormat || 'json';
     this.transformRequest = options.transformRequest;
@@ -159,25 +254,38 @@ export class HTTPTransport extends NetworkTransport {
     this.followRedirects = options.followRedirects ?? true;
     this.maxRedirects = options.maxRedirects ?? 5;
     this.proxy = options.proxy;
+    this.compressionEnabled = options.compress ?? false;
+
+    // Initialize circuit breaker
+    this.internalCircuitBreaker = new CircuitBreaker(
+      options.circuitBreakerThreshold || 5,
+      options.circuitBreakerResetTimeout || 60000,
+      options.circuitBreakerSuccessThreshold || 3
+    );
 
     // Create appropriate agent
     const isHttps = this.targetUrl.protocol === 'https:';
     const AgentClass = isHttps ? https.Agent : http.Agent;
     
-    this.agent = new AgentClass({
+    const agentOptions: http.AgentOptions | https.AgentOptions = {
       keepAlive: true,
       keepAliveMsecs: 1000,
-      maxSockets: 100,
-      maxFreeSockets: 10,
-      timeout: this.requestTimeout,
-      // Add TLS options for HTTPS
-      ...(isHttps && this.tls ? {
-        rejectUnauthorized: this.tls.rejectUnauthorized ?? true,
-        cert: this.tls.cert,
-        key: this.tls.key,
-        ca: this.tls.ca,
-      } : {}),
-    });
+      maxSockets: options.maxSockets || 100,
+      maxFreeSockets: options.maxFreeSockets || 10,
+      timeout: options.requestTimeout || 30000,
+    };
+
+    // Add TLS options for HTTPS
+    if (isHttps && options.tls) {
+      Object.assign(agentOptions, {
+        rejectUnauthorized: options.tls.rejectUnauthorized ?? true,
+        cert: options.tls.cert,
+        key: options.tls.key,
+        ca: options.tls.ca,
+      });
+    }
+
+    this.agent = new AgentClass(agentOptions);
   }
 
   /**
@@ -228,13 +336,38 @@ export class HTTPTransport extends NetworkTransport {
    * @protected
    */
   protected async sendData(data: unknown): Promise<void> {
-    const body = typeof data === 'string' || Buffer.isBuffer(data) 
-      ? data 
-      : JSON.stringify(data);
+    // Check circuit breaker
+    if (!this.internalCircuitBreaker.canAttempt()) {
+      throw new Error(`Circuit breaker is open for ${this.targetUrl.hostname}`);
+    }
 
-    const headers = await this.buildRequestHeaders(body);
-    
-    await this.makeHttpRequest(this.method, this.targetUrl, headers, body);
+    try {
+      const body = this.prepareRequestBody(data);
+      const headers = await this.buildRequestHeaders(body);
+      
+      await this.makeHttpRequest(this.method, this.targetUrl, headers, body);
+      
+      // Record success
+      this.internalCircuitBreaker.recordSuccess();
+    } catch (error) {
+      // Record failure
+      this.internalCircuitBreaker.recordFailure();
+      throw error;
+    }
+  }
+
+  /**
+   * Prepare request body from data.
+   * 
+   * @param {unknown} data - Data to convert
+   * @returns {string | Buffer} Request body
+   * @private
+   */
+  private prepareRequestBody(data: unknown): string | Buffer {
+    if (typeof data === 'string' || Buffer.isBuffer(data)) {
+      return data;
+    }
+    return JSON.stringify(data);
   }
 
   /**
@@ -244,20 +377,47 @@ export class HTTPTransport extends NetworkTransport {
    * @protected
    */
   protected async checkHealth(): Promise<void> {
+    // Check circuit breaker state
+    if (!this.internalCircuitBreaker.canAttempt()) {
+      throw new Error(`Circuit breaker is open for ${this.targetUrl.hostname}`);
+    }
+
     // Make a lightweight health check request
     const healthUrl = new URL(this.targetUrl.toString());
-    healthUrl.pathname = healthUrl.pathname.replace(/\/$/, '') + '/health';
+    const healthPath = this.getHealthCheckPath();
+    
+    if (healthPath) {
+      healthUrl.pathname = healthPath;
+    }
 
     try {
-      await this.makeHttpRequest('GET', healthUrl, {});
-    } catch (error: unknown) {
+      await this.makeHttpRequest('GET', healthUrl, {}, undefined, 0, true);
+      this.internalCircuitBreaker.recordSuccess();
+    } catch (error) {
       // If health endpoint doesn't exist, try HEAD request to main endpoint
       try {
-        await this.makeHttpRequest('HEAD', this.targetUrl, {});
-      } catch {
-        throw new Error(`Health check failed: ${error}`);
+        await this.makeHttpRequest('HEAD', this.targetUrl, {}, undefined, 0, true);
+        this.internalCircuitBreaker.recordSuccess();
+      } catch (headError) {
+        this.internalCircuitBreaker.recordFailure();
+        throw new Error(`Health check failed: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
+  }
+
+  /**
+   * Get health check path.
+   * 
+   * @returns {string | null} Health check path
+   * @private
+   */
+  private getHealthCheckPath(): string | null {
+    const path = this.targetUrl.pathname.replace(/\/$/, '');
+    // Only append /health if we're not already hitting a specific endpoint
+    if (path === '' || path === '/') {
+      return '/health';
+    }
+    return null;
   }
 
   /**
@@ -269,10 +429,10 @@ export class HTTPTransport extends NetworkTransport {
   private async testEndpoint(): Promise<void> {
     try {
       await this.checkHealth();
-    } catch (error: unknown) {
+    } catch (error) {
       // Only warn, don't fail initialization
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.warn(`[HTTPTransport] Health check failed for ${this.targetUrl.hostname}: ${errorMessage}`);
+      console.warn(`Health check failed for ${this.targetUrl.hostname}: ${errorMessage}`);
     }
   }
 
@@ -310,10 +470,17 @@ export class HTTPTransport extends NetworkTransport {
 
       case 'custom':
         if (this.auth.customAuth) {
-          const customHeaders = await this.auth.customAuth();
-          Object.assign(headers, customHeaders);
+          try {
+            const customHeaders = await this.auth.customAuth();
+            Object.assign(headers, customHeaders);
+          } catch (error) {
+            throw new Error(`Failed to get custom auth headers: ${error instanceof Error ? error.message : String(error)}`);
+          }
         }
         break;
+
+      default:
+        throw new Error(`Unknown auth type: ${(this.auth as { type: string }).type}`);
     }
 
     this.authHeaders = headers;
@@ -323,11 +490,22 @@ export class HTTPTransport extends NetworkTransport {
   /**
    * Perform the network request to send logs.
    * 
-   * @param {LogEntry[]} entries - Log entries to send
+   * @param {unknown} data - Data to send
+   * @param {unknown} [batch] - Optional batch metadata
    * @returns {Promise<void>} Resolves when sent
    * @protected
    */
-  protected async performNetworkRequest(entries: LogEntry[]): Promise<void> {
+  protected async performNetworkRequest(data: unknown, batch?: unknown): Promise<void> {
+    // Convert data to LogEntry array if needed
+    let entries: LogEntry[];
+    if (Array.isArray(data)) {
+      entries = data;
+    } else if (batch && typeof batch === 'object' && batch !== null && 'entries' in batch) {
+      entries = (batch as { entries: LogEntry[] }).entries;
+    } else {
+      throw new Error('Invalid data format for HTTP transport');
+    }
+
     // Refresh auth if needed
     if (this.auth && Date.now() - this.lastAuthRefresh > this.authRefreshInterval) {
       await this.refreshAuthHeaders();
@@ -335,11 +513,11 @@ export class HTTPTransport extends NetworkTransport {
 
     // Transform data if transformer provided
     let body: string | Buffer = this.transformRequest 
-      ? this.ensureBodyType(this.transformRequest(entries))
+      ? this.ensureBodyType(await this.transformRequest(entries))
       : this.formatBody(entries);
 
     // Compress if enabled
-    if (this.compress && (typeof body === 'string' || Buffer.isBuffer(body))) {
+    if (this.compressionEnabled && (typeof body === 'string' || Buffer.isBuffer(body))) {
       body = await this.compressBody(body);
     }
 
@@ -364,9 +542,9 @@ export class HTTPTransport extends NetworkTransport {
     if (this.transformResponse && response.body) {
       try {
         const parsed = JSON.parse(response.body);
-        this.transformResponse(parsed);
-      } catch {
-        // Ignore parse errors
+        await this.transformResponse(parsed);
+      } catch (error) {
+        console.warn(`Failed to parse response: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
 
@@ -459,15 +637,16 @@ export class HTTPTransport extends NetworkTransport {
    */
   private async buildRequestHeaders(body: string | Buffer): Promise<Record<string, string>> {
     const headers: Record<string, string> = {
-      ...await this.buildHeaders(),
+      ...this.getDefaultHeaders(),
       'Content-Length': String(Buffer.byteLength(body)),
       'Content-Type': this.getContentType(),
       'Accept': 'application/json',
       'Connection': 'keep-alive',
+      'User-Agent': 'MagicLogger-HTTP/1.0',
     };
 
     // Add compression header if body is compressed
-    if (this.compress) {
+    if (this.compressionEnabled) {
       headers['Content-Encoding'] = 'gzip';
       headers['Accept-Encoding'] = 'gzip, deflate';
     }
@@ -477,12 +656,33 @@ export class HTTPTransport extends NetworkTransport {
       Object.assign(headers, this.authHeaders);
     }
 
-    // Add custom headers
-    if (this.headers) {
-      Object.assign(headers, this.headers);
+    // Add custom headers from options
+    const customHeaders = this.getCustomHeaders();
+    if (customHeaders) {
+      Object.assign(headers, customHeaders);
     }
 
     return headers;
+  }
+
+  /**
+   * Get default headers.
+   * 
+   * @returns {Record<string, string>} Default headers
+   * @private
+   */
+  private getDefaultHeaders(): Record<string, string> {
+    return this.headers || {};
+  }
+
+  /**
+   * Get custom headers from options.
+   * 
+   * @returns {Record<string, string> | undefined} Custom headers
+   * @private
+   */
+  private getCustomHeaders(): Record<string, string> | undefined {
+    return (this.options as HTTPTransportOptions).headers;
   }
 
   /**
@@ -510,8 +710,9 @@ export class HTTPTransport extends NetworkTransport {
    * @param {string} method - HTTP method
    * @param {URL} url - Request URL
    * @param {Record<string, string>} headers - Request headers
-   * @param {string | Buffer} body - Request body
-   * @param {number} redirectCount - Current redirect count
+   * @param {string | Buffer} [body] - Request body
+   * @param {number} [redirectCount=0] - Current redirect count
+   * @param {boolean} [isHealthCheck=false] - Whether this is a health check
    * @returns {Promise<any>} Response
    * @private
    */
@@ -520,7 +721,8 @@ export class HTTPTransport extends NetworkTransport {
     url: URL,
     headers: Record<string, string>,
     body?: string | Buffer,
-    redirectCount = 0
+    redirectCount = 0,
+    isHealthCheck = false
   ): Promise<{
     statusCode?: number;
     statusMessage?: string;
@@ -539,22 +741,12 @@ export class HTTPTransport extends NetworkTransport {
         path: url.pathname + url.search,
         headers,
         agent: this.agent,
-        timeout: this.requestTimeout,
+        timeout: isHealthCheck ? 5000 : this.requestTimeout,
       };
 
       // Add proxy if configured
-      if (this.proxy) {
-        options.hostname = this.proxy.host;
-        options.port = this.proxy.port;
-        options.path = url.toString();
-        
-        if (this.proxy.auth) {
-          const proxyAuth = Buffer.from(`${this.proxy.auth.username}:${this.proxy.auth.password}`).toString('base64');
-          options.headers = {
-            ...options.headers,
-            'Proxy-Authorization': `Basic ${proxyAuth}`,
-          };
-        }
+      if (this.proxy && !isHealthCheck) {
+        this.configureProxy(options, url);
       }
 
       const req = lib.request(options, (res) => {
@@ -572,12 +764,12 @@ export class HTTPTransport extends NetworkTransport {
 
           try {
             const redirectUrl = new URL(res.headers.location, url);
-            this.makeHttpRequest(method, redirectUrl, headers, body, redirectCount + 1)
+            this.makeHttpRequest(method, redirectUrl, headers, body, redirectCount + 1, isHealthCheck)
               .then(resolve)
               .catch(reject);
             return;
           } catch (error) {
-            reject(error);
+            reject(new Error(`Invalid redirect URL: ${res.headers.location}`));
             return;
           }
         }
@@ -619,24 +811,63 @@ export class HTTPTransport extends NetworkTransport {
           }
         });
 
-        stream.on('error', reject);
+        stream.on('error', (error) => {
+          reject(new Error(`Response stream error: ${error.message}`));
+        });
       });
 
       req.on('error', (error) => {
-        reject(error);
+        reject(new Error(`Request error: ${error.message}`));
       });
 
       req.on('timeout', () => {
         req.destroy();
-        reject(new Error(`Request timeout after ${this.requestTimeout}ms`));
+        reject(new Error(`Request timeout after ${options.timeout}ms`));
       });
 
-      if (body) {
+      if (body && method !== 'GET' && method !== 'HEAD') {
         req.write(body);
       }
 
       req.end();
     });
+  }
+
+  /**
+   * Configure proxy settings for request.
+   * 
+   * @param {http.RequestOptions | https.RequestOptions} options - Request options
+   * @param {URL} targetUrl - Target URL
+   * @private
+   */
+  private configureProxy(
+    options: http.RequestOptions | https.RequestOptions,
+    targetUrl: URL
+  ): void {
+    if (!this.proxy) return;
+
+    // Use HTTP CONNECT for HTTPS targets through HTTP proxy
+    if (targetUrl.protocol === 'https:' && this.proxy.protocol !== 'https:') {
+      // This requires a different approach - would need to implement CONNECT method
+      // For now, we'll use the simpler approach
+      options.hostname = this.proxy.host;
+      options.port = this.proxy.port;
+      options.path = targetUrl.toString();
+    } else {
+      options.hostname = this.proxy.host;
+      options.port = this.proxy.port;
+      options.path = targetUrl.toString();
+    }
+    
+    if (this.proxy.auth) {
+      const proxyAuth = Buffer.from(
+        `${this.proxy.auth.username}:${this.proxy.auth.password}`
+      ).toString('base64');
+      options.headers = {
+        ...options.headers,
+        'Proxy-Authorization': `Basic ${proxyAuth}`,
+      };
+    }
   }
 
   /**
@@ -653,12 +884,13 @@ export class HTTPTransport extends NetworkTransport {
    * Override retry condition for HTTP-specific errors.
    * 
    * @param {Error} error - The error to check
+   * @param {number} retryCount - Current retry count
    * @returns {boolean} Whether to retry
    * @protected
    */
-  protected defaultRetryCondition(error: Error): boolean {
+  protected shouldRetryError(error: Error, retryCount: number): boolean {
     // Check base conditions first
-    if (super.defaultRetryCondition(error)) {
+    if (super.shouldRetryError(error, retryCount)) {
       return true;
     }
 
@@ -668,7 +900,9 @@ export class HTTPTransport extends NetworkTransport {
     // Retry on specific HTTP errors
     if (message.includes('request timeout') ||
         message.includes('socket hang up') ||
-        message.includes('econnreset')) {
+        message.includes('econnreset') ||
+        message.includes('econnrefused') ||
+        message.includes('enotfound')) {
       return true;
     }
 
@@ -678,19 +912,63 @@ export class HTTPTransport extends NetworkTransport {
       // Retry on server errors and rate limiting
       return errorWithStatus.statusCode >= 500 || 
              errorWithStatus.statusCode === 429 ||
-             errorWithStatus.statusCode === 408;
+             errorWithStatus.statusCode === 408 ||
+             errorWithStatus.statusCode === 503 ||
+             errorWithStatus.statusCode === 504;
     }
 
     return false;
   }
 
   /**
-   * Get whether compression is enabled.
+   * Get circuit breaker state.
    * 
-   * @returns {boolean} True if compression is enabled
-   * @protected
+   * @returns {string} Circuit breaker state
+   * @public
    */
-  protected get compress(): boolean {
-    return (this.options as NetworkTransportOptions).compress ?? false;
+  public getCircuitBreakerState(): string {
+    return this.internalCircuitBreaker.getState();
   }
+
+  /**
+   * Reset circuit breaker.
+   * 
+   * @public
+   */
+  public resetCircuitBreaker(): void {
+    // Reset by creating a new instance
+    const httpOptions = this.options as HTTPTransportOptions;
+    this.internalCircuitBreaker = new CircuitBreaker(
+      httpOptions.circuitBreakerThreshold || 5,
+      httpOptions.circuitBreakerResetTimeout || 60000,
+      httpOptions.circuitBreakerSuccessThreshold || 3
+    );
+  }
+}
+
+/**
+ * Factory function to create an HTTP transport instance.
+ * 
+ * @param {HTTPTransportOptions} options - Transport configuration options
+ * @returns {HTTPTransport} New HTTP transport instance
+ * @throws {Error} If required options are missing
+ * 
+ * @example
+ * ```typescript
+ * const transport = createHTTPTransport({
+ *   url: 'https://logs.example.com',
+ *   auth: { type: 'bearer', token: 'abc123' }
+ * });
+ * ```
+ */
+export function createHTTPTransport(options: HTTPTransportOptions): HTTPTransport {
+  if (!options.url) {
+    throw new Error('HTTPTransport requires url option');
+  }
+
+  return new HTTPTransport({
+    enabled: true,
+    ...options,
+    name: options.name || 'http',
+  });
 }

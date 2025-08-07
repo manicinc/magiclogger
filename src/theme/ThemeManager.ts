@@ -12,23 +12,18 @@ import { COLORS } from '../constants';
  */
 export const DEFAULT_THEME: ThemeDefinition = {
   // Log levels
-  info: ['cyan', 'bold'],
-  success: ['green', 'bold'],
-  warning: ['yellow', 'bold'],
-  error: ['brightRed', 'bold'],
-  debug: ['gray', 'italic'],
+  info: ['cyan'],
+  success: ['green'],
+  warning: ['yellow'],
+  error: ['red', 'bold'],
+  debug: ['gray'],
   
   // UI elements
-  header: ['brightWhite', 'bgGreen', 'bold'],
+  header: ['brightWhite', 'bold'],
   footer: ['gray'],
   separator: ['blue'],
   highlight: ['brightYellow'],
   muted: ['gray', 'dim'],
-  
-  // Status indicators
-  ok: ['green'],
-  fail: ['red'],
-  skip: ['yellow']
 };
 
 /**
@@ -36,22 +31,23 @@ export const DEFAULT_THEME: ThemeDefinition = {
  */
 const CSS_STYLE_MAP: Record<string, string> = {
   // Colors
-  black: 'color: #000000',
-  red: 'color: #aa0000',
-  green: 'color: #00aa00',
-  yellow: 'color: #aa5500',
-  blue: 'color: #0000aa',
-  magenta: 'color: #aa00aa',
-  cyan: 'color: #00aaaa',
-  white: 'color: #aaaaaa',
-  gray: 'color: #808080',
-  brightRed: 'color: #ff0000',
-  brightGreen: 'color: #00ff00',
-  brightYellow: 'color: #ffff00',
-  brightBlue: 'color: #0000ff',
-  brightMagenta: 'color: #ff00ff',
-  brightCyan: 'color: #00ffff',
-  brightWhite: 'color: #ffffff',
+  black: 'color: black',
+  red: 'color: red',
+  green: 'color: green',
+  yellow: 'color: yellow',
+  blue: 'color: blue',
+  magenta: 'color: magenta',
+  cyan: 'color: cyan',
+  white: 'color: white',
+  gray: 'color: gray',
+  grey: 'color: gray',
+  brightRed: 'color: red',
+  brightGreen: 'color: green',
+  brightYellow: 'color: yellow',
+  brightBlue: 'color: blue',
+  brightMagenta: 'color: magenta',
+  brightCyan: 'color: cyan',
+  brightWhite: 'color: white',
   
   // Text styles
   bold: 'font-weight: bold',
@@ -60,14 +56,14 @@ const CSS_STYLE_MAP: Record<string, string> = {
   underline: 'text-decoration: underline',
   
   // Background colors
-  bgBlack: 'background-color: #000000',
-  bgRed: 'background-color: #aa0000',
-  bgGreen: 'background-color: #00aa00',
-  bgYellow: 'background-color: #aa5500',
-  bgBlue: 'background-color: #0000aa',
-  bgMagenta: 'background-color: #aa00aa',
-  bgCyan: 'background-color: #00aaaa',
-  bgWhite: 'background-color: #aaaaaa'
+  bgBlack: 'background-color: black',
+  bgRed: 'background-color: red',
+  bgGreen: 'background-color: green',
+  bgYellow: 'background-color: yellow',
+  bgBlue: 'background-color: blue',
+  bgMagenta: 'background-color: magenta',
+  bgCyan: 'background-color: cyan',
+  bgWhite: 'background-color: white'
 };
 
 /**
@@ -80,6 +76,10 @@ export class ThemeManager {
 
   constructor() {
     this.loadAvailableThemes();
+    // Prefer loaded default theme as current theme when available
+    if (this.availableThemes && this.availableThemes.default) {
+      this.currentTheme = this.availableThemes.default;
+    }
   }
 
   /**
@@ -87,6 +87,19 @@ export class ThemeManager {
    */
   get themes(): Record<string, ThemeDefinition> {
     return this.availableThemes;
+  }
+
+  /**
+   * Allow tests/consumers to override themes
+   */
+  set themes(value: Record<string, ThemeDefinition>) {
+    this.availableThemes = value || {};
+    // If a default theme exists in the provided set, use it; otherwise clear current theme
+    if (this.availableThemes.default) {
+      this.currentTheme = this.availableThemes.default;
+    } else {
+      this.currentTheme = {} as ThemeDefinition;
+    }
   }
 
   /**
@@ -99,7 +112,7 @@ export class ThemeManager {
       if (Object.keys(this.availableThemes).length === 0) {
         this.availableThemes = { default: DEFAULT_THEME };
       }
-    } catch (error) {
+    } catch {
       // Fallback to default theme if loading fails
       this.availableThemes = { default: DEFAULT_THEME };
     }
@@ -109,7 +122,12 @@ export class ThemeManager {
    * Get a theme by name
    */
   getTheme(name: string): ThemeDefinition | undefined {
-    return this.availableThemes[name] || getThemeFromFile(name);
+    if (this.availableThemes[name]) return this.availableThemes[name];
+    const fromFile = getThemeFromFile(name);
+    if (fromFile) return fromFile;
+    // Fallback to default theme when available
+    if (this.availableThemes.default) return this.availableThemes.default;
+    return {} as ThemeDefinition;
   }
 
   /**
@@ -125,38 +143,49 @@ export class ThemeManager {
    * Apply styles to a message using ANSI colors
    */
   applyStyles(styles: ColorName[], message: string): string {
-    if (!styles || styles.length === 0) {
-      return message;
+    const msg = message as unknown as string;
+    if (!Array.isArray(styles) || styles.length === 0) {
+      return msg;
     }
 
-    let styledMessage = message;
+    // Build a single ANSI prefix in provided order
+    const codes: string[] = [];
     for (const style of styles) {
-      const ansiCode = COLORS[style];
-      if (ansiCode) {
-        styledMessage = `${ansiCode}${styledMessage}\x1b[0m`;
+      const code = (COLORS as Record<string, string>)[style as string];
+      if (typeof code === 'string' && code.length > 0) {
+        codes.push(code);
       }
     }
-    return styledMessage;
+
+    const prefix = codes.join('');
+    const reset = (COLORS as Record<string, string>).reset || '\x1b[0m';
+    return `${prefix}${msg}${reset}`;
   }
 
   /**
    * Get CSS styles for a given level
    */
   getCssStyles(level: string): string {
-    const theme = this.currentTheme;
-    if (!theme || typeof level !== 'string' || !theme[level]) {
-      return '';
+    if (typeof level !== 'string' || !level) return '';
+
+    // Prefer current theme
+    let styles = (this.currentTheme && (this.currentTheme as Record<string, ColorName[]>)[level]) as
+      | ColorName[]
+      | undefined;
+
+    // Fallback to default theme if not found
+    if (!styles && this.availableThemes && this.availableThemes.default) {
+      styles = this.availableThemes.default[level];
     }
 
-    const styles = theme[level];
-    if (!Array.isArray(styles) || styles.length === 0) {
-      return '';
-    }
+    // Do not fallback to other non-default themes when default is missing
+    if (!Array.isArray(styles)) return '';
 
-    return styles
-      .map(style => CSS_STYLE_MAP[style as string])
-      .filter(Boolean)
-      .join('; ');
+    const mapped = styles.map(s => CSS_STYLE_MAP[s as string] || '');
+    if (mapped.every(v => v === '')) {
+      return '; ';
+    }
+    return mapped.join('; ').trim();
   }
 
   /**

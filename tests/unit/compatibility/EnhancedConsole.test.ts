@@ -278,7 +278,7 @@ describe('EnhancedConsole', () => {
       ];
       
       extended.table?.(data);
-      expect(tableSpy).toHaveBeenCalledWith(data);
+      expect(tableSpy).toHaveBeenCalledWith(data, ['brightWhite', 'bold']);
       
       restoreConsole();
     });
@@ -384,19 +384,26 @@ describe('EnhancedConsole', () => {
 
   describe('Restoration', () => {
     it('should restore original console methods', () => {
+      // Store the current mocked methods 
+      const mockedLog = console.log;
+      const mockedWarn = console.warn;
+      const mockedError = console.error;
+      const mockedInfo = console.info;
+      const mockedDebug = console.debug;
+      
       const { restoreConsole } = enhanceConsole();
       
-      // Methods should be enhanced
-      expect(console.log).not.toBe(originalConsole.log);
+      // Methods should be enhanced (different from mocked versions)
+      expect(console.log).not.toBe(mockedLog);
       
       restoreConsole();
       
-      // Methods should be restored
-      expect(console.log).toBe(originalConsole.log);
-      expect(console.warn).toBe(originalConsole.warn);
-      expect(console.error).toBe(originalConsole.error);
-      expect(console.info).toBe(originalConsole.info);
-      expect(console.debug).toBe(originalConsole.debug);
+      // Methods should be restored (back to the mocked versions)
+      expect(console.log).toBe(mockedLog);
+      expect(console.warn).toBe(mockedWarn);
+      expect(console.error).toBe(mockedError);
+      expect(console.info).toBe(mockedInfo);
+      expect(console.debug).toBe(mockedDebug);
     });
 
     it('should remove enhanced methods', () => {
@@ -465,6 +472,9 @@ describe('EnhancedConsole', () => {
     });
 
     it('should handle nested enhancements correctly', () => {
+      // Store the current mocked method
+      const mockedLog = console.log;
+      
       const { restoreConsole: restore1 } = enhanceConsole();
       const firstLog = console.log;
       
@@ -472,13 +482,13 @@ describe('EnhancedConsole', () => {
       const secondLog = console.log;
       
       expect(firstLog).not.toBe(secondLog);
-      expect(secondLog).not.toBe(originalConsole.log);
+      expect(secondLog).not.toBe(mockedLog);
       
       restore2();
-      expect(console.log).not.toBe(originalConsole.log); // Still enhanced by first
+      expect(console.log).not.toBe(mockedLog); // Still enhanced by first
       
       restore1();
-      expect(console.log).toBe(originalConsole.log); // Fully restored
+      expect(console.log).toBe(mockedLog); // Fully restored to mocked version
     });
   });
 
@@ -515,11 +525,27 @@ describe('EnhancedConsole', () => {
         restoreConsole();
       }).not.toThrow();
       
-      global.process = originalProcess;
+      if (originalProcess) {
+        global.process = originalProcess;
+      }
     });
   });
 
   describe('Edge Cases', () => {
+    beforeEach(() => {
+      // Mock process for Node.js environment tests
+      if (typeof global.process === 'undefined') {
+        Object.defineProperty(global, 'process', {
+          value: {
+            cwd: () => '/fake/path',
+            nextTick: (cb: () => void) => setTimeout(cb, 0),
+            on: jest.fn(),
+          },
+          configurable: true,
+        });
+      }
+    });
+
     it('should handle empty calls', () => {
       const { restoreConsole } = enhanceConsole();
       const extended = console as ExtendedConsole;
@@ -582,6 +608,20 @@ describe('EnhancedConsole', () => {
   });
 
   describe('Integration with Logger', () => {
+    beforeEach(() => {
+      // Mock process for Node.js environment tests
+      if (typeof global.process === 'undefined') {
+        Object.defineProperty(global, 'process', {
+          value: {
+            cwd: () => '/fake/path',
+            nextTick: (cb: () => void) => setTimeout(cb, 0),
+            on: jest.fn(),
+          },
+          configurable: true,
+        });
+      }
+    });
+
     it('should use the same logger instance across all methods', () => {
       const { logger, restoreConsole } = enhanceConsole();
       

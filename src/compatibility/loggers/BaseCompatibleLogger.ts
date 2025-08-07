@@ -38,6 +38,12 @@ export interface LogCompatibilityOptions extends LoggerOptions {
 
   /** Number of days to retain log files. @default 30 */
   logRetentionDays?: number;
+
+  /** Array of tags for categorizing log entries */
+  tags?: string[];
+
+  /** Additional context data for log entries */
+  context?: Record<string, unknown>;
 }
 
 /**
@@ -96,6 +102,12 @@ export abstract class BaseCompatibleLogger {
   /** Whether to enforce strict level checking */
   protected strictLevels: boolean;
 
+  /** Array of tags for categorizing log entries */
+  protected tags: string[];
+
+  /** Additional context data for log entries */
+  protected context: Record<string, unknown>;
+
   /** Storage for child logger references */
   protected children: WeakMap<object, BaseCompatibleLogger> = new WeakMap();
 
@@ -115,6 +127,8 @@ export abstract class BaseCompatibleLogger {
     this.logDir = options.logDir || './logs';
     this.logRetentionDays = options.logRetentionDays || 30;
     this.strictLevels = options.strictLevels || false;
+    this.tags = options.tags || [];
+    this.context = options.context || {};
 
     const loggerOptions: ExtendedLoggerOptions = {
       ...options,

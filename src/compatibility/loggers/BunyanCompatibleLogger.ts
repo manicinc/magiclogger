@@ -256,7 +256,7 @@ export class BunyanCompatibleLogger extends BaseCompatibleLogger {
    * @param {BunyanCompatibleOptions} options - Logger options
    */
   constructor(options: BunyanCompatibleOptions) {
-    const opts = { ...options, name: options?.name || 'app' };
+    const opts = { ...options, name: options?.name === '' ? '' : (options?.name || 'app') };
     super(opts);
 
     this.showName = opts.showName !== false;

@@ -80,8 +80,14 @@ export class FileManager {
    * @returns The absolute directory path.
    */
   public resolveLogDir(dirPath: string): string {
+    // Validate input
+    if (typeof dirPath !== 'string') {
+      throw new TypeError(`The "path" argument must be of type string. Received type ${typeof dirPath} (${dirPath})`);
+    }
+    
     // Modules are now guaranteed to be initialized
-    return this.path.isAbsolute(dirPath) ? dirPath : this.path.resolve(process.cwd(), dirPath);
+    const cwd = (typeof process !== 'undefined' && process.cwd) ? process.cwd() : '.';
+    return this.path.isAbsolute(dirPath) ? dirPath : this.path.resolve(cwd, dirPath);
   }
 
   /**
@@ -101,6 +107,26 @@ export class FileManager {
       console.error('[FileManager] Failed to initialize log file:', err);
       this.logFile = null;
       return null;
+    }
+  }
+
+  /**
+   * Synchronously initializes a log file.
+   * @returns {string | null} The log file path if successful, null otherwise
+   */
+  public initLogFileSync(): string | null {
+    try {
+      if (!this.fs.existsSync(this.logDir)) {
+        this.fs.mkdirSync(this.logDir, { recursive: true });
+      }
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      this.logFile = this.path.join(this.logDir, `log-${timestamp}.log`);
+      this.fs.writeFileSync(this.logFile, `--- Log Start: ${new Date().toLocaleString()} ---\n`);
+      return this.logFile;
+    } catch (err) {
+      console.error('[FileManager] Failed to initialize log file:', err);
+      this.logFile = null;
+      throw err; // Re-throw for caller to handle
     }
   }
 

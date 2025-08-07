@@ -497,7 +497,9 @@ describe('NetworkTransport', () => {
       transport['circuitBreakerOpen'] = true;
       transport['circuitBreakerOpenUntil'] = Date.now() - 1000; // Past
       
+      // First check should return false and reset the state
       expect(transport.testIsCircuitBreakerOpen()).toBe(false);
+      // After the check, the state should be reset
       expect(transport.getCircuitBreakerOpen()).toBe(false);
     });
 
@@ -801,6 +803,9 @@ describe('NetworkTransport', () => {
       
       transport.testHandleNetworkFailure(new Error('Test'), mockBatch);
       
+      // Wait a bit for async fallback call
+      await new Promise(resolve => setTimeout(resolve, 10));
+      
       expect(writeSpy).toHaveBeenCalled();
       expect(fallbackSpy).toHaveBeenCalled();
     });
@@ -809,7 +814,7 @@ describe('NetworkTransport', () => {
   describe('sleep utility', () => {
     it('should sleep for specified duration', async () => {
       const start = Date.now();
-      await transport['sleep'](100);
+      await transport['sleepMs'](100);
       const duration = Date.now() - start;
       
       expect(duration).toBeGreaterThanOrEqual(90);

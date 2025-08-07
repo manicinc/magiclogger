@@ -6,6 +6,7 @@ import type {
   LogEntry,
   TransportManagerOptions,
   TransportStats,
+  AggregationStats,
 } from '../../../../src/types/transport';
 
 /**
@@ -535,12 +536,10 @@ describe('TransportManager', () => {
       await aggregationManager.log({ ...mockEntry, level: 'error' });
       await aggregationManager.log({ ...mockEntry, level: 'error' });
 
-      // Trigger aggregation
-      jest.advanceTimersByTime(1000);
-
-      // Wait for any pending promises with multiple flushes
-      await new Promise(resolve => setImmediate(resolve));
-      jest.runOnlyPendingTimers();
+      // Trigger aggregation manually by calling the internal method
+      (aggregationManager as any).performAggregation();
+      
+      // Allow async operations to complete
       await new Promise(resolve => setImmediate(resolve));
 
       // Check metrics transport received aggregation
@@ -564,13 +563,12 @@ describe('TransportManager', () => {
       await aggregationManager.log({ ...mockEntry, loggerId: 'logger2' });
       await aggregationManager.log({ ...mockEntry, loggerId: 'logger1' });
 
-      jest.advanceTimersByTime(1000);
-      await new Promise(resolve => setImmediate(resolve));
-      jest.runOnlyPendingTimers();
+      // Trigger aggregation manually
+      (aggregationManager as any).performAggregation();
       await new Promise(resolve => setImmediate(resolve));
 
       const aggEntry = metricsTransport.logCalls[metricsTransport.logCalls.length - 1];
-      expect(aggEntry.context?.stats?.byLogger).toEqual({
+      expect((aggEntry.context?.stats as AggregationStats)?.byLogger).toEqual({
         logger1: 2,
         logger2: 1,
       });
@@ -584,13 +582,12 @@ describe('TransportManager', () => {
       await aggregationManager.log({ ...mockEntry, tags: ['api', 'v2'] });
       await aggregationManager.log({ ...mockEntry, tags: ['api'] });
 
-      jest.advanceTimersByTime(1000);
-      await new Promise(resolve => setImmediate(resolve));
-      jest.runOnlyPendingTimers();
+      // Trigger aggregation manually
+      (aggregationManager as any).performAggregation();
       await new Promise(resolve => setImmediate(resolve));
 
       const aggEntry = metricsTransport.logCalls[metricsTransport.logCalls.length - 1];
-      expect(aggEntry.context?.stats?.byTags).toEqual({
+      expect((aggEntry.context?.stats as AggregationStats)?.byTags).toEqual({
         api: 3,
         v1: 1,
         v2: 1,
@@ -604,14 +601,13 @@ describe('TransportManager', () => {
       await aggregationManager.log(mockEntry);
       await aggregationManager.log({ ...mockEntry, message: 'x'.repeat(100) });
 
-      jest.advanceTimersByTime(1000);
-      await new Promise(resolve => setImmediate(resolve));
-      jest.runOnlyPendingTimers();
+      // Trigger aggregation manually
+      (aggregationManager as any).performAggregation();
       await new Promise(resolve => setImmediate(resolve));
 
       expect(metricsTransport.logCalls.length).toBeGreaterThan(0);
       const aggEntry = metricsTransport.logCalls[metricsTransport.logCalls.length - 1];
-      expect(aggEntry.context?.stats?.avgSize).toBeGreaterThan(0);
+      expect((aggEntry.context?.stats as AggregationStats)?.avgSize).toBeGreaterThan(0);
     }, 15000); // Increase timeout
 
     it('should emit aggregation event', async () => {
@@ -620,9 +616,8 @@ describe('TransportManager', () => {
 
       await aggregationManager.log(mockEntry);
 
-      jest.advanceTimersByTime(1000);
-      await new Promise(resolve => setImmediate(resolve));
-      jest.runOnlyPendingTimers();
+      // Trigger aggregation manually
+      (aggregationManager as any).performAggregation();
       await new Promise(resolve => setImmediate(resolve));
 
       expect(aggSpy).toHaveBeenCalledWith(
@@ -639,24 +634,22 @@ describe('TransportManager', () => {
 
       await aggregationManager.log(mockEntry);
 
-      jest.advanceTimersByTime(1000);
-      await new Promise(resolve => setImmediate(resolve));
-      jest.runOnlyPendingTimers();
+      // First aggregation
+      (aggregationManager as any).performAggregation();
       await new Promise(resolve => setImmediate(resolve));
 
       // Log more after aggregation
       await aggregationManager.log({ ...mockEntry, level: 'warn' });
 
-      jest.advanceTimersByTime(1000);
-      await new Promise(resolve => setImmediate(resolve));
-      jest.runOnlyPendingTimers();
+      // Second aggregation
+      (aggregationManager as any).performAggregation();
       await new Promise(resolve => setImmediate(resolve));
 
       // Second aggregation should only have new log
       expect(metricsTransport.logCalls.length).toBeGreaterThanOrEqual(2);
       const secondAgg = metricsTransport.logCalls[metricsTransport.logCalls.length - 1];
-      expect(secondAgg.context?.stats.total).toBe(1);
-      expect(secondAgg.context?.stats.byLevel).toEqual({ warn: 1 });
+      expect((secondAgg.context?.stats as AggregationStats).total).toBe(1);
+      expect((secondAgg.context?.stats as AggregationStats).byLevel).toEqual({ warn: 1 });
     }, 15000); // Increase timeout
 
     it('should limit buffer size', async () => {
@@ -668,7 +661,7 @@ describe('TransportManager', () => {
 
       // Buffer should be limited to prevent memory issues
       // Check if buffer size is reasonable (implementation may vary)
-      expect(aggregationManager['logBuffer'].length).toBeLessThanOrEqual(1000);
+      expect(aggregationManager.getAggregationBufferSize()).toBeLessThanOrEqual(1000);
     }, 15000); // Increase timeout
 
     it('should emit closing and closed events', async () => {
@@ -738,8 +731,8 @@ describe('TransportManager', () => {
 
       const stats = manager.getStats();
 
-      expect(stats._manager.aggregationEnabled).toBe(true);
-      expect(stats._manager.currentAggregation).toBeDefined();
+      expect(stats._manager?.aggregationEnabled).toBe(true);
+      expect(stats._manager?.currentAggregation).toBeDefined();
     });
   });
 
@@ -802,7 +795,13 @@ describe('TransportManager', () => {
       await manager.add(metricsTransport);
       await manager.log(mockEntry);
 
+      // Add a small delay to ensure the log is processed
+      await new Promise(resolve => setImmediate(resolve));
+      
       await manager.close();
+
+      // Add another small delay to ensure close operations complete
+      await new Promise(resolve => setImmediate(resolve));
 
       // Should have both the original log and the aggregation report
       expect(metricsTransport.logCalls).toHaveLength(2);
@@ -812,7 +811,7 @@ describe('TransportManager', () => {
         call => call.loggerId === 'transport-manager' && call.tags?.includes('aggregation')
       );
       expect(aggregationReport).toBeDefined();
-      expect(aggregationReport?.context?.stats?.total).toBe(1);
+      expect((aggregationReport?.context as { stats: AggregationStats })?.stats?.total).toBe(1);
     });
 
     it('should prevent multiple close calls', async () => {

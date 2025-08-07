@@ -411,6 +411,16 @@ export class TagManager extends EventEmitter {
   private normalizeTag(tag: string): string {
     let normalized = tag;
 
+    // Apply custom normalization first to allow complete override
+    if (this.normalizationRules.custom) {
+      normalized = this.normalizationRules.custom(normalized);
+      // If custom rule is provided, skip other rules unless explicitly needed
+      if (normalized.length > this.options.maxTagLength) {
+        normalized = normalized.substring(0, this.options.maxTagLength);
+      }
+      return normalized;
+    }
+
     if (this.normalizationRules.trim) {
       normalized = normalized.trim();
     }
@@ -420,17 +430,17 @@ export class TagManager extends EventEmitter {
     }
 
     if (this.normalizationRules.replaceSpaces) {
-      // Replace spaces, underscores, and dots with hyphens
-      normalized = normalized.replace(/[\s._]+/g, '-');
+      // Replace spaces, underscores, and dots with hyphens, but keep existing hyphens
+      normalized = normalized.replace(/[\s_.]+/g, '-');
     }
 
     if (this.normalizationRules.removeSpecialChars) {
       // Remove special characters except hyphens and alphanumeric
       normalized = normalized.replace(/[^a-zA-Z0-9-]/g, '');
-    }
-
-    if (this.normalizationRules.custom) {
-      normalized = this.normalizationRules.custom(normalized);
+      
+      // Clean up multiple consecutive hyphens and leading/trailing hyphens
+      normalized = normalized.replace(/-+/g, '-'); // Replace multiple hyphens with single hyphen
+      normalized = normalized.replace(/^-+|-+$/g, ''); // Remove leading and trailing hyphens
     }
 
     // Apply max length
@@ -525,7 +535,7 @@ export class TagManager extends EventEmitter {
    */
   public extract(text: string, options: TagExtractionOptions = {}): string[] {
     const {
-      pattern = /#(\w+)/g,
+      pattern = /#([\w-]+)/g,
       maxExtract = 10,
     } = options;
 

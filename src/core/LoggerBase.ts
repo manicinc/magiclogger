@@ -4,7 +4,7 @@ import { EventEmitter } from 'events';
 import type { 
   LoggerOptions, 
   LogLevel, 
-  ColorName, 
+  ColorName,
   StylePreset
 } from '../types';
 import { PRESETS } from '../constants/preset';
@@ -149,11 +149,16 @@ export abstract class LoggerBase extends EventEmitter {
       setTimeout(() => {
         this.emit('ready', { id: this.id });
       }, 0);
-    } else {
+    } else if (typeof process !== 'undefined' && process.nextTick) {
       // Use process.nextTick in Node.js environments
       process.nextTick(() => {
         this.emit('ready', { id: this.id });
       });
+    } else {
+      // Fallback to setTimeout
+      setTimeout(() => {
+        this.emit('ready', { id: this.id });
+      }, 0);
     }
   }
 
@@ -256,7 +261,7 @@ export abstract class LoggerBase extends EventEmitter {
     // Track performance
     const startTime = isBrowserEnvironment() 
       ? BigInt(Math.floor(performance.now() * 1000000)) // Convert ms to ns for consistency
-      : process.hrtime.bigint();
+      : (typeof process !== 'undefined' && process.hrtime?.bigint) ? process.hrtime.bigint() : BigInt(Date.now() * 1000000);
 
     // Call appropriate method based on level
     switch (level.toLowerCase()) {
@@ -284,7 +289,7 @@ export abstract class LoggerBase extends EventEmitter {
     // Track performance
     const endTime = isBrowserEnvironment() 
       ? BigInt(Math.floor(performance.now() * 1000000)) // Convert ms to ns for consistency
-      : process.hrtime.bigint();
+      : (typeof process !== 'undefined' && process.hrtime?.bigint) ? process.hrtime.bigint() : BigInt(Date.now() * 1000000);
     this.trackPerformance(level, Number(endTime - startTime) / 1000000); // Convert to ms
 
     // Emit log event

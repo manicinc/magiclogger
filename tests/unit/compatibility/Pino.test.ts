@@ -111,10 +111,11 @@ describe('PinoCompatibleLogger', () => {
 
   describe('Standard Log Methods', () => {
     it('should support trace level', () => {
-      pino.level = 'trace'; // Enable trace level
-      pino.trace('Trace message');
+      // Create logger with prettyPrint disabled for raw format test
+      const testPino = createPinoCompatible({ prettyPrint: false, level: 'trace' });
+      testPino.trace('Trace message');
       expect(debugSpy).toHaveBeenCalledWith(
-        expect.stringContaining('TRACE: Trace message'),
+        '{"level":"trace","msg":"Trace message"}',
         expect.any(Object)
       );
     });
@@ -153,9 +154,11 @@ describe('PinoCompatibleLogger', () => {
     });
 
     it('should support fatal level', () => {
-      pino.fatal('Fatal message');
+      // Create logger with prettyPrint disabled for raw format test
+      const testPino = createPinoCompatible({ prettyPrint: false });
+      testPino.fatal('Fatal message');
       expect(errorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('FATAL: Fatal message'),
+        '{"level":"fatal","msg":"Fatal message"}',
         expect.any(Object)
       );
     });
@@ -694,14 +697,14 @@ describe('PinoCompatibleLogger', () => {
     it('should handle empty log calls', () => {
       const testPino = createPinoCompatible({ prettyPrint: false });
       testPino.info('');
-      expect(logSpy).toHaveBeenCalledWith('', expect.any(Object));
+      expect(logSpy).toHaveBeenCalledWith('{"level":"info","msg":""}', expect.any(Object));
     });
 
     it('should handle null and undefined', () => {
       const testPino = createPinoCompatible({ prettyPrint: false });
       testPino.info(null as unknown as string);
       expect(logSpy).toHaveBeenCalledWith(
-        expect.stringContaining('null'),
+        '{"level":"info","msg":"null"}',
         expect.any(Object)
       );
 

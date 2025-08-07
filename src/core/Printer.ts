@@ -100,7 +100,7 @@ export class Printer {
    */
   private static config: Required<PrinterOptions> = {
     useColors: true,
-    stream: process.stdout,
+    stream: typeof process !== 'undefined' ? process.stdout : undefined as any,
     timestamps: false,
     timestampFormat: 'HH:mm:ss.SSS',
     console: console,
@@ -275,8 +275,10 @@ export class Printer {
   public static printError(message: string): void {
     if (isBrowserEnvironment()) {
       this.originalConsole.error(message);
-    } else {
+    } else if (typeof process !== 'undefined' && process.stderr) {
       process.stderr.write(message + '\n');
+    } else {
+      this.originalConsole.error(message);
     }
   }
 
@@ -342,12 +344,20 @@ export class Printer {
       this.progressState.lastLine = line;
 
       // Clear line and write new progress
-      process.stdout.write(`\r${' '.repeat(process.stdout.columns || 80)}`);
-      process.stdout.write(`\r${line}`);
-      
-      if (parseFloat(percent) >= 100) {
-        process.stdout.write('\n');
-        this.progressState.active = false;
+      if (typeof process !== 'undefined' && process.stdout) {
+        process.stdout.write(`\r${' '.repeat(process.stdout.columns || 80)}`);
+        process.stdout.write(`\r${line}`);
+        
+        if (parseFloat(percent) >= 100) {
+          process.stdout.write('\n');
+          this.progressState.active = false;
+        }
+      } else {
+        // Browser fallback - just log the progress
+        this.originalConsole.log(line);
+        if (parseFloat(percent) >= 100) {
+          this.progressState.active = false;
+        }
       }
     }
   }
@@ -358,7 +368,7 @@ export class Printer {
    * @static
    */
   private static clearProgress(): void {
-    if (!isBrowserEnvironment() && this.progressState.active) {
+    if (!isBrowserEnvironment() && this.progressState.active && typeof process !== 'undefined' && process.stdout) {
       process.stdout.write(`\r${' '.repeat(process.stdout.columns || 80)}\r`);
       this.progressState.active = false;
     }
@@ -735,7 +745,7 @@ export class Printer {
   public static clear(): void {
     if (isBrowserEnvironment()) {
       console.clear();
-    } else {
+    } else if (typeof process !== 'undefined' && process.stdout) {
       process.stdout.write('\x1bc');
     }
   }
@@ -748,7 +758,7 @@ export class Printer {
    * @static
    */
   public static moveCursor(x: number, y: number): void {
-    if (!isBrowserEnvironment()) {
+    if (!isBrowserEnvironment() && typeof process !== 'undefined' && process.stdout) {
       process.stdout.write(`\x1b[${y};${x}H`);
     }
   }
@@ -758,7 +768,7 @@ export class Printer {
    * @static
    */
   public static saveCursor(): void {
-    if (!isBrowserEnvironment()) {
+    if (!isBrowserEnvironment() && typeof process !== 'undefined' && process.stdout) {
       process.stdout.write('\x1b[s');
     }
   }
@@ -768,7 +778,7 @@ export class Printer {
    * @static
    */
   public static restoreCursor(): void {
-    if (!isBrowserEnvironment()) {
+    if (!isBrowserEnvironment() && typeof process !== 'undefined' && process.stdout) {
       process.stdout.write('\x1b[u');
     }
   }
@@ -778,7 +788,7 @@ export class Printer {
    * @static
    */
   public static hideCursor(): void {
-    if (!isBrowserEnvironment()) {
+    if (!isBrowserEnvironment() && typeof process !== 'undefined' && process.stdout) {
       process.stdout.write('\x1b[?25l');
     }
   }
@@ -788,7 +798,7 @@ export class Printer {
    * @static
    */
   public static showCursor(): void {
-    if (!isBrowserEnvironment()) {
+    if (!isBrowserEnvironment() && typeof process !== 'undefined' && process.stdout) {
       process.stdout.write('\x1b[?25h');
     }
   }
@@ -800,7 +810,7 @@ export class Printer {
    * @static
    */
   public static getTerminalSize(): { columns: number; rows: number } {
-    if (isBrowserEnvironment()) {
+    if (isBrowserEnvironment() || typeof process === 'undefined' || !process.stdout) {
       return { columns: 80, rows: 24 };
     }
 
@@ -817,7 +827,7 @@ export class Printer {
    * @static
    */
   public static isTTY(): boolean {
-    if (isBrowserEnvironment()) {
+    if (isBrowserEnvironment() || typeof process === 'undefined' || !process.stdout) {
       return false;
     }
 
@@ -851,7 +861,7 @@ export class Printer {
    * @static
    */
   public static reset(): void {
-    if (!isBrowserEnvironment()) {
+    if (!isBrowserEnvironment() && typeof process !== 'undefined' && process.stdout) {
       this.config.stream = process.stdout;
     }
   }

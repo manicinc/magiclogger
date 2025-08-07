@@ -130,7 +130,7 @@ describe('Logger Formatting and Color Handling', () => {
       });
 
       // Apply unsupported styles
-      const colorizeStrikethrough = (logger as any).colorize.bind(logger);
+      const colorizeStrikethrough = logger.colorize.bind(logger);
       const strikethroughResult = colorizeStrikethrough('test text', ['strikethrough']);
       const italicResult = colorizeStrikethrough('test text', ['italic']);
 
@@ -174,7 +174,7 @@ describe('Logger Formatting and Color Handling', () => {
       });
 
       // Apply unsupported styles to link-like text
-      const colorizeLink = (logger as any).colorize.bind(logger);
+      const colorizeLink = logger.colorize.bind(logger);
       const styledLink = colorizeLink('https://example.com', ['strikethrough', 'italic']);
 
       // Should use fallback styles for links too
@@ -193,7 +193,7 @@ describe('Logger Formatting and Color Handling', () => {
       const logger = new Logger({ useColors: true });
 
       // Test preserveLinks method
-      const preserveLinks = (logger as any).preserveLinks.bind(logger);
+      const preserveLinks = logger.preserveLinks.bind(logger);
 
       // Test with various link types in text
       const text =
@@ -214,7 +214,7 @@ describe('Logger Formatting and Color Handling', () => {
       const logger = new Logger({ useColors: true });
 
       // Test preserveLinks method
-      const preserveLinks = (logger as any).preserveLinks.bind(logger);
+      const preserveLinks = logger.preserveLinks.bind(logger);
 
       // Test with markdown links
       const markdownText =
@@ -232,7 +232,7 @@ describe('Logger Formatting and Color Handling', () => {
       const logger = new Logger({ useColors: true });
 
       // Test preserveLinks method
-      const preserveLinks = (logger as any).preserveLinks.bind(logger);
+      const preserveLinks = logger.preserveLinks.bind(logger);
 
       // Test with empty and null input
       expect(preserveLinks('')).toBe('');
@@ -260,7 +260,7 @@ describe('Logger Formatting and Color Handling', () => {
       const logger = new Logger({ useColors: true });
 
       // Access the applyPreset method
-      const applyPreset = (logger as any).applyPreset.bind(logger);
+      const applyPreset = logger.applyPreset.bind(logger);
 
       // Test each preset
       for (const preset of Object.keys(PRESETS)) {
@@ -305,7 +305,7 @@ describe('Logger Formatting and Color Handling', () => {
         });
 
       // Modify the Logger.colorize method to ensure it uses underline for strikethrough
-      const colorizeSpy = jest.spyOn(logger as any, 'colorize');
+      const colorizeSpy = jest.spyOn(logger, 'colorize');
       colorizeSpy.mockImplementation(function (...args: unknown[]) {
         const message = args[0] as string;
         const colors = args[1] as string[];

@@ -113,7 +113,7 @@ export class StreamTransport extends Transport {
     this.stream = options.stream;
     this.autoClose = options.autoClose ?? false;
     this.encoding = options.encoding || 'utf8';
-    this.lineEnding = process.platform === 'win32' ? '\r\n' : '\n';
+    this.lineEnding = (typeof process !== 'undefined' && process.platform === 'win32') ? '\r\n' : '\n';
   }
 
   /**

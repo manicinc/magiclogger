@@ -1,7 +1,7 @@
 // File: tests/unit/core/Colorizer.test.ts
 
 import { Colorizer } from '../../../src/core/Colorizer';
-import { COLORS, PRESETS } from '../../../src/constants';
+import { COLORS } from '../../../src/constants';
 import * as terminalUtils from '../../../src/utils/terminal';
 import type { ColorName, StylePreset } from '../../../src/types';
 
@@ -21,14 +21,14 @@ describe('Colorizer', () => {
     originalGetFallbackStyle = terminalUtils.getFallbackStyle;
     
     // Mock getFallbackStyle to return consistent results
-    jest.spyOn(terminalUtils, 'getFallbackStyle').mockImplementation((style) => {
+    jest.spyOn(terminalUtils, 'getFallbackStyle').mockImplementation((style: string): string => {
       // Return a fallback style for testing
       const fallbacks: Record<string, string> = {
         'italic': 'dim',
         'strikethrough': 'dim',
         'blink': 'bold'
       };
-      return fallbacks[style] || null;
+      return fallbacks[style] || style;
     });
   });
 
@@ -55,7 +55,7 @@ describe('Colorizer', () => {
 
     it('should handle invalid color names gracefully', () => {
       const result = Colorizer.color('Hello', 'invalidColor' as ColorName);
-      expect(result).toBe(`Hello${COLORS.reset}`);
+      expect(result).toBe('Hello'); // Should return original text without color
     });
 
     it('should apply background colors', () => {
@@ -143,19 +143,21 @@ describe('Colorizer', () => {
     });
 
     it('should handle null/undefined colors array', () => {
-      const result = Colorizer.applyColors('Hello', null as any);
+      const result = Colorizer.applyColors('Hello', null as unknown as ColorName[]);
       expect(result).toBe('Hello');
     });
 
     it('should filter out non-string color values', () => {
-      const result = Colorizer.applyColors('Hello', ['red', 123 as any, 'bold']);
+      const result = Colorizer.applyColors('Hello', ['red', 123 as unknown as ColorName, 'bold']);
       expect(result).toBe(`${COLORS.red}${COLORS.bold}Hello${COLORS.reset}`);
     });
 
     it('should handle style fallbacks', () => {
-      const result = Colorizer.applyColors('Hello', ['italic']);
+      // Use a style that's not directly available to trigger fallback
+      const result = Colorizer.applyColors('Hello', ['nonexistent']);
       // Should check for fallback style
-      expect(terminalUtils.getFallbackStyle).toHaveBeenCalledWith('italic');
+      expect(terminalUtils.getFallbackStyle).toHaveBeenCalledWith('nonexistent');
+      expect(result).toContain('Hello');
     });
 
     it('should apply all text styles', () => {
@@ -193,8 +195,8 @@ describe('Colorizer', () => {
 
     it('should handle invalid preset names gracefully', () => {
       const result = Colorizer.applyPreset('Message', 'notAPreset' as StylePreset);
-      // Should still apply reset but no other colors
-      expect(result).toBe(`Message${COLORS.reset}`);
+      // Should return original text for invalid preset
+      expect(result).toBe('Message');
     });
 
     it('should work with all built-in presets', () => {
@@ -335,9 +337,9 @@ describe('Colorizer', () => {
 
     it('should handle edge cases', () => {
       expect(Colorizer.isLinkLike('')).toBe(false);
-      expect(Colorizer.isLinkLike(null as any)).toBe(false);
-      expect(Colorizer.isLinkLike(undefined as any)).toBe(false);
-      expect(Colorizer.isLinkLike(123 as any)).toBe(false);
+      expect(Colorizer.isLinkLike(null as unknown as string)).toBe(false);
+      expect(Colorizer.isLinkLike(undefined as unknown as string)).toBe(false);
+      expect(Colorizer.isLinkLike(123 as unknown as string)).toBe(false);
     });
   });
 });

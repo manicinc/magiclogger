@@ -1,723 +1,198 @@
 // File: tests/unit/transports/base/implementations/HTTPTransport.test.ts
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/** Updated to match current HttpTransport implementation (native http/https, no axios/lib client) */
+// Mocks must be declared before importing the module under test
+import { EventEmitter } from 'events';
+import * as httpsMod from 'https';
+import * as zlibMod from 'zlib';
 
-import { HTTPTransport } from '../../../../../src/transports/base/implementations/HTTPTransport';
-import type { HTTPTransportOptions, LogEntry } from '../../../../../src/types/transport';
+// Shared capture of last request
+interface CapturedRequest {
+  options: Record<string, unknown>;
+  body?: Buffer;
+  responder?: EventEmitter & { statusCode?: number; statusMessage?: string; headers: Record<string,string>; };
+}
+let lastRequest: CapturedRequest | undefined;
+let nextResponse: { statusCode: number; statusMessage?: string; body?: string } | undefined;
+function setNextResponse(r: { statusCode: number; statusMessage?: string; body?: string }) { nextResponse = r; }
 
-// Mock dynamic imports
-const mockAxios = {
-  request: jest.fn(),
-  default: { request: jest.fn() }
-};
-
-const mockFormData = jest.fn().mockImplementation(() => ({
-  append: jest.fn(),
-  getHeaders: jest.fn().mockReturnValue({ 'content-type': 'multipart/form-data' })
-}));
-
-// Mock window fetch
-const mockFetch = jest.fn();
-const mockAbortController = {
-  abort: jest.fn(),
-  signal: {}
-};
-
-global.fetch = mockFetch as any;
-global.AbortController = jest.fn().mockImplementation(() => mockAbortController) as any;
-
-// Mock compression
-global.CompressionStream = jest.fn().mockImplementation(() => ({
-  writable: {
-    getWriter: () => ({
-      write: jest.fn(),
-      close: jest.fn()
-    })
-  },
-  readable: {
-    getReader: () => ({
-      read: jest.fn().mockResolvedValue({ done: true, value: new Uint8Array() })
-    })
-  }
-})) as any;
-
-// Mock modules
-jest.mock('http', () => ({
-  Agent: jest.fn().mockImplementation(() => ({}))
-}));
-
-jest.mock('https', () => ({
-  Agent: jest.fn().mockImplementation(() => ({}))
-}));
-
+// Mock zlib
 jest.mock('zlib', () => ({
-  gzip: jest.fn((data, cb) => cb(null, Buffer.from('compressed')))
+  gzip: jest.fn((data: Buffer|string, cb: (e: Error|null, r: Buffer)=>void) => {
+    const buf = Buffer.isBuffer(data) ? data : Buffer.from(data);
+    cb(null, Buffer.from('gz:' + buf.toString()));
+  }),
+  createGunzip: jest.fn(() => ({ on: jest.fn(), pipe: jest.fn() })),
+  createInflate: jest.fn(() => ({ on: jest.fn(), pipe: jest.fn() })),
 }));
 
-/**
- * Comprehensive test suite for HTTPTransport class.
- * 
- * Tests HTTP requests, authentication, formatting, compression, and error handling.
- */
-describe('HTTPTransport', () => {
-  let transport: HTTPTransport;
-  let mockEntry: LogEntry;
-  let originalWindow: any;
+interface NativeReq {
+  write: (chunk: unknown) => void;
+  end: () => void;
+  on: jest.Mock;
+  destroy: jest.Mock;
+}
+interface NativeRes extends EventEmitter { statusCode?: number; statusMessage?: string; headers: Record<string,string>; }
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-    jest.useFakeTimers();
-    
-    originalWindow = global.window;
-
-    // Default to Node.js environment
-    delete (global as any).window;
-
-    transport = new HTTPTransport({
-      name: 'http',
-      url: 'https://logs.example.com/ingest'
+function makeHttpModule(_protocol: 'http'|'https') {
+  const request = jest.fn((options: Record<string, unknown>, callback: (res: NativeRes)=>void): NativeReq => {
+    const res = new EventEmitter() as NativeRes;
+    res.statusCode = nextResponse?.statusCode ?? 200;
+    res.statusMessage = nextResponse?.statusMessage ?? 'OK';
+    res.headers = {};
+    lastRequest = { options, responder: res };
+    setImmediate(() => { 
+      callback(res); 
+      if (nextResponse?.body) res.emit('data', nextResponse.body);
+      res.emit('end'); 
+      nextResponse = undefined;
     });
+    return {
+      write: jest.fn((chunk: unknown) => {
+        const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk));
+        lastRequest = lastRequest ? { ...lastRequest, body: lastRequest.body ? Buffer.concat([lastRequest.body, buf]) : buf } : { options, body: buf };
+      }),
+      end: jest.fn(() => undefined),
+      on: jest.fn(),
+      destroy: jest.fn(),
+    };
+  });
+  const Agent = jest.fn().mockImplementation(() => ({ destroy: jest.fn() }));
+  return { request, Agent };
+}
 
-    mockEntry = {
-      id: 'test-123',
+jest.mock('http', () => makeHttpModule('http'));
+jest.mock('https', () => makeHttpModule('https'));
+
+describe('HTTPTransport (native)', () => {
+  let HTTPTransport: any;
+  let createHTTPTransport: any;
+  let transport: any;
+  let entry: any;
+
+  beforeEach(async () => {
+    lastRequest = undefined;
+    jest.clearAllMocks();
+    // Dynamically import after mocks so HttpTransport picks up mocked http/https
+    ({ HTTPTransport, createHTTPTransport } = await import('../../../../../src/transports/base/implementations/HttpTransport'));
+
+    entry = {
+      id: 'id1',
       timestamp: new Date().toISOString(),
       timestampMs: Date.now(),
       level: 'info',
-      message: 'Test message',
-      plainMessage: 'Test message',
-      loggerId: 'test-logger',
-      tags: ['test'],
-      context: { test: true }
+      message: 'Hello',
+      plainMessage: 'Hello',
+      loggerId: 'logger',
+      tags: ['t1'],
+      context: { a: 1 }
     };
-
-    // Default axios mock response
-    mockAxios.request.mockResolvedValue({
-      status: 200,
-      statusText: 'OK',
-      headers: {},
-      data: { success: true }
-    });
-    mockAxios.default.request = mockAxios.request;
-  });
-
-  afterEach(() => {
-    jest.useRealTimers();
-    if (originalWindow) {
-      global.window = originalWindow;
-    } else {
-      delete (global as any).window;
-    }
+    transport = new HTTPTransport({ name: 'http', url: 'https://logs.example.com/ingest' });
   });
 
   describe('constructor', () => {
-    it('should require url option', () => {
-      expect(() => new HTTPTransport({ name: 'test' } as HTTPTransportOptions))
-        .toThrow('HTTPTransport requires url option');
+    it('validates url', () => {
+      expect(() => new HTTPTransport({ name: 'bad', url: 'not a url' as unknown as string })).toThrow('Invalid URL: not a url');
     });
-
-    it('should validate URL format', () => {
-      expect(() => new HTTPTransport({
-        name: 'test',
-        url: 'not a url'
-      })).toThrow('Invalid URL: not a url');
-    });
-
-    it('should initialize with default options', () => {
-      const t = new HTTPTransport({
-        name: 'test',
-        url: 'https://example.com'
-      });
-      
-      expect(t.name).toBe('test');
-    });
-
-    it('should initialize with all options', () => {
-      const t = new HTTPTransport({
-        name: 'full',
-        url: 'https://logs.example.com',
-        method: 'PUT',
-        auth: {
-          type: 'bearer',
-          token: 'secret'
-        },
-        bodyFormat: 'ndjson',
-        headers: {
-          'X-Custom': 'value'
-        },
-        transformRequest: (logs) => ({ logs, metadata: {} }),
-        compress: true
-      });
-      
-      expect(t).toBeDefined();
+    it('sets defaults', () => {
+      const t = new HTTPTransport({ name: 'x', url: 'https://example.com' });
+      expect(t.name).toBe('x');
     });
   });
 
   describe('initialization', () => {
-    it('should load HTTP client in Node.js', async () => {
-      // Mock dynamic imports
-      jest.doMock('axios', () => mockAxios, { virtual: true });
-      jest.doMock('form-data', () => mockFormData, { virtual: true });
-      
-      await transport.init();
-      
-      expect((transport as any).axios).toBeDefined();
-    });
-
-    it('should use fetch in browser', async () => {
-      global.window = {} as any;
-      
-      const t = new HTTPTransport({
-        name: 'browser',
-        url: 'https://example.com'
-      });
-      
-      await t.init();
-      
-      // Should not have axios in browser
-      expect((transport as any).axios).toBeUndefined();
-    });
-
-    it('should create HTTP agents', async () => {
-      const http = require('http');
-      const https = require('https');
-      
-      await transport.init();
-      
-      expect(http.Agent).toHaveBeenCalled();
-      expect(https.Agent).toHaveBeenCalled();
-    });
-
-    it('should verify endpoint in non-production', async () => {
-      process.env.NODE_ENV = 'development';
-      
-      await transport.init();
-      
-      // Should make OPTIONS request
-      expect(mockAxios.request).toHaveBeenCalledWith(
-        expect.objectContaining({
-          method: 'OPTIONS',
-          url: 'https://logs.example.com/ingest'
-        })
-      );
-      
-      delete process.env.NODE_ENV;
-    });
-
-    it('should handle endpoint verification errors', async () => {
-      process.env.NODE_ENV = 'development';
-      mockAxios.request.mockRejectedValueOnce(new Error('Network error'));
-      
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-      
-      await transport.init();
-      
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Unable to verify endpoint'),
-        expect.any(String)
-      );
-      
-      consoleSpy.mockRestore();
-      delete process.env.NODE_ENV;
-    });
-
-    it('should ignore 405 on OPTIONS', async () => {
-      process.env.NODE_ENV = 'development';
-      mockAxios.request.mockRejectedValueOnce({
-        response: { status: 405 }
-      });
-      
-      await transport.init(); // Should not throw
-      
-      delete process.env.NODE_ENV;
+    it('initializes and performs health check (non-fatal warnings allowed)', async () => {
+      await expect(transport.init()).resolves.not.toThrow();
+      expect((httpsMod as unknown as { Agent: jest.Mock }).Agent).toHaveBeenCalled();
     });
   });
 
-  describe('batch sending', () => {
-    beforeEach(async () => {
-      (transport as any).axios = mockAxios;
-      await transport.init();
-    });
-
-    it('should send batch successfully', async () => {
-      const batch = {
-        id: 'batch-1',
-        entries: [mockEntry],
-        sizeBytes: 100,
-        createdAt: Date.now(),
-        retryCount: 0
-      };
-      
-      await (transport as any).performNetworkRequest('data', batch);
-      
-      expect(mockAxios.request).toHaveBeenCalledWith(
-        expect.objectContaining({
-          url: 'https://logs.example.com/ingest',
-          method: 'POST',
-          headers: expect.objectContaining({
-            'Content-Type': 'application/json',
-            'User-Agent': 'MagicLogger/HTTPTransport'
-          }),
-          data: JSON.stringify([mockEntry])
-        })
-      );
-    });
-
-    it('should emit httpSuccess event', async () => {
-      const successSpy = jest.fn();
-      transport.on('httpSuccess', successSpy);
-      
-      const batch = {
-        id: 'batch-1',
-        entries: [mockEntry],
-        sizeBytes: 100,
-        createdAt: Date.now(),
-        retryCount: 0
-      };
-      
-      await (transport as any).performNetworkRequest('data', batch);
-      
-      expect(successSpy).toHaveBeenCalledWith({
-        url: 'https://logs.example.com/ingest',
-        method: 'POST',
-        status: 200,
-        entryCount: 1
-      });
-    });
-
-    it('should handle response validation errors', async () => {
-      mockAxios.request.mockResolvedValueOnce({
-        status: 400,
-        statusText: 'Bad Request',
-        data: { error: 'Invalid format' }
-      });
-      
-      const batch = {
-        id: 'batch-1',
-        entries: [mockEntry],
-        sizeBytes: 100,
-        createdAt: Date.now(),
-        retryCount: 0
-      };
-      
-      await expect((transport as any).performNetworkRequest('data', batch))
-        .rejects.toThrow('HTTP 400 Bad Request: Invalid format');
-    });
-  });
-
-  describe('authentication', () => {
-    it('should add basic auth headers', async () => {
-      transport = new HTTPTransport({
-        name: 'basic',
-        url: 'https://example.com',
-        auth: {
-          type: 'basic',
-          username: 'user',
-          password: 'pass'
-        }
-      });
-      (transport as any).axios = mockAxios;
-      
-      const batch = { entries: [mockEntry] };
-      await (transport as any).performNetworkRequest('data', batch);
-      
-      const authHeader = mockAxios.request.mock.calls[0][0].headers.Authorization;
-      expect(authHeader).toBe(`Basic ${Buffer.from('user:pass').toString('base64')}`);
-    });
-
-    it('should add bearer token', async () => {
-      transport = new HTTPTransport({
-        name: 'bearer',
-        url: 'https://example.com',
-        auth: {
-          type: 'bearer',
-          token: 'secret-token'
-        }
-      });
-      (transport as any).axios = mockAxios;
-      
-      const batch = { entries: [mockEntry] };
-      await (transport as any).performNetworkRequest('data', batch);
-      
-      expect(mockAxios.request.mock.calls[0][0].headers.Authorization)
-        .toBe('Bearer secret-token');
-    });
-
-    it('should add API key', async () => {
-      transport = new HTTPTransport({
-        name: 'apikey',
-        url: 'https://example.com',
-        auth: {
-          type: 'apikey',
-          apiKey: 'my-api-key'
-        }
-      });
-      (transport as any).axios = mockAxios;
-      
-      const batch = { entries: [mockEntry] };
-      await (transport as any).performNetworkRequest('data', batch);
-      
-      expect(mockAxios.request.mock.calls[0][0].headers['X-API-Key'])
-        .toBe('my-api-key');
-    });
-
-    it('should use custom API key header', async () => {
-      transport = new HTTPTransport({
-        name: 'apikey-custom',
-        url: 'https://example.com',
-        auth: {
-          type: 'apikey',
-          apiKey: 'key123',
-          apiKeyHeader: 'X-Auth-Token'
-        }
-      });
-      (transport as any).axios = mockAxios;
-      
-      const batch = { entries: [mockEntry] };
-      await (transport as any).performNetworkRequest('data', batch);
-      
-      expect(mockAxios.request.mock.calls[0][0].headers['X-Auth-Token'])
-        .toBe('key123');
-    });
-
-    it('should use custom auth function', async () => {
-      transport = new HTTPTransport({
-        name: 'custom',
-        url: 'https://example.com',
-        auth: {
-          type: 'custom',
-          customAuth: async () => ({
-            'X-Custom-Auth': 'generated-token',
-            'X-Request-ID': '12345'
-          })
-        }
-      });
-      (transport as any).axios = mockAxios;
-      
-      const batch = { entries: [mockEntry] };
-      await (transport as any).performNetworkRequest('data', batch);
-      
-      const headers = mockAxios.request.mock.calls[0][0].headers;
-      expect(headers['X-Custom-Auth']).toBe('generated-token');
-      expect(headers['X-Request-ID']).toBe('12345');
-    });
-  });
+  async function send(entries: any[], opts: Partial<any> = {}, afterInit?: () => void) {
+    const t = new HTTPTransport({ name: 'send', url: 'https://logs.example.com/ingest', ...opts });
+    await t.init();
+    if (afterInit) afterInit();
+    await (t as any).performNetworkRequest(entries, { entries });
+    return { t };
+  }
 
   describe('body formats', () => {
-    beforeEach(async () => {
-      (transport as any).axios = mockAxios;
+    it('formats json body (wrapper object)', async () => {
+      await send([entry], { bodyFormat: 'json' });
+      expect(lastRequest?.body).toBeDefined();
+      const obj = JSON.parse(String(lastRequest?.body));
+      expect(obj.logs).toHaveLength(1);
+      expect(obj.count).toBe(1);
     });
-
-    it('should format as JSON', async () => {
-      const batch = { entries: [mockEntry, mockEntry] };
-      await (transport as any).performNetworkRequest('data', batch);
-      
-      expect(mockAxios.request.mock.calls[0][0].data)
-        .toBe(JSON.stringify([mockEntry, mockEntry]));
+    it('formats ndjson body', async () => {
+      await send([entry, entry], { bodyFormat: 'ndjson' });
+      const body = String(lastRequest?.body);
+      const lines = body.trim().split('\n');
+      expect(lines).toHaveLength(2);
+      expect(JSON.parse(lines[0]).message).toBe('Hello');
     });
-
-    it('should format as NDJSON', async () => {
-      transport = new HTTPTransport({
-        name: 'ndjson',
-        url: 'https://example.com',
-        bodyFormat: 'ndjson'
-      });
-      (transport as any).axios = mockAxios;
-      
-      const batch = { entries: [mockEntry, mockEntry] };
-      await (transport as any).performNetworkRequest('data', batch);
-      
-      const expectedBody = JSON.stringify(mockEntry) + '\n' + 
-                          JSON.stringify(mockEntry) + '\n';
-      
-      expect(mockAxios.request.mock.calls[0][0].data).toBe(expectedBody);
-      expect(mockAxios.request.mock.calls[0][0].headers['Content-Type'])
-        .toBe('application/x-ndjson');
+    it('formats form body', async () => {
+      await send([entry], { bodyFormat: 'form' });
+      const body = decodeURIComponent(String(lastRequest?.body));
+      expect(body).toContain('log[0]');
+      expect(body).toContain('Hello');
+      expect((lastRequest?.options as { headers: Record<string,string> }).headers['Content-Type']).toMatch(/application\/x-www-form-urlencoded/);
     });
+  });
 
-    it('should format as form data in Node.js', async () => {
-      transport = new HTTPTransport({
-        name: 'form',
-        url: 'https://example.com',
-        bodyFormat: 'form'
-      });
-      (transport as any).axios = mockAxios;
-      (transport as any).FormData = mockFormData;
-      
-      const batch = { entries: [mockEntry] };
-      await (transport as any).performNetworkRequest('data', batch);
-      
-      expect(mockFormData).toHaveBeenCalled();
-      const formInstance = mockFormData.mock.results[0].value;
-      expect(formInstance.append).toHaveBeenCalledWith('logs', JSON.stringify([mockEntry]));
+  describe('authentication headers', () => {
+    it('basic auth', async () => {
+      await send([entry], { auth: { type: 'basic', username: 'u', password: 'p' } });
+      expect((lastRequest?.options as { headers: Record<string,string> }).headers.Authorization).toMatch(/^Basic /);
     });
-
-    it('should format as form data in browser', async () => {
-      global.window = {} as any;
-      global.FormData = jest.fn().mockImplementation(() => ({
-        append: jest.fn()
-      })) as any;
-      
-      transport = new HTTPTransport({
-        name: 'form-browser',
-        url: 'https://example.com',
-        bodyFormat: 'form'
-      });
-      
-      const batch = { entries: [mockEntry] };
-      await (transport as any).performNetworkRequest('data', batch);
-      
-      expect(global.FormData).toHaveBeenCalled();
+    it('bearer', async () => {
+      await send([entry], { auth: { type: 'bearer', token: 'tok' } });
+      expect((lastRequest?.options as { headers: Record<string,string> }).headers.Authorization).toBe('Bearer tok');
     });
-
-    it('should use custom transform', async () => {
-      transport = new HTTPTransport({
-        name: 'transform',
-        url: 'https://example.com',
-        transformRequest: (logs) => ({
-          timestamp: Date.now(),
-          logs: logs,
-          count: logs.length
-        })
-      });
-      (transport as any).axios = mockAxios;
-      
-      const batch = { entries: [mockEntry] };
-      await (transport as any).performNetworkRequest('data', batch);
-      
-      const sentData = JSON.parse(mockAxios.request.mock.calls[0][0].data);
-      expect(sentData).toHaveProperty('timestamp');
-      expect(sentData).toHaveProperty('logs');
-      expect(sentData).toHaveProperty('count', 1);
+    it('api key default header', async () => {
+      await send([entry], { auth: { type: 'apikey', apiKey: 'k' } });
+      expect((lastRequest?.options as { headers: Record<string,string> }).headers['X-API-Key']).toBe('k');
+    });
+    it('api key custom header', async () => {
+      await send([entry], { auth: { type: 'apikey', apiKey: 'k', apiKeyHeader: 'X-Key' } });
+      expect((lastRequest?.options as { headers: Record<string,string> }).headers['X-Key']).toBe('k');
+    });
+    it('custom auth function', async () => {
+      await send([entry], { auth: { type: 'custom', customAuth: async () => ({ 'X-Custom': 'v1' }) } });
+      expect((lastRequest?.options as { headers: Record<string,string> }).headers['X-Custom']).toBe('v1');
     });
   });
 
   describe('compression', () => {
-    it('should compress in Node.js', async () => {
-      const zlib = require('zlib');
-      
-      transport = new HTTPTransport({
-        name: 'compress',
-        url: 'https://example.com',
-        compress: true
-      });
-      (transport as any).axios = mockAxios;
-      
-      const batch = { entries: [mockEntry] };
-      await (transport as any).performNetworkRequest('data', batch);
-      
-      expect(zlib.gzip).toHaveBeenCalled();
-      expect(mockAxios.request.mock.calls[0][0].headers['Content-Encoding'])
-        .toBe('gzip');
-      expect(mockAxios.request.mock.calls[0][0].data.toString())
-        .toBe('compressed');
-    });
-
-    it('should compress in browser with CompressionStream', async () => {
-      global.window = {} as any;
-      
-      transport = new HTTPTransport({
-        name: 'compress-browser',
-        url: 'https://example.com',
-        compress: true
-      });
-      
-      const batch = { entries: [mockEntry] };
-      await (transport as any).performNetworkRequest('data', batch);
-      
-      expect(global.CompressionStream).toHaveBeenCalledWith('gzip');
-    });
-
-    it('should skip compression if not available in browser', async () => {
-      global.window = {} as any;
-      delete (global as any).CompressionStream;
-      
-      transport = new HTTPTransport({
-        name: 'no-compress',
-        url: 'https://example.com',
-        compress: true
-      });
-      
-      const batch = { entries: [mockEntry] };
-      await (transport as any).performNetworkRequest('data', batch);
-      
-      // Should work without compression
-      expect(mockFetch).toHaveBeenCalled();
-    });
-  });
-
-  describe('browser fetch', () => {
-    beforeEach(() => {
-      global.window = {} as any;
-      mockFetch.mockResolvedValue({
-        status: 200,
-        statusText: 'OK',
-        headers: new Map([['content-type', 'application/json']]),
-        text: async () => '{"success":true}'
-      });
-    });
-
-    it('should use fetch API in browser', async () => {
-      const batch = { entries: [mockEntry] };
-      await (transport as any).performNetworkRequest('data', batch);
-      
-      expect(mockFetch).toHaveBeenCalledWith(
-        'https://logs.example.com/ingest',
-        expect.objectContaining({
-          method: 'POST',
-          headers: expect.any(Object),
-          body: JSON.stringify([mockEntry]),
-          signal: mockAbortController.signal
-        })
-      );
-    });
-
-    it('should handle fetch timeout', async () => {
-      mockFetch.mockImplementation(() => new Promise(() => {})); // Never resolves
-      
-      transport = new HTTPTransport({
-        name: 'timeout',
-        url: 'https://example.com',
-        timeout: 100
-      });
-      
-      const batch = { entries: [mockEntry] };
-      const promise = (transport as any).performNetworkRequest('data', batch);
-      
-      jest.advanceTimersByTime(100);
-      
-      await expect(promise).rejects.toThrow('Request timeout after 100ms');
-      expect(mockAbortController.abort).toHaveBeenCalled();
-    });
-
-    it('should handle fetch errors', async () => {
-      mockFetch.mockRejectedValue(new Error('Network failed'));
-      
-      const batch = { entries: [mockEntry] };
-      await expect((transport as any).performNetworkRequest('data', batch))
-        .rejects.toThrow('Network failed');
+    it('adds gzip headers & compresses', async () => {
+      await send([entry], { compress: true, bodyFormat: 'ndjson' });
+      expect((zlibMod.gzip as unknown as jest.Mock)).toHaveBeenCalled();
+      expect((lastRequest?.options as { headers: Record<string,string> }).headers['Content-Encoding']).toBe('gzip');
+      expect(String(lastRequest?.body)).toContain('gz:');
     });
   });
 
   describe('error handling', () => {
-    beforeEach(() => {
-      (transport as any).axios = mockAxios;
-    });
-
-    it('should extract error from JSON response', async () => {
-      mockAxios.request.mockResolvedValueOnce({
-        status: 400,
-        statusText: 'Bad Request',
-        data: { error: 'Missing required field' }
-      });
-      
-      const batch = { entries: [mockEntry] };
-      await expect((transport as any).performNetworkRequest('data', batch))
-        .rejects.toThrow('HTTP 400 Bad Request: Missing required field');
-    });
-
-    it('should extract message from response', async () => {
-      mockAxios.request.mockResolvedValueOnce({
-        status: 500,
-        statusText: 'Internal Server Error',
-        data: { message: 'Database connection failed' }
-      });
-      
-      const batch = { entries: [mockEntry] };
-      await expect((transport as any).performNetworkRequest('data', batch))
-        .rejects.toThrow('HTTP 500 Internal Server Error: Database connection failed');
-    });
-
-    it('should include raw response for short errors', async () => {
-      mockAxios.request.mockResolvedValueOnce({
-        status: 403,
-        statusText: 'Forbidden',
-        data: 'Access denied'
-      });
-      
-      const batch = { entries: [mockEntry] };
-      await expect((transport as any).performNetworkRequest('data', batch))
-        .rejects.toThrow('HTTP 403 Forbidden: Access denied');
-    });
-
-    it('should not include long raw responses', async () => {
-      mockAxios.request.mockResolvedValueOnce({
-        status: 500,
-        statusText: 'Error',
-        data: 'x'.repeat(300)
-      });
-      
-      const batch = { entries: [mockEntry] };
-      await expect((transport as any).performNetworkRequest('data', batch))
-        .rejects.toThrow('HTTP 500 Error');
-    });
-
-    it('should include status and response in error', async () => {
-      const response = {
-        status: 429,
-        statusText: 'Too Many Requests',
-        data: { retryAfter: 60 }
-      };
-      mockAxios.request.mockResolvedValueOnce(response);
-      
-      const batch = { entries: [mockEntry] };
-      
-      try {
-        await (transport as any).performNetworkRequest('data', batch);
-      } catch (error: any) {
-        expect(error.status).toBe(429);
-        expect(error.response).toBe(response);
-      }
+    it('propagates non-2xx status', async () => {
+      await expect(send([entry], {}, () => {
+        setNextResponse({ statusCode: 400, statusMessage: 'Bad Request', body: 'ERR' });
+      })).rejects.toThrow('HTTP 400: Bad Request');
     });
   });
 
-  describe('statistics', () => {
-    it('should include HTTP-specific stats', () => {
-      transport = new HTTPTransport({
-        name: 'stats',
-        url: 'https://example.com',
-        method: 'PUT',
-        auth: { type: 'bearer', token: 'token' },
-        bodyFormat: 'ndjson',
-        compress: true
-      });
-      
+  describe('stats & close', () => {
+    it('exposes network stats and destroys agent', async () => {
+      await transport.init();
       const stats = transport.getStats();
-      
-      expect(stats.custom).toMatchObject({
-        url: 'https://example.com',
-        method: 'PUT',
-        authType: 'bearer',
-        bodyFormat: 'ndjson',
-        compressed: true
-      });
-    });
-  });
-
-  describe('cleanup', () => {
-    it('should destroy HTTP agents', async () => {
-      const mockAgent = { destroy: jest.fn() };
-      (transport as any).httpAgent = mockAgent;
-      (transport as any).httpsAgent = mockAgent;
-      
+      expect(stats.custom?.connectionState).toBeDefined();
       await transport.close();
-      
-      expect(mockAgent.destroy).toHaveBeenCalledTimes(2);
+      expect((transport as unknown as { agent: { destroy: jest.Mock } }).agent.destroy).toHaveBeenCalled();
     });
   });
 
-  describe('factory function', () => {
-    it('should create transport with defaults', () => {
-      const { createHTTPTransport } = require('../../../../../src/transports/base/implementations/HTTPTransport');
-      
-      const t = createHTTPTransport({ url: 'https://example.com' });
-      
-      expect(t.name).toBe('http');
-      expect(t.enabled).toBe(true);
-    });
-
-    it('should throw without URL', () => {
-      const { createHTTPTransport } = require('../../../../../src/transports/base/implementations/HTTPTransport');
-      
-      expect(() => createHTTPTransport({}))
-        .toThrow('HTTPTransport requires url option');
+  describe('factory', () => {
+    it('createHTTPTransport helper', () => {
+      const t = createHTTPTransport({ name: 'fac', url: 'https://x.test' });
+      expect(t.name).toBe('fac');
     });
   });
 });

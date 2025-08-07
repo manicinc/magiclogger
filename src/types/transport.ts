@@ -492,11 +492,25 @@ export interface HTTPTransportOptions extends NetworkTransportOptions {
   proxy?: {
     host: string;
     port: number;
+    protocol?: string;
     auth?: {
       username: string;
       password: string;
     };
   };
+
+  /**
+   * Circuit breaker specific thresholds for HTTP transport.
+   */
+  circuitBreakerThreshold?: number;
+  circuitBreakerResetTimeout?: number;
+  circuitBreakerSuccessThreshold?: number;
+
+  /**
+   * HTTP agent configuration.
+   */
+  maxSockets?: number;
+  maxFreeSockets?: number;
 }
 
 /**

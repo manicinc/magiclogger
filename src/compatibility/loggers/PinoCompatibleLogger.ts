@@ -248,8 +248,19 @@ export class PinoCompatibleLogger extends BaseCompatibleLogger {
 
     // Handle numeric level
     if (typeof options.level === 'number') {
-      this._levelNum = options.level;
-      this._level = this.getLevelName(options.level);
+      // Find closest valid level for invalid numeric values
+      const validLevels = Object.values(PinoCompatibleLogger.levels).sort((a, b) => a - b);
+      // Find the highest level that is <= the input number (round down)
+      let closestLevel = 30; // Default to info
+      for (const level of validLevels) {
+        if (level <= (options.level as number)) {
+          closestLevel = level;
+        } else {
+          break;
+        }
+      }
+      this._levelNum = closestLevel;
+      this._level = this.getLevelName(closestLevel);
     } else {
       this._level = options.level || 'info';
       this._levelNum = PinoCompatibleLogger.levels[this._level] || 30;
@@ -341,6 +352,9 @@ export class PinoCompatibleLogger extends BaseCompatibleLogger {
     } else if (typeof objOrMsg === 'object' && objOrMsg !== null) {
       fields = objOrMsg as Record<string, unknown>;
       message = msg || '';
+    } else {
+      // Handle null, undefined, and other primitive types
+      message = String(objOrMsg);
     }
 
     // Apply serializers
@@ -349,10 +363,8 @@ export class PinoCompatibleLogger extends BaseCompatibleLogger {
     // Merge fields
     Object.assign(record, fields);
 
-    // Add message
-    if (message) {
-      record[this.messageKey] = message;
-    }
+    // Add message (always include it, even if empty)
+    record[this.messageKey] = message;
 
     // Apply formatters.log
     if (this.formatters?.log) {
@@ -492,13 +504,14 @@ export class PinoCompatibleLogger extends BaseCompatibleLogger {
       output = result.message;
       metadata = result.metadata;
     } else {
+      // When prettyPrint is false, always use JSON format (Pino default behavior)
       output = JSON.stringify(record);
     }
 
     // Route to appropriate logger method
     switch (level) {
       case 'trace':
-        this.logger.debug(this.prettyPrint ? output : `TRACE: ${output}`, metadata);
+        this.logger.debug(output, metadata);
         break;
       case 'debug':
         this.logger.debug(output, metadata);
@@ -513,7 +526,7 @@ export class PinoCompatibleLogger extends BaseCompatibleLogger {
         this.logger.error(output, metadata);
         break;
       case 'fatal':
-        this.logger.error(this.prettyPrint ? output : `FATAL: ${output}`, metadata);
+        this.logger.error(output, metadata);
         break;
     }
   }
@@ -534,7 +547,7 @@ export class PinoCompatibleLogger extends BaseCompatibleLogger {
     const metadata: Record<string, unknown> = {};
 
     // Timestamp
-    if (rec[this.timestampKey]) {
+    if (this.timestamp && rec[this.timestampKey]) {
       const time = new Date(rec[this.timestampKey] as number).toISOString();
       parts.push(`[${time}]`);
     }
@@ -553,7 +566,16 @@ export class PinoCompatibleLogger extends BaseCompatibleLogger {
       delete objContent[this.messageKey];
       
       if (Object.keys(objContent).length > 0) {
-        parts.push(JSON.stringify(objContent));
+        try {
+          parts.push(JSON.stringify(objContent));
+        } catch (error) {
+          // Handle circular references
+          if (error instanceof TypeError && error.message.includes('circular')) {
+            parts.push('[Circular Object]');
+          } else {
+            parts.push('[Unserializable Object]');
+          }
+        }
       }
     }
 
