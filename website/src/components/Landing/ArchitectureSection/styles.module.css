@@ -1,0 +1,310 @@
+/* File: website/src/components/Landing/ArchitectureSection/styles.module.css */
+
+.architectureSection {
+  padding: 6rem 0;
+  background: var(--neo-bg);
+  position: relative;
+  overflow: hidden;
+}
+
+.architectureSection::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--surface-gradient);
+  opacity: 0.5;
+  z-index: 0;
+}
+
+.sectionHeader {
+  text-align: center;
+  margin-bottom: 4rem;
+  position: relative;
+  z-index: 1;
+}
+
+.sectionTitle {
+  font-size: 3rem;
+  font-weight: 800;
+  margin-bottom: 1rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.sectionSubtitle {
+  font-size: 1.25rem;
+  color: var(--ifm-color-content-secondary);
+}
+
+.architectureGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4rem;
+  align-items: start;
+  max-width: 1200px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+}
+
+/* Visual diagram */
+.architectureVisual {
+  position: sticky;
+  top: 2rem;
+}
+
+.diagramContainer {
+  background: var(--neo-surface);
+  border-radius: 24px;
+  padding: 2rem;
+  box-shadow: 
+    inset 4px 4px 8px var(--neo-shadow-dark),
+    inset -4px -4px 8px var(--neo-shadow-light);
+}
+
+.architectureSvg {
+  width: 100%;
+  height: auto;
+}
+
+.svgLayer {
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.layerRect {
+  transition: all 0.3s ease;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
+}
+
+.svgLayer:hover .layerRect {
+  fillOpacity: 1;
+  transform: scale(1.02);
+}
+
+.svgLayer.active .layerRect {
+  fillOpacity: 1;
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.3));
+}
+
+.layerText {
+  pointer-events: none;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.flowLine {
+  animation: flowAnimation 2s linear infinite;
+}
+
+@keyframes flowAnimation {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -10;
+  }
+}
+
+.flowDot {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    r: 4;
+    opacity: 1;
+  }
+  50% {
+    r: 6;
+    opacity: 0.6;
+  }
+}
+
+/* Layer details */
+.architectureDetails {
+  animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.layerInfo {
+  background: var(--neo-surface);
+  border-radius: 20px;
+  padding: 2.5rem;
+  margin-bottom: 2rem;
+  border: 2px solid;
+  box-shadow: 
+    8px 8px 16px var(--neo-shadow-dark),
+    -8px -8px 16px var(--neo-shadow-light);
+  transition: all 0.3s ease;
+}
+
+.layerTitle {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.layerDescription {
+  font-size: 1.15rem;
+  color: var(--ifm-color-content-secondary);
+  margin-bottom: 2rem;
+  line-height: 1.6;
+}
+
+.layerFeatures {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+}
+
+.layerFeature {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-weight: 500;
+  color: var(--ifm-color-content);
+}
+
+.featureDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.codeExample {
+  background: var(--glass-bg);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.codeHeader {
+  padding: 0.75rem 1rem;
+  background: rgba(0, 0, 0, 0.03);
+  border-bottom: 1px solid var(--glass-border);
+}
+
+[data-theme='dark'] .codeHeader {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.codeLabel {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ifm-color-content-secondary);
+}
+
+.codeBlock {
+  margin: 0;
+  padding: 1rem;
+  background: transparent;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--ifm-color-content);
+  overflow-x: auto;
+}
+
+.detailsLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white !important;
+  border-radius: 30px;
+  font-weight: 600;
+  text-decoration: none !important;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.detailsLink:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+  color: white !important;
+}
+
+.detailsLink svg {
+  transition: transform 0.3s ease;
+}
+
+.detailsLink:hover svg {
+  transform: translateX(3px);
+}
+
+/* Dark mode adjustments */
+[data-theme='dark'] .diagramContainer {
+  background: var(--neo-surface);
+  box-shadow: 
+    inset 4px 4px 8px rgba(0, 0, 0, 0.3),
+    inset -4px -4px 8px rgba(255, 255, 255, 0.05);
+}
+
+[data-theme='dark'] .layerInfo {
+  box-shadow: 
+    8px 8px 16px rgba(0, 0, 0, 0.3),
+    -8px -8px 16px rgba(255, 255, 255, 0.05);
+}
+
+[data-theme='dark'] .layerRect {
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));
+}
+
+[data-theme='dark'] .svgLayer.active .layerRect {
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.5));
+}
+
+/* Responsive */
+@media (max-width: 996px) {
+  .architectureGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .architectureVisual {
+    position: static;
+    margin-bottom: 2rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .sectionTitle {
+    font-size: 2rem;
+  }
+  
+  .sectionSubtitle {
+    font-size: 1.1rem;
+  }
+  
+  .layerInfo {
+    padding: 1.5rem;
+  }
+  
+  .layerTitle {
+    font-size: 1.5rem;
+  }
+  
+  .layerDescription {
+    font-size: 1rem;
+  }
+  
+  .codeBlock {
+    font-size: 0.8rem;
+  }
+}

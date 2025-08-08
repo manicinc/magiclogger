@@ -1,0 +1,299 @@
+/* File: website/src/components/Landing/PerformanceSection/styles.module.css */
+
+.performanceSection {
+  padding: 6rem 0;
+  background: var(--neo-bg-alt);
+  position: relative;
+}
+
+.sectionHeader {
+  text-align: center;
+  margin-bottom: 4rem;
+}
+
+.sectionTitle {
+  font-size: 3rem;
+  font-weight: 800;
+  margin-bottom: 1rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.sectionSubtitle {
+  font-size: 1.25rem;
+  color: var(--ifm-color-content-secondary);
+}
+
+/* Metric selector */
+.metricSelector {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 3rem;
+  flex-wrap: wrap;
+}
+
+.metricButton {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: var(--neo-surface);
+  border: 2px solid transparent;
+  border-radius: 30px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: var(--ifm-color-content);
+  box-shadow: 
+    4px 4px 8px var(--neo-shadow-dark),
+    -4px -4px 8px var(--neo-shadow-light);
+}
+
+.metricButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 
+    6px 6px 12px var(--neo-shadow-dark),
+    -6px -6px 12px var(--neo-shadow-light);
+}
+
+.metricButton.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+}
+
+.metricIcon {
+  font-size: 1.2rem;
+}
+
+/* Benchmark container */
+.benchmarkContainer {
+  max-width: 900px;
+  margin: 0 auto 3rem;
+  background: var(--neo-surface);
+  border-radius: 24px;
+  padding: 3rem;
+  box-shadow: 
+    inset 2px 2px 5px var(--neo-shadow-dark),
+    inset -2px -2px 5px var(--neo-shadow-light);
+}
+
+.benchmarkTitle {
+  font-size: 1.75rem;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 0.5rem;
+  color: var(--ifm-color-content);
+}
+
+.benchmarkDescription {
+  text-align: center;
+  color: var(--ifm-color-content-secondary);
+  margin-bottom: 2rem;
+}
+
+.benchmarkChart {
+  margin-bottom: 2rem;
+}
+
+.benchmarkRow {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 1.5rem;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.benchmarkInfo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.benchmarkName {
+  font-weight: 600;
+  color: var(--ifm-color-content);
+  font-size: 0.95rem;
+}
+
+.benchmarkBar {
+  position: relative;
+  height: 40px;
+  background: var(--glass-bg);
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 
+    inset 2px 2px 4px var(--neo-shadow-dark),
+    inset -2px -2px 4px var(--neo-shadow-light);
+}
+
+.benchmarkFill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 1rem;
+  color: white;
+  font-weight: 700;
+  font-size: 0.9rem;
+  animation: fillBar 1.5s ease-out;
+  animation-fill-mode: both;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+@keyframes fillBar {
+  from {
+    width: 0 !important;
+  }
+}
+
+.benchmarkValue {
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Performance insights */
+.performanceInsights {
+  margin-bottom: 3rem;
+  max-width: 700px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.insight {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.insight h4 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: var(--ifm-color-content);
+}
+
+.insight p {
+  color: var(--ifm-color-content-secondary);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Performance features */
+.performanceFeatures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 2rem;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.perfFeature {
+  text-align: center;
+  padding: 2rem;
+  background: var(--neo-surface);
+  border-radius: 20px;
+  transition: all 0.3s ease;
+  box-shadow: 
+    6px 6px 12px var(--neo-shadow-dark),
+    -6px -6px 12px var(--neo-shadow-light);
+}
+
+.perfFeature:hover {
+  transform: translateY(-5px);
+  box-shadow: 
+    8px 8px 16px var(--neo-shadow-dark),
+    -8px -8px 16px var(--neo-shadow-light);
+}
+
+.perfIcon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  display: inline-block;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.perfFeature:nth-child(1) .perfIcon { animation-delay: 0s; }
+.perfFeature:nth-child(2) .perfIcon { animation-delay: 0.5s; }
+.perfFeature:nth-child(3) .perfIcon { animation-delay: 1s; }
+.perfFeature:nth-child(4) .perfIcon { animation-delay: 1.5s; }
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.perfFeature h4 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: var(--ifm-color-content);
+}
+
+.perfFeature p {
+  color: var(--ifm-color-content-secondary);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Dark mode adjustments */
+[data-theme='dark'] .benchmarkContainer {
+  background: var(--neo-surface);
+  box-shadow: 
+    inset 2px 2px 5px rgba(0, 0, 0, 0.3),
+    inset -2px -2px 5px rgba(255, 255, 255, 0.05);
+}
+
+[data-theme='dark'] .metricButton {
+  box-shadow: 
+    4px 4px 8px rgba(0, 0, 0, 0.3),
+    -4px -4px 8px rgba(255, 255, 255, 0.05);
+}
+
+[data-theme='dark'] .perfFeature {
+  box-shadow: 
+    6px 6px 12px rgba(0, 0, 0, 0.3),
+    -6px -6px 12px rgba(255, 255, 255, 0.05);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .sectionTitle {
+    font-size: 2rem;
+  }
+  
+  .benchmarkContainer {
+    padding: 2rem 1.5rem;
+  }
+  
+  .benchmarkRow {
+    grid-template-columns: 100px 1fr;
+    gap: 1rem;
+  }
+  
+  .benchmarkName {
+    font-size: 0.85rem;
+  }
+  
+  .benchmarkValue {
+    font-size: 0.8rem;
+  }
+  
+  .performanceFeatures {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,236 @@
+/* File: website/src/components/Landing/IntegrationSection/styles.module.css */
+
+.integrationsSection {
+  padding: 6rem 0;
+  background: var(--neo-bg);
+  position: relative;
+}
+
+.sectionHeader {
+  text-align: center;
+  margin-bottom: 4rem;
+}
+
+.sectionTitle {
+  font-size: 3rem;
+  font-weight: 800;
+  margin-bottom: 1rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.sectionSubtitle {
+  font-size: 1.25rem;
+  color: var(--ifm-color-content-secondary);
+}
+
+/* Framework integrations grid */
+.integrationsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+  max-width: 1200px;
+  margin: 0 auto 4rem;
+}
+
+.integrationCard {
+  background: var(--neo-surface);
+  border-radius: 20px;
+  padding: 2rem;
+  text-align: center;
+  transition: all 0.3s ease;
+  box-shadow: 
+    6px 6px 12px var(--neo-shadow-dark),
+    -6px -6px 12px var(--neo-shadow-light);
+  animation: fadeInUp 0.8s ease-out;
+  animation-fill-mode: both;
+}
+
+.integrationCard:nth-child(1) { animation-delay: 0.1s; }
+.integrationCard:nth-child(2) { animation-delay: 0.2s; }
+.integrationCard:nth-child(3) { animation-delay: 0.3s; }
+.integrationCard:nth-child(4) { animation-delay: 0.4s; }
+.integrationCard:nth-child(5) { animation-delay: 0.5s; }
+.integrationCard:nth-child(6) { animation-delay: 0.6s; }
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.integrationCard:hover {
+  transform: translateY(-10px);
+  box-shadow: 
+    10px 10px 20px var(--neo-shadow-dark),
+    -10px -10px 20px var(--neo-shadow-light);
+}
+
+.integrationHeader {
+  margin-bottom: 1rem;
+}
+
+.integrationLogo {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: 0.5rem;
+  animation: float 4s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.integrationCard:nth-child(odd) .integrationLogo {
+  animation-delay: 0s;
+}
+
+.integrationCard:nth-child(even) .integrationLogo {
+  animation-delay: 2s;
+}
+
+.integrationName {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--ifm-color-content);
+}
+
+.integrationDescription {
+  color: var(--ifm-color-content-secondary);
+  margin-bottom: 1rem;
+  line-height: 1.6;
+}
+
+.integrationCode {
+  background: var(--glass-bg);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+  padding: 0.75rem;
+  border-radius: 12px;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.85rem;
+  overflow-x: auto;
+}
+
+.integrationCode code {
+  background: transparent;
+  padding: 0;
+  color: var(--ifm-color-primary);
+}
+
+/* Ecosystem section */
+.ecosystem {
+  text-align: center;
+  margin-top: 6rem;
+}
+
+.ecosystemTitle {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 3rem;
+  color: var(--ifm-color-content);
+}
+
+.ecosystemGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.ecosystemItem {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  padding: 2rem;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.ecosystemItem:hover {
+  transform: translateY(-5px);
+  border-color: var(--ifm-color-primary);
+  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.2);
+}
+
+.ecosystemIcon {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: 1rem;
+}
+
+.ecosystemItem strong {
+  display: block;
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+  color: var(--ifm-color-content);
+}
+
+.ecosystemItem p {
+  color: var(--ifm-color-content-secondary);
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.comingSoon {
+  position: absolute;
+  top: 1rem;
+  right: -2.5rem;
+  background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+  color: white;
+  padding: 0.25rem 3rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  transform: rotate(45deg);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Dark mode adjustments */
+[data-theme='dark'] .integrationCard {
+  box-shadow: 
+    6px 6px 12px rgba(0, 0, 0, 0.3),
+    -6px -6px 12px rgba(255, 255, 255, 0.05);
+}
+
+[data-theme='dark'] .integrationCard:hover {
+  box-shadow: 
+    10px 10px 20px rgba(0, 0, 0, 0.4),
+    -10px -10px 20px rgba(255, 255, 255, 0.08);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .sectionTitle {
+    font-size: 2rem;
+  }
+  
+  .integrationsGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .ecosystemGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .ecosystemTitle {
+    font-size: 1.5rem;
+  }
+}

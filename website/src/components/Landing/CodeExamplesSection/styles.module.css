@@ -1,0 +1,308 @@
+/* File: website/src/components/Landing/CodeExamplesSection/styles.module.css */
+
+.examplesSection {
+  padding: 6rem 0;
+  background: var(--neo-bg-alt);
+  position: relative;
+}
+
+.sectionHeader {
+  text-align: center;
+  margin-bottom: 4rem;
+}
+
+.sectionTitle {
+  font-size: 3rem;
+  font-weight: 800;
+  margin-bottom: 1rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.sectionSubtitle {
+  font-size: 1.25rem;
+  color: var(--ifm-color-content-secondary);
+}
+
+.examplesContainer {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Example tabs */
+.exampleTabs {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ifm-color-primary) var(--neo-bg);
+}
+
+.exampleTabs::-webkit-scrollbar {
+  height: 6px;
+}
+
+.exampleTabs::-webkit-scrollbar-track {
+  background: var(--neo-bg);
+  border-radius: 3px;
+}
+
+.exampleTabs::-webkit-scrollbar-thumb {
+  background: var(--ifm-color-primary);
+  border-radius: 3px;
+}
+
+.exampleTab {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: var(--neo-surface);
+  border: 2px solid transparent;
+  border-radius: 25px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: var(--ifm-color-content);
+  white-space: nowrap;
+  box-shadow: 
+    4px 4px 8px var(--neo-shadow-dark),
+    -4px -4px 8px var(--neo-shadow-light);
+}
+
+.exampleTab:hover {
+  transform: translateY(-2px);
+  box-shadow: 
+    6px 6px 12px var(--neo-shadow-dark),
+    -6px -6px 12px var(--neo-shadow-light);
+}
+
+.exampleTab.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 5px 20px rgba(102, 126, 234, 0.3);
+}
+
+.tabIcon {
+  font-size: 1.2rem;
+}
+
+.tabTitle {
+  font-size: 0.95rem;
+}
+
+/* Example content */
+.exampleContent {
+  background: var(--neo-surface);
+  border-radius: 24px;
+  padding: 2.5rem;
+  box-shadow: 
+    inset 2px 2px 5px var(--neo-shadow-dark),
+    inset -2px -2px 5px var(--neo-shadow-light);
+  animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.exampleHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  margin-bottom: 2rem;
+  gap: 2rem;
+}
+
+.exampleInfo {
+  flex: 1;
+}
+
+.exampleTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: var(--ifm-color-content);
+}
+
+.exampleIcon {
+  font-size: 2.5rem;
+}
+
+.exampleDescription {
+  font-size: 1.15rem;
+  color: var(--ifm-color-content-secondary);
+}
+
+.exampleActions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.copyButton,
+.playButton {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--glass-bg);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--ifm-color-content);
+}
+
+.copyButton:hover,
+.playButton:hover {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-color: transparent;
+  transform: translateY(-2px);
+}
+
+/* Code block */
+.exampleCode {
+  position: relative;
+  background: var(--glass-bg);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.codeBlock {
+  margin: 0 !important;
+  background: transparent !important;
+  font-size: 0.875rem;
+}
+
+/* Pro tips */
+.proTips {
+  margin-top: 4rem;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: 24px;
+  padding: 2.5rem;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.tipsTitle {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: 2rem;
+  text-align: center;
+  color: var(--ifm-color-content);
+}
+
+.tipsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 2rem;
+}
+
+.tip {
+  display: flex;
+  gap: 1rem;
+  align-items: start;
+}
+
+.tipIcon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.tipContent {
+  flex: 1;
+}
+
+.tipContent strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: var(--ifm-color-content);
+  font-size: 1.05rem;
+}
+
+.tipContent p {
+  font-size: 0.9rem;
+  color: var(--ifm-color-content-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Dark mode adjustments */
+[data-theme='dark'] .exampleContent {
+  box-shadow: 
+    inset 2px 2px 5px rgba(0, 0, 0, 0.3),
+    inset -2px -2px 5px rgba(255, 255, 255, 0.05);
+}
+
+[data-theme='dark'] .exampleTab {
+  box-shadow: 
+    4px 4px 8px rgba(0, 0, 0, 0.3),
+    -4px -4px 8px rgba(255, 255, 255, 0.05);
+}
+
+[data-theme='dark'] .exampleTab:hover {
+  box-shadow: 
+    6px 6px 12px rgba(0, 0, 0, 0.4),
+    -6px -6px 12px rgba(255, 255, 255, 0.08);
+}
+
+/* Responsive */
+@media (max-width: 996px) {
+  .exampleHeader {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .exampleActions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 768px) {
+  .sectionTitle {
+    font-size: 2rem;
+  }
+  
+  .exampleContent {
+    padding: 1.5rem;
+  }
+  
+  .exampleTitle {
+    font-size: 1.5rem;
+  }
+  
+  .exampleIcon {
+    font-size: 2rem;
+  }
+  
+  .tipsGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .proTips {
+    padding: 2rem 1.5rem;
+  }
+}
