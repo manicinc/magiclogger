@@ -1,5 +1,6 @@
 import { isBrowserEnvironment } from '../utils/environment';
 import type { ThemeDefinition } from '../types';
+import { DEFAULT_THEME as BUILTIN_DEFAULT_THEME } from '../constants/themes';
 
 let loadThemes: () => Record<string, ThemeDefinition>;
 let getTheme: (name: string) => ThemeDefinition | undefined;
@@ -7,7 +8,7 @@ let listThemes: () => string[];
 
 if (isBrowserEnvironment()) {
   // Browser implementation - no file system access
-  loadThemes = () => ({});
+  loadThemes = () => ({ default: BUILTIN_DEFAULT_THEME });
   getTheme = (_name: string) => {
     return undefined;
   };
@@ -18,9 +19,14 @@ if (isBrowserEnvironment()) {
   let path: typeof import('path') | undefined;
 
   try {
-    const dynamicRequire = new Function('id', 'return require(id)');
-    fs = dynamicRequire('fs');
-    path = dynamicRequire('path');
+    // Prefer native require when available (ts-jest transforms to CJS)
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    if (typeof require === 'function') {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      fs = require('fs');
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      path = require('path');
+    }
   } catch {
     fs = undefined;
     path = undefined;
@@ -30,11 +36,13 @@ if (isBrowserEnvironment()) {
 
   const findThemesJson = (): string | null => {
     if (!fs || !path) return null;
+    const localFs = fs;
+    const localPath = path;
 
     // First try a stable fallback path relative to cwd (for ESM/test environments)
-    const fallback = path.resolve(process.cwd(), 'src', 'theme', 'themes.json');
+    const fallback = localPath.resolve(process.cwd(), 'src', 'theme', 'themes.json');
     try {
-      if (fs.existsSync(fallback)) {
+      if (localFs.existsSync(fallback)) {
         return fallback;
       }
     } catch {
@@ -52,15 +60,15 @@ if (isBrowserEnvironment()) {
 
     let currentDir = baseDir;
     for (let i = 0; i < 5; i++) {
-      const themesPath = path.join(currentDir, 'themes.json');
+      const themesPath = localPath.join(currentDir, 'themes.json');
       try {
-        if (fs.existsSync(themesPath)) {
+        if (localFs.existsSync(themesPath)) {
           return themesPath;
         }
       } catch {
         // ignore and continue upwards
       }
-      currentDir = path.dirname(currentDir);
+      currentDir = localPath.dirname(currentDir);
     }
     return null;
   };
@@ -86,7 +94,13 @@ if (isBrowserEnvironment()) {
       try {
         const themesJson = fs.readFileSync(themesPath, 'utf-8');
         try {
-          themesCache = JSON.parse(themesJson);
+          const parsed = JSON.parse(themesJson) as Record<string, ThemeDefinition>;
+          // If the file exists but is empty ({}), fall back to built-in default theme
+          if (parsed && Object.keys(parsed).length === 0) {
+            themesCache = { default: BUILTIN_DEFAULT_THEME };
+          } else {
+            themesCache = parsed;
+          }
         } catch (error) {
           console.warn('[ThemeManager] Failed to parse themes.json:', error as Error);
           themesCache = {};

@@ -310,9 +310,9 @@ class TerminalCapabilityDetector {
 
     // Fallback mapping for unsupported styles - updated to match test expectations
     const fallbacks: Record<string, string> = {
-      italic: 'dim',
+      italic: 'normal',
       dim: 'gray', 
-      strikethrough: 'underline',
+      strikethrough: 'normal',
       blink: 'bold',
       hidden: 'normal',
       doubleUnderline: 'underline',

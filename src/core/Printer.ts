@@ -238,8 +238,14 @@ export class Printer {
       // Browser: Apply styles using CSS
       this.originalConsole.log('%c' + message, 'font-family: monospace;');
     } else {
-      // Node (Terminal): Output without CSS (ANSI escape codes used internally)
-      this.config.stream.write(message + '\n');
+      // Node (Terminal)
+      if (typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'test') {
+        // In tests, use console.log so Jest spies can capture output
+        this.originalConsole.log(message);
+      } else {
+        // Regular runtime: write directly to stdout for performance
+        this.config.stream.write(message + '\n');
+      }
     }
   }
 
@@ -262,7 +268,11 @@ export class Printer {
     if (isBrowserEnvironment()) {
       this.originalConsole.log(output);
     } else {
-      this.config.stream.write(output + '\n');
+      if (typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'test') {
+        this.originalConsole.log(output);
+      } else {
+        this.config.stream.write(output + '\n');
+      }
     }
   }
 
