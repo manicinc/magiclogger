@@ -85,7 +85,12 @@ describe('TransportManager', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.useFakeTimers();
+    // Always reset timers state first to avoid double-install errors
+    jest.useRealTimers();
+    // Use fake timers but do not fake setImmediate/nextTick to avoid conflicts with polyfills
+    jest.useFakeTimers({
+      doNotFake: ['setImmediate', 'nextTick'],
+    });
 
     manager = new TransportManager();
 
@@ -508,6 +513,11 @@ describe('TransportManager', () => {
     let aggregationManager: TransportManager;
     let metricsTransport: MockTransport;
 
+    // Helper to invoke private performAggregation without using any
+    const callPerformAggregation = (tm: TransportManager): void => {
+      (tm as unknown as { performAggregation: () => void }).performAggregation();
+    };
+
     beforeEach(async () => {
       metricsTransport = new MockTransport('metrics');
 
@@ -537,7 +547,7 @@ describe('TransportManager', () => {
       await aggregationManager.log({ ...mockEntry, level: 'error' });
 
       // Trigger aggregation manually by calling the internal method
-      (aggregationManager as any).performAggregation();
+      callPerformAggregation(aggregationManager);
       
       // Allow async operations to complete
       await new Promise(resolve => setImmediate(resolve));
@@ -564,7 +574,7 @@ describe('TransportManager', () => {
       await aggregationManager.log({ ...mockEntry, loggerId: 'logger1' });
 
       // Trigger aggregation manually
-      (aggregationManager as any).performAggregation();
+      callPerformAggregation(aggregationManager);
       await new Promise(resolve => setImmediate(resolve));
 
       const aggEntry = metricsTransport.logCalls[metricsTransport.logCalls.length - 1];
@@ -583,7 +593,7 @@ describe('TransportManager', () => {
       await aggregationManager.log({ ...mockEntry, tags: ['api'] });
 
       // Trigger aggregation manually
-      (aggregationManager as any).performAggregation();
+      callPerformAggregation(aggregationManager);
       await new Promise(resolve => setImmediate(resolve));
 
       const aggEntry = metricsTransport.logCalls[metricsTransport.logCalls.length - 1];
@@ -602,7 +612,7 @@ describe('TransportManager', () => {
       await aggregationManager.log({ ...mockEntry, message: 'x'.repeat(100) });
 
       // Trigger aggregation manually
-      (aggregationManager as any).performAggregation();
+      callPerformAggregation(aggregationManager);
       await new Promise(resolve => setImmediate(resolve));
 
       expect(metricsTransport.logCalls.length).toBeGreaterThan(0);
@@ -617,7 +627,7 @@ describe('TransportManager', () => {
       await aggregationManager.log(mockEntry);
 
       // Trigger aggregation manually
-      (aggregationManager as any).performAggregation();
+      callPerformAggregation(aggregationManager);
       await new Promise(resolve => setImmediate(resolve));
 
       expect(aggSpy).toHaveBeenCalledWith(
@@ -635,14 +645,14 @@ describe('TransportManager', () => {
       await aggregationManager.log(mockEntry);
 
       // First aggregation
-      (aggregationManager as any).performAggregation();
+      callPerformAggregation(aggregationManager);
       await new Promise(resolve => setImmediate(resolve));
 
       // Log more after aggregation
       await aggregationManager.log({ ...mockEntry, level: 'warn' });
 
       // Second aggregation
-      (aggregationManager as any).performAggregation();
+      callPerformAggregation(aggregationManager);
       await new Promise(resolve => setImmediate(resolve));
 
       // Second aggregation should only have new log

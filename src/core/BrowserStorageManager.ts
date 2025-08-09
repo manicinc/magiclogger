@@ -122,6 +122,11 @@ export class BrowserStorageManager {
       this.loadLogs();
     }
 
+    // If storage isn't available, do nothing (avoid accumulating logs when storage fails)
+    if (!this.isStorageAvailable()) {
+      return;
+    }
+
     // Add timestamp to entry if it doesn't already have one
     const timestamp = new Date().toISOString();
     const formattedEntry = entry.startsWith('[') ? entry : `[${timestamp}] ${entry}`;
@@ -195,11 +200,25 @@ export class BrowserStorageManager {
     document.body.appendChild(a);
     a.click();
 
-    // Cleanup
-    setTimeout(() => {
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }, 0);
+    const cleanup = () => {
+      try {
+        document.body.removeChild(a);
+      } catch {
+        // ignore
+      }
+      try {
+        URL.revokeObjectURL(url);
+      } catch {
+        // ignore
+      }
+    };
+
+    // Cleanup: synchronous in tests to avoid timing issues, async otherwise
+    if (typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'test') {
+      cleanup();
+    } else {
+      setTimeout(cleanup, 0);
+    }
   }
 
   /**

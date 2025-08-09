@@ -19,7 +19,7 @@ describe('Logger Output Methods', () => {
   it('only prints debug when verbose is true', () => {
     // Create a new logger with verbose=false for this test
     const testLogger = new Logger({ verbose: false });
-    const spy = jest.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    const spy = jest.spyOn(Printer, 'print').mockImplementation(() => undefined);
 
     // Clear any previous calls
     spy.mockClear();

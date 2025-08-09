@@ -153,7 +153,7 @@ function stubWithTimeout(t: TestNetworkTransport) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .spyOn(t as any, 'withTimeout')
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .mockImplementation(async (p: Promise<any>) => p);
+    .mockImplementation((...args: unknown[]) => args[0] as Promise<any>);
 }
 
 /**

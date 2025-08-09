@@ -85,7 +85,7 @@ describe('BrowserStorageManager', () => {
     const storage = new BrowserStorageManager();
     expect(storage).toBeDefined();
 
-    // Adding logs should not throw
+    // Adding logs should not throw and should not accumulate in-memory
     expect(() => {
       storage.addLog('Test entry');
     }).not.toThrow();
@@ -104,49 +104,83 @@ describe('BrowserStorageManager', () => {
   });
 
   it('has a download method that handles the browser environment', () => {
-    // Mock the global objects needed for the test
-    const mockAppendChild = jest.fn();
-    const mockRemoveChild = jest.fn();
-    const mockCreateElement = jest.fn().mockReturnValue({
-      href: '',
-      download: '',
-      click: jest.fn(),
+    // Use spies to avoid overriding jsdom globals
+    const appendSpy = jest.spyOn(document.body, 'appendChild').mockImplementation((node: Node) => {
+      return node; // return the node to satisfy the DOM signature
     });
-    const mockCreateObjectURL = jest.fn().mockReturnValue('blob:url');
-    const mockRevokeObjectURL = jest.fn();
+    const removeSpy = jest.spyOn(document.body, 'removeChild').mockImplementation((child: Node) => {
+      return child; // return the child to satisfy the DOM signature
+    });
 
-    // Mock document and URL objects
-    Object.defineProperty(global, 'document', {
-      value: {
-        createElement: mockCreateElement,
-        body: {
-          appendChild: mockAppendChild,
-          removeChild: mockRemoveChild,
-        },
-      },
+    // Spy on anchor click so we can assert it was triggered
+    const clickSpy = jest
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => undefined);
+
+    // Safely define and stub URL methods even if jsdom doesn't provide them
+    type URLWithObjectURL = typeof URL & {
+      createObjectURL?: (obj: unknown) => string;
+      revokeObjectURL?: (url: string) => void;
+    };
+
+    const URLCtor = globalThis.URL as URLWithObjectURL;
+    const hadCreate = typeof URLCtor.createObjectURL === 'function';
+    const hadRevoke = typeof URLCtor.revokeObjectURL === 'function';
+    const originalCreate = URLCtor.createObjectURL;
+    const originalRevoke = URLCtor.revokeObjectURL;
+
+    const createObjectURLMock = jest.fn<ReturnType<NonNullable<URLWithObjectURL['createObjectURL']>>, Parameters<NonNullable<URLWithObjectURL['createObjectURL']>>>().mockReturnValue('blob:url');
+    const revokeObjectURLMock = jest.fn<ReturnType<NonNullable<URLWithObjectURL['revokeObjectURL']>>, Parameters<NonNullable<URLWithObjectURL['revokeObjectURL']>>>().mockImplementation(() => undefined);
+
+    Object.defineProperty(URLCtor, 'createObjectURL', {
+      value: createObjectURLMock,
       configurable: true,
+      writable: true,
     });
-
-    Object.defineProperty(global, 'URL', {
-      value: {
-        createObjectURL: mockCreateObjectURL,
-        revokeObjectURL: mockRevokeObjectURL,
-      },
+    Object.defineProperty(URLCtor, 'revokeObjectURL', {
+      value: revokeObjectURLMock,
       configurable: true,
+      writable: true,
     });
 
-    const storage = new BrowserStorageManager();
+    try {
+      const storage = new BrowserStorageManager();
 
-    // Add some test logs
-    storage.addLog('Test log 1');
-    storage.addLog('Test log 2');
+      // Add some test logs
+      storage.addLog('Test log 1');
+      storage.addLog('Test log 2');
 
-    // Call download method
-    storage.downloadLogs('test.txt');
+      // Call download method
+      storage.downloadLogs('test.txt');
 
-    // Verify mocks were called
-    expect(mockCreateElement).toHaveBeenCalledWith('a');
-    expect(mockCreateObjectURL).toHaveBeenCalled();
-    expect(mockAppendChild).toHaveBeenCalled();
+      // Verify mocks were called
+      expect(createObjectURLMock).toHaveBeenCalled();
+      expect(appendSpy).toHaveBeenCalled();
+      expect(removeSpy).toHaveBeenCalled();
+      expect(clickSpy).toHaveBeenCalled();
+      expect(revokeObjectURLMock).toHaveBeenCalled();
+    } finally {
+      appendSpy.mockRestore();
+      removeSpy.mockRestore();
+      clickSpy.mockRestore();
+      if (hadCreate) {
+        Object.defineProperty(URLCtor, 'createObjectURL', {
+          value: originalCreate,
+          configurable: true,
+          writable: true,
+        });
+      } else {
+        Reflect.deleteProperty(URLCtor, 'createObjectURL');
+      }
+      if (hadRevoke) {
+        Object.defineProperty(URLCtor, 'revokeObjectURL', {
+          value: originalRevoke,
+          configurable: true,
+          writable: true,
+        });
+      } else {
+        Reflect.deleteProperty(URLCtor, 'revokeObjectURL');
+      }
+    }
   });
 });

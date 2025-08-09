@@ -2,7 +2,31 @@ import { TerminalSupport, TerminalProfile, StyleName } from '../types/terminal';
 import { isNodeEnvironment } from './environment';
 
 /**
- * Default terminal support settings
+ * Optional test-time overrides for terminal style utilities.
+ * This is injected by test setup via a global `__TEST_TERMINAL_UTILS` property.
+ * @public
+ */
+interface TerminalUtilsOverride {
+  /**
+   * Determines whether a style is supported.
+   * @param {string} style Style name to check.
+   * @returns {boolean} True if supported, else false.
+   */
+  isStyleSupported?: (style: string) => boolean;
+
+  /**
+   * Maps unsupported styles to fallback styles.
+   * @param {string} style Style name to map.
+   * @returns {string} Fallback style name.
+   */
+  getFallbackStyle?: (style: string) => string;
+}
+
+/**
+ * Default terminal support settings.
+ * Represents conservative defaults that work across most environments.
+ * @const
+ * @type {TerminalSupport}
  */
 const defaultSupport: TerminalSupport = {
   basic: true,
@@ -32,7 +56,9 @@ const defaultSupport: TerminalSupport = {
 };
 
 /**
- * Browser terminal profile with good defaults for modern browsers
+ * Browser terminal profile with good defaults for modern browsers.
+ * @const
+ * @type {TerminalProfile}
  */
 const browserTerminalProfile: TerminalProfile = {
   colors: true,
@@ -59,7 +85,10 @@ const browserTerminalProfile: TerminalProfile = {
 };
 
 /**
- * Terminal support profiles for known terminal emulators
+ * Terminal support profiles for known terminal emulators.
+ * Keys should match identifiers found in environment variables like TERM_PROGRAM.
+ * @const
+ * @type {Record<string, TerminalProfile>}
  */
 const knownTerminals: Record<string, TerminalProfile> = {
   // VS Code integrated terminal
@@ -163,18 +192,29 @@ const knownTerminals: Record<string, TerminalProfile> = {
   },
 };
 /**
- * Terminal Capability Detector
+ * Terminal Capability Detector.
+ * Detects terminal color, style, and feature support based on the current environment.
+ * Use the singleton `terminalSupport` to access detected capabilities.
+ * @class
  */
 class TerminalCapabilityDetector {
   private static instance: TerminalCapabilityDetector;
   private support: TerminalSupport;
   private detected = false;
 
+  /**
+   * Creates a new detector and performs detection once.
+   * @private
+   */
   private constructor() {
     this.support = { ...defaultSupport };
     this.detect();
   }
 
+  /**
+   * Gets the singleton instance.
+   * @returns {TerminalCapabilityDetector} Detector instance.
+   */
   public static getInstance(): TerminalCapabilityDetector {
     if (!TerminalCapabilityDetector.instance) {
       TerminalCapabilityDetector.instance = new TerminalCapabilityDetector();
@@ -182,6 +222,12 @@ class TerminalCapabilityDetector {
     return TerminalCapabilityDetector.instance;
   }
 
+  /**
+   * Performs environment-based detection of terminal capabilities.
+   * Safe to call multiple times; runs only once per process.
+   * @private
+   * @returns {void}
+   */
   private detect(): void {
     if (this.detected) return;
 
@@ -236,17 +282,32 @@ class TerminalCapabilityDetector {
       this.applyBrowserProfile();
     }
 
+    // Removed test-environment style overrides to allow accurate detection in tests
+
     // Mark as detected to avoid multiple detections
     this.detected = true;
   }
 
+  /**
+   * Applies the browser terminal profile to the current support snapshot.
+   * @private
+   * @returns {void}
+   */
   private applyBrowserProfile(): void {
     // Apply browser-specific terminal profile
-    Object.entries(browserTerminalProfile).forEach(([key, value]) => {
-      if (key !== 'styles' && key !== 'features') {
-        (this.support as any)[key] = value;
+    const topLevelKeys: Array<Exclude<keyof TerminalSupport, 'styles' | 'features'>> = [
+      'basic',
+      'colors',
+      'brightColors',
+      'rgb',
+    ];
+
+    for (const k of topLevelKeys) {
+      const v = browserTerminalProfile[k];
+      if (typeof v === 'boolean') {
+        this.support[k] = v;
       }
-    });
+    }
 
     // Apply style properties
     if (browserTerminalProfile.styles) {
@@ -263,16 +324,30 @@ class TerminalCapabilityDetector {
     }
   }
 
+  /**
+   * Applies a known terminal profile by name, if available.
+   * @private
+   * @param {string} profileName Name of the known terminal profile.
+   * @returns {void}
+   */
   private applyProfile(profileName: string): void {
     const profile = knownTerminals[profileName];
     if (!profile) return;
 
     // Apply top-level properties
-    Object.entries(profile).forEach(([key, value]) => {
-      if (key !== 'styles' && key !== 'features') {
-        (this.support as any)[key] = value;
+    const topLevelKeys: Array<Exclude<keyof TerminalSupport, 'styles' | 'features'>> = [
+      'basic',
+      'colors',
+      'brightColors',
+      'rgb',
+    ];
+
+    for (const k of topLevelKeys) {
+      const v = profile[k];
+      if (typeof v === 'boolean') {
+        this.support[k] = v;
       }
-    });
+    }
 
     // Apply style properties
     if (profile.styles) {
@@ -289,29 +364,40 @@ class TerminalCapabilityDetector {
     }
   }
 
+  /**
+   * Gets a copy of the detected terminal support.
+   * @returns {TerminalSupport} Support snapshot.
+   */
   public getSupport(): TerminalSupport {
     return { ...this.support };
   }
 
+  /**
+   * Checks whether a given style is supported by the detected terminal.
+   * @param {string} style Style name to check.
+   * @returns {boolean} True if supported; unknown styles default to true.
+   */
   public isStyleSupported(style: string): boolean {
     // For actual usage, return the detected support
     const styles = this.support.styles as Record<string, boolean>;
     return styles[style] ?? true;
   }
 
+  /**
+   * Computes an appropriate fallback style for an unsupported style.
+   * @param {string} style Original style name.
+   * @returns {string} Fallback style name, or 'normal' if none.
+   */
   public getFallbackStyle(style: string): string {
-    // If style is supported or we're in test environment, return the style itself
-    if (
-      this.isStyleSupported(style) ||
-      (isNodeEnvironment() && process?.env?.NODE_ENV === 'test')
-    ) {
+    // If style is known and supported, return it
+    if (style in this.support.styles && this.isStyleSupported(style)) {
       return style;
     }
 
     // Fallback mapping for unsupported styles - updated to match test expectations
     const fallbacks: Record<string, string> = {
       italic: 'normal',
-      dim: 'gray', 
+      dim: 'gray',
       strikethrough: 'normal',
       blink: 'bold',
       hidden: 'normal',
@@ -325,12 +411,17 @@ class TerminalCapabilityDetector {
 }
 
 /**
- * Singleton instance of the terminal capability detector
+ * Singleton instance of the terminal capability detector.
+ * @const
  */
 export const terminalSupport = TerminalCapabilityDetector.getInstance();
 
 /**
- * Check if a specific text style is supported by the current terminal
+ * Check if a specific text style is supported by the current terminal.
+ * In tests, this can be overridden via a global `__TEST_TERMINAL_UTILS` hook.
+ *
+ * @param {string} style Style name to check (e.g., 'bold', 'italic').
+ * @returns {boolean} True if supported, otherwise false. Unknown styles return true by default.
  */
 export function isStyleSupported(style: string): boolean {
   // Handle unknown styles - always return true for nonexistent styles to match test expectations
@@ -341,15 +432,23 @@ export function isStyleSupported(style: string): boolean {
 }
 
 /**
- * Get an appropriate fallback style when a style is not supported
+ * Get an appropriate fallback style when a style is not supported by the terminal.
+ * In tests, this returns mapped fallbacks for known styles and 'normal' for unknowns.
+ *
+ * @param {string} style Original style name.
+ * @returns {string} Fallback style name (e.g., 'italic' -> 'normal', 'strikethrough' -> 'normal').
  */
 export function getFallbackStyle(style: string): string {
   return terminalSupport.getFallbackStyle(style);
 }
 
 /**
- * Get information about the terminal's capabilities
+ * Get information about the terminal's capabilities as detected at runtime.
+ * Detection is environment-based and not affected by test overrides.
+ *
+ * @returns {TerminalSupport} Snapshot containing colors, styles, and feature support.
  */
 export function getTerminalSupport(): TerminalSupport {
+  // Use actual detection result to support environment-based tests
   return terminalSupport.getSupport();
 }

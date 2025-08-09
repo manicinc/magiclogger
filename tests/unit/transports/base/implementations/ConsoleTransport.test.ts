@@ -1,9 +1,14 @@
 // File: tests/unit/transports/base/implementations/ConsoleTransport.test.ts
+
 import { ConsoleTransport, createConsoleTransport } from '../../../../../src/transports/base/implementations/ConsoleTransport';
-import type { LogEntry, LogLevel } from '../../../../../src/types/transport';
+import type { LogEntry } from '../../../../../src/types/transport';
+import type { ConsoleTransportOptions } from '../../../../../src/transports/base/implementations/ConsoleTransport';
 
-// Adapted tests for current ConsoleTransport (no external Formatter usage).
-
+/**
+ * Comprehensive test suite for ConsoleTransport class.
+ *
+ * Tests console output formatting, metadata display, and level mapping.
+ */
 describe('ConsoleTransport', () => {
   let transport: ConsoleTransport;
   let mockEntry: LogEntry;
@@ -18,6 +23,7 @@ describe('ConsoleTransport', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
+    // Setup console mocks
     consoleMocks = {
       log: jest.spyOn(console, 'log').mockImplementation(),
       debug: jest.spyOn(console, 'debug').mockImplementation(),
@@ -28,7 +34,8 @@ describe('ConsoleTransport', () => {
 
     transport = new ConsoleTransport({
       name: 'console',
-      format: 'json'
+      enabled: true,
+      format: 'plain'
     });
 
     mockEntry = {
@@ -46,35 +53,38 @@ describe('ConsoleTransport', () => {
   });
 
   afterEach(() => {
-    Object.values(consoleMocks).forEach(m => m.mockRestore());
+    Object.values(consoleMocks).forEach(mock => mock.mockRestore());
   });
 
   describe('constructor', () => {
     it('should initialize with default options', () => {
-      const t = new ConsoleTransport({ name: 'test' });
+      const t = new ConsoleTransport({ name: 'test', format: 'plain' });
       expect(t.name).toBe('test');
       expect(t.enabled).toBe(true);
     });
 
     it('should initialize with custom options', () => {
-      const customOptions = {
+      const options: ConsoleTransportOptions = {
         name: 'custom',
-        enabled: false as const,
+        enabled: false,
         useColors: false,
         showTimestamp: false,
         showLevel: false,
         showLoggerId: true,
         showTags: true,
-        showMetadata: false,
+        showMetadata: true,
         prefix: 'APP',
         consoleMethods: {
-          debug: 'log' as const,
-          info: 'log' as const,
-          warn: 'error' as const,
-          error: 'error' as const
-        }
+          debug: 'log',
+          info: 'log',
+          warn: 'error',
+          error: 'error',
+          default: 'info'
+        },
+        format: 'plain'
       };
-      const t = new ConsoleTransport(customOptions);
+
+      const t = new ConsoleTransport(options);
       expect(t.name).toBe('custom');
       expect(t.enabled).toBe(false);
     });
@@ -86,183 +96,266 @@ describe('ConsoleTransport', () => {
     });
 
     it('should accept custom console method mapping without validation', async () => {
-      transport = new ConsoleTransport({
-        name: 'custom-map',
-        consoleMethods: { info: 'warn', error: 'log' }
+      const t = new ConsoleTransport({
+        name: 'invalid',
+        // Cast to bypass TS while ensuring runtime fallback works
+        consoleMethods: { debug: 'notAMethod' as unknown as keyof Console },
+        format: 'plain'
       });
-      await expect(transport.init()).resolves.not.toThrow();
+      await expect(t.init()).resolves.not.toThrow();
     });
   });
 
   describe('log formatting (plain)', () => {
     beforeEach(async () => {
-      transport = new ConsoleTransport({
-        name: 'plain-console',
-        format: 'plain',
-        showLoggerId: true,
-        showMetadata: true,
-        showTags: true,
-        showTimestamp: true
-      });
       await transport.init();
     });
 
     it('should format log with all components', async () => {
+      consoleMocks.info.mockClear();
       await transport.log(mockEntry);
-      const call = consoleMocks.info.mock.calls[0]?.[0];
-      expect(call).toContain('Test message');
-      expect(call).toMatch(/\d{4}-\d{2}-\d{2}T/);
-      expect(call).toMatch(/INFO/);
-      expect(call).toContain('[test-logger]');
-      expect(call).toMatch(/\{test, unit\}/);
+
+      const out = consoleMocks.info.mock.calls[0]?.[0] as string;
+      expect(out).toMatch(/\d{4}-\d{2}-\d{2}T/); // ISO timestamp
+      expect(out).toContain('INFO   '); // level padded
+      expect(out).toContain('[test-logger]');
+      expect(out).toContain('{test, unit}');
+      expect(out).toContain('Test message');
     });
 
     it('should skip timestamp when disabled', async () => {
-      transport = new ConsoleTransport({ name: 'no-ts', format: 'plain', showTimestamp: false });
+      transport = new ConsoleTransport({ name: 'no-timestamp', showTimestamp: false, format: 'plain' });
       await transport.init();
+
+      consoleMocks.info.mockClear();
       await transport.log(mockEntry);
-      const call = consoleMocks.info.mock.calls[0]?.[0];
-      expect(call).not.toMatch(/\d{4}-\d{2}-\d{2}T/);
+
+      const out = consoleMocks.info.mock.calls[0]?.[0] as string;
+      expect(out).not.toMatch(/\d{4}-\d{2}-\d{2}T/);
     });
 
     it('should skip level when disabled', async () => {
-      transport = new ConsoleTransport({ name: 'no-level', format: 'plain', showLevel: false });
+      transport = new ConsoleTransport({ name: 'no-level', showLevel: false, format: 'plain' });
       await transport.init();
+
+      consoleMocks.info.mockClear();
       await transport.log(mockEntry);
-      const call = consoleMocks.info.mock.calls[0]?.[0];
-      expect(call).not.toMatch(/INFO/);
+
+      const out = consoleMocks.info.mock.calls[0]?.[0] as string;
+      expect(out).not.toMatch(/INFO\s{3,}/);
     });
 
     it('should show logger ID when enabled', async () => {
-      transport = new ConsoleTransport({ name: 'with-id', format: 'plain', showLoggerId: true });
+      transport = new ConsoleTransport({ name: 'with-logger-id', showLoggerId: true, format: 'plain' });
       await transport.init();
+
+      consoleMocks.info.mockClear();
       await transport.log(mockEntry);
-      expect(consoleMocks.info.mock.calls[0]?.[0]).toContain('[test-logger]');
+
+      const out = consoleMocks.info.mock.calls[0]?.[0] as string;
+      expect(out).toContain('[test-logger]');
     });
 
     it('should show tags when enabled', async () => {
-      transport = new ConsoleTransport({ name: 'with-tags', format: 'plain', showTags: true });
+      transport = new ConsoleTransport({ name: 'with-tags', showTags: true, format: 'plain' });
       await transport.init();
+
+      consoleMocks.info.mockClear();
       await transport.log(mockEntry);
-      expect(consoleMocks.info.mock.calls[0]?.[0]).toMatch(/\{test, unit\}/);
+
+      const out = consoleMocks.info.mock.calls[0]?.[0] as string;
+      expect(out).toContain('{test, unit}');
     });
 
     it('should add custom prefix', async () => {
-      transport = new ConsoleTransport({ name: 'with-prefix', format: 'plain', prefix: 'MyApp' });
+      transport = new ConsoleTransport({ name: 'with-prefix', prefix: 'MyApp', format: 'plain' });
       await transport.init();
+
+      consoleMocks.info.mockClear();
       await transport.log(mockEntry);
-      expect(consoleMocks.info.mock.calls[0]?.[0]).toContain('MyApp');
+
+      const out = consoleMocks.info.mock.calls[0]?.[0] as string;
+      expect(out).toContain('MyApp');
     });
 
     it('should use plain message when colors disabled', async () => {
-      transport = new ConsoleTransport({ name: 'no-colors', format: 'plain', useColors: false });
+      transport = new ConsoleTransport({ name: 'no-colors', useColors: false, format: 'plain' });
       await transport.init();
+
+      consoleMocks.info.mockClear();
       await transport.log(mockEntry);
-      expect(consoleMocks.info).toHaveBeenCalledWith(expect.stringContaining('Test message'));
+
+      const out = consoleMocks.info.mock.calls[0]?.[0] as string;
+      expect(out).toContain('Test message');
     });
   });
 
   describe('console method mapping', () => {
     beforeEach(async () => {
-      transport = new ConsoleTransport({ name: 'map', format: 'plain' });
       await transport.init();
     });
 
     it('should use correct console method for each level', async () => {
-      const levels: Array<[LogLevel, keyof typeof consoleMocks]> = [
+      const levels: Array<[LogEntry['level'], keyof typeof consoleMocks]> = [
         ['debug', 'debug'],
         ['info', 'info'],
         ['warn', 'warn'],
         ['error', 'error']
       ];
+
       for (const [lvl, method] of levels) {
+        // reset spies for clean assertion per level
+        Object.values(consoleMocks).forEach(m => m.mockClear());
         await transport.log({ ...mockEntry, level: lvl });
         expect(consoleMocks[method]).toHaveBeenCalled();
       }
     });
 
     it('should use default method for unknown levels (log)', async () => {
-      await transport.log({ ...mockEntry, level: 'custom' as LogLevel });
+      await transport.log({ ...mockEntry, level: 'custom' as unknown as LogEntry['level'] });
       expect(consoleMocks.log).toHaveBeenCalled();
     });
 
     it('should respect custom mapping', async () => {
-      transport = new ConsoleTransport({ name: 'custom-map', format: 'plain', consoleMethods: { info: 'warn', error: 'log' } });
+      transport = new ConsoleTransport({
+        name: 'custom-methods',
+        consoleMethods: { info: 'warn', error: 'log' },
+        format: 'plain'
+      });
       await transport.init();
+
       await transport.log({ ...mockEntry, level: 'info' });
       expect(consoleMocks.warn).toHaveBeenCalled();
+
       await transport.log({ ...mockEntry, level: 'error' });
+      expect(consoleMocks.log).toHaveBeenCalled();
+    });
+
+    it('should handle success level', async () => {
+      await transport.log({ ...mockEntry, level: 'success' });
       expect(consoleMocks.log).toHaveBeenCalled();
     });
   });
 
   describe('metadata & errors (plain)', () => {
     beforeEach(async () => {
-      transport = new ConsoleTransport({ name: 'meta', format: 'plain', showMetadata: true, showLoggerId: true });
       await transport.init();
     });
 
     it('should display error details', async () => {
-      await transport.log({
+      const entryWithError = {
         ...mockEntry,
-        error: { name: 'TestError', message: 'Something went wrong', stack: 'Error: Something went wrong\n  at test.js:1:1' }
-      });
-      const output = consoleMocks.info.mock.calls.map(c => c[0]).join('\n');
+        error: {
+          name: 'TestError',
+          message: 'Something went wrong',
+          stack: 'Error: Something went wrong\n  at test.js:1:1',
+          code: 'ERR_TEST'
+        }
+      };
+
+      consoleMocks.info.mockClear();
+      await transport.log(entryWithError);
+
+      const output = consoleMocks.info.mock.calls[0]?.[0] as string;
       expect(output).toContain('Error: TestError - Something went wrong');
       expect(output).toContain('at test.js:1:1');
     });
 
     it('should display context', async () => {
+      transport = new ConsoleTransport({ name: 'with-context', showMetadata: true, format: 'plain' });
+      await transport.init();
+      consoleMocks.info.mockClear();
       await transport.log(mockEntry);
-      const output = consoleMocks.info.mock.calls[0][0];
-      expect(output).toContain('Test message');
-      const full = consoleMocks.info.mock.calls.map(c => c[0]).join('\n');
-      expect(full).toContain('Context');
+
+      const out = consoleMocks.info.mock.calls[0]?.[0] as string;
+      expect(out).toContain('Context:');
+      expect(out).toContain('"test": true');
     });
 
-    it('should display metadata', async () => {
+    it('should display metadata when enabled', async () => {
+      transport = new ConsoleTransport({ name: 'with-metadata', showMetadata: true, format: 'plain' });
+      await transport.init();
+      consoleMocks.info.mockClear();
       await transport.log(mockEntry);
-      const full = consoleMocks.info.mock.calls.map(c => c[0]).join('\n');
-      expect(full).toContain('Metadata');
+
+      const out = consoleMocks.info.mock.calls[0]?.[0] as string;
+      expect(out).toContain('Metadata:');
+      expect(out).toContain('"hostname": "test-host"');
     });
 
     it('should skip metadata when disabled', async () => {
-      transport = new ConsoleTransport({ name: 'no-meta', format: 'plain', showMetadata: false });
+      transport = new ConsoleTransport({ name: 'no-metadata', showMetadata: false, format: 'plain' });
       await transport.init();
+      consoleMocks.info.mockClear();
       await transport.log(mockEntry);
-      const full = consoleMocks.info.mock.calls.map(c => c[0]).join('\n');
-      expect(full).not.toContain('Metadata');
+
+      const out = consoleMocks.info.mock.calls[0]?.[0] as string;
+      expect(out).not.toContain('Metadata');
+    });
+
+    it('should skip empty context', async () => {
+      transport = new ConsoleTransport({ name: 'empty-context', showMetadata: true, format: 'plain' });
+      await transport.init();
+      consoleMocks.info.mockClear();
+      await transport.log({ ...mockEntry, context: {} });
+
+      const out = consoleMocks.info.mock.calls[0]?.[0] as string;
+      expect(out).not.toContain('Context:');
+    });
+
+    it('should handle error without stack', async () => {
+      const entryWithError = { ...mockEntry, error: { name: 'SimpleError', message: 'No stack trace' } };
+
+      consoleMocks.info.mockClear();
+      await transport.log(entryWithError);
+
+      const output = consoleMocks.info.mock.calls[0]?.[0] as string;
+      expect(output).toContain('Error: SimpleError - No stack trace');
     });
   });
 
   describe('formatting options (json)', () => {
     it('should format as JSON by default', async () => {
+      transport = new ConsoleTransport({ name: 'json', format: 'json' });
       await transport.init();
       await transport.log(mockEntry);
-      expect(consoleMocks.info).toHaveBeenCalledWith(expect.stringMatching(/^\{.*\}$/));
+
+      const out = consoleMocks.info.mock.calls[0]?.[0] as string;
+      expect(() => JSON.parse(out)).not.toThrow();
+      const parsed = JSON.parse(out) as Record<string, unknown>;
+      expect(parsed.message).toBe('Test message');
     });
 
     it('should format as plain when specified', async () => {
       transport = new ConsoleTransport({ name: 'plain', format: 'plain' });
       await transport.init();
       await transport.log(mockEntry);
+
       expect(consoleMocks.info).toHaveBeenCalled();
     });
 
     it('should use custom formatter when provided', async () => {
-      transport = new ConsoleTransport({ name: 'custom', format: 'custom', formatter: e => `X:${e.message}` });
+      transport = new ConsoleTransport({
+        name: 'custom',
+        format: 'custom',
+        formatter: () => 'CUSTOM-OUTPUT'
+      });
       await transport.init();
+
       await transport.log(mockEntry);
-      expect(consoleMocks.info).toHaveBeenCalledWith('X:Test message');
+      const out = (consoleMocks.info.mock.calls[0]?.[0] as string);
+      expect(out).toBe('CUSTOM-OUTPUT');
     });
   });
 
   describe('statistics', () => {
     it('should expose processed count after logging', async () => {
+      transport = new ConsoleTransport({ name: 'stats', format: 'plain' });
       await transport.init();
       await transport.log(mockEntry);
-      const stats = (transport as unknown as { stats: { processed: number } }).stats;
-      expect(stats.processed).toBeGreaterThan(0);
+      const stats = transport.getStats();
+      expect(stats.processed).toBeGreaterThanOrEqual(1);
+      expect(stats.succeeded).toBeGreaterThanOrEqual(1);
     });
   });
 
@@ -270,46 +363,77 @@ describe('ConsoleTransport', () => {
     it('should close gracefully (no logging expected)', async () => {
       await transport.close();
       expect(transport.enabled).toBe(false);
+    });
+
+    it('should not log on close when not debug level', async () => {
+      transport = new ConsoleTransport({ name: 'info-close', level: 'info', format: 'plain' });
+      await transport.close();
       expect(consoleMocks.debug).not.toHaveBeenCalled();
     });
   });
 
   describe('edge cases', () => {
     beforeEach(async () => {
-      transport = new ConsoleTransport({ name: 'edge', format: 'plain', showMetadata: true });
       await transport.init();
     });
 
     it('should handle minimal entry', async () => {
-      const minimal: LogEntry = { id: 'm', timestamp: new Date().toISOString(), timestampMs: Date.now(), level: 'info', message: 'Minimal' };
-      await transport.log(minimal);
+      const minimalEntry: LogEntry = {
+        id: 'min',
+        timestamp: new Date().toISOString(),
+        timestampMs: Date.now(),
+        level: 'info',
+        message: 'Minimal'
+      };
+
+      consoleMocks.info.mockClear();
+      await transport.log(minimalEntry);
+
       expect(consoleMocks.info).toHaveBeenCalled();
     });
 
     it('should handle very long messages', async () => {
       const longMessage = 'x'.repeat(1000);
-      await transport.log({ ...mockEntry, message: longMessage });
-      expect(consoleMocks.info.mock.calls[0][0]).toContain(longMessage);
+      consoleMocks.info.mockClear();
+      await transport.log({ ...mockEntry, message: longMessage, plainMessage: longMessage });
+
+      const out = consoleMocks.info.mock.calls[0]?.[0] as string;
+      expect(out).toContain(longMessage);
     });
 
     it('should handle special characters in tags', async () => {
+      consoleMocks.info.mockClear();
       await transport.log({ ...mockEntry, tags: ['special:char', 'with,comma', 'with space'] });
-      const output = consoleMocks.info.mock.calls[0][0];
-      expect(output).toContain('with,comma');
+
+      const out = consoleMocks.info.mock.calls[0]?.[0] as string;
+      expect(out).toContain('{special:char, with,comma, with space}');
     });
 
     it('should handle circular references in context (ignored in output)', async () => {
       const circular: Record<string, unknown> = { a: 1 };
-      (circular as unknown as { self?: unknown }).self = circular; // edge case linkage
+      (circular as Record<string, unknown>)['self'] = circular;
+
+      consoleMocks.info.mockClear();
       await transport.log({ ...mockEntry, context: circular });
+
+      // Should not throw
       expect(consoleMocks.info).toHaveBeenCalled();
     });
 
     it('should handle null/undefined in context', async () => {
-      await transport.log({ ...mockEntry, context: { nullValue: null, undefinedValue: undefined, valid: 'data' } });
-      const full = consoleMocks.info.mock.calls.map(c => c[0]).join('\n');
-      expect(full).toContain('nullValue');
-      expect(full).toContain('valid');
+      transport = new ConsoleTransport({ name: 'context-null', showMetadata: true, format: 'plain' });
+      await transport.init();
+
+      consoleMocks.info.mockClear();
+      await transport.log({
+        ...mockEntry,
+        context: { nullValue: null, undefinedValue: undefined, valid: 'data' }
+      });
+
+      const out = consoleMocks.info.mock.calls[0]?.[0] as string;
+      expect(out).toContain('Context:');
+      expect(out).toContain('"nullValue": null');
+      expect(out).toContain('"valid": "data"');
     });
   });
 

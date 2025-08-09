@@ -205,6 +205,8 @@ jest.mock('fs', () => {
   return {
     ...fs,
     ...fsMockImplementation,
+    // Ensure createWriteStream is a jest.fn so tests can control it without spyOn
+    createWriteStream: jest.fn(),
   };
 });
 
@@ -265,6 +267,10 @@ export const terminalUtils = {
     },
   }),
 };
+
+// Expose terminal utils overrides to source code for tests
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+;(globalThis as any).__TEST_TERMINAL_UTILS = terminalUtils;
 
 // ----------------------
 // Browser Storage Mock

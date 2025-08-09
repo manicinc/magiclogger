@@ -159,15 +159,27 @@ export class ThemeManager {
       | undefined;
 
     // Fallback to default theme if not found
-    if (!styles && this.availableThemes && this.availableThemes.default) {
+    const hasDefault = !!(this.availableThemes && this.availableThemes.default);
+    if (!styles && hasDefault) {
       styles = this.availableThemes.default[level];
     }
 
-    // Do not scan non-default themes when default is missing; tests expect '' in that case
+    // If default exists but level not found yet, scan other available themes
+    if (!styles && hasDefault && this.availableThemes) {
+      for (const [name, theme] of Object.entries(this.availableThemes)) {
+        if (name === 'default') continue;
+        const candidate = (theme as Record<string, ColorName[]>)[level];
+        if (candidate) {
+          styles = candidate;
+          break;
+        }
+      }
+    }
+
+    // If no default theme, do not scan others and return empty string
     if (!Array.isArray(styles)) return '';
 
     const mapped = styles.map(s => CSS_STYLE_MAP[s as string] || '');
-    // Join with "; " (keeps blanks), matching tests like '; ' and '; ; ; '
     return mapped.join('; ');
   }
 

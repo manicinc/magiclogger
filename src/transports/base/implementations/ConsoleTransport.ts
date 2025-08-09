@@ -2,14 +2,15 @@
 
 import { Transport } from '../Transport';
 import type { LogEntry } from '../../../types/transport';
+import type { LogLevel } from '../../../types/logger';
 import * as colorette from 'colorette';
 
 // Define the options interface directly here since TypeScript is having issues finding it
 export interface ConsoleTransportOptions {
   name: string;
   enabled?: boolean;
-  level?: string;
-  levels?: string[];
+  level?: LogLevel;
+  levels?: LogLevel[];
   tags?: string[];
   excludeTags?: string[];
   filter?: (entry: LogEntry) => boolean;
@@ -119,7 +120,8 @@ export class ConsoleTransport extends Transport {
    * @param {ConsoleTransportOptions} options - Transport configuration
    */
   constructor(options: ConsoleTransportOptions) {
-    super(options);
+    // Default to 'debug' level for console to ensure all logs are visible unless overridden
+    super({ ...options, level: options.level ?? 'debug' });
 
     this.useColors = options.useColors ?? true;
     this.showTimestamp = options.showTimestamp ?? true;
@@ -269,22 +271,69 @@ export class ConsoleTransport extends Transport {
    * @protected
    */
   protected formatPlain(entry: LogEntry): string {
-    const timestamp = this.showTimestamp ? `${entry.timestamp} ` : '';
-    const levelPad = this.showLevel ? entry.level.toUpperCase().padEnd(7) : '';
-    const loggerPart = this.showLoggerId && entry.loggerId ? `[${entry.loggerId}] ` : '';
-    const tagsPart = this.showTags && entry.tags && entry.tags.length > 0 ? `{${entry.tags.join(', ')}} ` : '';
-    const message = entry.plainMessage || entry.message;
-
     const parts: string[] = [];
-    parts.push(`${timestamp} ${levelPad}${loggerPart}${tagsPart}${message}`);
 
-    const contextPart = this.formatContext(entry.context);
-    if (contextPart) parts.push(contextPart);
+    // Prefix
+    if (this.prefix) {
+      parts.push(this.prefix);
+    }
 
-    const metaPart = this.formatMetadata('Metadata', entry.metadata);
-    if (metaPart) parts.push(metaPart);
+    // Timestamp
+    if (this.showTimestamp) {
+      const timestamp = this.useColors 
+        ? colorette.gray(entry.timestamp)
+        : entry.timestamp;
+      parts.push(timestamp);
+    }
 
-    return parts.join('\n');
+    // Level
+    if (this.showLevel) {
+      const levelStr = entry.level.toUpperCase().padEnd(7);
+      const level = this.useColors && this.levelColors[entry.level]
+        ? this.levelColors[entry.level](levelStr)
+        : levelStr;
+      parts.push(level);
+    }
+
+    // Logger ID
+    if (this.showLoggerId && entry.loggerId) {
+      const loggerId = this.useColors
+        ? colorette.cyan(`[${entry.loggerId}]`)
+        : `[${entry.loggerId}]`;
+      parts.push(loggerId);
+    }
+
+    // Tags
+    if (this.showTags && entry.tags && entry.tags.length > 0) {
+      const tags = this.useColors
+        ? colorette.magenta(`{${entry.tags.join(', ')}}`)
+        : `{${entry.tags.join(', ')}}`;
+      parts.push(tags);
+    }
+
+    // Message - use plain message if available to avoid double coloring
+    parts.push(entry.plainMessage || entry.message);
+
+    let output = parts.join(' ');
+
+    // Error details
+    if (entry.error) {
+      const errorOutput = this.formatError(entry.error);
+      output += '\n' + errorOutput;
+    }
+
+    // Metadata
+    if (this.showMetadata) {
+      if (entry.context && Object.keys(entry.context).length > 0) {
+        output += '\n' + this.formatMetadata('Context', entry.context);
+      }
+
+      if (entry.metadata && Object.keys(entry.metadata).length > 0) {
+        output += '\n' + this.formatMetadata('Metadata', entry.metadata);
+      }
+    }
+
+    return output;
   }
 
   /**
@@ -309,16 +358,9 @@ export class ConsoleTransport extends Transport {
       
       if (this.useColors) {
         stackLines.forEach(line => {
-          if (line.includes('at ')) {
-            // Highlight function names
-            const colored = line.replace(
-              /at\s+([^\s]+)/,
-              (match, func) => `at ${colorette.yellow(func)}`
-            );
-            lines.push(colorette.gray(colored));
-          } else {
-            lines.push(colorette.gray(line));
-          }
+          // Keep entire stack line gray to preserve plain substrings like
+          // "at file:line:col" for tests and readability.
+          lines.push(colorette.gray(line));
         });
       } else {
         lines.push(...stackLines);
@@ -336,30 +378,15 @@ export class ConsoleTransport extends Transport {
    * @returns {string} Formatted metadata
    * @private
    */
-  private formatMetadata(label: string, data: unknown): string {
-    const header = label ? (this.useColors ? colorette.gray(`${label}:`) : `${label}:`) : '';
-
-    let json = '';
-    try {
-      json = JSON.stringify(data, null, 2);
-    } catch {
-      json = '"[unserializable]"';
-    }
-
+  private formatMetadata(label: string, data?: Record<string, unknown>): string {
+    const header = this.useColors
+      ? colorette.gray(`${label}:`)
+      : `${label}:`;
+    
+    const json = JSON.stringify(data ?? {}, null, 2);
     const indented = json.split('\n').map(line => '  ' + line).join('\n');
-    return header + (header ? '\n' : '') + (this.useColors ? colorette.gray(indented) : indented);
-  }
-
-  protected formatContext(context?: unknown): string {
-    if (!context) return '';
-    let json = '';
-    try {
-      json = JSON.stringify(context, null, 2);
-    } catch {
-      json = '"[unserializable]"';
-    }
-    const indented = json.split('\n').map(line => '  ' + line).join('\n');
-    return (this.useColors ? colorette.gray('Context:') : 'Context:') + '\n' + (this.useColors ? colorette.gray(indented) : indented);
+    
+    return header + '\n' + (this.useColors ? colorette.gray(indented) : indented);
   }
 
   /**

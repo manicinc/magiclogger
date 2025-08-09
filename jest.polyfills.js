@@ -16,39 +16,77 @@ if (typeof globalThis !== 'undefined') {
   globalThis.clearTimeout = clearTimeout;
 }
 
+// Ensure setImmediate resolves in tests even with fake timers by delegating to process.nextTick
+// This avoids tests hanging on `await new Promise(r => setImmediate(r))`
+try {
+  const impl = function (cb, ...args) {
+    if (typeof process !== 'undefined' && typeof process.nextTick === 'function') {
+      return process.nextTick(() => cb(...args));
+    }
+    return setTimeout(() => cb(...args), 0);
+  };
+  // Define only if not already defined, and keep it writable/configurable to avoid conflicts with Jest
+  const hasSetImmediate = typeof globalThis !== 'undefined' && typeof globalThis.setImmediate === 'function';
+  if (!hasSetImmediate) {
+    Object.defineProperty(globalThis, 'setImmediate', {
+      value: impl,
+      writable: true,
+      configurable: true,
+      enumerable: false,
+    });
+  }
+} catch (_) {
+  // Fallback assignment if defineProperty fails
+  // eslint-disable-next-line no-global-assign
+  // Only assign if it's not already a function
+  if (typeof setImmediate !== 'function') {
+    // eslint-disable-next-line no-global-assign
+    setImmediate = function (cb, ...args) {
+      if (typeof process !== 'undefined' && typeof process.nextTick === 'function') {
+        return process.nextTick(() => cb(...args));
+      }
+      return setTimeout(() => cb(...args), 0);
+    };
+  }
+}
+
 // ---- DOM safety shims for jsdom tests ----
 (function applyDocumentShims(root) {
   if (!root) return;
 
   const ensureDoc = (doc) => {
+    // Only patch existing jsdom documents; never replace or redefine
     if (!doc) return doc;
     try {
       if (typeof doc.addEventListener !== 'function') {
-        doc.addEventListener = function () {};
+        // Provide a no-op to satisfy consumers that attach listeners
+        doc.addEventListener = function () { return undefined; };
       }
       if (typeof doc.removeEventListener !== 'function') {
-        doc.removeEventListener = function () {};
+        doc.removeEventListener = function () { return undefined; };
       }
       if (typeof doc.createElement !== 'function') {
+        // Do not synthesize a full element; return minimal object
         doc.createElement = function () {
           return {
-            click: function () {},
-            setAttribute: function () {},
+            click: function () { return undefined; },
+            setAttribute: function () { return undefined; },
             style: {},
           };
         };
       }
       if (!doc.body) {
+        // Add minimal body with required methods
         doc.body = {
-          appendChild: function () {},
-          removeChild: function () {},
+          appendChild: function () { return undefined; },
+          removeChild: function () { return undefined; },
         };
       } else {
         if (typeof doc.body.appendChild !== 'function') {
-          doc.body.appendChild = function () {};
+          doc.body.appendChild = function () { return undefined; };
         }
         if (typeof doc.body.removeChild !== 'function') {
-          doc.body.removeChild = function () {};
+          doc.body.removeChild = function () { return undefined; };
         }
       }
     } catch (_) {
@@ -57,29 +95,9 @@ if (typeof globalThis !== 'undefined') {
     return doc;
   };
 
-  // Patch existing document
+  // Patch existing document only; do not override property descriptors
   if (root.document) {
     ensureDoc(root.document);
-  }
-
-  // Intercept future assignments to document to keep shims
-  try {
-    const desc = Object.getOwnPropertyDescriptor(root, 'document');
-    if (!desc || desc.configurable) {
-      let _doc = root.document;
-      Object.defineProperty(root, 'document', {
-        configurable: true,
-        enumerable: true,
-        get() {
-          return _doc;
-        },
-        set(v) {
-          _doc = ensureDoc(v);
-        },
-      });
-    }
-  } catch (_) {
-    // ignore if we cannot redefine
   }
 })(typeof globalThis !== 'undefined' ? globalThis : (typeof global !== 'undefined' ? global : undefined));
 

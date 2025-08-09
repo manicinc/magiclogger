@@ -13,12 +13,17 @@ class TestTransport extends Transport {
   public batchCalls: LogEntry[][] = [];
   public closeCalls = 0;
   public flushCalls = 0;
+  public testDoInitOverride?: () => Promise<void>;
   public testDoLogOverride?: (entry: LogEntry) => Promise<void>;
   public testDoLogBatchOverride?: (entries: LogEntry[]) => Promise<void>;
   public testDoCloseOverride?: () => Promise<void>;
 
   protected async doInit(): Promise<void> {
     this.initCalls++;
+    // Allow test to override this method
+    if (this.testDoInitOverride) {
+      return this.testDoInitOverride();
+    }
   }
 
   protected async doLog(entry: LogEntry): Promise<void> {
@@ -204,7 +209,7 @@ describe('Transport', () => {
 
     it('should handle init errors', async () => {
       const errorTransport = new TestTransport({ name: 'error' });
-      errorTransport.testDoInit = jest.fn().mockRejectedValue(new Error('Init failed'));
+      errorTransport.testDoInitOverride = jest.fn().mockRejectedValue(new Error('Init failed'));
 
       const errorSpy = jest.fn();
       errorTransport.on('error', errorSpy);
@@ -299,6 +304,9 @@ describe('Transport', () => {
         name: 'timeout-test',
         timeout: 100,
       });
+
+      // Attach error listener to avoid unhandled 'error' event during timeout
+      transport.on('error', () => { /* expected in test */ });
 
       transport.testDoLogOverride = jest
         .fn()

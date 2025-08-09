@@ -512,11 +512,16 @@ export abstract class Transport extends EventEmitter implements ITransport {
    * @throws {Error} If operation times out
    */
   protected async withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+    let timer: NodeJS.Timeout | undefined;
     const timeout = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error(`Operation timed out after ${ms}ms`)), ms);
+      timer = setTimeout(() => reject(new Error(`Operation timed out after ${ms}ms`)), ms);
     });
 
-    return Promise.race([promise, timeout]);
+    try {
+      return await Promise.race([promise, timeout]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
   }
 
   /**

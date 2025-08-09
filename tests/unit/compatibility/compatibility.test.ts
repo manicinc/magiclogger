@@ -568,9 +568,10 @@ describe('Magic Logger Compatibility Layer Integration', () => {
       });
 
       const duration = Date.now() - start;
+      const maxMs = process.env.CI ? 8000 : (process.platform === 'win32' ? 6000 : 4000);
       
       expect(logSpy).toHaveBeenCalledTimes(iterations * 3);
-      expect(duration).toBeLessThan(2000); // Should complete quickly
+      expect(duration).toBeLessThan(maxMs); // Allow headroom for CI/Windows variability
     });
   });
 
