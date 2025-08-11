@@ -20,7 +20,8 @@ class TestBatchingTransport extends BatchingTransport {
 
     // Simulate configured errors (used in retry/failed-path tests)
     if (this.errorsToThrow.length > 0) {
-      throw this.errorsToThrow.shift()!;
+      const err = this.errorsToThrow.shift();
+      if (err) throw err;
     }
   }
 

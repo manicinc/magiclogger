@@ -4,6 +4,9 @@
 import { EventEmitter } from 'events';
 import { Transform } from 'stream';
 
+// Narrow callback type used by mock write/end overloads
+type WriteCallback = (error?: Error | null) => void;
+
 // Mock stream class
 class MockWritableStream extends EventEmitter {
   writable = true;
@@ -13,11 +16,11 @@ class MockWritableStream extends EventEmitter {
   private buffer: string[] = [];
   private canWrite = true;
 
-  write(chunk: any, encoding?: any, callback?: any): boolean {
+  write(chunk: unknown, encoding?: unknown, callback?: WriteCallback): boolean {
     // Handle overloaded signatures
-    let cb: Function | undefined;
+    let cb: WriteCallback | undefined;
     if (typeof encoding === 'function') {
-      cb = encoding;
+      cb = encoding as WriteCallback;
     } else if (typeof callback === 'function') {
       cb = callback;
     }
@@ -28,7 +31,7 @@ class MockWritableStream extends EventEmitter {
     this.writableLength = this.buffer.length;
 
     if (cb) {
-      setImmediate(() => cb());
+      setImmediate(() => cb(null));
     }
 
     // Simulate backpressure
@@ -44,18 +47,18 @@ class MockWritableStream extends EventEmitter {
     return this.canWrite;
   }
 
-  end(chunk?: any, encoding?: any, callback?: any): void {
+  end(chunk?: unknown, encoding?: unknown, callback?: WriteCallback): void {
     if (chunk) {
-      this.write(chunk, encoding);
+      this.write(chunk, encoding as unknown as WriteCallback);
     }
     
-    const cb = typeof chunk === 'function' ? chunk :
-               typeof encoding === 'function' ? encoding :
-               callback;
+    const cb = (typeof chunk === 'function' ? (chunk as WriteCallback) :
+               typeof encoding === 'function' ? (encoding as WriteCallback) :
+               callback) as WriteCallback | undefined;
 
     this.writable = false;
     this.emit('finish');
-    if (cb) setImmediate(() => cb());
+    if (cb) setImmediate(() => cb(null));
   }
 
   cork(): void {
@@ -66,9 +69,9 @@ class MockWritableStream extends EventEmitter {
     // Mock uncork
   }
 
-  flush(callback: (error?: Error) => void): void {
+  flush(callback: (error?: Error | null) => void): void {
     this.buffer = [];
-    setImmediate(() => callback());
+    setImmediate(() => callback(null));
   }
 
   getBuffer(): string[] {

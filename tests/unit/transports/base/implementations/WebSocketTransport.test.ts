@@ -21,7 +21,7 @@ class MockWebSocket {
     }, 10);
   }
 
-  send(data: string | ArrayBuffer | Blob): void {
+  send(_data: string | ArrayBuffer | Blob): void {
     if (this.readyState !== MockWebSocket.OPEN) {
       throw new Error('WebSocket not open');
     }

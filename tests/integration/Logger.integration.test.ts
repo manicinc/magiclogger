@@ -24,16 +24,22 @@ describe('enhanceConsole integration', () => {
 
     // New capabilities (only available after enhancement)
     console.log('\nNEW CAPABILITIES:');
-    
+
+    type EnhancedConsole = Console & {
+      success?: (message?: unknown, ...optionalParams: unknown[]) => void;
+      header?: (message?: unknown, ...optionalParams: unknown[]) => void;
+    };
+    const enhancedConsole = console as unknown as EnhancedConsole;
+
     // Check if methods were properly added
-    if (typeof (console as any).success === 'function') {
-      (console as any).success('Success message (new method)');
+    if (typeof enhancedConsole.success === 'function') {
+      enhancedConsole.success('Success message (new method)');
     } else {
       console.log('Success method not available - enhancement may have failed');
     }
-    
-    if (typeof (console as any).header === 'function') {
-      (console as any).header('THIS IS A HEADER');
+
+    if (typeof enhancedConsole.header === 'function') {
+      enhancedConsole.header('THIS IS A HEADER');
     } else {
       console.log('Header method not available - enhancement may have failed');
     }

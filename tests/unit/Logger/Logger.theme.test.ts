@@ -1,8 +1,10 @@
 import { Logger } from '../../../src/Logger';
 import { ThemeManager } from '../../../src/theme/ThemeManager';
-import type { ColorName } from '../../../src/types';
+import type { ColorName } from '../../../src/types/theme';
 
-const mockTheme: Record<string, ColorName[]> = {
+type PartialTheme = Record<string, ColorName[]>;
+
+const mockTheme: PartialTheme = {
   info: ['cyan', 'bold'],
   error: ['red', 'bold'],
   header: ['brightWhite', 'bgBlue'],
@@ -28,7 +30,7 @@ describe('Logger Theme Support', () => {
   });
 
   it('should not throw with unknown keys in theme', () => {
-    const partialTheme = { info: ['green'], foo: ['blue'] } as any;
+    const partialTheme: PartialTheme = { info: ['green'], foo: ['blue'] };
     const logger = new Logger({ theme: partialTheme });
     expect(() => logger.info('Test partial theme')).not.toThrow();
   });
