@@ -215,15 +215,8 @@ import * as fsModule from 'fs';
 import * as pathModule from 'path';
 
 // ----------------------
-// Import other classes after the fs mock is set up
+// FS mocks helper API
 // ----------------------
-import { Logger } from './src/Logger';
-import { NodeLogger } from './src/core/NodeLogger';
-import { FileManager } from './src/core/FileManager';
-import { Formatter } from './src/core/Formatter';
-import { BrowserLogger } from './src/core/BrowserLogger';
-import { BrowserStorageManager } from './src/core/BrowserStorageManager';
-
 export const fsMocks = fsModule as jest.Mocked<typeof fsModule> & {
   resetAll: () => void;
 };
@@ -231,8 +224,8 @@ export const fsMocks = fsModule as jest.Mocked<typeof fsModule> & {
 // Dynamically attach resetAll helper
 fsMocks.resetAll = () => {
   Object.values(fsMockImplementation).forEach(mockFn => {
-    if (typeof mockFn.mockClear === 'function') {
-      mockFn.mockClear();
+    if (typeof (mockFn as jest.Mock).mockClear === 'function') {
+      (mockFn as jest.Mock).mockClear();
     }
   });
 };
@@ -243,7 +236,7 @@ fsMocks.resetAll = () => {
 export const terminalUtils = {
   // Always return true for style support in tests
   isStyleSupported: jest.fn().mockImplementation(() => true),
-  getFallbackStyle: jest.fn().mockImplementation(style => style),
+  getFallbackStyle: jest.fn().mockImplementation((style: string) => style),
   getTerminalSupport: jest.fn().mockReturnValue({
     basic: true,
     colors: true,
@@ -384,53 +377,19 @@ export function createMockedClass<T>(
 // ----------------------
 
 /**
- * Get a properly mocked Logger instance for testing
+ * Mock process.stdout.write for progress bar tests
  */
-export function getMockedLogger(options = {}): Logger & LoggerInternal {
-  const loggerInstance = new Logger(options);
-  return loggerInstance as Logger & LoggerInternal;
-}
+export function mockProcessStdout() {
+  const originalWrite = process.stdout.write;
+  const mockWrite = jest.fn().mockImplementation(() => true);
+  process.stdout.write = mockWrite;
 
-/**
- * Get a properly mocked NodeLogger instance for testing
- */
-export function getMockedNodeLogger(options = {}): NodeLogger & LoggerInternal {
-  const logger = new NodeLogger(options) as NodeLogger & LoggerInternal;
-  // Ensure we have a FileManager for tests using any to bypass private property access
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  if (!(logger as any).fileManager) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (logger as any).fileManager = new FileManager(LOG_DIR, 30);
-  }
-  return logger;
-}
-
-/**
- * Get a properly mocked FileManager instance for testing
- */
-export function getMockedFileManager(dir = LOG_DIR, retentionDays = 30): FileManager {
-  return new FileManager(dir, retentionDays);
-}
-
-/**
- * Get a properly mocked Formatter instance for testing
- */
-export function getMockedFormatter(useColors = true): Formatter {
-  return new Formatter(useColors);
-}
-
-/**
- * Get a properly mocked BrowserLogger instance for testing
- */
-export function getMockedBrowserLogger(options = {}): BrowserLogger {
-  return new BrowserLogger(options);
-}
-
-/**
- * Get a properly mocked BrowserStorageManager for testing
- */
-export function getMockedBrowserStorage(options = {}): BrowserStorageManager {
-  return new BrowserStorageManager(options);
+  return {
+    mockWrite,
+    restore: () => {
+      process.stdout.write = originalWrite;
+    },
+  };
 }
 
 // ----------------------
@@ -487,20 +446,6 @@ function cleanupRealLogs() {
   }
 }
 
-// Mock process.stdout.write for progress bar tests
-export function mockProcessStdout() {
-  const originalWrite = process.stdout.write;
-  const mockWrite = jest.fn().mockImplementation(() => true);
-  process.stdout.write = mockWrite;
-
-  return {
-    mockWrite,
-    restore: () => {
-      process.stdout.write = originalWrite;
-    },
-  };
-}
-
 // ----------------------
 // Jest lifecycle hooks
 // ----------------------
@@ -517,12 +462,13 @@ beforeAll(() => {
     }
   }
 
-  // Mock console methods to avoid cluttering test output
-  jest.spyOn(console, 'log').mockImplementation(() => undefined);
-  jest.spyOn(console, 'warn').mockImplementation(() => undefined);
-  jest.spyOn(console, 'error').mockImplementation(() => undefined);
-  jest.spyOn(console, 'info').mockImplementation(() => undefined);
-  jest.spyOn(console, 'debug').mockImplementation(() => undefined);
+  // Note: Individual tests should mock console methods as needed
+  // Global console mocking was removed to prevent interference with tests that expect console output
+  jest.spyOn(console, 'log').mockImplementation(() => {});
+  jest.spyOn(console, 'warn').mockImplementation(() => {});
+  jest.spyOn(console, 'error').mockImplementation(() => {});
+  jest.spyOn(console, 'info').mockImplementation(() => {});
+  jest.spyOn(console, 'debug').mockImplementation(() => {});
 });
 
 beforeEach(() => {
@@ -536,6 +482,13 @@ beforeEach(() => {
   // Reset the terminal utils
   terminalUtils.isStyleSupported.mockImplementation(() => true);
   terminalUtils.getFallbackStyle.mockImplementation(style => style);
+
+  // Clean up any recursion guard symbols from console (left by EnhancedConsole tests)
+  const recursionGuard = Symbol.for('recursionGuard');
+  if (recursionGuard in console) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (console as any)[recursionGuard];
+  }
 });
 
 afterEach(() => {

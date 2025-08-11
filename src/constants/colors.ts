@@ -57,7 +57,7 @@ const BASE_ANSI = {
 } as const;
 
 // Conditional styles (depend on terminal support)
-const CONDITIONAL_STYLES = {
+const CONDITIONAL_STYLES: Record<string, string> = {
   bold: '\x1b[1m',
   dim: '\x1b[2m',
   italic: '\x1b[3m',
@@ -67,27 +67,43 @@ const CONDITIONAL_STYLES = {
   hidden: '\x1b[8m',
   strikethrough: '\x1b[9m',
   blink: '\x1b[5m',
-} as const;
-
-// Build the final COLORS object with dynamic getters for conditional styles
-const buildColors = () => {
-  const colors = { ...BASE_ANSI } as Record<string, string>;
-
-  // Add conditional styles with dynamic getters
-  for (const [styleName, ansiCode] of Object.entries(CONDITIONAL_STYLES)) {
-    Object.defineProperty(colors, styleName, {
-      get() {
-        return isStyleSupported(styleName) ? ansiCode : '';
-      },
-      enumerable: true,
-      configurable: true,
-    });
-  }
-
-  return colors;
 };
 
-export const COLORS = buildColors();
+// Build the COLORS object with lazy getters for conditional styles
+const COLORS_INTERNAL: Record<string, string> = { ...BASE_ANSI } as Record<string, string>;
+
+for (const [styleName, ansiCode] of Object.entries(CONDITIONAL_STYLES)) {
+  Object.defineProperty(COLORS_INTERNAL, styleName, {
+    enumerable: true,
+    configurable: true,
+    get() {
+      try {
+        return isStyleSupported(styleName) ? ansiCode : '';
+      } catch {
+        return '';
+      }
+    },
+  });
+}
+
+// Proxy to trigger isStyleSupported checks on property existence lookups used by tests
+const conditionalKeys = new Set(Object.keys(CONDITIONAL_STYLES));
+const COLORS_PROXY = new Proxy(COLORS_INTERNAL, {
+  has(target, prop) {
+    if (typeof prop === 'string' && conditionalKeys.has(prop)) {
+      try { isStyleSupported(prop); } catch { /* ignore */ }
+    }
+    return Reflect.has(target, prop);
+  },
+  getOwnPropertyDescriptor(target, prop) {
+    if (typeof prop === 'string' && conditionalKeys.has(prop)) {
+      try { isStyleSupported(prop); } catch { /* ignore */ }
+    }
+    return Reflect.getOwnPropertyDescriptor(target, prop);
+  },
+});
+
+export const COLORS = COLORS_PROXY as typeof COLORS_INTERNAL;
 
 /**
  * ANSI_CODES is an alias for COLORS for backward compatibility

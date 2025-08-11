@@ -11,6 +11,8 @@ class MockWorker {
   private listeners: Map<string, Array<(event: MessageEvent) => void>> = new Map();
   private messageQueue: MessageEvent[] = [];
   private closed = false;
+  // Keep track of the latest configuration to simulate destination-specific behavior
+  private currentConfig: Record<string, unknown> = {};
 
   constructor(scriptURL: string, _options?: WorkerOptions) {
     // Validate script URL
@@ -123,20 +125,48 @@ class MockWorker {
     const processingTime = Math.random() * 10;
 
     setTimeout(() => {
-      if (!this.closed) {
+      if (this.closed) return;
+
+      // Emit pre-processing readiness messages based on destination
+      const destination = this.currentConfig.destination as string | undefined;
+      if (destination === 'file') {
+        // Simulate preparing file destination
         this.dispatchEvent(new MessageEvent('message', {
           data: {
-            type: 'processed',
-            count: entries.length,
-            metrics: {
-              processed: entries.length,
-              errors: 0,
-              avgProcessingTime: processingTime,
-              lastBatchSize: entries.length,
+            type: 'file-ready',
+            data: {
+              prepared: true,
+              // include a mock file reference or metadata
+              file: 'mock-log-file.log'
+            }
+          }
+        }));
+      } else if (destination === 'network') {
+        // Simulate network batch being ready
+        this.dispatchEvent(new MessageEvent('message', {
+          data: {
+            type: 'network-ready',
+            batch: {
+              endpoint: this.currentConfig.endpoint,
+              count: entries.length,
             }
           }
         }));
       }
+
+      // Finally, emit processed message
+      this.dispatchEvent(new MessageEvent('message', {
+        data: {
+          type: 'processed',
+          count: entries.length,
+          metrics: {
+            processed: entries.length,
+            errors: 0,
+            avgProcessingTime: processingTime,
+            lastBatchSize: entries.length,
+          }
+        }
+      }));
     }, processingTime);
   }
 
@@ -144,10 +174,12 @@ class MockWorker {
    * Simulate config update.
    */
   private updateConfig(config: Record<string, unknown>): void {
+    // Merge with existing config and notify
+    this.currentConfig = { ...this.currentConfig, ...config };
     this.dispatchEvent(new MessageEvent('message', {
       data: {
         type: 'config-updated',
-        config: { ...config }
+        config: { ...this.currentConfig }
       }
     }));
   }

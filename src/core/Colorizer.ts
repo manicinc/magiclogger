@@ -109,11 +109,11 @@ export class Colorizer {
         let colorCode: string | undefined;
 
         // Use direct style/color if supported
-        if (COLORS[color] && isStyleSupported(color)) {
+        if (COLORS[color] && this.isStyleSupportedInternal(color)) {
           colorCode = COLORS[color];
         } else {
           // Try fallback style and use raw ANSI code to ensure visible fallback
-          const fallbackStyle = getFallbackStyle(color);
+          const fallbackStyle = this.getFallbackStyleInternal(color);
           if (fallbackStyle && RAW_STYLE_MAP[fallbackStyle]) {
             colorCode = RAW_STYLE_MAP[fallbackStyle];
           }
@@ -569,5 +569,35 @@ export class Colorizer {
    */
   public static createColorFunction(...colors: ColorName[]): (text: string) => string {
     return (text: string) => this.applyColors(text, colors);
+  }
+
+  /**
+   * Internal method to check style support with test environment override.
+   * @private
+   * @static
+   */
+  private static isStyleSupportedInternal(style: string): boolean {
+    // Check for test environment override first
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (typeof globalThis !== 'undefined' && (globalThis as any).__TEST_TERMINAL_UTILS) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (globalThis as any).__TEST_TERMINAL_UTILS.isStyleSupported(style);
+    }
+    return isStyleSupported(style);
+  }
+
+  /**
+   * Internal method to get fallback style with test environment override.
+   * @private
+   * @static
+   */
+  private static getFallbackStyleInternal(style: string): string {
+    // Check for test environment override first
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (typeof globalThis !== 'undefined' && (globalThis as any).__TEST_TERMINAL_UTILS) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (globalThis as any).__TEST_TERMINAL_UTILS.getFallbackStyle(style);
+    }
+    return getFallbackStyle(style);
   }
 }

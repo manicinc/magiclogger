@@ -42,6 +42,9 @@ jest.mock('../../../src/core/NodeLogger', () => {
     close: jest.fn(),
   }));
   
+  // Set the constructor name to match what the test expects
+  Object.defineProperty(MockNodeLoggerClass, 'name', { value: 'NodeLogger' });
+  
   return {
     NodeLogger: MockNodeLoggerClass,
   };

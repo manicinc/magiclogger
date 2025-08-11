@@ -153,10 +153,15 @@ describe('Colorizer', () => {
     });
 
     it('should handle style fallbacks', () => {
+      // Get the global test terminal utils
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const globalTerminalUtils = (globalThis as any).__TEST_TERMINAL_UTILS;
+      
       // Use a style that's not directly available to trigger fallback
       const result = Colorizer.applyColors('Hello', ['nonexistent']);
-      // Should check for fallback style
-      expect(terminalUtils.getFallbackStyle).toHaveBeenCalledWith('nonexistent');
+      
+      // Should check for fallback style via the global test environment
+      expect(globalTerminalUtils.getFallbackStyle).toHaveBeenCalledWith('nonexistent');
       expect(result).toContain('Hello');
     });
 

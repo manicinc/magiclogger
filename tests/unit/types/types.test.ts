@@ -93,42 +93,40 @@ describe('Colors and Styles Types', () => {
     }
   });
 
-  it('should handle style support edge cases', () => {
-    // Save original style support check
-    const isStyleSupportedOriginal = terminalUtils.isStyleSupported;
+  it('should handle style support edge cases', async () => {
+    // Mock isStyleSupported to always return false
+    const mockIsStyleSupported = jest.spyOn(terminalUtils, 'isStyleSupported');
+    mockIsStyleSupported.mockReturnValue(false);
 
-    // First, mock isStyleSupported to always return false
-    jest.spyOn(terminalUtils, 'isStyleSupported').mockImplementation(() => false);
-
-    // Reimport colors to trigger the conditional logic
+    // Clear module cache and reload
     jest.resetModules();
-    return import('../../../src/types').then(({ COLORS: reloadedColors }) => {
-      // All style properties should be empty strings when not supported
-      expect(reloadedColors.bold).toBe('');
-      expect(reloadedColors.italic).toBe('');
-      expect(reloadedColors.underline).toBe('');
-      expect(reloadedColors.strikethrough).toBe('');
+    const { COLORS: reloadedColors } = await import('../../../src/types');
 
-      // Basic colors should still be defined
-      expect(reloadedColors.red).toBe(ANSI.FG_RED);
-      expect(reloadedColors.blue).toBe(ANSI.FG_BLUE);
+    // All style properties should be empty strings when not supported
+    expect(reloadedColors.bold).toBe('');
+    expect(reloadedColors.italic).toBe('');
+    expect(reloadedColors.underline).toBe('');
+    expect(reloadedColors.strikethrough).toBe('');
 
-      // Second, mock isStyleSupported to always return true
-      jest.spyOn(terminalUtils, 'isStyleSupported').mockImplementation(() => true);
+    // Basic colors should still be defined
+    expect(reloadedColors.red).toBe(ANSI.FG_RED);
+    expect(reloadedColors.blue).toBe(ANSI.FG_BLUE);
 
-      // Reimport colors again
-      jest.resetModules();
-      return import('../../../src/types').then(({ COLORS: reloadedColors2 }) => {
-        // All style properties should have ANSI codes when supported
-        expect(reloadedColors2.bold).toBe(ANSI.BOLD);
-        expect(reloadedColors2.italic).toBe(ANSI.ITALIC);
-        expect(reloadedColors2.underline).toBe(ANSI.UNDERLINE);
-        expect(reloadedColors2.strikethrough).toBe(ANSI.STRIKETHROUGH);
+    // Now mock isStyleSupported to always return true
+    mockIsStyleSupported.mockReturnValue(true);
 
-        // Restore original
-        jest.spyOn(terminalUtils, 'isStyleSupported').mockImplementation(isStyleSupportedOriginal);
-      });
-    });
+    // Clear module cache and reload again
+    jest.resetModules();
+    const { COLORS: reloadedColors2 } = await import('../../../src/types');
+
+    // All style properties should have ANSI codes when supported
+    expect(reloadedColors2.bold).toBe(ANSI.BOLD);
+    expect(reloadedColors2.italic).toBe(ANSI.ITALIC);
+    expect(reloadedColors2.underline).toBe(ANSI.UNDERLINE);
+    expect(reloadedColors2.strikethrough).toBe(ANSI.STRIKETHROUGH);
+
+    // Clean up
+    mockIsStyleSupported.mockRestore();
   });
 
   it('should ensure type compatibility with TypeScript interfaces', () => {

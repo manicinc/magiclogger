@@ -39,6 +39,7 @@ export class FileManager {
   private logFile: string | null = null;
   private fs!: FileSystemModule;
   private path!: PathModule;
+  private initializing = false;
 
   /**
    * Constructs a new FileManager.
@@ -95,7 +96,17 @@ export class FileManager {
    * @returns The path to the new log file.
    */
   public async initLogFile(): Promise<string | null> {
+    // Reuse previously initialized file if available
+    if (this.logFile) return this.logFile;
+
     try {
+      this.initializing = true;
+      // Yield so concurrent calls observe `initializing`
+      await Promise.resolve();
+
+      // If another call already initialized the file, reuse it
+      if (this.logFile) return this.logFile;
+
       if (!this.fs.existsSync(this.logDir)) {
         this.fs.mkdirSync(this.logDir, { recursive: true });
       }
@@ -107,6 +118,8 @@ export class FileManager {
       console.error('[FileManager] Failed to initialize log file:', err);
       this.logFile = null;
       return null;
+    } finally {
+      this.initializing = false;
     }
   }
 
@@ -115,7 +128,16 @@ export class FileManager {
    * @returns {string | null} The log file path if successful, null otherwise
    */
   public initLogFileSync(): string | null {
+    if (this.initializing) {
+      return this.logFile; // Return existing file if already initializing
+    }
+    
+    if (this.logFile) {
+      return this.logFile; // Return existing file if already initialized
+    }
+    
     try {
+      this.initializing = true;
       if (!this.fs.existsSync(this.logDir)) {
         this.fs.mkdirSync(this.logDir, { recursive: true });
       }
@@ -127,6 +149,8 @@ export class FileManager {
       console.error('[FileManager] Failed to initialize log file:', err);
       this.logFile = null;
       throw err; // Re-throw for caller to handle
+    } finally {
+      this.initializing = false;
     }
   }
 
@@ -136,7 +160,7 @@ export class FileManager {
    * @returns {boolean} True if successful, false if error occurred
    */
   public appendToFile(content: string): boolean {
-    if (!this.logFile) return false;
+    if (!this.logFile || this.initializing) return false;
     try {
       this.fs.appendFileSync(this.logFile, `${content}\n`);
       return true;
