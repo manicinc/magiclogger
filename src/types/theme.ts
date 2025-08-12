@@ -1,6 +1,9 @@
 import type { ColorName } from './colors';
 import type { StylePreset } from './preset';
 
+// Re-export ColorName so consumers can import from this module
+export type { ColorName } from './colors';
+
 /**
  * A theme definition maps log levels or style presets to arrays of color/style names.
  * Keys are StylePreset strings such as 'info', 'error', 'success', or custom presets.

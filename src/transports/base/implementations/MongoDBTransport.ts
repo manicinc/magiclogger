@@ -163,6 +163,12 @@ export class MongoDBTransport extends NetworkTransport {
   private pendingOperations: Array<() => Promise<void>> = [];
 
   /**
+   * Internal flag to guard against parallel connect() calls.
+   * @private
+   */
+  private isConnecting = false;
+
+  /**
    * Creates a new MongoDBTransport instance.
    * 
    * @param {MongoDBTransportOptions} options - Transport configuration
@@ -190,8 +196,8 @@ export class MongoDBTransport extends NetworkTransport {
       return;
     }
 
-    if (this.connectionState === 'connecting') {
-      // Wait for existing connection attempt
+    // If a connect attempt is already in progress, wait for it to finish
+    if (this.isConnecting) {
       return new Promise((resolve, reject) => {
         this.pendingOperations.push(async () => {
           if (this.connectionState === 'connected') {
@@ -204,46 +210,74 @@ export class MongoDBTransport extends NetworkTransport {
     }
 
     this.connectionState = 'connecting';
+    this.isConnecting = true;
 
     try {
-      // Dynamic import of mongodb
-      // @ts-expect-error - Optional dependency
-      const { MongoClient } = await import('mongodb');
+      // Dynamic import of mongodb with require fallback for Jest
+      let MongoClientCtor: unknown;
+      // Try require first - this works better with Jest mocks
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const mod = require('mongodb') as { MongoClient: new (...args: unknown[]) => MongoClient };
+        MongoClientCtor = mod.MongoClient;
+        if (process.env.NODE_ENV === 'test') {
+          // Debug: confirm which MongoClient is used
+          // eslint-disable-next-line no-console
+    // Narrow type for debug logging without using `any`.
+    const ctor = MongoClientCtor as { name?: string; _isMockFunction?: boolean } | undefined;
+    console.log('[MongoDBTransport] Using mocked MongoClient:', typeof ctor, ctor?.name, 'isMockFn:', !!ctor?._isMockFunction);
+        }
+      } catch {
+        // Fall back to dynamic import if require fails (ESM environments)
+        try {
+          // @ts-expect-error - Optional dependency
+          const mod = await import('mongodb');
+          MongoClientCtor = (mod as unknown as { MongoClient: new (...args: unknown[]) => MongoClient }).MongoClient;
+          if (process.env.NODE_ENV === 'test') {
+            // Debug: confirm which MongoClient is used
+            // eslint-disable-next-line no-console
+            const ctor = MongoClientCtor as { name?: string; _isMockFunction?: boolean } | undefined;
+            console.log('[MongoDBTransport] Using imported MongoClient:', typeof ctor, ctor?.name, 'isMockFn:', !!ctor?._isMockFunction);
+          }
+        } catch (importError) {
+          throw new Error(`MongoDB package not found. Please install it: npm install mongodb. Error: ${importError}`);
+        }
+      }
 
       // Create client and connect
-      this.client = new MongoClient(this.uri, this.clientOptions);
-      
+      this.client = new (MongoClientCtor as new (...args: unknown[]) => MongoClient)(this.uri, this.clientOptions);
+      if (process.env.NODE_ENV === 'test') {
+        // Debug: confirm mockClient shape
+        // eslint-disable-next-line no-console
+  const dbFn = this.client.db as unknown as { _isMockFunction?: boolean } | ((...args: unknown[]) => unknown);
+  console.log('[MongoDBTransport] client.db:', typeof dbFn, 'isMockFn:', !!(dbFn as { _isMockFunction?: boolean })?._isMockFunction);
+      }
       // Ensure client was created successfully
       if (!this.client) {
         throw new Error('Failed to create MongoDB client');
       }
-      
       await this.client.connect();
-
       // Initialize database and collection
       await this.initializeDatabaseConnection();
-
       // Create indexes if needed
       if (this.createIndexes && !this.indexesCreated) {
         await this.createCollectionIndexes();
         this.indexesCreated = true;
       }
-
       this.connectionState = 'connected';
-
       // Process pending operations
       const pending = this.pendingOperations;
       this.pendingOperations = [];
       await Promise.all(pending.map(op => op()));
-
       this.emit('connected', {
         database: this.database,
         collection: this.collection,
       });
-
     } catch (error) {
       this.connectionState = 'disconnected';
       throw new Error(`MongoDB connection failed: ${error}`);
+    } finally {
+      this.isConnecting = false;
     }
   }
 

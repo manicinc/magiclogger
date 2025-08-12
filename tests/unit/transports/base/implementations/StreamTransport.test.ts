@@ -15,6 +15,7 @@ class MockWritableStream extends EventEmitter {
   bytesWritten = 0;
   private buffer: string[] = [];
   private canWrite = true;
+  public preventAutoDrain = false;
 
   write(chunk: unknown, encoding?: unknown, callback?: WriteCallback): boolean {
     // Handle overloaded signatures
@@ -37,10 +38,13 @@ class MockWritableStream extends EventEmitter {
     // Simulate backpressure
     if (this.buffer.length > 5) {
       this.canWrite = false;
-      setImmediate(() => {
-        this.canWrite = true;
-        this.emit('drain');
-      });
+      // Don't auto-drain during queue test - let test control drain
+      if (!this.preventAutoDrain) {
+        setImmediate(() => {
+          this.canWrite = true;
+          this.emit('drain');
+        });
+      }
       return false;
     }
 
@@ -110,6 +114,16 @@ describe('StreamTransport', () => {
       message: 'Test message',
       context: { test: true }
     };
+  });
+
+  afterEach(async () => {
+    if (transport && typeof transport.close === 'function') {
+      try {
+        await transport.close();
+      } catch {
+        // ignore
+      }
+    }
   });
 
   describe('constructor', () => {
@@ -256,8 +270,9 @@ describe('StreamTransport', () => {
     });
 
     it('uses platform-specific line endings', async () => {
-      const originalPlatform = process.platform;
-      Object.defineProperty(process, 'platform', { value: 'win32' });
+      Object.defineProperty(process, 'platform', {
+        value: 'win32'
+      });
       
       transport = new StreamTransport({
         name: 'stream',
@@ -269,8 +284,10 @@ describe('StreamTransport', () => {
       
       const buffer = mockStream.getBuffer();
       expect(buffer[0]).toContain('\r\n');
-      
-      Object.defineProperty(process, 'platform', { value: originalPlatform });
+
+      Object.defineProperty(process, 'platform', {
+        value: 'linux'
+      });
     });
   });
 
@@ -288,7 +305,7 @@ describe('StreamTransport', () => {
       transport.on('backpressure', backpressureHandler);
       
       // Fill buffer to trigger backpressure
-      const promises = [];
+      const promises: Promise<void>[] = [];
       for (let i = 0; i < 10; i++) {
         promises.push(transport.log({ ...entry, id: `test-${i}` }));
       }
@@ -304,7 +321,7 @@ describe('StreamTransport', () => {
 
     it('processes queue when stream drains', async () => {
       // Fill buffer to trigger backpressure
-      const promises = [];
+      const promises: Promise<void>[] = [];
       for (let i = 0; i < 10; i++) {
         promises.push(transport.log({ ...entry, id: `test-${i}` }));
       }
@@ -320,13 +337,16 @@ describe('StreamTransport', () => {
       // Set a very small max queue size
       (transport as any).maxQueueSize = 2;
       
+      // Prevent auto-drain to maintain backpressure
+      mockStream.preventAutoDrain = true;
+      
       // Fill the stream buffer first
       for (let i = 0; i < 6; i++) {
         mockStream.write(`filler-${i}`);
       }
       
       // Now try to queue many items
-      const promises = [];
+      const promises: Promise<string>[] = [];
       for (let i = 0; i < 5; i++) {
         promises.push(
           transport.log({ ...entry, id: `test-${i}` })
@@ -340,7 +360,7 @@ describe('StreamTransport', () => {
       expect(results.some(r => r === 'Stream queue is full')).toBe(true);
       
       const stats = transport.getStats();
-      expect(stats.custom?.stream.queueSize).toBeGreaterThanOrEqual(0);
+      expect(stats.custom?.stream.queueSize).toBe(2);
     });
   });
 

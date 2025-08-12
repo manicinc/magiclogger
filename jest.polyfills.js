@@ -101,6 +101,43 @@ try {
   }
 })(typeof globalThis !== 'undefined' ? globalThis : (typeof global !== 'undefined' ? global : undefined));
 
+// ---- Event polyfills for Node test env ----
+(function applyEventPolyfills(root) {
+  if (!root) return;
+  try {
+    if (typeof root.CloseEvent === 'undefined') {
+      class CloseEventPolyfill {
+        constructor(type, init = {}) {
+          this.type = type;
+          this.code = init.code ?? 1000;
+          this.reason = init.reason ?? '';
+          this.wasClean = !!init.wasClean;
+        }
+      }
+      Object.defineProperty(root, 'CloseEvent', { value: CloseEventPolyfill, writable: true, configurable: true });
+    }
+    if (typeof root.MessageEvent === 'undefined') {
+      class MessageEventPolyfill {
+        constructor(type, init = {}) {
+          this.type = type;
+          this.data = init.data;
+          this.origin = init.origin ?? '';
+          this.lastEventId = init.lastEventId ?? '';
+          this.ports = init.ports ?? [];
+          this.source = init.source ?? null;
+        }
+      }
+      Object.defineProperty(root, 'MessageEvent', { value: MessageEventPolyfill, writable: true, configurable: true });
+    }
+    if (typeof root.Event === 'undefined') {
+      class EventPolyfill { constructor(type) { this.type = type; } }
+      Object.defineProperty(root, 'Event', { value: EventPolyfill, writable: true, configurable: true });
+    }
+  } catch (_) {
+    // ignore
+  }
+})(typeof globalThis !== 'undefined' ? globalThis : (typeof global !== 'undefined' ? global : undefined));
+
 // Debug: Log that polyfills were loaded
 if (process.env.NODE_ENV === 'test') {
   console.log('Jest polyfills loaded: timers and DOM shims available');

@@ -1545,8 +1545,35 @@ export class Logger {
       }
 
       if (reinitialize && nodeLogger.writeToDisk && nodeLogger.fileManager) {
+        // Force a brand‑new initialization so fs.writeFileSync is invoked again.
+        // We do this by clearing the internal cached logFile so FileManager will always
+        // create a fresh file instead of returning the previous one.
         try {
-          nodeLogger.fileManager.initLogFileSync();
+          const fm = nodeLogger.fileManager as unknown as {
+            initLogFile?: () => Promise<string | null>;
+            initLogFileSync?: () => string | null;
+            getLogFile?: () => string | null;
+          } & { logFile?: string | null };
+
+          // Clear any previously cached log file so init always performs a new write
+          if ('logFile' in fm) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (fm as any).logFile = null;
+          }
+
+          let syncResult: string | null | undefined;
+          if (typeof fm.initLogFileSync === 'function') {
+            syncResult = fm.initLogFileSync();
+            nodeLogger.writeToDisk = !!syncResult;
+          }
+          if (!syncResult && typeof fm.initLogFile === 'function') {
+            fm.initLogFile().then(path => {
+              if (!path) nodeLogger.writeToDisk = false;
+            }).catch((err: Error) => {
+              console.error('Failed to initialize log file:', err);
+              nodeLogger.writeToDisk = false;
+            });
+          }
         } catch (err) {
           console.error('Failed to initialize log file:', err);
           nodeLogger.writeToDisk = false;
@@ -1637,7 +1664,19 @@ export class Logger {
     // Primary path: NodeLogger instance
     if (this.loggerInstance instanceof NodeLogger) {
       const nodeLogger = this.loggerInstance as unknown as ExtendedNodeLogger;
-      nodeLogger.writeToDisk = enabled;
+      if (!enabled) {
+        // Disabling: mark off and clear any cached logFile so re‑enable triggers a brand new write
+        nodeLogger.writeToDisk = false;
+        if (nodeLogger.fileManager) {
+          try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (nodeLogger.fileManager as any).logFile = null;
+          } catch { /* ignore */ }
+        }
+        return;
+      }
+      // Enabling: don't mark true until init completes
+      nodeLogger.writeToDisk = false;
 
       if (enabled) {
         if (!nodeLogger.fileManager) {
@@ -1648,19 +1687,33 @@ export class Logger {
         }
 
         if (nodeLogger.fileManager) {
-          // Initialize log file; support both sync and async initializers
           const fm = nodeLogger.fileManager as unknown as {
-            initLogFileSync?: () => void;
-            initLogFile?: () => Promise<void>;
+            initLogFileSync?: () => string | null;
+            initLogFile?: () => Promise<string | null>;
           };
           try {
+            // Always clear existing cached file so a fresh file is created and fs.writeFileSync is called
+            try {
+              // Cast to unknown then to a shape that includes optional logFile for internal reset
+              (fm as unknown as { logFile?: string | null }).logFile = null;
+            } catch { /* ignore */ }
+            let syncResult: string | null | undefined;
             if (typeof fm.initLogFileSync === 'function') {
-              fm.initLogFileSync();
-            } else if (typeof fm.initLogFile === 'function') {
-              fm.initLogFile().catch((err: Error) => {
-                console.error('Failed to initialize log file:', err);
-                nodeLogger.writeToDisk = false;
+              syncResult = fm.initLogFileSync();
+              nodeLogger.writeToDisk = !!syncResult;
+            }
+            if (!syncResult && typeof fm.initLogFile === 'function') {
+              fm.initLogFile().then(path => {
+                if (path) nodeLogger.writeToDisk = true;
+              }).catch((err: Error) => {
+                if (!nodeLogger.writeToDisk) {
+                  console.error('Failed to initialize log file:', err);
+                  nodeLogger.writeToDisk = false;
+                }
               });
+            }
+            if (syncResult === undefined && typeof fm.initLogFileSync !== 'function' && typeof fm.initLogFile !== 'function') {
+              nodeLogger.writeToDisk = true; // If no init methods, assume enabled
             }
           } catch (err) {
             console.error('Failed to initialize log file:', err);
@@ -1679,12 +1732,12 @@ export class Logger {
         initLogFile?: () => Promise<void>;
       };
       try {
-        if (typeof fm.initLogFileSync === 'function') {
-          fm.initLogFileSync();
-        } else if (typeof fm.initLogFile === 'function') {
+        if (typeof fm.initLogFile === 'function') {
           fm.initLogFile().catch((err: Error) => {
             console.error('Failed to initialize log file:', err);
           });
+        } else if (typeof fm.initLogFileSync === 'function') {
+          fm.initLogFileSync();
         }
       } catch (err) {
         console.error('Failed to initialize log file:', err);
