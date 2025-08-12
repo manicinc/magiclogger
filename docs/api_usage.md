@@ -12,6 +12,7 @@ A comprehensive guide to using the MagicLogger API with transports, context, and
 - [Transports](#transports)
 - [Advanced Logging](#advanced-logging)
 - [Styling and Formatting](#styling-and-formatting)
+  - [Built-in Formatters](#built-in-formatters)
 - [File Operations](#file-operations)
 - [Browser Operations](#browser-operations)
 - [Progress Tracking](#progress-tracking)
@@ -419,6 +420,18 @@ logger.styled('Debug info', 'muted');
 ```
 
 ## Styling and Formatting
+
+### Built-in Formatters
+
+MagicLogger provides multiple output formatters selectable per transport:
+
+- PlainTextFormatter (human readable; presets: simple, detailed, syslog, apache, minimal)
+- JSONFormatter (structured / NDJSON; presets: compact, pretty, flat, minimal, extended)
+- XMLFormatter (XML elements or full document via formatBatch)
+- CSVFormatter (tabular CSV; header + rows; good for spreadsheets / BI)
+- CustomFormatter base (extend to build YAML, HTML, etc.)
+
+For deep usage examples, options, escaping rules, and conversion guidance see `docs/formatters.md`.
 
 ### Color Factory - Create Reusable Styles
 

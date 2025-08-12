@@ -1,69 +1,5 @@
 # MagicLogger Architecture & Documentation
 
-## Tree Shaking & Optimal Imports Strategy
-
-Before diving into the implementation, here's our approach for optimal bundle sizes:
-
-### 1. ESM-First with Tree Shaking
-
-```json
-{
-  "exports": {
-    ".": {
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs",
-      "types": "./dist/index.d.ts"
-    },
-    "./transports/console": {
-      "import": "./dist/transports/console.js",
-      "types": "./dist/transports/console.d.ts"
-    },
-    "./transports/file": {
-      "import": "./dist/transports/file.js",
-      "types": "./dist/transports/file.d.ts"
-    },
-    "./transports/http": {
-      "import": "./dist/transports/http.js",
-      "types": "./dist/transports/http.d.ts"
-    },
-    "./transports/s3": {
-      "import": "./dist/transports/s3.js",
-      "types": "./dist/transports/s3.d.ts"
-    },
-    "./transports/mongodb": {
-      "import": "./dist/transports/mongodb.js",
-      "types": "./dist/transports/mongodb.d.ts"
-    },
-    "./compatibility/winston": {
-      "import": "./dist/compatibility/winston.js",
-      "types": "./dist/compatibility/winston.d.ts"
-    },
-    "./compatibility/bunyan": {
-      "import": "./dist/compatibility/bunyan.js",
-      "types": "./dist/compatibility/bunyan.d.ts"
-    },
-    "./compatibility/pino": {
-      "import": "./dist/compatibility/pino.js",
-      "types": "./dist/compatibility/pino.d.ts"
-    }
-  },
-  "sideEffects": false
-}
-```
-
-### 2. Smart Import Patterns
-
-```typescript
-// ❌ Bad - imports everything
-import { Logger, ConsoleTransport, FileTransport } from 'magiclogger';
-
-// ✅ Good - tree-shakeable
-import { Logger } from 'magiclogger';
-import { ConsoleTransport } from 'magiclogger/transports/console';
-import { FileTransport } from 'magiclogger/transports/file';
-import { createWinstonCompatible } from 'magiclogger/compatibility/winston';
-```
-
 # MagicLogger 🪄
 
 <p align="center">
@@ -213,7 +149,7 @@ MagicLogger is designed from the ground up for **perfect tree-shaking** and mini
 ```typescript
 // All-in-one import (includes core logger + common utilities)
 import { Logger, COLORS, TransportManager } from 'magiclogger';
-// Bundle size: ~15KB
+// Bundle size: full
 ```
 
 #### 🎯 **Tree-Shakeable Transport Import**
@@ -222,12 +158,12 @@ import { Logger, COLORS, TransportManager } from 'magiclogger';
 import { ConsoleTransport } from 'magiclogger/transports/console';
 import { FileTransport } from 'magiclogger/transports/file';
 import { HTTPTransport } from 'magiclogger/transports/http';
-// Bundle size: ~8KB (core transports only)
 
 // Optional transports (larger dependencies)
 import { S3Transport } from 'magiclogger/transports/s3';
 import { MongoDBTransport } from 'magiclogger/transports/mongodb';
-// Bundle size: +500KB (S3), +2MB (MongoDB) - only when imported
+
+// Bundle size: as small as possible
 ```
 
 #### ⚡ **Convenience Factories**
@@ -275,78 +211,6 @@ import { S3Transport } from 'magiclogger/transports/s3';
 import { MongoDBTransport } from 'magiclogger/transports/mongodb';
 import { WebSocketTransport } from 'magiclogger/transports/websocket';
 ```
-
-### Bundle Size Analysis
-
-| Import Strategy | Bundle Size | Use Case |
-|----------------|-------------|----------|
-| `import { Logger } from 'magiclogger'` | ~15KB | Simple apps, development |
-| `import { ConsoleTransport } from 'magiclogger/transports/console'` | ~2KB | Console-only logging |
-| `import { FileTransport } from 'magiclogger/transports/file'` | ~3KB | File-only logging |
-| Core transports (all 4) | ~10KB | Production apps |
-| + S3Transport | ~510KB | Cloud logging |
-| + MongoDBTransport | ~2MB | Database logging |
-
-```typescript
-// These only add to bundle when imported
-import { S3Transport } from 'magiclogger/transports/s3';        // +~150KB (AWS SDK)
-import { MongoDBTransport } from 'magiclogger/transports/mongodb'; // +~90KB (MongoDB driver)
-```
-
-### Bundle Size Impact
-
-| Import Pattern | Bundle Size | Dependencies |
-|----------------|------------|--------------|
-| Core only | **~8KB** | Zero |
-| + Console & File | **~12KB** | colorette |
-| + All Core Transports | **~18KB** | None |
-| + MongoDB | **~108KB** | mongodb |
-| + S3 | **~168KB** | @aws-sdk/client-s3 |
-| Full Winston equivalent | **~45KB** | vs 180KB+ |
-
-### Smart Import Examples
-
-```typescript
-// ✅ Minimal - Only core logger (~8KB)
-import { Logger } from 'magiclogger';
-const logger = new Logger();
-
-// ✅ Add console output (~12KB total)
-import { ConsoleTransport } from 'magiclogger/transports/console';
-logger.addTransport(new ConsoleTransport({ name: 'console' }));
-
-// ✅ Add file logging (~18KB total)
-import { FileTransport } from 'magiclogger/transports/file';
-logger.addTransport(new FileTransport({
-  name: 'file',
-  filepath: './logs/app.log'
-}));
-
-// ✅ Add HTTP endpoint (~22KB total)
-import { HTTPTransport } from 'magiclogger/transports/http';
-logger.addTransport(new HTTPTransport({
-  name: 'http',
-  url: 'https://logs.example.com/api'
-}));
-
-// ✅ Add cloud storage (only when needed - +~150KB)
-import { S3Transport } from 'magiclogger/transports/s3';
-logger.addTransport(new S3Transport({
-  name: 's3',
-  bucket: 'my-logs',
-  region: 'us-east-1'
-}));
-
-// ✅ Use compatibility layers
-import { createWinstonCompatible } from 'magiclogger/compatibility/winston';
-import { createPinoCompatible } from 'magiclogger/compatibility/pino';
-const winston = createWinstonCompatible();
-const pino = createPinoCompatible();
-
-// ❌ Avoid - imports everything (if this existed)
-import { Logger, ConsoleTransport, S3Transport } from 'magiclogger';
-```
-
 ### Dynamic Loading
 
 For even better performance, load optional transports dynamically:
@@ -851,27 +715,6 @@ import {
 
 ## Performance
 
-### Bundle Size Analysis
-
-```
-magiclogger (core only):        12kb  (4kb gzipped)
-├── Logger + AsyncBuffer:        8kb
-├── Context + Tags:              3kb
-└── Types + Utils:               1kb
-
-Transports (each, lazy loaded):
-├── Console:                     2kb
-├── File:                        4kb
-├── HTTP:                        6kb
-├── S3:                          8kb  (needs AWS SDK)
-└── MongoDB:                     6kb  (needs driver)
-
-Compatibility (opt-in):
-├── Winston:                     3kb
-├── Bunyan:                      3kb
-└── Pino:                        2kb
-```
-
 ### Performance Benchmarks
 
 **Sync Logging (ops/sec):**
@@ -889,32 +732,6 @@ MagicLogger:   2,500,000  ██████████████████
 Pino (worker):   400,000  ███
 Winston:          15,000  
 Bunyan:           30,000  
-```
-
-**With 3 Transports:**
-```
-MagicLogger:     750,000  ████████████████████
-Pino:            350,000  █████████
-Winston:          10,000
-```
-
-## Tree Shaking Guide
-
-### ESM Imports (Recommended)
-
-```typescript
-// ✅ Best - Only imports what you need
-import { Logger } from 'magiclogger';
-import { ConsoleTransport } from 'magiclogger/transports';
-
-// ✅ Good - Convenience function
-import { createLogger } from 'magiclogger';
-
-// ✅ Recommended - Use factories
-import { createConsole, createFile } from 'magiclogger/transports';
-
-// ❌ Avoid - Imports everything
-import * as MagicLogger from 'magiclogger';
 ```
 
 ### Webpack Configuration

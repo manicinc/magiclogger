@@ -8,6 +8,7 @@
  */
 
 import type { LogEntry } from '../../types/transport';
+export { XMLFormatter } from './XMLFormatter';
 
 /**
  * Interface for custom formatter implementations.
@@ -105,167 +106,6 @@ export abstract class CustomFormatter implements ICustomFormatter {
   }
 }
 
-/**
- * XML formatter for log entries.
- * 
- * Formats log entries as XML documents with proper escaping and structure.
- * 
- * @class XMLFormatter
- * @extends {CustomFormatter}
- * 
- * @example
- * ```typescript
- * const formatter = new XMLFormatter();
- * const xml = formatter.format(logEntry);
- * // <log level="info" timestamp="2024-01-20T10:30:00Z">...</log>
- * ```
- */
-export class XMLFormatter extends CustomFormatter {
-  /**
-   * XML declaration.
-   * @private
-   */
-  private readonly xmlDeclaration = '<?xml version="1.0" encoding="UTF-8"?>';
-  
-  /**
-   * Format a log entry as XML.
-   * 
-   * @param {LogEntry} entry - The log entry to format
-   * @returns {string} XML formatted string
-   */
-  format(entry: LogEntry): string {
-    const lines: string[] = [];
-    
-    lines.push(`<log level="${this.escapeXml(entry.level)}" timestamp="${this.escapeXml(entry.timestamp)}">`);
-    lines.push(`  <id>${this.escapeXml(entry.id)}</id>`);
-    
-    if (entry.loggerId) {
-      lines.push(`  <loggerId>${this.escapeXml(entry.loggerId)}</loggerId>`);
-    }
-    
-    lines.push(`  <message>${this.escapeXml(entry.plainMessage || entry.message)}</message>`);
-    
-    if (entry.tags && entry.tags.length > 0) {
-      lines.push('  <tags>');
-      entry.tags.forEach(tag => {
-        lines.push(`    <tag>${this.escapeXml(tag)}</tag>`);
-      });
-      lines.push('  </tags>');
-    }
-    
-    if (entry.error) {
-      lines.push('  <error>');
-      lines.push(`    <name>${this.escapeXml(entry.error.name)}</name>`);
-      lines.push(`    <message>${this.escapeXml(entry.error.message)}</message>`);
-      if (entry.error.stack) {
-        lines.push(`    <stack><![CDATA[${entry.error.stack}]]></stack>`);
-      }
-      if (entry.error.code) {
-        lines.push(`    <code>${this.escapeXml(entry.error.code)}</code>`);
-      }
-      lines.push('  </error>');
-    }
-    
-    if (entry.context && Object.keys(entry.context).length > 0) {
-      lines.push('  <context>');
-      this.formatObject(entry.context, lines, '    ');
-      lines.push('  </context>');
-    }
-    
-    if (entry.metadata && Object.keys(entry.metadata).length > 0) {
-      lines.push('  <metadata>');
-      this.formatObject(entry.metadata, lines, '    ');
-      lines.push('  </metadata>');
-    }
-    
-    lines.push('</log>');
-    
-    return lines.join('\n');
-  }
-  
-  /**
-   * Format multiple entries as an XML document.
-   * 
-   * @param {LogEntry[]} entries - Array of log entries
-   * @returns {string} XML document
-   */
-  formatBatch(entries: LogEntry[]): string {
-    const lines: string[] = [
-      this.xmlDeclaration,
-      '<logs>'
-    ];
-    
-    entries.forEach(entry => {
-      const formatted = this.format(entry);
-      // Indent each line
-      formatted.split('\n').forEach(line => {
-        lines.push('  ' + line);
-      });
-    });
-    
-    lines.push('</logs>');
-    
-    return lines.join('\n');
-  }
-  
-  /**
-   * Format an object as XML elements.
-   * 
-   * @param {Record<string, unknown>} obj - Object to format
-   * @param {string[]} lines - Array to append lines to
-   * @param {string} indent - Current indentation
-   * @private
-   */
-  private formatObject(obj: Record<string, unknown>, lines: string[], indent: string): void {
-    for (const [key, value] of Object.entries(obj)) {
-      const safeKey = this.sanitizeXmlTag(key);
-      
-      if (value === null || value === undefined) {
-        lines.push(`${indent}<${safeKey} />`);
-      } else if (typeof value === 'object' && !Array.isArray(value)) {
-        lines.push(`${indent}<${safeKey}>`);
-        this.formatObject(value as Record<string, unknown>, lines, indent + '  ');
-        lines.push(`${indent}</${safeKey}>`);
-      } else if (Array.isArray(value)) {
-        lines.push(`${indent}<${safeKey}>`);
-        value.forEach(item => {
-          lines.push(`${indent}  <item>${this.escapeXml(this.stringify(item))}</item>`);
-        });
-        lines.push(`${indent}</${safeKey}>`);
-      } else {
-        lines.push(`${indent}<${safeKey}>${this.escapeXml(this.stringify(value))}</${safeKey}>`);
-      }
-    }
-  }
-  
-  /**
-   * Escape special XML characters.
-   * 
-   * @param {string} str - String to escape
-   * @returns {string} Escaped string
-   * @private
-   */
-  private escapeXml(str: string): string {
-    return str
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&apos;');
-  }
-  
-  /**
-   * Sanitize a string to be a valid XML tag name.
-   * 
-   * @param {string} str - String to sanitize
-   * @returns {string} Valid XML tag name
-   * @private
-   */
-  private sanitizeXmlTag(str: string): string {
-    // Replace invalid characters with underscores
-    return str.replace(/[^a-zA-Z0-9_-]/g, '_').replace(/^[0-9-]/, '_');
-  }
-}
 
 /**
  * CSV formatter for log entries.
@@ -313,9 +153,28 @@ export class CSVFormatter extends CustomFormatter {
   private readonly delimiter = ',';
   
   /**
-   * Creates a new CSV formatter.
-   * 
-   * @param {boolean} [includeHeaders=true] - Whether to include column headers
+  * Creates a new CSV formatter.
+  *
+  * The CSV formatter outputs a stable comma-separated representation of each
+  * log entry with optional header row. Nested data (context / metadata) is
+  * JSON-stringified for preservation. Error name & message are exposed as
+  * dedicated columns via `error.name` & `error.message`.
+  *
+  * Escaping rules:
+  *  - Commas, quotes, CR or LF trigger wrapping the field in double quotes
+  *  - Embedded double quotes are doubled per RFC 4180
+  *  - Undefined / null values become empty fields
+  *
+  * @param {boolean} [includeHeaders=true] - Include the header line on first batch
+  *
+  * @example
+  * ```ts
+  * const formatter = new CSVFormatter();
+  * const line = formatter.format(entry); // single row (no header state tracked here)
+  * const csv = formatter.formatBatch([entryA, entryB]);
+  * // id,timestamp,level,message,loggerId,...
+  * // 123,2024-01-01T00:00:00.000Z,info,"User logged in",,
+  * ```
    */
   constructor(includeHeaders = true) {
     super();
@@ -323,10 +182,11 @@ export class CSVFormatter extends CustomFormatter {
   }
   
   /**
-   * Format a single log entry as CSV row.
-   * 
-   * @param {LogEntry} entry - The log entry to format
-   * @returns {string} CSV row
+  * Format a single log entry as a CSV row (no trailing newline).
+  * Does not write headers; call {@link formatBatch} for multi-row documents.
+  *
+  * @param {LogEntry} entry - Log entry to render.
+  * @returns {string} CSV row (without line terminator)
    */
   format(entry: LogEntry): string {
     const values = this.columns.map(col => {
@@ -353,10 +213,12 @@ export class CSVFormatter extends CustomFormatter {
   }
   
   /**
-   * Format multiple entries as CSV document.
-   * 
-   * @param {LogEntry[]} entries - Array of log entries
-   * @returns {string} CSV document
+  * Format an array of entries as a CSV document.
+  * Adds a header row (column names) when `includeHeaders` is true.
+  * Always terminates with a single trailing `\n` to simplify streaming append.
+  *
+  * @param {LogEntry[]} entries - Entries to format
+  * @returns {string} Full CSV document
    */
   formatBatch(entries: LogEntry[]): string {
     const rows: string[] = [];
@@ -373,11 +235,13 @@ export class CSVFormatter extends CustomFormatter {
   }
   
   /**
-   * Escape a CSV value.
-   * 
-   * @param {unknown} value - Value to escape
-   * @returns {string} Escaped value
-   * @private
+  * Escape an arbitrary value for safe insertion into a CSV field.
+  * Applies RFC 4180 quoting. Objects / arrays are JSON stringified via
+  * {@link stringify} inherited helper.
+  *
+  * @param {unknown} value - Value to escape
+  * @returns {string} Escaped scalar
+  * @private
    */
   private escapeValue(value: unknown): string {
     if (value === null || value === undefined) return '';
@@ -394,5 +258,27 @@ export class CSVFormatter extends CustomFormatter {
     }
     
     return strValue;
+  }
+}
+
+/**
+ * Lightweight wrapper formatter that accepts a formatting function instead of subclassing.
+ * Useful for quick one-off custom output without defining a new class.
+ *
+ * @example
+ * ```ts
+ * import { FunctionFormatter } from 'magiclogger/transports/formatters';
+ * const formatter = new FunctionFormatter(entry => `${entry.level.toUpperCase()}: ${entry.message}`);
+ * transport.setFormatter(formatter);
+ * ```
+ */
+export class FunctionFormatter extends CustomFormatter {
+  private readonly fn: (entry: LogEntry) => string | Buffer;
+  constructor(fn: (entry: LogEntry) => string | Buffer) {
+    super();
+    this.fn = fn;
+  }
+  format(entry: LogEntry): string | Buffer {
+    return this.fn(entry);
   }
 }

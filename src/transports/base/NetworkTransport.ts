@@ -977,36 +977,36 @@ export abstract class NetworkTransport extends BatchingTransport {
       }
     } catch { /* ignore */ }
 
-    // For short waits use a hybrid: long tail setTimeout then tight finish spin to improve accuracy without overshoot.
+    // For short waits (<200ms) use adaptive re-scheduling to minimize overshoot without busy spinning.
+    // We avoid a single coarse timeout which in CI can drift badly (causing >200ms for a 150ms request).
     if (ms < 200) {
       const nowFn = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
       const target = nowFn() + ms;
-      // If very tiny just spin immediately
-      if (ms <= 8) {
-        return new Promise(resolve => {
-          while (nowFn() < target) { /* busy wait minimal */ }
-          resolve();
-        });
-      }
-      const coarse = Math.max(0, ms - 10); // leave ~10ms for fine phase
       return new Promise(resolve => {
-        const scheduleFine = () => {
-          const fineLoop = () => {
-            if (nowFn() >= target) return resolve();
-            // 0 or 1ms timeout depending on remaining time
-            const remaining = target - nowFn();
-            setTimeout(fineLoop, remaining > 4 ? 1 : 0);
-          };
-          fineLoop();
+        const step = () => {
+          const remaining = target - nowFn();
+            if (remaining <= 0) return resolve();
+            let delay: number;
+            if (remaining > 48) {
+              // Large remaining: schedule a chunk but keep some headroom.
+              delay = Math.min(remaining - 24, 48);
+            } else if (remaining > 16) {
+              delay = 8;
+            } else if (remaining > 8) {
+              delay = 4;
+            } else if (remaining > 4) {
+              delay = 2;
+            } else if (remaining > 2) {
+              delay = 1;
+            } else {
+              delay = 0; // final tight loop via next tick
+            }
+            const t = setTimeout(step, delay);
+            if (typeof (t as unknown as { unref?: () => void }).unref === 'function') {
+              (t as unknown as { unref: () => void }).unref();
+            }
         };
-        if (coarse === 0) {
-          scheduleFine();
-        } else {
-          const t = setTimeout(scheduleFine, coarse);
-          if (typeof (t as unknown as { unref?: () => void }).unref === 'function') {
-            (t as unknown as { unref: () => void }).unref();
-          }
-        }
+        step();
       });
     }
 
