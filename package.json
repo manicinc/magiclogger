@@ -297,6 +297,10 @@
   ,"deps:graph": "dependency-cruiser -T html src --output dependency-graph.html"
   ,"deps:graph:json": "dependency-cruiser -T json src > dependency-graph.json"
   ,"analyze:exports": "node scripts/analyze-build.js"
+  ,"size:check": "node scripts/analyze-build.js --check"
+  ,"size:update": "node scripts/analyze-build.js"
+  ,"clean:deep": "rimraf dist build lib coverage *.tsbuildinfo **/*.tsbuildinfo node_modules/.cache && pnpm exec jest --clearCache || true"
+  ,"rebuild": "npm run clean:deep && pnpm install && npm run build"
   },
   "keywords": [
     "logger",
@@ -368,7 +372,7 @@
   ,
   "dependency-cruiser": "^16.6.0",
   "license-checker": "^25.0.1",
-  "lockfile-lint": "^4.14.2",
+  "lockfile-lint": "4.14.1",
   "eslint-plugin-security": "^2.1.1"
   },
   "peerDependencies": {
