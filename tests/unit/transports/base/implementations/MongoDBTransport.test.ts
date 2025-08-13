@@ -1,13 +1,17 @@
 // File: tests/unit/transports/base/implementations/MongoDBTransport.test.ts
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-// Use manual Jest mock for 'mongodb'
-jest.mock('mongodb');
+// NOTE: Do NOT call jest.mock('mongodb') here.
+// The moduleNameMapper in jest.config.ts points '^mongodb$' to tests/__mocks__/mongodb.js.
+// Calling jest.mock without a factory would auto-hoist and replace our manual mock with empty jest.fn() stubs.
+// We rely on the real manual mock implementation for behavior (connect, insertMany, etc.).
 
 // Pull the mock constructors and fns from the manual mock
-// eslint-disable-next-line import/no-unresolved
-// @ts-ignore - manual mock provides these named exports at runtime
-import {
+// Import manual mock exports (moduleNameMapper resolves '^mongodb$' to our mock file)
+import * as MongoMockModule from 'mongodb';
+// Cast to any to destructure known mock exports provided by the manual mock implementation
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const {
   MockMongoClient,
   mockInsertMany,
   mockCreateIndexes,
@@ -21,7 +25,7 @@ import {
   mockCursor,
   mockDb,
   mockClient,
-} from 'mongodb';
+} = MongoMockModule as any;
 
 describe('MongoDBTransport', () => {
   let MongoDBTransport: any;
@@ -55,7 +59,7 @@ describe('MongoDBTransport', () => {
   // Ensure we cleanup timers and connections after each test
   afterEach(async () => {
     if (transport && typeof transport.close === 'function') {
-      try { await transport.close(); } catch {}
+      try { await transport.close(); } catch (e) { /* swallow test cleanup error */ }
     }
     transport = undefined;
     jest.useRealTimers();

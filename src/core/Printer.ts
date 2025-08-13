@@ -250,7 +250,7 @@ export class Printer {
   public static print(message: string): void {
     // Add timestamp if configured
     if (this.config.timestamps) {
-      const timestamp = this.formatter.formatTimestamp(new Date(), this.config.timestampFormat);
+  const timestamp = this.formatter.formatTimestamp(new Date(), this.config.timestampFormat ?? 'YYYY-MM-DD HH:mm:ss.SSS');
       message = `${timestamp} ${message}`;
     }
 
@@ -500,7 +500,7 @@ export class Printer {
       }
 
       const {
-        maxColumnWidth = 50,
+        maxColumnWidth,
         truncate = true,
         showIndex = false,
         borderStyle = 'single',
@@ -514,7 +514,15 @@ export class Printer {
       }
 
       // Calculate column widths
-      const columnWidths = this.calculateColumnWidths(data, columns, maxColumnWidth, showIndex);
+  const resolvedMaxWidth: number = (typeof maxColumnWidth === 'number' && maxColumnWidth > 0) ? maxColumnWidth : 50;
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore - suppress maxWidth narrow inference (confirmed resolvedMaxWidth is number)
+  const columnWidths = this.calculateColumnWidths(
+        data,
+        columns,
+        resolvedMaxWidth,
+        showIndex
+      );
 
       // Get border characters
       const borders = this.getBorderChars(borderStyle);
@@ -591,7 +599,7 @@ export class Printer {
     data: Record<string, unknown>[],
     columns: string[],
     maxWidth: number,
-    hasIndex: boolean
+    hasIndex?: boolean
   ): Record<string, number> {
     const widths: Record<string, number> = {};
 
@@ -600,7 +608,7 @@ export class Printer {
       widths[col] = col.length;
 
       // Special handling for index column
-      if (col === '#' && hasIndex) {
+  if (col === '#' && hasIndex) {
         widths[col] = Math.max(widths[col], String(data.length).length);
         return;
       }
@@ -612,8 +620,10 @@ export class Printer {
         widths[col] = Math.max(widths[col], strValue.length);
       });
 
-      // Apply maximum width constraint
-      widths[col] = Math.min(widths[col], maxWidth);
+      // Apply maximum width constraint (extra runtime guard)
+      if (typeof maxWidth === 'number' && maxWidth > 0) {
+        widths[col] = Math.min(widths[col], maxWidth);
+      }
     });
 
     return widths;
@@ -712,11 +722,15 @@ export class Printer {
   ): string {
     const cells = columns.map(col => {
       let value = this.formatCellValue(row[col]);
-      const width = widths[col];
+  const fallbackLen = value.length;
+  const w = widths[col];
+  const width = typeof w === 'number' && !Number.isNaN(w) ? w : fallbackLen;
+      widths[col] = width; // ensure cached numeric width
 
       // Truncate if needed
-      if (truncate && value.length > width) {
-        value = value.substring(0, width - 3) + '...';
+  if (truncate && value.length > width) {
+        const cut = Math.max(0, width - 3);
+        value = value.substring(0, cut) + (cut < value.length ? '...' : '');
       }
 
       // Pad value
@@ -783,8 +797,8 @@ export class Printer {
   private static buildTree(
     node: Record<string, unknown>,
     lines: string[],
-    prefix: string,
-    isLast: boolean,
+  prefix: string,
+  _isLast: boolean, // parameter retained for API compatibility; underscore to silence unused warning
     depth: number,
     maxDepth: number,
     showValues: boolean,

@@ -149,11 +149,7 @@ export class PlainTextFormatter {
     template?: string;
   };
 
-  /**
-   * Default template if none provided.
-   * @private
-   */
-  private static readonly DEFAULT_TEMPLATE = '{timestamp} [{level}] {message}';
+  // (Unused DEFAULT_TEMPLATE constant removed to satisfy TS6133)
 
   /**
    * Creates a new PlainTextFormatter instance.
@@ -500,7 +496,12 @@ export const PlainTextFormatters = {
    */
   syslog: () => new PlainTextFormatter({
     timestampFormat: 'custom',
-    customTimestamp: (date) => date.toISOString().split('T')[1].split('.')[0],
+    customTimestamp: (date) => {
+      const iso = date.toISOString();
+      const time = iso.split('T')[1] || iso; // defensive
+      const part = time.split('.')[0];
+      return part || iso;
+    },
     template: '{timestamp} {loggerId} {level}: {message}',
   }),
 
@@ -510,7 +511,7 @@ export const PlainTextFormatters = {
   apache: () => new PlainTextFormatter({
     template: '[{timestamp}] {context.method} {context.path} {context.status} {context.duration}ms',
     timestampFormat: 'custom',
-    customTimestamp: (date) => date.toUTCString(),
+  customTimestamp: (date) => (date.toUTCString() || date.toISOString() || ''),
   }),
 
   /**

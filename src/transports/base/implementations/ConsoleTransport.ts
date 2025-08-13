@@ -195,7 +195,7 @@ export class ConsoleTransport extends Transport {
    * @protected
    */
   protected formatEntry(entry: LogEntry): string | Buffer {
-    if (this.formatter) {
+    if (typeof this.formatter === 'function') {
       return this.formatter(entry);
     }
 
@@ -289,9 +289,8 @@ export class ConsoleTransport extends Transport {
     // Level
     if (this.showLevel) {
       const levelStr = entry.level.toUpperCase().padEnd(7);
-      const level = this.useColors && this.levelColors[entry.level]
-        ? this.levelColors[entry.level](levelStr)
-        : levelStr;
+      const colorFn = (this.useColors && this.levelColors) ? this.levelColors[entry.level] : undefined;
+      const level = typeof colorFn === 'function' ? colorFn(levelStr) : levelStr;
       parts.push(level);
     }
 
@@ -311,15 +310,19 @@ export class ConsoleTransport extends Transport {
       parts.push(tags);
     }
 
-    // Message - use plain message if available to avoid double coloring
-    parts.push(entry.plainMessage || entry.message);
+  // Message - use plain message if available to avoid double coloring (ensure string)
+  parts.push(String(entry.plainMessage ?? entry.message ?? ''));
 
     let output = parts.join(' ');
 
     // Error details
     if (entry.error) {
-      const errorOutput = this.formatError(entry.error);
-      output += '\n' + errorOutput;
+      try {
+        const errorOutput = typeof this.formatError === 'function'
+          ? this.formatError(entry.error)
+          : String(entry.error);
+        output += '\n' + errorOutput;
+      } catch { /* ignore formatting errors */ }
     }
 
     // Metadata
@@ -400,26 +403,30 @@ export class ConsoleTransport extends Transport {
     const outputStr = output instanceof Buffer ? output.toString() : output;
     
     // Determine which console method to use
-    const methodKey = this.consoleMethods[level] || this.consoleMethods.default || 'log';
+  const methodKey: keyof Console = (this.consoleMethods[level] as keyof Console) || (this.consoleMethods.default as keyof Console) || 'log';
     
     // Use direct method calls instead of dynamic access
-    switch (methodKey) {
-      case 'debug':
-        console.debug(outputStr);
-        break;
-      case 'info':
-        console.info(outputStr);
-        break;
-      case 'warn':
-        console.warn(outputStr);
-        break;
-      case 'error':
-        console.error(outputStr);
-        break;
-      case 'log':
-      default:
-        console.log(outputStr);
-        break;
+    try {
+      switch (methodKey) {
+        case 'debug':
+          console.debug?.(outputStr);
+          break;
+        case 'info':
+          console.info?.(outputStr);
+          break;
+        case 'warn':
+          console.warn?.(outputStr);
+          break;
+        case 'error':
+          console.error?.(outputStr);
+          break;
+        case 'log':
+        default:
+          console.log?.(outputStr);
+          break;
+      }
+    } catch {
+      // Swallow logging errors
     }
   }
 

@@ -177,7 +177,7 @@ export class S3Transport extends NetworkTransport {
   /**
    * Internal flag to suppress per-entry flushes while processing an explicit batch.
    */
-  private inBatch = false;
+  // private _inBatch = false; // batching feature placeholder (removed to avoid unused variable warning)
 
   /**
    * Creates a new S3Transport instance.
@@ -612,7 +612,7 @@ export class S3Transport extends NetworkTransport {
     if (entries.length === 0) return '';
 
     // Define the columns we want in our CSV
-    const columns = [
+  const columns: string[] = [
       'id',
       'timestamp',
       'timestampMs',
@@ -633,23 +633,25 @@ export class S3Transport extends NetworkTransport {
 
     // Add data rows
     for (const entry of entries) {
-      const values = columns.map(col => {
+  const values = columns.map((col: string) => {
+        if (!col) return '';
         let value: unknown = '';
 
         // Handle nested properties
         if (col.includes('.')) {
           const [parent, child] = col.split('.');
-          if (parent === 'error' && entry.error) {
-            value = (entry.error as Record<string, unknown>)[child];
+          if (parent === 'error' && entry.error && child) {
+            value = (entry.error as Record<string, unknown>)[child as keyof typeof entry.error];
           }
         } else if (col === 'tags' && entry.tags) {
-          value = entry.tags.join(';');
+          value = Array.isArray(entry.tags) ? entry.tags.join(';') : '';
         } else if ((col === 'context' || col === 'metadata') && entry[col]) {
           value = JSON.stringify(entry[col]);
         } else {
           // Safely access entry properties
-          const entryAsRecord = entry as unknown as Record<string, unknown>;
-          value = entryAsRecord[col];
+          const entryAsRecord: Record<string, unknown> = entry as unknown as Record<string, unknown>;
+          const key = col as keyof typeof entryAsRecord;
+          value = key in entryAsRecord ? entryAsRecord[key] : '';
         }
 
         // Format value for CSV

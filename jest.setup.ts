@@ -17,6 +17,7 @@ if (typeof global.clearTimeout === 'undefined') {
 const fs = jest.requireActual('fs');
 const path = jest.requireActual('path');
 
+
 // Define test constants
 export const LOG_DIR = path.resolve(process.cwd(), 'test_logs');
 
@@ -464,10 +465,16 @@ beforeAll(() => {
 
   // Note: Individual tests should mock console methods as needed
   // Global console mocking was removed to prevent interference with tests that expect console output
+  // Intentionally silence console output in tests; empty stubs acceptable.
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
   jest.spyOn(console, 'log').mockImplementation(() => {});
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
   jest.spyOn(console, 'warn').mockImplementation(() => {});
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
   jest.spyOn(console, 'error').mockImplementation(() => {});
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
   jest.spyOn(console, 'info').mockImplementation(() => {});
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
   jest.spyOn(console, 'debug').mockImplementation(() => {});
 });
 

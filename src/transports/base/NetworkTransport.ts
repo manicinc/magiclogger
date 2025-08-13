@@ -844,7 +844,11 @@ export abstract class NetworkTransport extends BatchingTransport {
     
     // Check custom retry condition
     if (this.retry.retryCondition) {
-      return this.retry.retryCondition(error);
+      try {
+        return !!this.retry.retryCondition(error);
+      } catch {
+        return false;
+      }
     }
 
     return this.defaultRetryCondition(error);
@@ -858,7 +862,7 @@ export abstract class NetworkTransport extends BatchingTransport {
    * @protected
    */
   protected defaultRetryCondition(error: Error): boolean {
-    const message = error.message.toLowerCase();
+  const message = (error && typeof error.message === 'string' ? error.message : '').toLowerCase();
     
     // Retry on connection errors
     if (this.isConnectionError(error)) {
@@ -877,8 +881,8 @@ export abstract class NetworkTransport extends BatchingTransport {
 
     // Retry on specific HTTP status codes
     const statusMatch = message.match(/status[:\s]+(\d+)/i);
-    if (statusMatch) {
-      const status = parseInt(statusMatch[1], 10);
+    if (statusMatch && statusMatch[1]) {
+      const status = parseInt(statusMatch[1]!, 10);
       // Retry 5xx and specific 4xx (429 Too Many Requests, 408 Request Timeout)
       if (status >= 500 || status === 429 || status === 408) {
         return true;
@@ -944,11 +948,19 @@ export abstract class NetworkTransport extends BatchingTransport {
    * @protected
    */
   protected async buildHeaders(): Promise<Record<string, string>> {
-    return {
+    const base: Record<string,string> = {
       'User-Agent': `MagicLogger/${this.constructor.name}`,
       'X-Transport-Name': this.name,
-      ...this.headers,
     };
+    // Copy only defined header values
+    if (this.headers) {
+      for (const [k,v] of Object.entries(this.headers)) {
+        if (typeof v === 'string') {
+          base[k] = v;
+        }
+      }
+    }
+    return base;
   }
 
   /**

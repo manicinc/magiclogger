@@ -128,7 +128,8 @@ export const COLORS = new Proxy(COLORS_BASE, {
         try {
           const fn = getIsStyleSupportedFn();
           const supported = fn(prop);
-          const val = supported ? (CONDITIONAL_STYLES as Record<string,string>)[prop] : '';
+          const raw = supported ? (CONDITIONAL_STYLES as Record<string,string>)[prop] : '';
+          const val: string = typeof raw === 'string' ? raw : '';
           // Special case for testing behavior
           if (process.env.MAGICLOGGER_DEBUG_STYLES === '1') {
             // eslint-disable-next-line no-console
@@ -138,13 +139,14 @@ export const COLORS = new Proxy(COLORS_BASE, {
         } catch { return ''; }
       }
     }
-    return Reflect.get(target, prop, receiver);
+  const fallback = Reflect.get(target, prop, receiver);
+  return typeof fallback === 'string' ? fallback : '';
   },
   getOwnPropertyDescriptor(target, prop) {
     if (typeof prop === 'string' && CONDITIONAL_STYLE_NAMES.has(prop)) {
       // Evaluate support (spy capture) and expose as data property descriptor.
       let value = '';
-  try { const fn = getIsStyleSupportedFn(); value = fn(prop) ? (CONDITIONAL_STYLES as Record<string,string>)[prop] : ''; } catch { value = ''; }
+  try { const fn = getIsStyleSupportedFn(); const raw = fn(prop) ? (CONDITIONAL_STYLES as Record<string,string>)[prop] : ''; value = typeof raw === 'string' ? raw : ''; } catch { value = ''; }
       return { configurable: true, enumerable: true, value, writable: false };
     }
     return Reflect.getOwnPropertyDescriptor(target, prop);
@@ -156,15 +158,15 @@ export const COLORS = new Proxy(COLORS_BASE, {
     }
     return Reflect.ownKeys(target).concat([...CONDITIONAL_STYLE_NAMES]);
   },
-}) as typeof COLORS_BASE;
+}) as Record<string, string>;
 
 // Build a static snapshot lazily when first accessed; accessing a style invokes
 // its getter which in turn calls resolveIsStyleSupported so spies still record.
-export const STATIC_COLORS: Record<string, string> = new Proxy({}, {
-  get(_t, prop: string | symbol) {
-    if (typeof prop !== 'string') return undefined;
-    const v = (COLORS as Record<string,string>)[prop];
-    return v;
+export const STATIC_COLORS: Record<string, string> = new Proxy({} as Record<string,string>, {
+  get(_t: Record<string,string>, prop: string | symbol): string {
+    if (typeof prop !== 'string') return '';
+	const v = (COLORS as Record<string,string>)[prop];
+	return typeof v === 'string' ? v : '';
   },
   ownKeys() {
     return Reflect.ownKeys(BASE_ANSI).concat([...CONDITIONAL_STYLE_NAMES]);
@@ -176,7 +178,7 @@ export const STATIC_COLORS: Record<string, string> = new Proxy({}, {
     return undefined;
   },
 }) as Record<string, string>;
-export const ANSI_CODES = COLORS;
+export const ANSI_CODES: Record<string,string> = COLORS;
 
 // (Intentionally removed microtask enumeration; tests will explicitly access properties.)
 

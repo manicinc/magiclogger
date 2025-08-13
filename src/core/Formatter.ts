@@ -159,7 +159,7 @@ export class Formatter {
 
     // First, handle markdown links: [text](url) -> extract URL and colorize it
     const markdownLinkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
-    result = result.replace(markdownLinkRegex, (match, linkText, url) => {
+    result = result.replace(markdownLinkRegex, (_match, _linkText, url) => {
       return this.formatLink(url);
     });
 
@@ -601,9 +601,10 @@ export class Formatter {
    * @param {string} format - Format string
    * @returns {string} Formatted timestamp
    */
+  // Simplified single signature; always returns formatted timestamp.
   public formatTimestamp(
     date: Date = new Date(),
-    format = 'YYYY-MM-DD HH:mm:ss.SSS'
+    format?: string
   ): string {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -612,8 +613,8 @@ export class Formatter {
     const minutes = String(date.getMinutes()).padStart(2, '0');
     const seconds = String(date.getSeconds()).padStart(2, '0');
     const milliseconds = String(date.getMilliseconds()).padStart(3, '0');
-
-    return format
+  const fmt: string = format ?? 'YYYY-MM-DD HH:mm:ss.SSS';
+  return fmt
       .replace('YYYY', String(year))
       .replace('MM', month)
       .replace('DD', day)
