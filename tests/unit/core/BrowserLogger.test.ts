@@ -6,10 +6,18 @@ import { ColorName } from '../../../src/types';
 
 // Mock Printer methods using jest.spyOn
 // Provide non-empty mock implementations to satisfy no-empty-function lint rule
-jest.spyOn(Printer, 'print').mockImplementation(() => { return undefined; });
-jest.spyOn(Printer, 'printProgress').mockImplementation(() => { return undefined; });
-jest.spyOn(Printer, 'printTable').mockImplementation(() => { return undefined; });
-jest.spyOn(Printer, 'setUseColors').mockImplementation(() => { return undefined; });
+jest.spyOn(Printer, 'print').mockImplementation(() => {
+  return undefined;
+});
+jest.spyOn(Printer, 'printProgress').mockImplementation(() => {
+  return undefined;
+});
+jest.spyOn(Printer, 'printTable').mockImplementation(() => {
+  return undefined;
+});
+jest.spyOn(Printer, 'setUseColors').mockImplementation(() => {
+  return undefined;
+});
 
 // Use the global localStorage mock from jest.setup.ts
 const mockLocalStorage = global.localStorage as jest.Mocked<typeof localStorage> & {
@@ -23,9 +31,9 @@ class MockPerfObserver {
   public observe = jest.fn();
   public disconnect = jest.fn();
   public cb: PerformanceObserverCallback;
-  constructor(cb: PerformanceObserverCallback) { 
-    this.cb = cb; 
-    MockPerfObserver.instances.push(this); 
+  constructor(cb: PerformanceObserverCallback) {
+    this.cb = cb;
+    MockPerfObserver.instances.push(this);
   }
 }
 // Assign PerformanceObserver mock (avoid @ts-ignore by using any cast)
@@ -58,29 +66,29 @@ function buildIndexedDB(success = true) {
   const stores: Record<string, MockStore> = {};
   const makeStore = (): MockStore => ({
     data: [],
-    add: jest.fn(function(record: any) { 
-      (this as any).data.push(record); 
+    add: jest.fn(function (record: any) {
+      (this as any).data.push(record);
     }),
-    count: jest.fn(function() { 
-      const req: any = {}; 
-      setTimeout(() => { 
-        req.result = (this as any).data.length; 
-        req.onsuccess && req.onsuccess({}); 
-      }, 0); 
-      return req; 
-    }),
-    getAllKeys: jest.fn(function(_q: any, limit?: number) { 
-      const req: any = {}; 
-      setTimeout(() => { 
-        req.result = (this as any).data.slice(0, limit).map((_v: any, i: number) => i + 1); 
-        req.onsuccess && req.onsuccess({}); 
-      }, 0); 
-      return req; 
-    }),
-    getAll: jest.fn(function() {
+    count: jest.fn(function () {
       const req: any = {};
       setTimeout(() => {
-        req.result = (this as any).data.map((log: any, i: number) => ({ id: i+1, log }));
+        req.result = (this as any).data.length;
+        req.onsuccess && req.onsuccess({});
+      }, 0);
+      return req;
+    }),
+    getAllKeys: jest.fn(function (_q: any, limit?: number) {
+      const req: any = {};
+      setTimeout(() => {
+        req.result = (this as any).data.slice(0, limit).map((_v: any, i: number) => i + 1);
+        req.onsuccess && req.onsuccess({});
+      }, 0);
+      return req;
+    }),
+    getAll: jest.fn(function () {
+      const req: any = {};
+      setTimeout(() => {
+        req.result = (this as any).data.map((log: any, i: number) => ({ id: i + 1, log }));
         req.onsuccess && req.onsuccess({});
       }, 0);
       return req;
@@ -88,17 +96,17 @@ function buildIndexedDB(success = true) {
     clear: jest.fn(),
     // Add createIndex for IndexedDB upgrade path compatibility
     createIndex: jest.fn(),
-    delete: jest.fn()
+    delete: jest.fn(),
   });
-  
+
   const db = {
     objectStoreNames: { contains: (name: string) => !!stores[name] },
-    createObjectStore: (name: string, _opts: any) => { 
-      stores[name] = makeStore(); 
-      return stores[name]; 
+    createObjectStore: (name: string, _opts: any) => {
+      stores[name] = makeStore();
+      return stores[name];
     },
     transaction: (names: string[], _mode: string) => {
-      const store = stores[names[0]]; 
+      const store = stores[names[0]];
       return {
         objectStore: () => store,
         oncomplete: undefined as any,
@@ -108,23 +116,23 @@ function buildIndexedDB(success = true) {
     },
     close: jest.fn(),
   };
-  
+
   (global as any).indexedDB = {
     open: jest.fn((_name: string, _version: number) => {
       const req: any = {};
       setTimeout(() => {
-        if (!success) { 
-          req.onerror && req.onerror(new Error('fail')); 
-        } else { 
-          req.result = db; 
-          req.onupgradeneeded && req.onupgradeneeded({ target: req }); 
-          req.onsuccess && req.onsuccess({}); 
+        if (!success) {
+          req.onerror && req.onerror(new Error('fail'));
+        } else {
+          req.result = db;
+          req.onupgradeneeded && req.onupgradeneeded({ target: req });
+          req.onsuccess && req.onsuccess({});
         }
       }, 0);
       return req;
-    })
+    }),
   };
-  
+
   return { db, stores };
 }
 
@@ -147,9 +155,15 @@ describe('BrowserLogger', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockLocalStorage.clear();
-  consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => { return undefined; });
-  consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => { return undefined; });
-  consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => { return undefined; });
+    consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {
+      return undefined;
+    });
+    consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {
+      return undefined;
+    });
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {
+      return undefined;
+    });
   });
 
   afterEach(() => {
@@ -190,7 +204,7 @@ describe('BrowserLogger', () => {
   describe('Console Logging', () => {
     it('logs messages to console', () => {
       const logger = new BrowserLogger();
-      
+
       logger.info('Info message');
       logger.warn('Warning message');
       logger.error('Error message');
@@ -340,7 +354,7 @@ describe('BrowserLogger', () => {
   });
 
   describe('Storage Queue and Fallback Mechanisms', () => {
-  it('storeLog fallback queue + processStorageQueue localStorage success', async () => {
+    it('storeLog fallback queue + processStorageQueue localStorage success', async () => {
       // Force absence of storageManager to use queue path
       const logger = new BrowserLogger({ storeInBrowser: true });
       (logger as any).storageManager = undefined; // simulate missing manager
@@ -348,18 +362,18 @@ describe('BrowserLogger', () => {
       logger.success('Queued 2');
       await tick();
       const logs = logger.getLogs();
-  // Some environments may coalesce queued writes; just ensure at least 1
-  expect(logs && logs.length).toBeGreaterThanOrEqual(1);
+      // Some environments may coalesce queued writes; just ensure at least 1
+      expect(logs && logs.length).toBeGreaterThanOrEqual(1);
     });
 
     it('localStorage quota exceeded path handled', async () => {
       const originalSet = localStorage.setItem;
       let first = true;
       (localStorage as any).setItem = jest.fn((k: string, v: string) => {
-        if (first) { 
-          first = false; 
-          originalSet.call(localStorage, k, v); 
-          return; 
+        if (first) {
+          first = false;
+          originalSet.call(localStorage, k, v);
+          return;
         }
         const e: any = new DOMException('QuotaExceeded', 'QuotaExceededError');
         e.name = 'QuotaExceededError';
@@ -367,10 +381,10 @@ describe('BrowserLogger', () => {
       });
       const logger = new BrowserLogger({ storeInBrowser: true });
       (logger as any).storageManager = undefined; // force queue
-  for (let i = 0; i < 3; i++) logger.info('X' + i);
-  await tick();
-  // Quota errors are swallowed; ensure at most one error (setup) not spam
-  expect(consoleErrorSpy.mock.calls.length).toBeLessThanOrEqual(1);
+      for (let i = 0; i < 3; i++) logger.info('X' + i);
+      await tick();
+      // Quota errors are swallowed; ensure at most one error (setup) not spam
+      expect(consoleErrorSpy.mock.calls.length).toBeLessThanOrEqual(1);
       (localStorage as any).setItem = originalSet;
     });
   });
@@ -380,10 +394,14 @@ describe('BrowserLogger', () => {
     jest.setTimeout(10000);
     it('IndexedDB path success storing & clearing', async () => {
       buildIndexedDB(true);
-      const logger = new BrowserLogger({ storeInBrowser: true, useLocalStorage: false, maxStoredLogs: 10 });
+      const logger = new BrowserLogger({
+        storeInBrowser: true,
+        useLocalStorage: false,
+        maxStoredLogs: 10,
+      });
       (logger as any).storageManager = undefined; // force queue fallback -> goes to indexedDB
-      logger.info('A'); 
-      logger.info('B'); 
+      logger.info('A');
+      logger.info('B');
       logger.info('C');
       // Allow queue processing and force flush if available
       await tick();
@@ -401,7 +419,7 @@ describe('BrowserLogger', () => {
       expect(syncLogs).toBeNull();
       expect(consoleWarnSpy).toHaveBeenCalled();
       const asyncLogs = await logger.getLogsAsync();
-  expect(asyncLogs.length).toBeGreaterThanOrEqual(1); // relaxed: ensure retrieval works
+      expect(asyncLogs.length).toBeGreaterThanOrEqual(1); // relaxed: ensure retrieval works
       logger.clearLogs();
       expect(consoleErrorSpy).not.toHaveBeenCalled();
     });
@@ -421,19 +439,25 @@ describe('BrowserLogger', () => {
       await logger.downloadLogs('empty.txt');
       expect(consoleWarnSpy).toHaveBeenCalled();
 
-      logger.info('DL1'); 
+      logger.info('DL1');
       logger.info('DL2');
       await tick();
       if ((logger as any).processStorageQueue) {
         await (logger as any).processStorageQueue();
       }
       await tick();
-  const linkClick = jest.fn();
-  const appendSpy = jest.spyOn(document.body, 'appendChild').mockImplementation((): any => { return undefined; });
-  const removeSpy = jest.spyOn(document.body, 'removeChild').mockImplementation((): any => { return undefined; });
+      const linkClick = jest.fn();
+      const appendSpy = jest.spyOn(document.body, 'appendChild').mockImplementation((): any => {
+        return undefined;
+      });
+      const removeSpy = jest.spyOn(document.body, 'removeChild').mockImplementation((): any => {
+        return undefined;
+      });
       let revokeSpy: jest.SpyInstance | undefined;
       if (typeof URL.revokeObjectURL === 'function') {
-        revokeSpy = jest.spyOn(URL, 'revokeObjectURL').mockImplementation((): any => { return undefined; });
+        revokeSpy = jest.spyOn(URL, 'revokeObjectURL').mockImplementation((): any => {
+          return undefined;
+        });
       }
       jest.spyOn(document, 'createElement').mockImplementation((_tag: string) => {
         const anchor: any = {
@@ -442,39 +466,44 @@ describe('BrowserLogger', () => {
           click: linkClick,
           style: {},
         };
-        Object.defineProperty(anchor, 'href', { set(v: string) { anchor._href = v; } });
-        Object.defineProperty(anchor, 'download', { set(v: string) { anchor._download = v; } });
+        Object.defineProperty(anchor, 'href', {
+          set(v: string) {
+            anchor._href = v;
+          },
+        });
+        Object.defineProperty(anchor, 'download', {
+          set(v: string) {
+            anchor._download = v;
+          },
+        });
         return anchor;
       });
       await logger.downloadLogs('out.txt');
       // Allow any queued microtasks related to blob creation
-  await tick();
-  await tick();
-  // Wait for click or append; some environments delay this. Fallback: logs exist.
-  const triggered = await waitFor(
-    () => linkClick.mock.calls.length >= 1 || appendSpy.mock.calls.length >= 1,
-    40,
-    5
-  );
-  if (!triggered) {
-    // As a last resort ensure we actually had logs and no error occurred.
-    const current = logger.getLogs();
-    expect(current && current.length).toBeGreaterThanOrEqual(2);
-  } else {
-    expect(triggered).toBe(true);
-  }
-      appendSpy.mockRestore(); 
-      removeSpy.mockRestore(); 
+      await tick();
+      await tick();
+      // Wait for click or append; some environments delay this. Fallback: logs exist.
+      const triggered = await waitFor(
+        () => linkClick.mock.calls.length >= 1 || appendSpy.mock.calls.length >= 1,
+        40,
+        5
+      );
+      // Assert deterministically: either event triggered OR logs created.
+      const current = logger.getLogs();
+      const condition = triggered || (current && current.length >= 2);
+      expect(condition).toBe(true);
+      appendSpy.mockRestore();
+      removeSpy.mockRestore();
       revokeSpy && revokeSpy.mockRestore();
     });
 
     it('exportLogs formats', async () => {
       const logger = new BrowserLogger({ storeInBrowser: true });
       (logger as any).storageManager = undefined;
-  logger.info('E1'); 
-  logger.error('E2');
-  await tick();
-  await tick(); // extra tick to ensure queue processed
+      logger.info('E1');
+      logger.error('E2');
+      await tick();
+      await tick(); // extra tick to ensure queue processed
       if ((logger as any).processStorageQueue) {
         await (logger as any).processStorageQueue();
       }
@@ -483,7 +512,7 @@ describe('BrowserLogger', () => {
         return jsonCheck.includes('E1') && jsonCheck.includes('E2');
       });
       const json = await logger.exportLogs('json');
-  expect(json.includes('E1') || json.includes('E2')).toBe(true);
+      expect(json.includes('E1') || json.includes('E2')).toBe(true);
       const csv = await logger.exportLogs('csv');
       expect(csv.split('\n')[0]).toBe('timestamp,level,message');
       const txt = await logger.exportLogs('txt');
@@ -496,10 +525,10 @@ describe('BrowserLogger', () => {
     it('searchLogs invalid regex handled & limit works', async () => {
       const logger = new BrowserLogger({ storeInBrowser: true });
       (logger as any).storageManager = undefined;
-  logger.info('Find me'); 
-  logger.info('Other');
-  await tick();
-  await tick();
+      logger.info('Find me');
+      logger.info('Other');
+      await tick();
+      await tick();
       const res1 = await logger.searchLogs('Find', { regex: false });
       expect(res1.length).toBeGreaterThanOrEqual(1);
       const bad = await logger.searchLogs('(*', { regex: true });

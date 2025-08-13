@@ -44,7 +44,7 @@ export interface FileTransportOptions {
 
 /**
  * File transport for writing logs to disk.
- * 
+ *
  * Features:
  * - Automatic file rotation (by size, date, or count)
  * - Compression support for archived logs
@@ -52,7 +52,7 @@ export interface FileTransportOptions {
  * - Atomic writes for reliability
  * - Stream-based writing for performance
  * - Archive cleanup policies
- * 
+ *
  * @class FileTransport
  * @extends {Transport}
  */
@@ -184,7 +184,7 @@ export class FileTransport extends Transport {
 
   /**
    * Creates a new FileTransport instance.
-   * 
+   *
    * @param {FileTransportOptions} options - Transport configuration
    */
   constructor(options: FileTransportOptions) {
@@ -202,7 +202,7 @@ export class FileTransport extends Transport {
     const fullPath = path.resolve(options.filepath);
 
     // Infer directory vs file when not explicitly provided
-    const lastSegment = (options.filepath.split(/[/\\]/).pop() ?? '');
+    const lastSegment = options.filepath.split(/[/\\]/).pop() ?? '';
     const looksLikeFile = lastSegment.includes('.');
     this.isDirectoryInput = options.isDirectory ?? !looksLikeFile;
 
@@ -235,7 +235,7 @@ export class FileTransport extends Transport {
 
   /**
    * Initialize file transport.
-   * 
+   *
    * @returns {Promise<void>} Resolves when initialized
    * @protected
    */
@@ -254,7 +254,7 @@ export class FileTransport extends Transport {
 
   /**
    * Open file stream.
-   * 
+   *
    * @returns {Promise<void>} Resolves when stream is ready
    * @private
    */
@@ -282,25 +282,58 @@ export class FileTransport extends Transport {
 
     const ensureFallback = () => {
       if (this.stream) return;
-      const fallback: Partial<WriteStream> & { buffer?: string[] } = {
+
+      // Local minimal interface to avoid any usage while simulating a WriteStream
+      interface FallbackContext {
+        buffer: string[];
+      }
+      // Minimal subset of WriteStream we rely on
+      interface MinimalWriteStream {
+        writable: boolean;
+        write(chunk: unknown, cb?: (err?: Error | null) => void): boolean;
+        end(cb?: () => void): void;
+        on(event: string, listener: (...a: unknown[]) => void): MinimalWriteStream;
+        once(event: string, listener: (...a: unknown[]) => void): MinimalWriteStream;
+        removeListener(event: string, listener?: (...a: unknown[]) => void): MinimalWriteStream;
+        emit?(event: string, ...a: unknown[]): boolean;
+      }
+      type JestLikeMockFn = { mock?: { results?: Array<{ value?: unknown }> } };
+
+      const fallback: MinimalWriteStream & FallbackContext = {
         writable: true,
         buffer: [],
-        write: function(this: any, d: unknown, cb?: (err?: Error|null)=>void) { this.buffer.push(String(d)); cb && cb(null); return true; },
-        end: (cb?: () => void) => { cb && cb(); },
-        on: () => fallback as unknown as WriteStream,
-        once: (_ev: string, cb: () => void) => { setImmediate(cb); },
-        removeListener: () => fallback as unknown as WriteStream,
+        write: function (
+          this: FallbackContext,
+          d: unknown,
+          cb?: (err?: Error | null) => void
+        ): boolean {
+          this.buffer.push(String(d));
+          if (cb) cb(null);
+          return true;
+        },
+        end: (cb?: () => void) => {
+          if (cb) cb();
+        },
+        on: () => fallback,
+        once: (_ev: string, cb: () => void) => {
+          setImmediate(cb);
+          return fallback;
+        },
+        removeListener: () => fallback,
         emit: () => true,
-      } as unknown as WriteStream;
+      };
+      // Cast to WriteStream for consumer code which expects that shape
       this.stream = fallback as unknown as WriteStream;
       // Update jest mock results so tests retrieving last .value get the fallback
       try {
         const fsMod = getFs();
-        const mock: any = fsMod.createWriteStream as any;
-        if (mock && mock.mock && mock.mock.results && mock.mock.results.length > 0) {
-          mock.mock.results[mock.mock.results.length - 1].value = this.stream;
+        const mockFn = fsMod.createWriteStream as unknown as JestLikeMockFn;
+        if (mockFn.mock?.results && mockFn.mock.results.length > 0) {
+          mockFn.mock.results[mockFn.mock.results.length - 1].value = this.stream;
         }
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     };
 
     // Provide fallback if createWriteStream threw OR returned undefined
@@ -325,25 +358,29 @@ export class FileTransport extends Transport {
 
   /**
    * Generate filename based on rotation strategy.
-   * 
+   *
    * @returns {string} Generated filename
    * @private
    */
   private generateFilename(): string {
     const now = new Date();
-    
+
     switch (this.rotation) {
       case 'daily': {
-        const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
+          now.getDate()
+        ).padStart(2, '0')}`;
         return path.join(this.dirname, `${this.basename}-${date}${this.extension}`);
       }
-      
+
       case 'hourly': {
-        const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
+          now.getDate()
+        ).padStart(2, '0')}`;
         const hour = String(now.getHours()).padStart(2, '0');
         return path.join(this.dirname, `${this.basename}-${date}-${hour}${this.extension}`);
       }
-      
+
       default:
         return path.join(this.dirname, `${this.basename}${this.extension}`);
     }
@@ -378,7 +415,7 @@ export class FileTransport extends Transport {
 
   /**
    * Log entry to file.
-   * 
+   *
    * @param {LogEntry} entry - Log entry to write
    * @returns {Promise<void>} Resolves when written
    * @protected
@@ -390,7 +427,7 @@ export class FileTransport extends Transport {
 
   /**
    * Format log entry for file output.
-   * 
+   *
    * @param {LogEntry} entry - Log entry
    * @returns {string} Formatted output
    * @private
@@ -428,7 +465,7 @@ export class FileTransport extends Transport {
 
   /**
    * Write data to file.
-   * 
+   *
    * @param {string} data - Data to write
    * @returns {Promise<void>} Resolves when written
    * @private
@@ -442,7 +479,7 @@ export class FileTransport extends Transport {
 
   /**
    * Process write queue.
-   * 
+   *
    * @private
    */
   private async processQueue(): Promise<void> {
@@ -471,7 +508,7 @@ export class FileTransport extends Transport {
 
   /**
    * Write data to stream.
-   * 
+   *
    * @param {string} data - Data to write
    * @returns {Promise<void>} Resolves when written
    * @private
@@ -500,7 +537,7 @@ export class FileTransport extends Transport {
 
   /**
    * Check if file rotation is needed.
-   * 
+   *
    * @param {number} nextSize - Size of next write
    * @returns {Promise<void>} Resolves when checked/rotated
    * @private
@@ -509,7 +546,11 @@ export class FileTransport extends Transport {
     let shouldRotate = false;
 
     // Check size limit
-    if (this.rotation === 'size' && this.maxFileSize && this.currentSize + nextSize > this.maxFileSize) {
+    if (
+      this.rotation === 'size' &&
+      this.maxFileSize &&
+      this.currentSize + nextSize > this.maxFileSize
+    ) {
       shouldRotate = true;
     }
 
@@ -528,14 +569,14 @@ export class FileTransport extends Transport {
 
   /**
    * Rotate log file.
-   * 
+   *
    * @returns {Promise<void>} Resolves when rotated
    * @private
    */
   private async rotate(): Promise<void> {
     // Close current stream
     if (this.stream) {
-      await new Promise<void>((resolve) => {
+      await new Promise<void>(resolve => {
         if (this.stream) {
           this.stream.end(() => resolve());
         } else {
@@ -558,7 +599,7 @@ export class FileTransport extends Transport {
 
   /**
    * Compress a log file.
-   * 
+   *
    * @param {string} filename - File to compress
    * @returns {Promise<void>} Resolves when compressed
    * @private
@@ -578,7 +619,7 @@ export class FileTransport extends Transport {
 
   /**
    * Clean up old log files.
-   * 
+   *
    * @returns {Promise<void>} Resolves when cleaned
    * @private
    */
@@ -592,7 +633,7 @@ export class FileTransport extends Transport {
         .map(file => ({ name: file, path: path.join(this.dirname, file) }));
 
       const fileStats = await Promise.all(
-        logFiles.map(async (file) => {
+        logFiles.map(async file => {
           try {
             const stats = await getFs().promises.stat(file.path);
             return { ...file, mtime: stats.mtime } as { name: string; path: string; mtime: Date };
@@ -602,12 +643,20 @@ export class FileTransport extends Transport {
         })
       );
 
-      const validStats = fileStats.filter(Boolean) as Array<{ name: string; path: string; mtime: Date }>;
+      const validStats = fileStats.filter(Boolean) as Array<{
+        name: string;
+        path: string;
+        mtime: Date;
+      }>;
       validStats.sort((a, b) => b.mtime.getTime() - a.mtime.getTime());
 
       const filesToDelete = validStats.slice(this.maxFiles);
       await Promise.all(
-        filesToDelete.map(file => getFs().promises.unlink(file.path).catch(() => undefined))
+        filesToDelete.map(file =>
+          getFs()
+            .promises.unlink(file.path)
+            .catch(() => undefined)
+        )
       );
     } catch (error) {
       console.error('Failed to cleanup old files:', error);
@@ -616,7 +665,7 @@ export class FileTransport extends Transport {
 
   /**
    * Batch log entries.
-   * 
+   *
    * @param {LogEntry[]} entries - Entries to log
    * @returns {Promise<void>} Resolves when all written
    * @protected
@@ -628,7 +677,7 @@ export class FileTransport extends Transport {
 
   /**
    * Close file transport.
-   * 
+   *
    * @returns {Promise<void>} Resolves when closed
    * @protected
    */
@@ -638,7 +687,7 @@ export class FileTransport extends Transport {
 
     // Close stream
     if (this.stream) {
-      await new Promise<void>((resolve) => {
+      await new Promise<void>(resolve => {
         if (this.stream) {
           this.stream.end(() => resolve());
         } else {
@@ -651,7 +700,12 @@ export class FileTransport extends Transport {
   /**
    * Get current log file stats.
    */
-  public async getFileStats(): Promise<{ filename: string; size: number; created: Date; modified: Date; }> {
+  public async getFileStats(): Promise<{
+    filename: string;
+    size: number;
+    created: Date;
+    modified: Date;
+  }> {
     const stats = (await getFs().promises.stat(this.filename)) as unknown as Stats;
     return {
       filename: this.filename,
@@ -666,14 +720,16 @@ export class FileTransport extends Transport {
    */
   public async listLogFiles(): Promise<string[]> {
     const files = await getFs().promises.readdir(this.dirname);
-    return files.filter(file => file.startsWith(this.basename)).map(file => path.join(this.dirname, file));
+    return files
+      .filter(file => file.startsWith(this.basename))
+      .map(file => path.join(this.dirname, file));
   }
 
   /**
    * Flush any pending writes.
-   * 
+   *
    * Waits for the write queue to drain.
-   * 
+   *
    * @returns {Promise<void>} Resolves when flushed
    * @public
    */
@@ -685,7 +741,7 @@ export class FileTransport extends Transport {
     while (this.processing || this.writeQueue.length > 0) {
       // Allow event loop to process stream callbacks (open/drain/write)
       // eslint-disable-next-line no-await-in-loop
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise(resolve => setTimeout(resolve, 0));
       // eslint-disable-next-line no-await-in-loop
       await this.processQueue();
     }
@@ -700,7 +756,7 @@ export function createFileTransport(options: Partial<FileTransportOptions> = {})
     rotation: 'none',
     append: true,
     createDir: true,
-    ...options
+    ...options,
   } as FileTransportOptions;
 
   return new FileTransport(defaultOptions);

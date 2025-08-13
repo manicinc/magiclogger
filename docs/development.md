@@ -5,19 +5,21 @@
 Magiclogger is a fully typed, high-performance logging library built with TypeScript. This guide provides comprehensive instructions for setting up, developing, and contributing to the project.
 
 ## Prerequisites
-
-- Node.js 14.0.0 or higher
-- npm 6.0.0 or higher
+ Node.js 16+ recommended (project supports >=14, CI tests 16 / 18 / 20)
+ pnpm (preferred) or npm / yarn (Corepack can enable pnpm automatically)
+ TypeScript 5.x
 - TypeScript 4.5.0 or higher
 
-## Local Development Setup
+ Clone the repository and install dependencies (pnpm preferred for lockfile fidelity and speed):
 
 ### Installation
-
-Clone the repository and install dependencies:
-
 ```bash
 git clone https://github.com/manicinc/magiclogger.git
+cd magiclogger
+# Enable corepack if not already
+corepack enable
+pnpm install
+```
 cd magiclogger
 npm install
 ```
@@ -28,75 +30,94 @@ npm install
 
 | Command | Description |
 |---------|-------------|
+| `pnpm dev` | Start development (tsup watch) |
+| `pnpm test` | Run test suite |
+| `pnpm test:coverage` | Run tests with coverage report |
+| `pnpm build` | Build ESM + CJS bundles via tsup |
+| `pnpm lint` | Run ESLint on src/tests/examples |
+| `pnpm lint:fix` | Autofix lint issues |
+| `pnpm format` | Format with Prettier |
+| `pnpm format:check` | Verify formatting |
+| `pnpm preflight` | Full validation (format, lint, test, coverage, build, analysis) |
 | `npm run dev` | Start development mode with file watching |
 | `npm test` | Run test suite |
-| `npm run test:coverage` | Run tests with coverage report |
-| `npm run build` | Compile TypeScript to JavaScript |
-| `npm run lint` | Run ESLint |
+```bash
+pnpm dev
+```
 | `npm run format` | Format code with Prettier |
 | `npm run preflight` | Run comprehensive pre-release checks |
-
-### Development Mode
-
+```bash
+pnpm test
+```
 ```bash
 npm run dev
-```
-
-Starts TypeScript compilation in watch mode, automatically rebuilding on file changes.
-
-## Testing
-
-### Running Tests
-
-```bash
-npm test
-```
-
-### Coverage Requirements
-
-Magiclogger maintains rigorous test coverage standards:
-
-- Statements: 95%
-- Branches: 95%
-- Functions: 95%
-- Lines: 95%
-
 View detailed coverage report:
 ```bash
-npm run test:coverage
+pnpm test:coverage
 ```
-
-## Code Quality
-
-### Linting
+## Testing
 
 ```bash
-npm run lint
+pnpm lint
 ```
-
-Checks code against ESLint rules. Use `npm run lint:fix` to automatically resolve simple issues.
-
-### Formatting
+npm test
+```
+```bash
+pnpm format
+```
+Magiclogger maintains rigorous test coverage standards:
 
 ```bash
-npm run format
+pnpm preflight
+```
+- Lines: 95%
+
+## Branch & Merge Workflow
+
+We maintain two long‑lived branches:
+
+- `master` (default, stable)
+- `dev` (integration / staging)
+
+Flow:
+1. Create feature/fix branches from `dev` (e.g. `feat/browser-export`).
+2. Open PR → `dev`. CI (lint/tests/build) must pass.
+3. After multiple merges and when `dev` is stable, open a PR `dev` → `master`.
+4. Merge into `master` updates the draft release notes (Release Drafter). No publish occurs until a version tag is pushed.
+
+## Version & Release (Tag-Based)
+
+We currently use manual version bumps + Release Drafter (not semantic-release).
+
+Local version bump (updates `package.json` & CHANGELOG logic via script if adapted later):
+```bash
+node scripts/version-bump.js patch   # or minor | major
 ```
 
-Ensures consistent code style using Prettier.
+Tag & publish workflow:
+1. Ensure `master` is green (`pnpm preflight`).
+2. Bump version in `package.json` (script or manual) and commit (conventional message `chore(release): vX.Y.Z`).
+3. Push commit to `master`.
+4. Create & push tag `vX.Y.Z`:
+  ```bash
+  git tag vX.Y.Z
+  git push origin vX.Y.Z
+  ```
+5. GitHub Action `release.yml` builds and publishes to npm (requires `NPM_TOKEN`).
 
-## Configuration
+Draft release notes are maintained automatically; adjust them before tagging if desired.
 
-### Environment Variables
-
-Create a `.env` file in the project root for local development configuration:
-
-| Variable | Description | Default |
-|----------|-------------|---------|
+Preflight checks before any tag:
+```bash
+pnpm preflight
+```
 | `LOG_VERBOSE` | Enable verbose logging | `false` |
-| `LOG_TO_FILE` | Write logs to disk | `false` |
+5. Push branch & open PR to `dev`
+6. Ensure CI green; request review; merge
+7. Follow release section when promoting to `master`
 | `LOG_DIR` | Custom log directory | `./logs` |
 
-**Note**: Do not commit `.env` to version control.
+Recommended TypeScript configuration:
 
 ## Commit Guidelines
 

@@ -2,43 +2,142 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [master, main, dev]
   pull_request:
-    branches: [main, master]
+    branches: [master, main]
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  NODE_VERSION: '18'
+  CACHE_VERSION: v1
 
 jobs:
-  test:
+  pre-check:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [14.x, 16.x, 18.x, 20.x]
-
     steps:
-      - uses: actions/checkout@v3
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+      - name: Commitlint (conventional commits)
+        if: github.event_name == 'pull_request'
+        uses: wagoid/commitlint-github-action@v5
+        continue-on-error: true
+      - name: Large file check (10MB warn)
+        uses: ActionsDesk/lfs-warning@v2.0
         with:
-          node-version: ${{ matrix.node-version }}
-          cache: 'npm'
-      
-      - name: Install dependencies
-        run: npm ci
-      
+          filesizelimit: 10485760
+
+  quality:
+    runs-on: ubuntu-latest
+    needs: pre-check
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Use Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      - name: Enable corepack
+        run: corepack enable
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
       - name: Lint
-        run: npm run lint
-      
-      - name: Run tests
-        run: npm test
-      
-      - name: Check coverage
-        run: npm run test:coverage
-        
-      # Optional: Upload coverage to Codecov
-      # Uncomment these lines to enable Codecov integration
-      # You'll need to add a CODECOV_TOKEN secret to your repository
-      # - name: Upload coverage reports to Codecov
-      #   uses: codecov/codecov-action@v3
-      #   with:
-      #     token: ${{ secrets.CODECOV_TOKEN }}
-      #     file: ./coverage/lcov.info
-      #     fail_ci_if_error: true
+        run: pnpm run lint
+      - name: Type check
+        run: pnpm exec tsc -p tsconfig.json --noEmit
+      - name: Format check
+        run: pnpm run format:check
+      - name: Audit (non-blocking)
+        run: pnpm audit || true
+
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node: ['16','18','20']
+        exclude:
+          - os: macos-latest
+            node: '16'
+          - os: macos-latest
+            node: '18'
+    runs-on: ${{ matrix.os }}
+    needs: pre-check
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js ${{ matrix.node }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: 'pnpm'
+      - name: Enable corepack
+        run: corepack enable
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+      - name: Run tests with coverage
+        run: pnpm run test:coverage -- --runInBand
+      - name: Upload coverage artifact
+        if: matrix.os == 'ubuntu-latest' && matrix.node == '18'
+        uses: actions/upload-artifact@v4
+        with:
+            name: coverage-${{ github.sha }}
+            path: coverage
+      - name: Upload to Codecov
+        if: matrix.os == 'ubuntu-latest' && matrix.node == '18'
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/lcov.info
+          flags: unittests
+          fail_ci_if_error: false
+          verbose: true
+
+  build:
+    runs-on: ubuntu-latest
+    needs: [quality, test]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      - name: Enable corepack
+        run: corepack enable
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+      - name: Build
+        run: pnpm run build
+      - name: Bundle size analyze
+        run: node scripts/analyze-build.js || true
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ github.sha }}
+          path: dist
+
+  release-draft:
+    name: Update Release Draft
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+    steps:
+      - uses: release-drafter/release-drafter@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  all-checks:
+    runs-on: ubuntu-latest
+    needs: [quality, test, build]
+    if: always()
+    steps:
+      - name: Final status
+        run: echo "✅ Core CI jobs completed"

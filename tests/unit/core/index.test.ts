@@ -14,11 +14,11 @@ describe('core barrel exports', () => {
     'LoggerBase',
     'NodeLogger',
     'Printer',
-    'TagManager'
+    'TagManager',
   ];
 
   describe('export integrity', () => {
-    it.each(expectedExports)('exports %s', (exportName) => {
+    it.each(expectedExports)('exports %s', exportName => {
       expect(core).toHaveProperty(exportName);
     });
 
@@ -42,9 +42,9 @@ describe('core barrel exports', () => {
     it('Formatter performs basic colorization', () => {
       const formatter = new core.Formatter(true);
       const colored = formatter.colorize('hi', ['red']);
-  expect(colored).toContain('hi');
-  // Verify ANSI escape codes are present when color is enabled without control-char regex
-  expect(colored.includes('\u001b[')).toBe(true);
+      expect(colored).toContain('hi');
+      // Verify ANSI escape codes are present when color is enabled without control-char regex
+      expect(colored.includes('\u001b[')).toBe(true);
     });
 
     it('Formatter performs template substitution', () => {
@@ -55,10 +55,11 @@ describe('core barrel exports', () => {
 
     it('Formatter handles multiple substitutions', () => {
       const formatter = new core.Formatter(false);
-      const result = formatter.format(
-        '{greeting} {name}, you have {count} messages',
-        { greeting: 'Hello', name: 'Alice', count: 5 }
-      );
+      const result = formatter.format('{greeting} {name}, you have {count} messages', {
+        greeting: 'Hello',
+        name: 'Alice',
+        count: 5,
+      });
       expect(result).toBe('Hello Alice, you have 5 messages');
     });
   });
@@ -71,11 +72,12 @@ describe('core barrel exports', () => {
         { name: 'Formatter', Class: core.Formatter, args: [false] },
         { name: 'ContextManager', Class: core.ContextManager, args: [] },
         { name: 'TagManager', Class: core.TagManager, args: [] },
-        { name: 'Printer', Class: core.Printer, args: [console, false] }
+        { name: 'Printer', Class: core.Printer, args: [console, false] },
       ];
 
       concreteClasses.forEach(({ name: _name, Class, args }) => {
-        expect(() => new (Class as any)(...args)).not.toThrow();
+        const Ctor = Class as unknown as { new (...a: unknown[]): unknown };
+        expect(() => new Ctor(...args)).not.toThrow();
       });
     });
 
@@ -84,8 +86,11 @@ describe('core barrel exports', () => {
       expect(typeof Base).toBe('function');
       let threw = false;
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        new (Base as any)({ verbose: false });
+        const LoggerBaseCtor = Base as { new (...a: unknown[]): unknown };
+        // Intentionally just constructing to ensure abstract constraint enforced at runtime
+        // (If it's truly abstract TS would prevent compilation; runtime guard may throw.)
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        new LoggerBaseCtor({ verbose: false } as unknown as Record<string, unknown>);
       } catch {
         threw = true;
       }
