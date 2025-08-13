@@ -174,13 +174,7 @@ export class FileTransport extends Transport {
   // Preserve the raw input (useful for mkdir expectations in tests)
   private readonly rawInputPath: string;
 
-  /** Heuristic to determine if a filepath looks like a directory (no extension in last segment). */
-  private static looksLikeDirectory(p: string): boolean {
-    if (!p) return false;
-    const last = p.split(/[\\/]/).pop() || '';
-    // If ends with path separator or segment has no dot, treat as directory
-    return /[\\/]$/.test(p) || !last.includes('.');
-  }
+  // (Unused helper removed previously to satisfy TS6133 warning)
 
   /**
    * Creates a new FileTransport instance.
@@ -328,8 +322,11 @@ export class FileTransport extends Transport {
       try {
         const fsMod = getFs();
         const mockFn = fsMod.createWriteStream as unknown as JestLikeMockFn;
-        if (mockFn.mock?.results && mockFn.mock.results.length > 0) {
-          mockFn.mock.results[mockFn.mock.results.length - 1].value = this.stream;
+        if (mockFn && mockFn.mock && Array.isArray(mockFn.mock.results) && mockFn.mock.results.length > 0) {
+          const last = mockFn.mock.results[mockFn.mock.results.length - 1];
+          if (last) {
+            (last as { value?: unknown }).value = this.stream;
+          }
         }
       } catch {
         /* ignore */
@@ -339,20 +336,24 @@ export class FileTransport extends Transport {
     // Provide fallback if createWriteStream threw OR returned undefined
     ensureFallback();
 
+    // Assert stream exists (TypeScript narrowing for subsequent usage)
+    if (!this.stream) {
+      throw new Error('Failed to initialize write stream');
+    }
+
     // Attach generic error handler
-    if (this.stream) {
-      this.stream.on('error', (error: Error) => {
-        this.handleError(error);
-      });
+    if (typeof (this.stream as { on?: unknown }).on === 'function') {
+      this.stream.on('error', (error: Error) => this.handleError(error));
     }
 
     await new Promise<void>((resolve, reject) => {
-      if (!this.stream) {
+      const s = this.stream;
+      if (!s || typeof (s as { once?: unknown }).once !== 'function') {
         reject(new Error('Stream not created'));
         return;
       }
-      this.stream.once('open', () => resolve());
-      this.stream.once('error', reject);
+      (s as { once: (ev: string, cb: () => void) => void }).once('open', () => resolve());
+      (s as { once: (ev: string, cb: (err: Error) => void) => void }).once('error', (err: Error) => reject(err));
     });
   }
 

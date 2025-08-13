@@ -15,6 +15,7 @@ const config: Config.InitialOptions = {
   moduleNameMapper: {
     magiclogger$: '<rootDir>/src/index.ts',
     'magiclogger/(.*)$': '<rootDir>/src/$1',
+  '^mongodb$': '<rootDir>/tests/__mocks__/mongodb.js'
   },
   testMatch: ['**/tests/**/*.test.ts'],
   collectCoverageFrom: ['src/**/*.ts'],
@@ -47,6 +48,7 @@ const config: Config.InitialOptions = {
       moduleNameMapper: {
         magiclogger$: '<rootDir>/src/index.ts',
         'magiclogger/(.*)$': '<rootDir>/src/$1',
+  '^mongodb$': '<rootDir>/tests/__mocks__/mongodb.js'
       },
       setupFiles: ['<rootDir>/jest.polyfills.js'],
       setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
@@ -67,6 +69,7 @@ const config: Config.InitialOptions = {
       moduleNameMapper: {
         magiclogger$: '<rootDir>/src/index.ts',
         'magiclogger/(.*)$': '<rootDir>/src/$1',
+  '^mongodb$': '<rootDir>/tests/__mocks__/mongodb.js'
       },
       setupFiles: ['<rootDir>/jest.polyfills.js'],
       setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],

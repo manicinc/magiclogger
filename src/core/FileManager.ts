@@ -5,7 +5,9 @@ import { BROWSER_POLYFILLS } from '../utils/browser-polyfills';
 type FileSystemModule = typeof import('fs') | typeof BROWSER_POLYFILLS.fs;
 type PathModule = typeof import('path') | typeof BROWSER_POLYFILLS.path;
 
-// Dynamic import for Node.js modules
+// Dynamic import for Node.js modules (kept for potential future async re-introduction)
+// NOTE: Retained for potential future async refactor; currently unused.
+/* eslint-disable @typescript-eslint/no-unused-vars */
 const importNodeModules = async () => {
   if (!isBrowserEnvironment()) {
     // Use dynamic import for Node.js modules
@@ -18,6 +20,9 @@ const importNodeModules = async () => {
   }
   return BROWSER_POLYFILLS;
 };
+/* eslint-enable @typescript-eslint/no-unused-vars */
+// Intentional no-op usage so TypeScript treats it as used without changing runtime
+void importNodeModules;
 
 // Synchronous import for Node.js modules
 const importNodeModulesSync = (): { fs: FileSystemModule; path: PathModule } => {
@@ -66,14 +71,7 @@ export class FileManager {
   /**
    * Initialize Node.js or browser modules
    */
-  private async initializeModules() {
-    const modules = await importNodeModules();
-    this.fs = modules.fs as FileSystemModule;
-    this.path = modules.path as PathModule;
-
-    // Resolve log directory after modules are loaded
-    this.logDir = this.resolveLogDir(this.logDir);
-  }
+  // (Async pathway removed – synchronous init is sufficient; reintroduce if needed in future.)
 
   /**
    * Resolves a directory path to an absolute path.

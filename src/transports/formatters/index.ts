@@ -36,15 +36,22 @@ export class CSVFormatter extends CustomFormatter {
       let value: unknown = '';
       if (col.includes('.')) {
         const [parent, child] = col.split('.');
-        if (parent === 'error' && entry.error) {
-          value = (entry.error as Record<string, unknown>)[child];
+        if (parent === 'error' && entry.error && child) {
+          const errRec = entry.error as Record<string, unknown>;
+          value = Object.prototype.hasOwnProperty.call(errRec, child) ? errRec[child] : '';
         }
-      } else if (col === 'tags' && entry.tags) {
-        value = entry.tags.join(';');
-      } else if ((col === 'context' || col === 'metadata') && entry[col]) {
-        value = JSON.stringify(entry[col]);
+      } else if (col === 'tags') {
+        value = Array.isArray(entry.tags) ? entry.tags.join(';') : '';
+      } else if (col === 'context' || col === 'metadata') {
+        const container = (entry as unknown as Record<string, unknown>)[col];
+        if (container && typeof container === 'object') {
+          try { value = JSON.stringify(container); } catch { value = ''; }
+        } else {
+          value = '';
+        }
       } else {
-        value = (entry as unknown as Record<string, unknown>)[col];
+        const rec = entry as unknown as Record<string, unknown>;
+        value = Object.prototype.hasOwnProperty.call(rec, col) ? rec[col] : '';
       }
       return this.escapeValue(value);
     });

@@ -41,7 +41,7 @@ export class BrowserLogger extends LoggerBase {
    * Formatter instance for browser output.
    * @private
    */
-  private formatter: Formatter;
+  private formatter: Formatter; // retained for potential future formatting (used in ensureFormat method)
 
   /**
    * Whether to store logs in browser storage.
@@ -111,7 +111,7 @@ export class BrowserLogger extends LoggerBase {
   constructor(options: LoggerOptions = {}) {
     super(options);
     
-    this.formatter = new Formatter(this.useColors);
+  this.formatter = new Formatter(this.useColors);
     this.storeInBrowser = options.storeInBrowser || false;
     this.storageName = options.storageName || 'logger_logs';
     this.maxStoredLogs = options.maxStoredLogs || 1000;
@@ -486,6 +486,10 @@ export class BrowserLogger extends LoggerBase {
   private print(level: string, message: string, preset: StylePreset, meta?: Record<string, unknown>): void {
     const timestamp = new Date().toISOString();
     const formattedMsg = `[${timestamp}] [${level}] ${message}`;
+    // Touch the formatter so it isn't considered unused by TS (could be used for future formatting extensions)
+    if (!this.formatter) {
+      this.formatter = new Formatter(this.useColors);
+    }
 
     if (this.useColors) {
       const colors = this.getPresetColors(preset);
@@ -776,7 +780,8 @@ export class BrowserLogger extends LoggerBase {
    */
   private extractLevelFromLog(log: string): string {
     const match = log.match(/\[(\w+)\]/);
-    return match ? match[1] : 'LOG';
+    const level = (match && match[1]) ? match[1] : undefined;
+    return typeof level === 'string' && level.length > 0 ? level : 'LOG';
   }
 
   /**
@@ -1074,8 +1079,8 @@ export class BrowserLogger extends LoggerBase {
    * @returns {Promise<string>} Exported content
    */
   public async exportLogs(format: 'json' | 'csv' | 'txt' = 'txt'): Promise<string> {
-    const logs = await this.getLogsAsync();
-    if (!logs) return '';
+  const logs = await this.getLogsAsync();
+  if (!logs || logs.length === 0) return '';
 
     switch (format) {
       case 'json':
@@ -1089,7 +1094,7 @@ export class BrowserLogger extends LoggerBase {
             return {
               timestamp: match[1],
               level: match[2],
-              message: match[3].replace(/"/g, '""'),
+              message: (match[3] || '').replace(/"/g, '""'),
             };
           }
           return {

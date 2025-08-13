@@ -132,11 +132,7 @@ export class AsyncLogger {
    */
   private workers: TrackedWorker[] = [];
 
-  /**
-   * Current worker index for round-robin distribution.
-   * @private
-   */
-  private workerIndex = 0;
+  // (Removed unused workerIndex previously intended for round-robin distribution)
 
   /**
    * Number of worker threads.
@@ -392,8 +388,8 @@ export class AsyncLogger {
     }
 
     // Find worker with least load
-    let selectedWorker = this.workers[0];
-    let minLoad = selectedWorker.processing;
+    let selectedWorker: TrackedWorker | undefined = this.workers[0];
+    let minLoad = selectedWorker ? selectedWorker.processing : Number.MAX_SAFE_INTEGER;
 
     for (const worker of this.workers) {
       if (worker.active && worker.processing < minLoad) {
@@ -403,6 +399,15 @@ export class AsyncLogger {
     }
 
     // Send entries to worker
+    if (!selectedWorker) {
+      // Should not happen due to earlier length check, but guard for TS
+      const direct = this.originalFlushHandler(entries);
+      if (direct && typeof (direct as Promise<void>).then === 'function') {
+        (direct as Promise<void>).catch(err => console.error('[AsyncLogger] Flush handler error:', err));
+      }
+      return;
+    }
+
     try {
       selectedWorker.processing++;
       selectedWorker.worker.postMessage({ type: 'logs', entries });

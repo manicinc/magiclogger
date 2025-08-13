@@ -556,7 +556,8 @@ export class StreamTransport extends Transport {
     // Create a transform stream that formats log entries
     const transform = new Transform({
       objectMode: true,
-      transform: (entry: LogEntry, encoding, callback) => {
+  // encoding arg not used (objectMode); underscore to silence TS6133
+  transform: (entry: LogEntry, _encoding, callback) => {
         try {
           const formatted = this.formatForStream(entry);
           callback(null, formatted);
