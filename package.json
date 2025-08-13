@@ -282,25 +282,24 @@
     "format:check": "prettier --check \"src/**/*.{ts,json}\" \"tests/**/*.{ts,json}\" \"examples/**/*.{ts,json}\"",
     "validate": "npm run format:check && npm run lint",
     "commit": "cz",
-    "test:coverage:badge": "node scripts/generate-coverage-badge.js",
-    "analyze:build": "node scripts/analyze-build.js",
+  "test:coverage:badge": "node scripts/generate-coverage-badge.js",
+  "analyze:build": "node scripts/analyze-build.js",
     "version:bump": "node scripts/version-bump.js",
     "preflight": "npm run clean && npm run check && npm run lint && npm run test:coverage && npm run build && npm run test:coverage:badge && npm run analyze:build && npm run test:treeshake",
     "prepublishOnly": "npm run test && npm run lint && npm run build && npm run test:coverage:badge && npm run analyze:build",
     "prepare": "npm run clean && husky",
     "version": "npm run format && git add -A src",
     "postversion": "git push && git push --tags",
-    "release:manual": "npm run preflight && npm run version:bump"
-  ,"security:audit": "pnpm audit || true"
-  ,"security:deps": "npx license-checker --summary"
-  ,"security:lock": "npx lockfile-lint --path pnpm-lock.yaml --type pnpm --validate-https"
-  ,"deps:graph": "dependency-cruiser -T html src --output dependency-graph.html"
-  ,"deps:graph:json": "dependency-cruiser -T json src > dependency-graph.json"
-  ,"analyze:exports": "node scripts/analyze-build.js"
-  ,"size:check": "node scripts/analyze-build.js --check"
-  ,"size:update": "node scripts/analyze-build.js"
-  ,"clean:deep": "rimraf dist build lib coverage *.tsbuildinfo **/*.tsbuildinfo node_modules/.cache && pnpm exec jest --clearCache || true"
-  ,"rebuild": "npm run clean:deep && pnpm install && npm run build"
+    "release:manual": "npm run preflight && npm run version:bump",
+    "security:audit": "pnpm audit || true",
+    "security:deps": "npx license-checker --summary",
+    "security:lock": "npx lockfile-lint --path pnpm-lock.yaml --type pnpm --validate-https",
+    "deps:graph": "dependency-cruiser -T html src --output dependency-graph.html",
+    "deps:graph:json": "dependency-cruiser -T json src > dependency-graph.json",
+    "size:check": "node scripts/analyze-build.js --check",
+    "size:update": "node scripts/analyze-build.js",
+    "clean:deep": "rimraf dist build lib coverage *.tsbuildinfo **/*.tsbuildinfo node_modules/.cache && pnpm exec jest --clearCache || true",
+    "rebuild": "npm run clean:deep && pnpm install && npm run build"
   },
   "keywords": [
     "logger",
@@ -368,12 +367,12 @@
     "tsconfig-paths": "^4.2.0",
     "tsup": "^8.0.1",
     "tsx": "^4.7.0",
-    "typescript": "^5.0.4"
-  ,
-  "dependency-cruiser": "^16.6.0",
-  "license-checker": "^25.0.1",
-  "lockfile-lint": "4.14.1",
-  "eslint-plugin-security": "^2.1.1"
+    "typescript": "^5.0.4",
+    "esbuild": "^0.21.5",
+    "dependency-cruiser": "^16.6.0",
+    "license-checker": "^25.0.1",
+    "lockfile-lint": "4.14.1",
+    "eslint-plugin-security": "^2.1.1"
   },
   "peerDependencies": {
     "@aws-sdk/client-s3": "^3.0.0",
