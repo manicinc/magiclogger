@@ -127,12 +127,37 @@ declare global {
   var __MAGICLOGGER_TRANSPORT_REGISTRY__: typeof TransportRegistry | undefined;
 }
 
-// Make registry available globally for TransportManager
-if (typeof globalThis !== 'undefined') {
-  globalThis.__MAGICLOGGER_TRANSPORT_REGISTRY__ = TransportRegistry;
-} else if (typeof window !== 'undefined') {
-  window.__MAGICLOGGER_TRANSPORT_REGISTRY__ = TransportRegistry;
+/**
+ * Internal helper to install the TransportRegistry onto a global-like object.
+ * Exposed for tests so we can exercise all environment branches (global/window/none).
+ * @internal
+ * @param g Global-like object (e.g. globalThis)
+ * @param w Window-like object
+ * @returns Which target received the registry ('global' | 'window' | 'none')
+ */
+export function __installTransportRegistry(
+  g: Record<string, unknown> | undefined | null,
+  w: Record<string, unknown> | undefined | null
+): 'global' | 'window' | 'none' {
+  if (g) {
+    (g as Record<string, unknown>).__MAGICLOGGER_TRANSPORT_REGISTRY__ = TransportRegistry;
+    return 'global';
+  } else if (w) {
+    (w as Record<string, unknown>).__MAGICLOGGER_TRANSPORT_REGISTRY__ = TransportRegistry;
+    return 'window';
+  }
+  return 'none';
 }
+
+// Install on real environment
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore - window may be undefined in Node
+const maybeWindow: unknown = typeof window !== 'undefined' ? window : undefined;
+__installTransportRegistry(
+  // globalThis may not exist in very old runtimes (defensive)
+  typeof globalThis !== 'undefined' ? (globalThis as unknown as Record<string, unknown>) : undefined,
+  (maybeWindow as Record<string, unknown> | undefined)
+);
 
 /**
  * Convenience function to create a pre-configured transport manager

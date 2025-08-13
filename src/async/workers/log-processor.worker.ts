@@ -1,6 +1,15 @@
-// File: src/workers/log-processor.worker.ts
-
+// Wrapper worker: delegates heavy logic to logProcessorCore so core can be unit tested directly.
 import type { LogEntry } from '../../types/transport';
+import { createInitialState, processLogs as coreProcessLogs, updateConfig as coreUpdateConfig, type WorkerConfig } from './log-processor-core';
+
+interface SelfLike {
+  postMessage?: (data: unknown) => void;
+  addEventListener?: (type: string, listener: (...args: any[]) => void) => void; // eslint-disable-line @typescript-eslint/no-explicit-any
+  close?: () => void;
+}
+
+// Narrowed accessor so we cast once here only
+const safeSelf: SelfLike = (typeof self !== 'undefined' ? (self as unknown as SelfLike) : {});
 
 /**
  * Web Worker for processing log entries in the background.
@@ -21,12 +30,7 @@ interface WorkerMessage {
   config?: WorkerConfig;
 }
 
-interface WorkerConfig {
-  formatType?: 'json' | 'text' | 'custom';
-  batchSize?: number;
-  destination?: 'console' | 'file' | 'network';
-  endpoint?: string;
-}
+// WorkerConfig imported from core
 
 interface WorkerResponse {
   type: 'processed' | 'error' | 'metrics' | 'ready' | 'file-ready' | 'network-ready' | 'config-updated';
@@ -38,69 +42,23 @@ interface WorkerResponse {
   config?: WorkerConfig;
 }
 
-interface NetworkBatch {
-  endpoint: string;
-  data: string | object[];
-  timestamp: string;
-  count: number;
-}
+interface NetworkBatch { endpoint: string; data: string | object[]; timestamp: string; count: number }
 
-interface WorkerMetrics {
-  processed: number;
-  errors: number;
-  avgProcessingTime: number;
-  lastBatchSize: number;
-}
+interface WorkerMetrics { processed: number; errors: number; avgProcessingTime: number; lastBatchSize: number }
 
-// Worker state
-let config: WorkerConfig = {
-  formatType: 'json',
-  batchSize: 100,
-  destination: 'console',
-};
-
-const metrics: WorkerMetrics = {
-  processed: 0,
-  errors: 0,
-  avgProcessingTime: 0,
-  lastBatchSize: 0,
-};
-
-const processingTimes: number[] = [];
-const MAX_TIMING_SAMPLES = 100;
+// Core state encapsulated in core module
+const state = createInitialState();
 
 /**
  * Initialize the worker and send ready signal.
  */
-self.postMessage({ type: 'ready' } as WorkerResponse);
+safeSelf.postMessage?.({ type: 'ready' } as WorkerResponse);
 
 /**
  * Handle incoming messages from the main thread.
  */
-self.addEventListener('message', (event: MessageEvent<WorkerMessage>) => {
-  const { type, entries, config: newConfig } = event.data;
-
-  switch (type) {
-    case 'logs':
-      if (entries) {
-        processLogs(entries);
-      }
-      break;
-
-    case 'config':
-      if (newConfig) {
-        updateConfig(newConfig);
-      }
-      break;
-
-    case 'shutdown':
-      // Clean up and close
-      self.close();
-      break;
-
-    default:
-      sendError(`Unknown message type: ${type}`);
-  }
+safeSelf.addEventListener?.('message', (event: MessageEvent<WorkerMessage>) => {
+  handleWorkerMessage(event.data);
 });
 
 /**
@@ -108,47 +66,11 @@ self.addEventListener('message', (event: MessageEvent<WorkerMessage>) => {
  *
  * @param {LogEntry[]} entries - Log entries to process
  */
-function processLogs(entries: LogEntry[]): void {
-  const startTime = performance.now();
-
-  try {
-    // Format entries based on configuration
-    const formatted = formatEntries(entries);
-
-    // Process based on destination
-    switch (config.destination) {
-      case 'console':
-        // In a real implementation, we'd send this back to main thread
-        // since workers can't access console directly
-        break;
-
-      case 'file':
-        // Prepare for file writing (main thread will handle actual I/O)
-        prepareFileData(formatted);
-        break;
-
-      case 'network':
-        // Batch for network transport
-        if (config.endpoint) {
-          batchForNetwork(formatted, config.endpoint);
-        }
-        break;
-    }
-
-    // Update metrics
-    const processingTime = performance.now() - startTime;
-    updateMetrics(entries.length, processingTime);
-
-    // Send success response
-    self.postMessage({
-      type: 'processed',
-      count: entries.length,
-      metrics: { ...metrics },
-    } as WorkerResponse);
-  } catch (error) {
-    metrics.errors++;
-    sendError(`Processing error: ${error}`);
-  }
+function handleProcess(entries: LogEntry[]): void {
+  const { fileData, batch, metrics } = coreProcessLogs(state, entries);
+  if (fileData) safeSelf.postMessage?.({ type: 'file-ready', data: fileData } as WorkerResponse);
+  if (batch) safeSelf.postMessage?.({ type: 'network-ready', batch } as WorkerResponse);
+  safeSelf.postMessage?.({ type: 'processed', count: entries.length, metrics } as WorkerResponse);
 }
 
 /**
@@ -157,51 +79,14 @@ function processLogs(entries: LogEntry[]): void {
  * @param {LogEntry[]} entries - Entries to format
  * @returns {string | object[]} Formatted entries
  */
-function formatEntries(entries: LogEntry[]): string | object[] {
-  switch (config.formatType) {
-    case 'json':
-      return entries.map(entry => ({
-        timestamp: entry.timestamp,
-        level: entry.level,
-        message: entry.message,
-        ...entry.metadata,
-      }));
-
-    case 'text':
-      return entries
-        .map(entry => {
-          const timestamp = entry.timestamp;
-          const level = entry.level.toUpperCase().padEnd(7);
-          const context = entry.context ? `[${entry.context}] ` : '';
-          const tags = entry.tags?.length ? `{${entry.tags.join(', ')}} ` : '';
-          return `${timestamp} ${level} ${context}${tags}${entry.message}`;
-        })
-        .join('\n');
-
-    case 'custom':
-      // Custom formatting logic here
-      return entries;
-
-    default:
-      return entries;
-  }
-}
+// formatting handled in core
 
 /**
  * Prepare data for file writing.
  *
  * @param {string | object[]} data - Formatted data
  */
-function prepareFileData(data: string | object[]): void {
-  // Convert to string if needed
-  const fileData = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
-
-  // Send prepared data back to main thread
-  self.postMessage({
-    type: 'file-ready',
-    data: fileData,
-  } as WorkerResponse);
-}
+// file prep handled in core
 
 /**
  * Batch data for network transport.
@@ -209,21 +94,7 @@ function prepareFileData(data: string | object[]): void {
  * @param {string | object[]} data - Formatted data
  * @param {string} endpoint - Network endpoint
  */
-function batchForNetwork(data: string | object[], endpoint: string): void {
-  // In a real implementation, this would batch entries
-  // and prepare them for network transmission
-  const batch = {
-    endpoint,
-    data,
-    timestamp: new Date().toISOString(),
-    count: Array.isArray(data) ? data.length : 1,
-  };
-
-  self.postMessage({
-    type: 'network-ready',
-    batch,
-  } as WorkerResponse);
-}
+// network batching handled in core
 
 /**
  * Update worker configuration.
@@ -231,12 +102,8 @@ function batchForNetwork(data: string | object[], endpoint: string): void {
  * @param {WorkerConfig} newConfig - New configuration
  */
 function updateConfig(newConfig: WorkerConfig): void {
-  config = { ...config, ...newConfig };
-
-  self.postMessage({
-    type: 'config-updated',
-    config: { ...config },
-  } as WorkerResponse);
+  state.config = coreUpdateConfig(state.config, newConfig);
+  safeSelf.postMessage?.({ type: 'config-updated', config: { ...state.config } } as WorkerResponse);
 }
 
 /**
@@ -245,18 +112,7 @@ function updateConfig(newConfig: WorkerConfig): void {
  * @param {number} count - Number of entries processed
  * @param {number} time - Processing time in milliseconds
  */
-function updateMetrics(count: number, time: number): void {
-  metrics.processed += count;
-  metrics.lastBatchSize = count;
-
-  // Update average processing time
-  processingTimes.push(time);
-  if (processingTimes.length > MAX_TIMING_SAMPLES) {
-    processingTimes.shift();
-  }
-
-  metrics.avgProcessingTime = processingTimes.reduce((a, b) => a + b, 0) / processingTimes.length;
-}
+// metrics handled in core
 
 /**
  * Send error message to main thread.
@@ -273,13 +129,29 @@ function sendError(message: string): void {
 /**
  * Handle uncaught errors in the worker.
  */
-self.addEventListener('error', (event: ErrorEvent) => {
+safeSelf.addEventListener?.('error', (event: ErrorEvent) => {
   sendError(`Worker error: ${event.message}`);
 });
 
 /**
  * Handle unhandled promise rejections.
  */
-self.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => {
+safeSelf.addEventListener?.('unhandledrejection', (event: PromiseRejectionEvent) => {
   sendError(`Unhandled rejection: ${event.reason}`);
 });
+
+export function handleWorkerMessage(msg: { type: string; entries?: LogEntry[]; config?: WorkerConfig }) {
+  const { type, entries, config } = msg;
+  switch (type) {
+    case 'logs':
+      if (entries) handleProcess(entries);
+      break;
+    case 'config':
+      if (config) updateConfig(config);
+      break;
+    case 'shutdown':
+      break;
+    default:
+      sendError(`Unknown message type: ${type}`);
+  }
+}

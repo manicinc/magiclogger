@@ -234,7 +234,7 @@ describe('WebSocketTransport', () => {
       await transport.log(entry);
       
       expect(sendSpy).toHaveBeenCalled();
-      const sentData = JSON.parse(sendSpy.mock.calls[0][0]);
+      const sentData: any = JSON.parse(sendSpy.mock.calls[0][0] as string);
       expect(sentData.type).toBe('logs');
       expect(sentData.entries).toHaveLength(1);
       expect(sentData.entries[0].message).toBe('Test message');
@@ -247,7 +247,7 @@ describe('WebSocketTransport', () => {
       await transport.logBatch(entries);
       
       expect(sendSpy).toHaveBeenCalled();
-      const sentData = JSON.parse(sendSpy.mock.calls[0][0]);
+      const sentData: any = JSON.parse(sendSpy.mock.calls[0][0] as string);
       expect(sentData.entries).toHaveLength(2);
     });
 
@@ -275,7 +275,7 @@ describe('WebSocketTransport', () => {
       await (transport as any).sendData({ type: 'ping' });
       
       expect(sendSpy).toHaveBeenCalled();
-      const sentData = JSON.parse(sendSpy.mock.calls[0][0]);
+      const sentData: any = JSON.parse(sendSpy.mock.calls[0][0] as string);
       expect(sentData.type).toBe('ping');
     });
 

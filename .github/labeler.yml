@@ -1,0 +1,96 @@
+'area: core':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/core/**'
+          - 'src/Logger.ts'
+
+'area: transports':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/transports/**'
+
+'area: async':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/async/**'
+
+'area: compatibility':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/compatibility/**'
+
+'area: theme':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/theme/**'
+          - 'src/theme.ts'
+
+'area: constants':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/constants/**'
+
+'area: utils':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/utils/**'
+
+'area: types':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/types/**'
+
+'area: tests':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'tests/**'
+
+'area: docs':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'docs/**'
+          - '**/*.md'
+          - 'README.md'
+
+'area: build':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'tsconfig*.json'
+          - 'tsup.config.ts'
+          - 'typedoc.json'
+          - 'package.json'
+          - 'pnpm-lock.yaml'
+          - '.github/workflows/**'
+
+'dependencies':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'package.json'
+          - 'pnpm-lock.yaml'
+
+'ci':
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/**'
+
+'documentation':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'docs/**'
+          - '**/*.md'
+
+'performance':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/**/performance*'
+          - 'src/**/perf/**'
+
+'security':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'SECURITY.md'
+
+'chore':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'scripts/**'

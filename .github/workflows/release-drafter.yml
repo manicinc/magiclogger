@@ -1,0 +1,45 @@
+name: Release Drafter
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    types: [opened, reopened, synchronize, labeled, unlabeled, closed]
+    branches: [master, main]
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Publish the draft release?'
+        required: false
+        default: 'false'
+        type: choice
+        options: ['false','true']
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: read
+
+jobs:
+  update_release_draft:
+    runs-on: ubuntu-latest
+    if: |
+      github.ref == 'refs/heads/master' || 
+      github.ref == 'refs/heads/main' ||
+      (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'master') ||
+      (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'main')
+    steps:
+      - name: Update release draft
+        id: drafter
+        uses: release-drafter/release-drafter@v6
+        with:
+          config-name: release-drafter.yml
+          publish: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.publish == 'true' }}
+          prerelease: false
+          commitish: ${{ github.ref }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Output release info
+        if: success()
+        run: |
+          echo "📝 Draft: ${{ steps.drafter.outputs.name }} -> ${{ steps.drafter.outputs.html_url }}"

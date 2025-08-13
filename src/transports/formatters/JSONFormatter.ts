@@ -242,7 +242,10 @@ export class JSONFormatter {
     prefix = '',
     depth = 0
   ): Record<string, unknown> {
-    if (depth >= this.options.maxFlattenDepth) {
+  // Stop flattening only when current depth exceeds the configured max.
+  // Using '>' (not '>=') allows keys at the max depth to still be expanded,
+  // matching test expectation for a key like 'context.a.b' when maxFlattenDepth=2.
+  if (depth > this.options.maxFlattenDepth) {
       return prefix ? { [prefix]: obj } : obj;
     }
 

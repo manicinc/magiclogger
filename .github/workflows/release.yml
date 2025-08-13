@@ -1,0 +1,90 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate tag format
+        run: |
+          if ! [[ "${{ github.ref_name }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9\.]+)?$ ]]; then
+            echo "Invalid tag format"; exit 1; fi
+      - name: Check CHANGELOG (warn only)
+        run: |
+          if [ -f CHANGELOG.md ] && ! grep -q "${{ github.ref_name }}" CHANGELOG.md; then
+            echo "⚠️ CHANGELOG missing entry for ${{ github.ref_name }}"; fi
+  build:
+    runs-on: ubuntu-latest
+    needs: validate
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'pnpm'
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+      - name: Pack tarball
+        run: pnpm pack --pack-destination dist
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-dist
+          path: dist
+  publish-npm:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: npm-dist
+          path: dist
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          registry-url: 'https://registry.npmjs.org'
+      - name: Publish to npm (public)
+        run: |
+          FILE=$(ls dist/*.tgz | head -n1)
+          npm publish "$FILE" --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+  github-release:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          name: npm-dist
+          path: dist
+      - name: Generate release notes (simple)
+        id: notes
+        run: |
+          VERSION=${{ github.ref_name }}
+          echo "## Release $VERSION" > notes.md
+          echo "Built from commit $GITHUB_SHA" >> notes.md
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: notes.md
+          files: dist/*.tgz
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}

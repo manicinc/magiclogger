@@ -1,0 +1,43 @@
+name: Skip Release Guard
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  guard:
+    if: contains(github.event.pull_request.labels.*.name, 'skip-release')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR (full history for diff)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Fetch base branch
+        run: |
+          git fetch origin "${{ github.base_ref }}" --depth=1 || true
+      - name: Compare version when skip-release label applied
+        run: |
+          if [ ! -f package.json ]; then
+            echo "No package.json found; skipping"; exit 0; fi
+          if ! command -v jq >/dev/null 2>&1; then
+            echo "Installing jq"; sudo apt-get update -y && sudo apt-get install -y jq >/dev/null 2>&1; fi
+          BASE_FILE=$(mktemp)
+          git show "origin/${{ github.base_ref }}:package.json" > "$BASE_FILE" 2>/dev/null || cp package.json "$BASE_FILE"
+          BASE_VERSION=$(jq -r '.version' < "$BASE_FILE")
+          PR_VERSION=$(jq -r '.version' < package.json)
+          echo "Base version: $BASE_VERSION"; echo "PR version: $PR_VERSION";
+          if [ "$BASE_VERSION" != "$PR_VERSION" ]; then
+            echo "::error::skip-release label present but version changed ($BASE_VERSION -> $PR_VERSION). Remove label or revert version."; exit 1; fi
+      - name: Scan commit messages for release bump patterns
+        run: |
+          LOG=$(git log --pretty=%s "origin/${{ github.base_ref }}..HEAD") || true
+          echo "$LOG" | sed 's/^/MSG: /'
+          if echo "$LOG" | grep -Ei 'chore\(release\)|^release:|^v[0-9]+\.[0-9]+\.[0-9]+'; then
+            echo "::error::Found release-style commit message while skip-release label active."; exit 1; fi
+      - name: Summary
+        run: echo "✅ skip-release guard passed (no version bump or release commits)"

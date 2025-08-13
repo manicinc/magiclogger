@@ -889,35 +889,41 @@ export class HTTPTransport extends NetworkTransport {
    * @protected
    */
   protected shouldRetryError(error: Error, retryCount: number): boolean {
-    // Check base conditions first
-    if (super.shouldRetryError(error, retryCount)) {
-      return true;
-    }
-
-    // HTTP specific retry conditions
+    // HTTP specific conditions should take precedence so that we can choose
+    // NOT to retry generic / unknown errors even if the base class would.
     const message = error.message.toLowerCase();
-    
-    // Retry on specific HTTP errors
-    if (message.includes('request timeout') ||
-        message.includes('socket hang up') ||
-        message.includes('econnreset') ||
-        message.includes('econnrefused') ||
-        message.includes('enotfound')) {
+
+    // Retry on explicit network/transient signatures
+    const transientPatterns = [
+      'request timeout',
+      'socket hang up',
+      'econnreset',
+      'econnrefused',
+      'enotfound',
+      'timeout'
+    ];
+    if (transientPatterns.some(p => message.includes(p))) {
       return true;
     }
 
-    // Check for retryable status codes
+    // Status-code based retry
     const errorWithStatus = error as Error & { statusCode?: number };
-    if (errorWithStatus.statusCode) {
-      // Retry on server errors and rate limiting
-      return errorWithStatus.statusCode >= 500 || 
-             errorWithStatus.statusCode === 429 ||
-             errorWithStatus.statusCode === 408 ||
-             errorWithStatus.statusCode === 503 ||
-             errorWithStatus.statusCode === 504;
+    if (errorWithStatus.statusCode !== undefined) {
+      const sc = errorWithStatus.statusCode;
+      if (sc >= 500 || sc === 429 || sc === 408 || sc === 503 || sc === 504) {
+        return true;
+      }
+      // Do not retry other explicit status codes
+      return false;
     }
 
-    return false;
+    // Fallback to base logic ONLY for clearly connection related errors.
+    // (Prevents retrying arbitrary generic errors like 'Other failure').
+    if (/network|connection|connect|ecconn|ehostunreach/.test(message)) {
+      return super.shouldRetryError(error, retryCount);
+    }
+
+    return false; // generic unknown error -> no retry
   }
 
   /**

@@ -1087,6 +1087,16 @@ export interface TransportStats {
    * Transport-specific metrics.
    */
   custom?: Record<string, unknown>;
+
+  /**
+   * Optional transport identifier for convenience in tests/metrics.
+   */
+  name?: string;
+
+  /**
+   * Alias for succeeded count, provided for readability in some consumers/tests.
+   */
+  logged?: number;
 }
 
 /**
