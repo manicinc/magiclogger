@@ -100,6 +100,49 @@ jobs:
           fail_ci_if_error: false
           verbose: true
 
+  security:
+    runs-on: ubuntu-latest
+    needs: pre-check
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Dependency Review (PR only)
+        if: github.event_name == 'pull_request'
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: critical
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      - name: Enable corepack
+        run: corepack enable
+      - name: Install deps (production only for audit)
+        run: pnpm install --frozen-lockfile --prod=false
+      - name: Run pnpm audit (non-blocking)
+        run: pnpm audit || true
+      - name: Run gitleaks secret scan
+        uses: gitleaks/gitleaks-action@v2
+        continue-on-error: false
+        with:
+          config: ''
+          args: detect --no-git -v
+      - name: TruffleHog secret scan (diff)
+        uses: trufflesecurity/trufflehog@v3
+        continue-on-error: false
+        with:
+          extra_args: --only-verified commits HEAD~50..HEAD
+      - name: Upload SARIF (if any) placeholder
+        if: always()
+        run: echo "Security scanning complete"
+
   build:
     runs-on: ubuntu-latest
     needs: [quality, test]
@@ -136,7 +179,7 @@ jobs:
 
   all-checks:
     runs-on: ubuntu-latest
-    needs: [quality, test, build]
+    needs: [quality, test, build, security]
     if: always()
     steps:
       - name: Final status

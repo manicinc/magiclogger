@@ -291,6 +291,12 @@
     "version": "npm run format && git add -A src",
     "postversion": "git push && git push --tags",
     "release:manual": "npm run preflight && npm run version:bump"
+  ,"security:audit": "pnpm audit || true"
+  ,"security:deps": "npx license-checker --summary"
+  ,"security:lock": "npx lockfile-lint --path pnpm-lock.yaml --type pnpm --validate-https"
+  ,"deps:graph": "dependency-cruiser -T html src --output dependency-graph.html"
+  ,"deps:graph:json": "dependency-cruiser -T json src > dependency-graph.json"
+  ,"analyze:exports": "node scripts/analyze-build.js"
   },
   "keywords": [
     "logger",
@@ -359,6 +365,11 @@
     "tsup": "^8.0.1",
     "tsx": "^4.7.0",
     "typescript": "^5.0.4"
+  ,
+  "dependency-cruiser": "^16.6.0",
+  "license-checker": "^25.0.1",
+  "lockfile-lint": "^4.14.2",
+  "eslint-plugin-security": "^2.1.1"
   },
   "peerDependencies": {
     "@aws-sdk/client-s3": "^3.0.0",
