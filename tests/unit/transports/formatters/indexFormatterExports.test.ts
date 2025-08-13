@@ -1,6 +1,8 @@
 // File: tests/unit/transports/formatters/indexFormatterExports.test.ts
 // Purpose: Cover index.ts export logic for formatters (XMLFormatter, CSVFormatter via index path) and ensure formatBatch behavior.
-import { XMLFormatter, CSVFormatter, CustomFormatter } from '../../../../src/transports/formatters/index';
+import { CSVFormatter } from '../../../../src/transports/formatters';
+import { XMLFormatter } from '../../../../src/transports/formatters/XMLFormatter';
+import { CustomFormatter } from '../../../../src/transports/formatters/BaseFormatter';
 import type { LogEntry } from '../../../../src/types/transport';
 
 const entry: LogEntry = {

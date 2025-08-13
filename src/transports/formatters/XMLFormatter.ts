@@ -18,7 +18,7 @@
  */
 
 import type { LogEntry } from '../../types/transport';
-import { CustomFormatter } from './index';
+import { CustomFormatter } from './BaseFormatter';
 
 /**
  * XML formatter for log entries.

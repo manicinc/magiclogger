@@ -3,11 +3,11 @@
 
 // Compatibility shim entrypoints coverage
 // Use relative path imports to avoid ts-jest moduleNameMapper path resolution issues for subpath entrypoints
-import { BaseCompatibleLogger } from '../../../../src/compatibility/base';
-import { createBunyanCompatible } from '../../../../src/compatibility/bunyan';
-import { enhanceConsole } from '../../../../src/compatibility/console';
-import { createPinoCompatible, levels, levelNames } from '../../../../src/compatibility/pino';
-import { createWinstonCompatible } from '../../../../src/compatibility/winston';
+import { BaseCompatibleLogger } from '../../../src/compatibility/base';
+import { createBunyanCompatible } from '../../../src/compatibility/bunyan';
+import { enhanceConsole } from '../../../src/compatibility/console';
+import { createPinoCompatible, levels, levelNames } from '../../../src/compatibility/pino';
+import { createWinstonCompatible } from '../../../src/compatibility/winston';
 
 // Minimal tests – full behavioral coverage exists in dedicated compatibility suites.
 describe('compatibility entrypoint shims', () => {

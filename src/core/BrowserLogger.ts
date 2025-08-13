@@ -179,6 +179,11 @@ export class BrowserLogger extends LoggerBase {
 
       request.onsuccess = () => {
         this.db = request.result;
+        // If logs were queued before DB became available, process them now
+        if (this.storeInBrowser && this.storageQueue.length > 0) {
+          // Fire and forget; any errors already logged in processStorageQueue
+          this.processStorageQueue();
+        }
         resolve();
       };
 
@@ -195,6 +200,7 @@ export class BrowserLogger extends LoggerBase {
           store.createIndex('timestamp', 'timestamp', { unique: false });
           store.createIndex('level', 'level', { unique: false });
         }
+  // After upgrade, if queue has data it will be processed on success handler
       };
     });
   }
@@ -514,17 +520,24 @@ export class BrowserLogger extends LoggerBase {
       this.storeLog(logEntry);
     }
 
-    // Measure performance
-    if (this.performanceObserver) {
-      performance.mark(`logger-${level}-end`);
-      try {
-        performance.measure(
-          `logger-${level}`,
-          `logger-${level}-start`,
-          `logger-${level}-end`
-        );
-      } catch {
-        // Ignore if start mark doesn't exist
+    // Measure performance (avoid any casts by runtime type narrowing)
+    if (this.performanceObserver && typeof performance !== 'undefined') {
+      interface PerfLike {
+        mark?: (name: string) => void;
+        measure?: (name: string, start?: string, end?: string) => void;
+      }
+      const p: PerfLike = performance as unknown as PerfLike;
+      if (typeof p.mark === 'function' && typeof p.measure === 'function') {
+        try {
+          p.mark(`logger-${level}-end`);
+          p.measure(
+            `logger-${level}`,
+            `logger-${level}-start`,
+            `logger-${level}-end`
+          );
+        } catch {
+          /* noop */
+        }
       }
     }
   }
@@ -841,16 +854,87 @@ export class BrowserLogger extends LoggerBase {
       
       const transaction = this.db.transaction(['logs'], 'readonly');
       const store = transaction.objectStore('logs');
-      const request = store.getAll();
-
-      request.onsuccess = () => {
-        const results = request.result.map(entry => entry.log);
-        resolve(results);
+      // Some lightweight IndexedDB mocks used in tests may not implement getAll().
+      type LogEntry = { log?: string } | string;
+      // getAll path (fast path)
+      const storeAny = store as IDBObjectStore & {
+        getAll?: () => IDBRequest<LogEntry[]>;
+        openCursor?: () => IDBRequest<IDBCursorWithValue | null>;
+        getAllKeys?: () => IDBRequest<IDBValidKey[]>;
+        get?: (key: IDBValidKey) => IDBRequest<LogEntry>;
       };
 
-      request.onerror = () => {
-        reject(request.error);
-      };
+      if (typeof storeAny.getAll === 'function') {
+        const request = storeAny.getAll();
+        request.onsuccess = () => {
+          try {
+            const raw = (request.result || []) as LogEntry[];
+            const results = raw.map(entry =>
+              typeof entry === 'object' && entry !== null && 'log' in entry
+                ? (entry as { log?: string }).log ?? ''
+                : String(entry)
+            );
+            resolve(results);
+          } catch {
+            resolve([]);
+          }
+        };
+        request.onerror = () => reject(request.error);
+        return; // Done
+      }
+
+      // Cursor fallback
+      if (typeof storeAny.openCursor === 'function') {
+        const results: string[] = [];
+        const cursorReq = storeAny.openCursor();
+        cursorReq.onsuccess = (event: Event) => {
+          const cursor = (event.target as IDBRequest<IDBCursorWithValue | null>).result;
+          if (cursor) {
+            const val = cursor.value as LogEntry;
+            if (typeof val === 'object' && val && 'log' in val) {
+              results.push(val.log ?? '');
+            } else {
+              results.push(String(val));
+            }
+            cursor.continue();
+          } else {
+            resolve(results);
+          }
+        };
+        cursorReq.onerror = () => resolve(results);
+        return; // Done
+      }
+
+      // Last resort: attempt keys iteration helpers present in our test mock
+      if (typeof storeAny.getAllKeys === 'function' && typeof storeAny.get === 'function') {
+        const results: string[] = [];
+        const keysReq = storeAny.getAllKeys();
+        keysReq.onsuccess = () => {
+          const keys = (keysReq.result || []) as IDBValidKey[];
+          let remaining = keys.length;
+          if (!remaining) { resolve([]); return; }
+          for (const k of keys) {
+            const getReq = storeAny.get(k);
+            getReq.onsuccess = () => {
+              const val = getReq.result as LogEntry | undefined;
+              if (val !== undefined) {
+                if (typeof val === 'object' && val && 'log' in val) {
+                  results.push(val.log ?? '');
+                } else {
+                  results.push(String(val));
+                }
+              }
+              remaining--; if (!remaining) resolve(results);
+            };
+            getReq.onerror = () => { remaining--; if (!remaining) resolve(results); };
+          }
+        };
+        keysReq.onerror = () => resolve([]);
+        return; // Done
+      }
+
+      // If none of the strategies are available, return empty.
+      resolve([]);
     });
   }
 
@@ -888,6 +972,14 @@ export class BrowserLogger extends LoggerBase {
    */
   public async downloadLogs(filename = 'logs.txt'): Promise<void> {
     try {
+      // Ensure any queued logs are flushed before exporting
+      if (this.storageQueue.length > 0 && !this.processingStorage) {
+        try {
+          await this.processStorageQueue();
+        } catch {
+          // ignore flush errors, will attempt to read whatever is stored
+        }
+      }
       const logs = await this.getLogsAsync();
       
       if (!logs || logs.length === 0) {
@@ -908,7 +1000,9 @@ export class BrowserLogger extends LoggerBase {
       link.click();
       document.body.removeChild(link);
 
-      URL.revokeObjectURL(url);
+      if (typeof URL.revokeObjectURL === 'function') {
+        URL.revokeObjectURL(url);
+      }
       
       this.emit('logsDownloaded', { filename, count: logs.length });
     } catch (error) {

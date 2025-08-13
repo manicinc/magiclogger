@@ -113,6 +113,11 @@ if (isBrowserEnvironment()) {
       console.warn('[ThemeManager] Theme file not found', 'themes.json');
       themesCache = {};
     }
+    // If we resolved a themesPath (file existed) but ended up with an empty object (e.g. parse error or empty file),
+    // ensure we still expose a default theme so callers have a usable fallback. Missing-file cases remain empty.
+    if (themesPath && themesCache && Object.keys(themesCache).length === 0) {
+      themesCache = { default: BUILTIN_DEFAULT_THEME };
+    }
     return themesCache ?? {};
   };
 

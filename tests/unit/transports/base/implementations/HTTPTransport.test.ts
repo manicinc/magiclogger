@@ -195,4 +195,102 @@ describe('HTTPTransport (native)', () => {
       expect(t.name).toBe('fac');
     });
   });
+
+  // ---------------- Additional Branch Coverage -----------------
+  describe('additional branches', () => {
+    it('circuit breaker opens on consecutive failures then recovers via half-open successes', async () => {
+      const t = new HTTPTransport({ name: 'cb', url: 'https://logs.example.com/' });
+      await t.init();
+      // Force failures to open breaker (threshold default 5)
+      for (let i = 0; i < 5; i++) {
+        setNextResponse({ statusCode: 500, statusMessage: 'ERR', body: 'x' });
+        await expect((t as any).sendData({ a: i })).rejects.toThrow('HTTP 500: ERR');
+      }
+      expect(t.getCircuitBreakerState()).toBe('open');
+      // Further attempt should fail fast (circuit open)
+      await expect((t as any).sendData({ foo: 'bar' })).rejects.toThrow(/Circuit breaker is open/);
+      // Age the breaker to allow half-open
+      const internal = (t as any).internalCircuitBreaker;
+      internal.lastFailureTime = Date.now() - 61_000; // > resetTimeout
+      // Provide successive successes (default success threshold 3) to close breaker
+      for (let s = 0; s < 3; s++) {
+        setNextResponse({ statusCode: 200, statusMessage: 'OK', body: '{}'});
+        await expect((t as any).sendData({ ok: s })).resolves.toBeUndefined();
+      }
+      expect(t.getCircuitBreakerState()).toBe('closed');
+    });
+
+    it('transformRequest returning Buffer and object; ensure ensureBodyType branches', async () => {
+      const bufTransport = new HTTPTransport({ name: 'buf', url: 'https://logs.example.com', transformRequest: async () => Buffer.from('raw-bytes'), bodyFormat: 'json' });
+      await bufTransport.init();
+      setNextResponse({ statusCode: 200, statusMessage: 'OK', body: '{}'});
+      await (bufTransport as any).performNetworkRequest([{ message: 'x' }], { entries: [{ message: 'x' }] });
+      expect(String(lastRequest?.body)).toContain('raw-bytes');
+
+      const objTransport = new HTTPTransport({ name: 'obj', url: 'https://logs.example.com', transformRequest: async () => ({ foo: 'bar' }), bodyFormat: 'json' });
+      await objTransport.init();
+      setNextResponse({ statusCode: 200, statusMessage: 'OK', body: '{}'});
+      await (objTransport as any).performNetworkRequest([{ message: 'y' }], { entries: [{ message: 'y' }] });
+      expect(String(lastRequest?.body)).toContain('foo');
+    });
+
+    it('transformResponse parse failure warns', async () => {
+  const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => { /* silence expected parse warning */ });
+      const tr = new HTTPTransport({ name: 'resp', url: 'https://logs.example.com', transformResponse: jest.fn() });
+      await tr.init();
+      setNextResponse({ statusCode: 200, statusMessage: 'OK', body: 'not-json' });
+      await (tr as any).performNetworkRequest([{ m: 'a' }], { entries: [{ m: 'a' }] });
+      expect(warnSpy).toHaveBeenCalled();
+      expect((tr as any).transformResponse).not.toHaveBeenCalled();
+      warnSpy.mockRestore();
+    });
+
+    it('custom body format without transformRequest throws', async () => {
+      const tr = new HTTPTransport({ name: 'cust', url: 'https://logs.example.com', bodyFormat: 'custom' as any });
+      await tr.init();
+      await expect((tr as any).performNetworkRequest([{ m: 'a' }], { entries: [{ m: 'a' }] })).rejects.toThrow(/Custom body format/);
+    });
+
+    it('retry conditions', async () => {
+      const tr = new HTTPTransport({ name: 'retry', url: 'https://logs.example.com' });
+      await tr.init();
+      const shouldRetry = (tr as any).shouldRetryError.bind(tr);
+      expect(shouldRetry(new Error('Request timeout after 3000ms'), 0)).toBe(true);
+      const e500: any = new Error('HTTP 500'); e500.statusCode = 500; expect(shouldRetry(e500, 1)).toBe(true);
+  const eOther = new Error('Other failure'); // generic message without retry keywords should not retry
+  expect(shouldRetry(eOther, 1)).toBe(false);
+    });
+
+    it('health check path logic', async () => {
+      const root = new HTTPTransport({ name: 'root', url: 'https://ex.com/' });
+      await root.init();
+      expect((root as any).getHealthCheckPath()).toBe('/health');
+      const sub = new HTTPTransport({ name: 'sub', url: 'https://ex.com/api/logs' });
+      await sub.init();
+      expect((sub as any).getHealthCheckPath()).toBeNull();
+    });
+
+    it('proxy configuration with auth', async () => {
+      const tr = new HTTPTransport({ 
+        name: 'proxy', 
+        url: 'https://logs.example.com/ingest', 
+        proxy: { protocol: 'http:', host: 'proxy.local', port: 8080, auth: { username: 'u', password: 'p' } }
+      });
+      await tr.init();
+      setNextResponse({ statusCode: 200, statusMessage: 'OK', body: '{}' });
+      await (tr as any).performNetworkRequest([{ m: 'p' }], { entries: [{ m: 'p' }] });
+      const opts = lastRequest?.options as any;
+      expect(opts.hostname).toBe('proxy.local');
+      expect(opts.headers['Proxy-Authorization']).toMatch(/^Basic /);
+    });
+
+    it('compression error path rejects', async () => {
+      const tr = new HTTPTransport({ name: 'gzerr', url: 'https://logs.example.com', compress: true });
+      await tr.init();
+      const orig = (zlibMod.gzip as unknown as jest.Mock).getMockImplementation();
+      (zlibMod.gzip as unknown as jest.Mock).mockImplementationOnce((_d: any, cb: any) => cb(new Error('gzip fail')));
+      await expect((tr as any).performNetworkRequest([{ m: 'e' }], { entries: [{ m: 'e' }] })).rejects.toThrow('gzip fail');
+      if (orig) (zlibMod.gzip as unknown as jest.Mock).mockImplementation(orig);
+    });
+  });
 });

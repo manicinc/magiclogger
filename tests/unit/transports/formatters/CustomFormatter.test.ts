@@ -1,5 +1,7 @@
 // File: tests/unit/transports/formatters/CustomFormatter.test.ts
-import { CustomFormatter as BaseCustomFormatter, XMLFormatter as IndexXMLFormatter, CSVFormatter as IndexCSVFormatter, FunctionFormatter } from '../../../../src/transports/formatters/index';
+import { CustomFormatter as BaseCustomFormatter, FunctionFormatter } from '../../../../src/transports/formatters/BaseFormatter';
+import { XMLFormatter as IndexXMLFormatter } from '../../../../src/transports/formatters/XMLFormatter';
+import { CSVFormatter as IndexCSVFormatter } from '../../../../src/transports/formatters';
 import type { LogEntry } from '../../../../src/types/transport';
 
 const entry: LogEntry = {
