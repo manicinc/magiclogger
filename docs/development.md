@@ -84,6 +84,8 @@ Flow:
 2. Open PR → `dev`. CI (lint/tests/build) must pass.
 3. After multiple merges and when `dev` is stable, open a PR `dev` → `master`.
 4. Merge into `master` updates the draft release notes (Release Drafter). No publish occurs until a version tag is pushed.
+ 5. If the promotion PR should NOT influence release notes or versioning (e.g. docs-only sync), add the label `skip-release` (optionally also `skip-changelog`).
+  - A dedicated GitHub Action (`skip-release-guard.yml`) enforces that no version bump or release-style commits occur while this label is present.
 
 ## Version & Release (Tag-Based)
 

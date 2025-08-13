@@ -159,6 +159,21 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Build
         run: pnpm run build
+      - name: Bundle size check
+        run: pnpm run size:check
+      - name: Update bundle size (README)
+        run: pnpm run size:update
+      - name: Commit README size update (PR only)
+        if: github.event_name == 'pull_request'
+        run: |
+          if git diff --quiet --exit-code README.md; then
+            echo "No README size changes"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+            
+          git add README.md
+          git commit -m "chore(ci): update bundle size table [skip ci]" || true
+          git push || echo "Non-fatal: push failed (likely due to permissions)"
       - name: Bundle size analyze
         run: node scripts/analyze-build.js || true
       - name: Upload dist artifact

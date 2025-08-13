@@ -34,7 +34,7 @@ categories:
   - title: '🧹 Chores'
     labels: ['chore','maintenance']
 
-exclude-labels: ['skip-changelog','wip','duplicate','invalid','wontfix']
+exclude-labels: ['skip-changelog','skip-release','wip','duplicate','invalid','wontfix']
 exclude-contributors: ['dependabot','dependabot[bot]','github-actions','github-actions[bot]']
 
 change-template: '- $TITLE @$AUTHOR (#$NUMBER)'

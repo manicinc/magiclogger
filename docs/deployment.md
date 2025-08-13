@@ -142,6 +142,13 @@ Secrets are environment‑scoped automatically per workflow; no plaintext loggin
 **Q: Can I publish from a feature branch?**  
 A: Deliberately disabled. Only tags (usually on `master`) trigger publish.
 
+**Q: How do I merge dev → master without triggering a version bump or including changes in the next draft release?**  
+A: Apply the PR label `skip-release` (and optionally `skip-changelog`). The label:
+  - Excludes the PR from Release Drafter notes
+  - Signals reviewers no version bump is expected
+You must also avoid pushing a `v*` tag. Without a tag, no publish happens.
+  - A guard workflow (`skip-release-guard.yml`) will fail the PR if a version bump is detected while the label is set.
+
 **Q: Do I need to run `npm publish` locally?**  
 A: No—CI handles publish on tag push.
 
