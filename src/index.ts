@@ -76,6 +76,7 @@ export type { ThemeDefinition } from './types/theme';
  * Only imported when color functions are used.
  */
 export { Colorizer } from './core/Colorizer';
+export { StyleBuilder } from './core/StyleBuilder';
 
 // ==========================================
 // TRANSPORT TYPES ONLY

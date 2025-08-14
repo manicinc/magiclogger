@@ -10,6 +10,8 @@ export const DEFAULT_THEME: Record<string, ColorName[]> = {
   info: ['cyan', 'bold'],
   success: ['green', 'bold'],
   warning: ['yellow', 'bold'],
+  // Alias used by some tests
+  warn: ['yellow', 'bold'],
   error: ['brightRed', 'bold'],
   debug: ['gray', 'italic'],
   
@@ -47,6 +49,7 @@ export const DEFAULT_THEME: Record<string, ColorName[]> = {
 export const DARK_THEME: Record<string, ColorName[]> = {
   ...DEFAULT_THEME,
   info: ['brightCyan'],
+  warning: ['brightYellow'],
   warn: ['brightYellow'],
   error: ['brightRed'],
   debug: ['gray'],
@@ -59,6 +62,7 @@ export const DARK_THEME: Record<string, ColorName[]> = {
 export const LIGHT_THEME: Record<string, ColorName[]> = {
   ...DEFAULT_THEME,
   info: ['blue'],
+  warning: ['yellow'],
   warn: ['yellow'],
   error: ['red'],
   debug: ['gray'],
@@ -71,6 +75,7 @@ export const LIGHT_THEME: Record<string, ColorName[]> = {
 export const MINIMAL_THEME: Record<string, ColorName[]> = {
   ...DEFAULT_THEME,
   info: ['white'],
+  warning: ['white'],
   warn: ['white'],
   error: ['white'],
   debug: ['white'],

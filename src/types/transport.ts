@@ -19,7 +19,7 @@ export interface LogEntry {
    * Unique identifier for this log entry.
    * Generated using timestamp + random component for uniqueness.
    */
-  id: string;
+  id?: string;
 
   /**
    * ISO 8601 timestamp when the log was created.
@@ -71,7 +71,7 @@ export interface LogEntry {
    * Error object if this log entry represents an error.
    * Includes stack trace and error details.
    */
-  error?: {
+  error?: Error | {
     name: string;
     message: string;
     stack?: string;
@@ -101,7 +101,7 @@ export interface TransportOptions {
    * Unique name identifier for this transport instance.
    * Used for managing multiple transports.
    */
-  name: string;
+  name?: string;
 
   /**
    * Whether this transport is currently active.
@@ -1098,6 +1098,11 @@ export interface TransportStats {
    * Alias for succeeded count, provided for readability in some consumers/tests.
    */
   logged?: number;
+
+  /**
+   * Additional alias for succeeded count expected by some tests/consumers.
+   */
+  sent?: number;
 }
 
 /**

@@ -55,6 +55,22 @@ interface Token {
  * ```
  */
 export class TemplateParser {
+  // Fast lookup of valid styles (intentionally excludes certain aliases like 'grey', 'bgGrey', 'inverse')
+  private static readonly VALID_STYLES: Set<string> = new Set<string>([
+    // Foreground colors
+    'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white', 'gray',
+    // Bright foreground colors
+    'brightBlack', 'brightRed', 'brightGreen', 'brightYellow',
+    'brightBlue', 'brightMagenta', 'brightCyan', 'brightWhite',
+    // Background colors
+    'bgBlack', 'bgRed', 'bgGreen', 'bgYellow',
+    'bgBlue', 'bgMagenta', 'bgCyan', 'bgWhite', 'bgGray',
+    // Bright background colors
+    'bgBrightBlack', 'bgBrightRed', 'bgBrightGreen', 'bgBrightYellow',
+    'bgBrightBlue', 'bgBrightMagenta', 'bgBrightCyan', 'bgBrightWhite',
+    // Text styles
+    'bold', 'dim', 'italic', 'underline', 'blink', 'reverse', 'hidden', 'strikethrough',
+  ]);
   /**
    * Whether to apply colors to output.
    * @private
@@ -68,6 +84,10 @@ export class TemplateParser {
    * @static
    */
   private static templateCache = new Map<string, Token[]>();
+  // Cache parsed style strings (e.g., 'red.bold') -> ColorName[]
+  private static styleParseCache = new Map<string, ColorName[]>();
+  // Final result cache for parseString inputs
+  private static resultCache = new Map<string, string>();
 
   /**
    * Maximum cache size to prevent memory leaks.
@@ -83,7 +103,8 @@ export class TemplateParser {
    * @private
    * @readonly
    */
-  private readonly styleRegex = /@([\w.]+)\{([^}]*)\}/g;
+  // Allow empty styles (e.g., '@{text}') so we can strip wrapper during tokenize
+  private readonly styleRegex = /@([\w.]*)\{((?:[^{}]|\{[^{}]*\})*)\}/g;
 
   /**
    * Regular expression for matching angle bracket syntax.
@@ -92,6 +113,9 @@ export class TemplateParser {
    * @readonly
    */
   private readonly angleBracketRegex = /<([^>]+?)>(.*?)<\/>/g;
+
+  // Precompiled placeholder regex for interpolation
+  private readonly placeholderRegex = /\$\{(\d+)\}/g;
 
   /**
    * Creates a new TemplateParser instance.
@@ -120,14 +144,24 @@ export class TemplateParser {
    */
   public parse(strings: TemplateStringsArray, ...values: unknown[]): string {
     // Reconstruct the full template with placeholders
-    let template = '';
-    strings.forEach((str, i) => {
-      template += str;
+    const parts: string[] = new Array(strings.length + values.length);
+    let p = 0;
+    for (let i = 0; i < strings.length; i++) {
+      parts[p++] = strings[i];
       if (i < values.length) {
-        // Use a placeholder that won't conflict with style syntax
-        template += `\${${i}}`;
+        parts[p++] = '${' + i + '}';
       }
-    });
+    }
+    const template = parts.join('');
+
+    // Fast path: if no style markers, just interpolate and return
+    if (template.indexOf('@') === -1 && template.indexOf('<') === -1) {
+      if (values.length === 0) return template;
+      return template.replace(this.placeholderRegex, (_m, idx) => {
+        const i = Number(idx);
+        return i < values.length ? String(values[i]) : _m;
+      });
+    }
 
     // Check cache
     const cacheKey = template;
@@ -159,11 +193,55 @@ export class TemplateParser {
    * ```
    */
   public parseString(text: string): string {
-    // First parse angle brackets, then @ syntax
-  const result = this.parseAngleBrackets(text);
+  // Fast path: no markers
+  if (text.indexOf('@') === -1 && text.indexOf('<') === -1) return text;
+
+  // Result cache check
+  const existing = TemplateParser.resultCache.get(text);
+  if (existing !== undefined) return existing;
+
+  // If angle brackets present, delegate to angle parser first
+  const result = text.indexOf('<') !== -1 ? this.parseAngleBrackets(text) : text;
+
+    // Hot-path optimization for simple single-tag patterns like "@red{content}"
+    // Avoid regex/tokenization when there is exactly one tag and no nested braces.
+    if (!result.includes('<') && this.useColors && result.startsWith('@')) {
+      const open = result.indexOf('{');
+      const close = result.lastIndexOf('}');
+      if (open > 1 && close > open && close === result.length - 1 && result.indexOf('@', 1) === -1 && result.indexOf('{', open + 1) === -1) {
+        const styleString = result.slice(1, open);
+        const styles = this.parseStyleString(styleString);
+        const content = result.slice(open + 1, close);
+        if (styles.length > 0) {
+          const colored = Colorizer.applyColors(content, styles, this.useColors);
+          // Store to result cache for faster subsequent calls with identical input
+          if (TemplateParser.resultCache.size > 500) {
+            const first = TemplateParser.resultCache.keys().next().value;
+            if (first !== undefined) TemplateParser.resultCache.delete(first);
+          }
+          TemplateParser.resultCache.set(text, colored);
+          return colored;
+        }
+        return content;
+      }
+    }
     
-    const tokens = this.tokenize(result);
-    return this.format(tokens, []);
+  // Cache tokenization for performance on repeated inputs
+  const cacheKey = result;
+  let tokens = TemplateParser.templateCache.get(cacheKey);
+    if (!tokens) {
+      tokens = this.tokenize(result);
+      TemplateParser.addToCache(cacheKey, tokens);
+    }
+    
+  const out = this.format(tokens, []);
+  // Store to result cache with small bound (under original input key)
+    if (TemplateParser.resultCache.size > 500) {
+      const first = TemplateParser.resultCache.keys().next().value;
+      if (first !== undefined) TemplateParser.resultCache.delete(first);
+    }
+  TemplateParser.resultCache.set(text, out);
+    return out;
   }
 
   /**
@@ -228,44 +306,26 @@ export class TemplateParser {
     this.styleRegex.lastIndex = 0;
 
     while ((match = this.styleRegex.exec(template)) !== null) {
-      // Add any text before the match
-      if (match.index > lastIndex) {
-        const text = template.substring(lastIndex, match.index);
-        if (text) {
-          tokens.push({
-            type: TokenType.TEXT,
-            value: text,
-            position: lastIndex,
-          });
-        }
+      const idx = match.index;
+      if (idx > lastIndex) {
+        tokens.push({ type: TokenType.TEXT, value: template.slice(lastIndex, idx), position: lastIndex });
       }
 
-      // Parse the style string
-      const styleString = match[1];
+      const styleString = match[1] ?? '';
       const content = match[2];
       const styles = this.parseStyleString(styleString);
 
-      // Add styled content token
-      tokens.push({
-        type: TokenType.STYLE_START,
-        value: content,
-        styles: styles,
-        position: match.index,
-      });
+      if (!styles || styles.length === 0) {
+        tokens.push({ type: TokenType.TEXT, value: content, position: idx });
+      } else {
+        tokens.push({ type: TokenType.STYLE_START, value: content, styles, position: idx });
+      }
 
       lastIndex = this.styleRegex.lastIndex;
     }
 
-    // Add any remaining text
     if (lastIndex < template.length) {
-      const text = template.substring(lastIndex);
-      if (text) {
-        tokens.push({
-          type: TokenType.TEXT,
-          value: text,
-          position: lastIndex,
-        });
-      }
+      tokens.push({ type: TokenType.TEXT, value: template.slice(lastIndex), position: lastIndex });
     }
 
     return tokens;
@@ -285,20 +345,20 @@ export class TemplateParser {
     for (const token of tokens) {
       let text = token.value;
 
-      // Replace placeholders with actual values
-      text = text.replace(/\$\{(\d+)\}/g, (match, index) => {
-        const idx = parseInt(index, 10);
-        if (idx < values.length) {
-          return String(values[idx]);
-        }
-        return match;
-      });
+      // Replace placeholders with actual values only when there are values
+      if (values.length > 0 && text.indexOf('$') !== -1) {
+        text = text.replace(this.placeholderRegex, (_match, index) => {
+          const idx = parseInt(index, 10);
+          return idx < values.length ? String(values[idx]) : _match;
+        });
+      }
 
-      // Apply styles if present
+      // Apply styles if present (after interpolation so ${} inside styled blocks works)
       if (token.type === TokenType.STYLE_START && token.styles && token.styles.length > 0) {
-        result += this.useColors 
-          ? Colorizer.applyColors(text, token.styles, this.useColors)
-          : text;
+        const interpolated = text;
+        result += this.useColors
+          ? Colorizer.applyColors(interpolated, token.styles, this.useColors)
+          : interpolated;
       } else {
         result += text;
       }
@@ -322,21 +382,32 @@ export class TemplateParser {
    * ```
    */
   private parseStyleString(styleString: string): ColorName[] {
-    if (!styleString || styleString === '/' || styleString === '</>' || styleString === '</>') {
+    if (!styleString || styleString === '/' || styleString === '</>') {
       return [];
     }
 
+    // Use small cache for style strings
+    const cacheHit = TemplateParser.styleParseCache.get(styleString);
+    if (cacheHit) return cacheHit;
+
     // Split by dots and filter valid styles
-    const styles = styleString.split('.');
+    const parts = styleString.split('.');
     const validStyles: ColorName[] = [];
 
-    for (const style of styles) {
-      const trimmed = style.trim();
-      if (trimmed && this.isValidStyle(trimmed)) {
+    for (const part of parts) {
+      const trimmed = part.trim();
+      if (!trimmed) continue;
+      if (this.isValidStyle(trimmed)) {
         validStyles.push(trimmed as ColorName);
       }
     }
 
+    // Cache with small bound
+    if (TemplateParser.styleParseCache.size > 200) {
+      const first = TemplateParser.styleParseCache.keys().next().value;
+      if (first !== undefined) TemplateParser.styleParseCache.delete(first);
+    }
+    TemplateParser.styleParseCache.set(styleString, validStyles);
     return validStyles;
   }
 
@@ -348,30 +419,7 @@ export class TemplateParser {
    * @private
    */
   private isValidStyle(style: string): boolean {
-    const validStyles = new Set<string>([
-      // Foreground colors
-      'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white',
-      'gray', 'grey',
-      
-      // Bright foreground colors
-      'brightBlack', 'brightRed', 'brightGreen', 'brightYellow',
-      'brightBlue', 'brightMagenta', 'brightCyan', 'brightWhite',
-      
-      // Background colors
-      'bgBlack', 'bgRed', 'bgGreen', 'bgYellow',
-      'bgBlue', 'bgMagenta', 'bgCyan', 'bgWhite',
-      'bgGray', 'bgGrey',
-      
-      // Bright background colors
-      'bgBrightBlack', 'bgBrightRed', 'bgBrightGreen', 'bgBrightYellow',
-      'bgBrightBlue', 'bgBrightMagenta', 'bgBrightCyan', 'bgBrightWhite',
-      
-      // Text styles
-      'bold', 'dim', 'italic', 'underline', 'blink',
-      'reverse', 'inverse', 'hidden', 'strikethrough',
-    ]);
-
-    return validStyles.has(style);
+  return TemplateParser.VALID_STYLES.has(style);
   }
 
   /**
@@ -425,6 +473,8 @@ export class TemplateParser {
    */
   public static clearCache(): void {
     TemplateParser.templateCache.clear();
+  TemplateParser.styleParseCache.clear();
+  TemplateParser.resultCache.clear();
   }
 
   /**
@@ -519,8 +569,8 @@ export class TemplateParser {
       errors.push(`Unclosed angle bracket(s) in template`);
     }
 
-    // Check for invalid @ style syntax
-    const styleRegex = /@([\w.]+)\{/g;
+  // Check for invalid @ style syntax (including empty styles like '@{')
+  const styleRegex = /@([\w.]*)\{/g;
     let match;
     while ((match = styleRegex.exec(template)) !== null) {
       const styles = match[1].split('.');

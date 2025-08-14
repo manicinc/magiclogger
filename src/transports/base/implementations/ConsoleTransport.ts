@@ -176,6 +176,11 @@ export class ConsoleTransport extends Transport {
   }
 
   /**
+   * Console is not a batching transport; let base class handle per-log stats.
+   */
+  public supportsBatching(): boolean { return false; }
+
+  /**
    * Log entry to console.
    * 
    * @param {LogEntry} entry - Log entry to output
@@ -185,6 +190,8 @@ export class ConsoleTransport extends Transport {
   protected async doLog(entry: LogEntry): Promise<void> {
     const output = this.formatEntry(entry);
     this.writeToConsole(entry.level, output);
+  // Signal immediate success to the base class by not throwing.
+  // Base Transport.log will increment succeeded/lastSuccess for non-batching transports.
   }
 
   /**
@@ -451,6 +458,7 @@ export class ConsoleTransport extends Transport {
         await this.doLog(entry);
       }
     }
+    // No error thrown means base Transport.logBatch will count successes for non-batching transports.
   }
 
   /**

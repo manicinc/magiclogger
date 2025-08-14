@@ -3,7 +3,8 @@
 import { COLORS } from '../constants/colors';
 import { PRESETS } from '../constants/preset';
 import { IS_PATH_REGEX } from '../constants/paths';
-import { getFallbackStyle, isStyleSupported } from '../utils/terminal';
+// Use namespace import so jest.spyOn on terminal utils updates behavior dynamically
+import * as terminalUtils from '../utils/terminal';
 import { ANSI } from '../constants/ansi';
 import type { ColorName, StylePreset } from '../types';
 
@@ -93,7 +94,7 @@ export class Colorizer {
    * @returns Text with all styles applied
    */
   public static applyColors(text: string, colors: ColorName[], useColors = true): string {
-    if (!useColors || !text || !colors || colors.length === 0) return text;
+  if (!useColors || !text || !colors || colors.length === 0) return text;
 
     const isTestEnv = typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'test';
     const cacheKey = colors.join(',');
@@ -108,14 +109,32 @@ export class Colorizer {
 
         let colorCode: string | undefined;
 
-        // Use direct style/color if supported
-        if (COLORS[color] && this.isStyleSupportedInternal(color)) {
-          colorCode = COLORS[color];
+        // Normalize common aliases so fallbacks like 'gray' are honored
+        const normalized = ((): string => {
+          switch (color) {
+            case 'grey': return 'gray';
+            case 'inverse': return 'reverse';
+            default: return color as string;
+          }
+        })();
+
+        // Use direct style/color if available; COLORS proxy already consults support
+        const direct = COLORS[normalized as keyof typeof COLORS];
+        if (direct) {
+          colorCode = direct;
         } else {
-          // Try fallback style and use raw ANSI code to ensure visible fallback
-          const fallbackStyle = this.getFallbackStyleInternal(color);
-          if (fallbackStyle && RAW_STYLE_MAP[fallbackStyle]) {
-            colorCode = RAW_STYLE_MAP[fallbackStyle];
+          // Try fallback style. Prefer raw ANSI when it's a style (e.g., 'underline', 'dim').
+          // If the fallback is a color (e.g., 'gray'), consult COLORS to obtain its code.
+          const fallbackStyle = this.getFallbackStyleInternal(normalized);
+          if (fallbackStyle) {
+            if (RAW_STYLE_MAP[fallbackStyle]) {
+              colorCode = RAW_STYLE_MAP[fallbackStyle];
+            } else {
+              const fbDirect = COLORS[fallbackStyle as keyof typeof COLORS];
+              if (fbDirect) {
+                colorCode = fbDirect;
+              }
+            }
           }
         }
 
@@ -128,6 +147,11 @@ export class Colorizer {
       if (!isTestEnv) {
         this.addToCache(cacheKey, cachedCodes);
       }
+    }
+
+    // If no codes resolved (unsupported styles mapping to 'normal' etc.), return text unchanged
+    if (!cachedCodes) {
+      return text;
     }
 
     // Append the text and reset code
@@ -577,13 +601,8 @@ export class Colorizer {
    * @static
    */
   private static isStyleSupportedInternal(style: string): boolean {
-    // Check for test environment override first
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if (typeof globalThis !== 'undefined' && (globalThis as any).__TEST_TERMINAL_UTILS) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return (globalThis as any).__TEST_TERMINAL_UTILS.isStyleSupported(style);
-    }
-    return isStyleSupported(style);
+  // Defer to utils/terminal (namespace import ensures spies are respected)
+  return terminalUtils.isStyleSupported(style);
   }
 
   /**
@@ -592,12 +611,7 @@ export class Colorizer {
    * @static
    */
   private static getFallbackStyleInternal(style: string): string {
-    // Check for test environment override first
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if (typeof globalThis !== 'undefined' && (globalThis as any).__TEST_TERMINAL_UTILS) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return (globalThis as any).__TEST_TERMINAL_UTILS.getFallbackStyle(style);
-    }
-    return getFallbackStyle(style);
+  // Ask terminal utils for fallback; jest can override this via spy
+  return terminalUtils.getFallbackStyle(style);
   }
 }

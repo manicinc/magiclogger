@@ -31,6 +31,32 @@ import { Colorizer } from './Colorizer';
 type StyleBuilderCallable = StyleBuilder & ((text: string) => string);
 
 export class StyleBuilder {
+  // Precomputed valid styles set for fast lookup
+  private static readonly VALID_STYLES: Set<string> = new Set([
+    // Foreground colors
+    'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white',
+    'gray', 'grey',
+    // Bright foreground colors
+    'brightBlack', 'brightRed', 'brightGreen', 'brightYellow',
+    'brightBlue', 'brightMagenta', 'brightCyan', 'brightWhite',
+    // Background colors
+    'bgBlack', 'bgRed', 'bgGreen', 'bgYellow',
+    'bgBlue', 'bgMagenta', 'bgCyan', 'bgWhite',
+    'bgGray', 'bgGrey',
+    // Bright background colors
+    'bgBrightBlack', 'bgBrightRed', 'bgBrightGreen', 'bgBrightYellow',
+    'bgBrightBlue', 'bgBrightMagenta', 'bgBrightCyan', 'bgBrightWhite',
+    // Text styles
+    'bold', 'dim', 'italic', 'underline', 'blink',
+    'reverse', 'inverse', 'hidden', 'strikethrough'
+  ]);
+
+  // Alias mapping (accessed frequently)
+  private static readonly ALIASES: Record<string, ColorName> = {
+    grey: 'gray',
+    bgGrey: 'bgGray',
+    inverse: 'reverse',
+  };
   /**
    * Stack of styles to apply to text.
    * Accumulates as properties are accessed via the Proxy.
@@ -54,6 +80,8 @@ export class StyleBuilder {
    * @static
    */
   private static styleCache = new Map<string, StyleBuilder>();
+  // Track useColors per cached builder without using `any` markers
+  private static cacheMeta = new WeakMap<StyleBuilder, { useColors: boolean }>();
 
   /**
    * Maximum number of cached style combinations.
@@ -74,81 +102,109 @@ export class StyleBuilder {
     this.useColors = useColors;
     this.styles = [...initialStyles];
 
-    // Return a Proxy to enable property chaining
-  return new Proxy(this, {
-      /**
-       * Proxy getter to handle style property access.
-       * Allows chaining of style names as properties.
-       * 
-       * @param {StyleBuilder} target - The StyleBuilder instance
-       * @param {string | symbol} prop - The property being accessed
-       * @returns {any} StyleBuilder instance, function, or property value
-       */
-      get(target: StyleBuilder, prop: string | symbol): unknown {
-        // Ensure call-style helpers always return the callable builder
+    // Create a callable function as proxy target
+  const styles = [...this.styles];
+    const use = this.useColors;
+  const key = styles.length ? styles.join(',') : '';
+  // Per-instance cache of immediate child builders (style -> builder)
+  const childrenCache: Map<string, StyleBuilderCallable> = new Map();
+
+    const call = (text: string): string => {
+      const input = String(text ?? '');
+      // Always route through Colorizer so integrations/tests can spy on calls.
+      // Colorizer.applyColors will return the input unchanged when colors are
+      // disabled or when there are no styles to apply.
+      return Colorizer.applyColors(input, styles, use);
+    };
+
+    const buildFunction = (): ((text: string) => string) => {
+      return (t: string) => call(t);
+    };
+
+    const createBuilder = (next: ColorName[], precomputedKey?: string): StyleBuilderCallable => {
+      // Use cache when possible
+      const cacheKey = precomputedKey ?? (next.length ? next.join(',') : '');
+      const cached = StyleBuilder.styleCache.get(cacheKey);
+      if (cached) {
+        const meta = StyleBuilder.cacheMeta.get(cached);
+        if (meta && meta.useColors === use) {
+          return cached as unknown as StyleBuilderCallable;
+        }
+      }
+      const child = new StyleBuilder(use, next) as unknown as StyleBuilderCallable;
+      const childSB = child as unknown as StyleBuilder;
+      StyleBuilder.addToCache(cacheKey, childSB);
+      StyleBuilder.cacheMeta.set(childSB, { useColors: use });
+      return child;
+    };
+
+    const handler: ProxyHandler<(text: string) => string> = {
+      get: (_target, prop: string | symbol): unknown => {
         if (prop === 'valueOf' || prop === 'toString') {
-          return () => target.buildFunction();
+          return () => buildFunction();
         }
 
-        // Handle symbol properties and built-in methods
         if (typeof prop === 'symbol') {
           if (prop === Symbol.for('nodejs.util.inspect.custom')) {
-            return () => target.buildFunction();
+            return () => buildFunction();
           }
-          const value = Reflect.get(target as object, prop);
-          if (typeof value === 'function') {
-            const fn = value as (...args: unknown[]) => unknown;
-            return fn.bind(target);
-          }
-          return value;
+          return undefined;
         }
 
-        // Handle properties defined on the target instance
-        if (prop in target) {
-          const value = Reflect.get(target as object, prop);
-          if (typeof value === 'function') {
-            const fn = value as (...args: unknown[]) => unknown;
-            return fn.bind(target);
+        // Expose helper methods
+        if (prop === 'getStyles') {
+          return () => [...styles];
+        }
+        if (prop === 'isColorEnabled') {
+          return () => use;
+        }
+
+        const propStr = String(prop);
+        const styleName = (StyleBuilder.ALIASES[propStr] ?? propStr) as ColorName;
+
+        if (StyleBuilder.isValidStyle(styleName)) {
+          // Fast path: check per-instance child cache first
+          const hit = childrenCache.get(styleName);
+          if (hit) {
+            return hit;
           }
-          return value;
+
+          const nextKey = key ? `${key},${styleName}` : String(styleName);
+          const cached = StyleBuilder.styleCache.get(nextKey);
+          if (cached) {
+            const meta = StyleBuilder.cacheMeta.get(cached);
+            if (meta && meta.useColors === use) {
+              const asCallable = cached as unknown as StyleBuilderCallable;
+              childrenCache.set(styleName, asCallable);
+              return asCallable;
+            }
+          }
+          const child = createBuilder([...styles, styleName], nextKey);
+          childrenCache.set(styleName, child);
+          return child;
         }
 
-        // Handle color/style names
-        if (StyleBuilder.isValidStyle(prop as string)) {
-          return target.chain(prop as ColorName);
-        }
-
-        // Special case: if accessing a property that doesn't exist,
-        // return a function that applies current styles
-        return target.buildFunction();
+  // Unknown property returns a callable that applies current styles
+  return buildFunction();
       },
-
-      /**
-       * Proxy apply trap to make the StyleBuilder callable.
-       * Allows using the builder as a function directly.
-       * 
-       * @param {StyleBuilder} target - The StyleBuilder instance
-       * @param {any} _thisArg - The 'this' context (unused)
-       * @param {any[]} args - Arguments passed to the function
-       * @returns {string} The styled text
-       */
-      apply(target: StyleBuilder, _thisArg: unknown, args: unknown[]): string {
-        const fn = target.buildFunction();
-        return fn(String(args[0] ?? ''));
+      apply: (_target, _thisArg, args: unknown[]): string => {
+        const txt = args[0] as unknown as string;
+  // Direct call: if no styles accumulated, just return plain text
+  return call(txt);
       },
+      has: (_target, prop: string | symbol): boolean => {
+        if (typeof prop === 'symbol') return false;
+        const propStr = String(prop);
+        return (
+          StyleBuilder.isValidStyle(propStr) ||
+          propStr in { getStyles: 1, isColorEnabled: 1 }
+        );
+      },
+    };
 
-      /**
-       * Proxy has trap for property existence checks.
-       * 
-       * @param {StyleBuilder} target - The StyleBuilder instance
-       * @param {string | symbol} prop - The property to check
-       * @returns {boolean} Whether the property exists
-       */
-      has(target: StyleBuilder, prop: string | symbol): boolean {
-        if (typeof prop === 'symbol') return prop in target;
-        return StyleBuilder.isValidStyle(prop as string) || prop in target;
-      }
-  }) as unknown as StyleBuilderCallable;
+  // Return a callable proxy with a properly typed target function (no `any`)
+  const targetFn: (text: string) => string = () => '';
+  return new Proxy(targetFn, handler) as unknown as StyleBuilderCallable;
   }
 
   /**
@@ -160,18 +216,21 @@ export class StyleBuilder {
    * @private
    */
   private chain(style: ColorName): StyleBuilder {
-    const newStyles = [...this.styles, style];
-    const cacheKey = newStyles.join(',');
+  const cacheKey = this.styles.length ? `${this.styles.join(',')},${style}` : String(style);
 
     // Check cache first
   const cached = StyleBuilder.styleCache.get(cacheKey);
-    if (cached && cached.useColors === this.useColors) {
-      return cached;
+    if (cached) {
+      const meta = StyleBuilder.cacheMeta.get(cached);
+      if (meta && meta.useColors === this.useColors) {
+        return cached;
+      }
     }
 
-    // Create new instance and cache it
-    const newBuilder = new StyleBuilder(this.useColors, newStyles);
+  // Create new instance and cache it
+  const newBuilder = new StyleBuilder(this.useColors, [...this.styles, style]);
     StyleBuilder.addToCache(cacheKey, newBuilder);
+    StyleBuilder.cacheMeta.set(newBuilder, { useColors: this.useColors });
     return newBuilder;
   }
 
@@ -188,12 +247,8 @@ export class StyleBuilder {
 
     // Return a function that applies the accumulated styles
     return function styleFunction(text: string): string {
-      if (!text || !useColors || styles.length === 0) {
-        return String(text || '');
-      }
-
-      // Apply all accumulated styles using Colorizer
-      return Colorizer.applyColors(String(text), styles, useColors);
+  // Always call Colorizer to keep behavior consistent with proxy target
+  return Colorizer.applyColors(String(text || ''), styles, useColors);
     };
   }
 
@@ -207,30 +262,7 @@ export class StyleBuilder {
    * @private
    */
   private static isValidStyle(style: string): boolean {
-    const validStyles: Set<string> = new Set([
-      // Foreground colors
-      'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white',
-      'gray', 'grey',
-      
-      // Bright foreground colors
-      'brightBlack', 'brightRed', 'brightGreen', 'brightYellow',
-      'brightBlue', 'brightMagenta', 'brightCyan', 'brightWhite',
-      
-      // Background colors
-      'bgBlack', 'bgRed', 'bgGreen', 'bgYellow',
-      'bgBlue', 'bgMagenta', 'bgCyan', 'bgWhite',
-      'bgGray', 'bgGrey',
-      
-      // Bright background colors
-      'bgBrightBlack', 'bgBrightRed', 'bgBrightGreen', 'bgBrightYellow',
-      'bgBrightBlue', 'bgBrightMagenta', 'bgBrightCyan', 'bgBrightWhite',
-      
-      // Text styles
-      'bold', 'dim', 'italic', 'underline', 'blink',
-      'reverse', 'inverse', 'hidden', 'strikethrough'
-    ]);
-
-    return validStyles.has(style);
+  return StyleBuilder.VALID_STYLES.has(style);
   }
 
   /**

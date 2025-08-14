@@ -269,7 +269,7 @@ export class StreamTransport extends Transport {
       case 'plain': {
         // Tests expect lowercase level tag: [info]
         // Use Transport.formatPlain and then replace level casing to lower
-        const plain = this.formatPlain(entry).replace(`[${entry.level.toUpperCase()}]`, `[${entry.level}]`);
+  const plain = this.formatPlain(entry).replace(`[${entry.level.toUpperCase()}]`, `[${entry.level}]`);
         output = plain + this.lineEnding;
         break;
       }

@@ -1150,19 +1150,22 @@ export class Logger {
    * @public
    */
   public colorize(text: string, colors: ColorName[]): string {
-    if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'test') {
-      console.log(`[LOGGER DEBUG] colorize called with text: "${text}", colors:`, colors, 'useColors:', this.useColors);
-    }
     try {
-      const result = Colorizer.applyColors(text, colors, this.useColors);
-      if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'test') {
-        console.log(`[LOGGER DEBUG] colorize result: "${result}"`);
+      const out = Colorizer.applyColors(text, colors, this.useColors);
+      // If colors are enabled but no ANSI was produced, try applying
+      // fallbacks for unsupported styles (e.g., italic->dim/normal, strikethrough->underline/normal)
+      if (this.useColors && typeof out === 'string' && out === text) {
+        const replaced: ColorName[] = colors.map(c => {
+          // Reuse Colorizer's internal fallback which consults terminal utils
+          const fb = (Colorizer as unknown as { getFallbackStyleInternal?: (s: string)=>string }).getFallbackStyleInternal?.(String(c))
+            || String(c);
+          return fb as ColorName;
+        });
+        const retry = Colorizer.applyColors(text, replaced, this.useColors);
+        return retry;
       }
-      return result;
+      return out;
     } catch (error) {
-      if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'test') {
-        console.log(`[LOGGER DEBUG] colorize error:`, error);
-      }
       return text;
     }
   }
@@ -1233,7 +1236,11 @@ export class Logger {
    * @public
    */
   public getLogDir(): string {
-    const inst: any = this.loggerInstance as any;
+    type MaybeNodeLike = {
+      getLogDirectory?: () => string;
+      logDir?: string;
+    };
+    const inst = this.loggerInstance as unknown as MaybeNodeLike;
     try {
       if (inst && typeof inst.getLogDirectory === 'function') {
         return inst.getLogDirectory();
@@ -1256,7 +1263,11 @@ export class Logger {
       dir = './logs';
     }
     
-    const inst: any = this.loggerInstance as any;
+    type MaybeNodeLike = {
+      setLogDirectory?: (d: string, reinit?: boolean) => void;
+      logDir?: string;
+    };
+    const inst = this.loggerInstance as unknown as MaybeNodeLike;
     if (inst) {
       // Prefer calling implementation method if available
       if (typeof inst.setLogDirectory === 'function') {
@@ -1272,7 +1283,7 @@ export class Logger {
       }
 
       // Keep logDir property in sync so getLogDir() reflects the change
-      try { (inst as any).logDir = dir; } catch { /* ignore */ }
+  try { inst.logDir = dir; } catch { /* ignore */ }
 
       if (reinitialize && nodeLogger.writeToDisk && nodeLogger.fileManager) {
         try {
@@ -1411,9 +1422,9 @@ export class Logger {
     }
 
     // Fallback path for tests
-    const anyLogger = this.loggerInstance as unknown as { fileManager?: unknown };
+    const anyLogger = this.loggerInstance as unknown as { fileManager?: { initLogFileSync?: () => void; initLogFile?: () => Promise<void> } };
     if (enabled && anyLogger?.fileManager) {
-      const fm = anyLogger.fileManager as {
+      const fm: { initLogFileSync?: () => void; initLogFile?: () => Promise<void> } = anyLogger.fileManager as {
         initLogFileSync?: () => void;
         initLogFile?: () => Promise<void>;
       };
@@ -1506,10 +1517,11 @@ export class Logger {
    * @public
    */
   public static isLinkLike(text: string): boolean {
-    if (typeof text !== 'string') return false;
-    if (text === null || text === undefined) return false;
-    if (text === '') return false;
-    if (text === 'null' || text === 'undefined') return false;
+  if (text == null) return false;
+  if (typeof text !== 'string') return false;
+  if (text.length === 0) return false;
+  // Guard against sentinel stringified values used in tests
+  if (text === 'null' || text === 'undefined') return false;
     
     try {
       return IS_PATH_REGEX.test(text);
