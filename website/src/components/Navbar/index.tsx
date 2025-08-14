@@ -4,12 +4,15 @@ import React, { useState, useEffect } from 'react';
 import Link from '@docusaurus/Link';
 import { useLocation } from '@docusaurus/router';
 import ColorModeToggle from '@theme/ColorModeToggle';
+import { useColorMode } from '@docusaurus/theme-common';
 import styles from './styles.module.css';
 
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const { colorMode } = useColorMode();
+  const isDark = colorMode === 'dark';
 
   useEffect(() => {
     const handleScroll = () => {
@@ -43,9 +46,11 @@ export default function Navbar() {
           <div className={styles.navbarInner}>
             {/* Logo */}
             <Link to="/" className={styles.navbarBrand}>
-              <img 
-                src="/img/magiclogger-icon.svg" 
-                alt="MagicLogger" 
+              <img
+                src={isDark
+                  ? '/img/magiclogger-primary-no-subtitle-dark-4x.png'
+                  : '/img/magiclogger-primary-no-subtitle-transparent-4x.png'}
+                alt="MagicLogger logo"
                 className={styles.logoImage}
               />
               <span className={styles.logoText}>MagicLogger</span>
@@ -121,9 +126,11 @@ export default function Navbar() {
         <div className={styles.mobileMenuPanel}>
           <div className={styles.mobileMenuHeader}>
             <Link to="/" className={styles.mobileMenuBrand}>
-              <img 
-                src="/img/magiclogger-icon.svg" 
-                alt="MagicLogger" 
+              <img
+                src={isDark
+                  ? '/img/magiclogger-primary-no-subtitle-dark-4x.png'
+                  : '/img/magiclogger-primary-no-subtitle-transparent-4x.png'}
+                alt="MagicLogger logo"
                 className={styles.mobileLogoImage}
               />
               <span>MagicLogger</span>

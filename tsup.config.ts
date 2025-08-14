@@ -20,6 +20,7 @@ export default defineConfig(options => {
     'transports/mongodb': 'src/transports/mongodb.ts',
     'transports/stream': 'src/transports/stream.ts',
     'transports/websocket': 'src/transports/websocket.ts',
+  'transports/otlp': 'src/transports/otlp.ts',
     'transports/base': 'src/transports/index.ts', // registry + base classes
 
     // Compatibility layers

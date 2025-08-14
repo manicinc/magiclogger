@@ -17,6 +17,16 @@
         "default": "./dist/index.cjs"
       }
     },
+    "./transports/otlp": {
+      "import": {
+        "types": "./dist/transports/otlp.d.ts",
+        "default": "./dist/transports/otlp.js"
+      },
+      "require": {
+        "types": "./dist/transports/otlp.d.cts",
+        "default": "./dist/transports/otlp.cjs"
+      }
+    },
     "./transports": {
       "import": {
         "types": "./dist/transports.d.ts",
@@ -282,8 +292,8 @@
     "format:check": "prettier --check \"src/**/*.{ts,json}\" \"tests/**/*.{ts,json}\" \"examples/**/*.{ts,json}\"",
     "validate": "npm run format:check && npm run lint",
     "commit": "cz",
-  "test:coverage:badge": "node scripts/generate-coverage-badge.js",
-  "analyze:build": "node scripts/analyze-build.js",
+    "test:coverage:badge": "node scripts/generate-coverage-badge.js",
+    "analyze:build": "node scripts/analyze-build.js",
     "version:bump": "node scripts/version-bump.js",
     "preflight": "npm run clean && npm run check && npm run lint && npm run test:coverage && npm run build && npm run test:coverage:badge && npm run analyze:build && npm run test:treeshake",
     "prepublishOnly": "npm run test && npm run lint && npm run build && npm run test:coverage:badge && npm run analyze:build",

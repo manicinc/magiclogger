@@ -104,6 +104,15 @@ export interface LoggerOptions {
   theme?: string | ThemeDefinition;
 
   /**
+   * Optional mapping of tags to theme names. When provided, if a logger has
+   * any tag present in this map and no explicit theme is set, the mapped theme
+   * will be auto-applied. This enables brand/company-specific themes via tags.
+   *
+   * @example { acme: 'acme', contoso: 'contoso-dark' }
+   */
+  themeByTag?: Record<string, string>;
+
+  /**
    * Whether to store logs in browser storage when in browser environment.
    * Has no effect in Node.js environments.
    *

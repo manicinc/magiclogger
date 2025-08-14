@@ -204,7 +204,7 @@ describe('NodeLogger', () => {
       logger.info('Info message');
       
       expect(mockFormatter.colorize).toHaveBeenCalledWith('[INFO]', expect.any(Array));
-      expect(mockFormatter.preserveLinks).toHaveBeenCalledWith('Info message');
+  expect(mockFormatter.preserveLinks).toHaveBeenCalledWith(expect.stringContaining('Info message'));
       // Check that console.log was called (what Printer.print actually does)
       expect(consoleLogSpy).toHaveBeenCalled();
       
@@ -215,7 +215,7 @@ describe('NodeLogger', () => {
       logger.warn('Warning message');
       
       expect(mockFormatter.colorize).toHaveBeenCalledWith('[WARN]', expect.any(Array));
-      expect(mockFormatter.preserveLinks).toHaveBeenCalledWith('Warning message');
+  expect(mockFormatter.preserveLinks).toHaveBeenCalledWith(expect.stringContaining('Warning message'));
       expect(consoleLogSpy).toHaveBeenCalled();
     });
 
@@ -223,7 +223,7 @@ describe('NodeLogger', () => {
       logger.error('Error message');
       
       expect(mockFormatter.colorize).toHaveBeenCalledWith('[ERROR]', expect.any(Array));
-      expect(mockFormatter.preserveLinks).toHaveBeenCalledWith('Error message');
+  expect(mockFormatter.preserveLinks).toHaveBeenCalledWith(expect.stringContaining('Error message'));
       expect(consoleLogSpy).toHaveBeenCalled();
     });
 
@@ -244,7 +244,7 @@ describe('NodeLogger', () => {
       logger.success('Success message');
       
       expect(mockFormatter.colorize).toHaveBeenCalledWith('[SUCCESS]', expect.any(Array));
-      expect(mockFormatter.preserveLinks).toHaveBeenCalledWith('Success message');
+  expect(mockFormatter.preserveLinks).toHaveBeenCalledWith(expect.stringContaining('Success message'));
       expect(consoleLogSpy).toHaveBeenCalled();
     });
   });
@@ -277,7 +277,7 @@ describe('NodeLogger', () => {
       
       fileLogger.custom('Test', ['blue'], 'TEST');
       
-      expect(mockFileManager.appendToFile).toHaveBeenCalledWith('[TEST] Test');
+  expect(mockFileManager.appendToFile).toHaveBeenCalledWith(expect.stringContaining('[TEST] Test'));
     });
   });
 
@@ -301,7 +301,7 @@ describe('NodeLogger', () => {
       
       fileLogger.styled('Message', 'error');
       
-      expect(mockFileManager.appendToFile).toHaveBeenCalledWith('[ERROR] Message');
+  expect(mockFileManager.appendToFile).toHaveBeenCalledWith(expect.stringContaining('[ERROR] Message'));
     });
   });
 

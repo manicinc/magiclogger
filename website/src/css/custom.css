@@ -491,6 +491,25 @@ body {
   padding: 0.8rem 0;
 }
 
+.navbar__logo {
+  display: flex;
+  align-items: center;
+  padding: 2px 6px;
+  margin-right: 10px;
+}
+
+.navbar__logo img {
+  height: 28px;
+  width: auto;
+  display: block;
+}
+
+@media (max-width: 996px) {
+  .navbar__logo img {
+    height: 24px;
+  }
+}
+
 .navbar__inner {
   background: transparent;
 }

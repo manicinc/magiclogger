@@ -39,7 +39,7 @@ export type { LoggerOptions } from './Logger';
 /**
  * Core logger types
  */
-export type { LogLevel } from './types';
+export type { LogLevel } from './types/logger';
 
 // ==========================================
 // STYLING & THEMING EXPORTS

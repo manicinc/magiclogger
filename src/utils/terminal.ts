@@ -417,3 +417,28 @@ export function getFallbackStyle(style: string): string {
 export function getTerminalSupport(): TerminalSupport {
   return terminalSupport.getSupport();
 }
+
+/**
+ * Get the current terminal width in columns.
+ * Falls back to 80 when width cannot be determined or in non-TTY environments.
+ */
+export function getTerminalWidth(): number {
+  try {
+    // Node.js TTY width
+    if (isNodeEnvironment() && typeof process !== 'undefined') {
+      let cols: number | undefined;
+      const stdout: unknown = (process as unknown as { stdout?: { columns?: number } }).stdout;
+      if (stdout && typeof (stdout as { columns?: number }).columns === 'number') {
+        cols = (stdout as { columns?: number }).columns;
+      } else if (process.env && typeof process.env.COLUMNS === 'string') {
+        const parsed = Number(process.env.COLUMNS);
+        if (Number.isFinite(parsed)) cols = parsed;
+      }
+      if (typeof cols === 'number' && Number.isFinite(cols) && cols > 0) return cols;
+    }
+  } catch {
+    // ignore and use fallback
+  }
+  // Browser or unknown env fallback
+  return 80;
+}

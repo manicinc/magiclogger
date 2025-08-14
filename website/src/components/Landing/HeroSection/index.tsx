@@ -7,10 +7,16 @@ import Heading from '@theme/Heading';
 import AnimatedBackground from '@site/src/components/Landing/AnimatedBackground';
 import InteractiveDemo from '@site/src/components/Landing/InteractiveDemo';
 import { useTypingEffect, useCounter } from '@site/src/hooks/animations';
+import { useColorMode } from '@docusaurus/theme-common';
 import styles from './styles.module.css';
 
 export default function HeroSection() {
   const { displayedText } = useTypingEffect('Stop squinting at ugly console logs', 40);
+  const { colorMode } = useColorMode();
+  const isDarkTheme = colorMode === 'dark';
+  const heroLogoSrc = isDarkTheme
+    ? '/img/magiclogger-primary-no-subtitle-dark-4x.png'
+    : '/img/magiclogger-primary-no-subtitle-transparent-4x.png';
   
   return (
     <header className={styles.heroSection}>
@@ -23,8 +29,8 @@ export default function HeroSection() {
             <div className={styles.logoContainer}>
               <div className={styles.logoWrapper}>
                 <img
-                  src="/img/magiclog-primary-no-subtitle-transparent-4x.png"
-                  alt="MagicLog"
+                  src={heroLogoSrc}
+                  alt="MagicLogger"
                   className={styles.heroLogo}
                 />
                 <div className={styles.logoGlow} />

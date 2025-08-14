@@ -243,6 +243,7 @@ export type TransportType =
   | 's3' 
   | 'mongodb' 
   | 'websocket'
+  | 'otlp'
   | 'syslog'
   | 'elasticsearch'
   | 'custom';

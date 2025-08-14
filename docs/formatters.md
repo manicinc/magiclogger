@@ -125,6 +125,24 @@ const rows = jsonLines.map(line => cf.format(JSON.parse(line))); // if shape ali
 
 For lossless conversion, prefer re-logging original LogEntry objects rather than parsing formatted text.
 
+## Console styling and angle-bracket tags
+
+When logging to the browser console, MagicLogger supports simple inline styling using angle-bracket tags that map to CSS via the console "%c" token. For example, the message `"<red>Error</red> while loading <bold>config</bold>"` will be transformed to console arguments like `['%cError%c while loading %cconfig%c', 'color:red;', '', 'font-weight:bold;', '']`, producing colored/bold output in Chrome/Firefox devtools. This transformation happens at the logger/Printer layer and remains transparent to formatters.
+
+Notes:
+- Tags are validated against the active theme and supported styles; unsupported tags are ignored safely.
+- In Node, ANSI styles are used instead; the same logical tags map to terminal color sequences via the Colorizer.
+- Parsing is lightweight and skips work when styling is disabled or unsupported.
+
+### Printer delegation (Node and Browser)
+
+To keep behavior consistent across environments, higher-level console features are routed through a unified Printer abstraction:
+- Tables: `logger.table(rows, columns?)` uses Printer to render either console.table (browser) or an aligned table (Node) with theme-aware styling.
+- Progress bars/spinners: `logger.progressBar(opts)` uses Printer to update output efficiently and degrade gracefully when not supported.
+- Links: `logger.link(text, url)` leverages platform-specific capabilities (clickable links in terminals that support it; styled links in browser consoles).
+
+This separation keeps formatters focused on transforming LogEntry objects, while visual concerns and platform quirks live in the Printer and Colorizer.
+
 ## Stream & Batch Behavior
 
 - PlainTextFormatter.formatBatch joins lines and appends EOL.

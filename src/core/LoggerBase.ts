@@ -10,6 +10,7 @@ import type {
 import { PRESETS } from '../constants/preset';
 import { isBrowserEnvironment } from '../utils/environment';
 import { DEFAULT_THEME } from '../constants/themes';
+import { getTheme as getNamedTheme } from '../theme';
 
 /**
  * Abstract base class for all logger implementations.
@@ -68,6 +69,13 @@ export abstract class LoggerBase extends EventEmitter {
    * @protected
    */
   protected useColors: boolean;
+
+  /**
+   * Optional mapping of tags to theme names for brand-based themes.
+   * If set, when a logger has tags and no explicit object theme was provided,
+   * the first matching tag in this map will select the theme.
+   */
+  protected themeByTag?: Record<string, string>;
 
   /**
    * Whether to enforce strict log levels.
@@ -131,13 +139,47 @@ export abstract class LoggerBase extends EventEmitter {
     this.useColors = options.useColors !== false;
     this.strictLevels = options.strictLevels || false;
 
-    // Initialize theme
-    if (typeof options.theme === 'string') {
-      this.theme = this.loadTheme(options.theme);
-    } else if (typeof options.theme === 'object') {
+    // Stash themeByTag mapping
+    this.themeByTag = options.themeByTag;
+
+    // Initialize theme. Prefer explicit object theme; next explicit string; else try themeByTag first; fallback default.
+    if (typeof options.theme === 'object' && options.theme) {
       this.theme = { ...DEFAULT_THEME, ...options.theme };
     } else {
-      this.theme = { ...DEFAULT_THEME };
+      let initialTheme: Record<string, ColorName[]> | undefined;
+      // Only attempt themeByTag if no explicit object theme provided
+      if (!options.theme || typeof options.theme === 'string') {
+        const tagMap = options.themeByTag;
+        const tags = options.tags || [];
+        if (tagMap && tags && tags.length > 0) {
+          for (const t of tags) {
+            const mapped = tagMap[t];
+            if (mapped) {
+              initialTheme = this.loadTheme(mapped);
+              break;
+            }
+          }
+        }
+        // If no explicit mapping matched, try using a theme with the same name as any tag
+        if (!initialTheme && tags && tags.length > 0) {
+          for (const t of tags) {
+            // Use loadTheme to allow registry lookup with built-in fallbacks
+            const candidate = this.loadTheme(t);
+            if (candidate) {
+              initialTheme = candidate;
+              break;
+            }
+          }
+        }
+      }
+
+      if (initialTheme) {
+        this.theme = { ...DEFAULT_THEME, ...initialTheme };
+      } else if (typeof options.theme === 'string') {
+        this.theme = this.loadTheme(options.theme);
+      } else {
+        this.theme = { ...DEFAULT_THEME };
+      }
     }
 
     // Set max listeners
@@ -390,7 +432,7 @@ export abstract class LoggerBase extends EventEmitter {
    * @returns {ColorName[]} Colors for the preset
    * @protected
    */
-  protected getPresetColors(preset: StylePreset | string): ColorName[] {
+  protected getPresetColors = (preset: StylePreset | string): ColorName[] => {
     // Check custom presets first
     if (this.customPresets[preset]) {
       return this.customPresets[preset];
@@ -418,8 +460,13 @@ export abstract class LoggerBase extends EventEmitter {
    * @protected
    */
   protected loadTheme(themeName: string): Record<string, ColorName[]> {
-    // In a real implementation, this would load from a theme registry
-    // For now, just return default theme
+    // Try to resolve from theme registry first
+    const named = getNamedTheme(themeName);
+    if (named && typeof named === 'object') {
+      return { ...DEFAULT_THEME, ...(named as Record<string, ColorName[]>) };
+    }
+
+    // Fallback to built-in variants
     switch (themeName.toLowerCase()) {
       case 'dark':
         return {
@@ -543,12 +590,22 @@ export abstract class LoggerBase extends EventEmitter {
     if (options.verbose !== undefined) this.verbose = options.verbose;
     if (options.useColors !== undefined) this.useColors = options.useColors;
     if (options.strictLevels !== undefined) this.strictLevels = options.strictLevels;
+  if (options.themeByTag !== undefined) this.themeByTag = options.themeByTag;
 
     if (options.theme !== undefined) {
       if (typeof options.theme === 'string') {
         this.theme = this.loadTheme(options.theme);
-      } else {
+      } else if (options.theme) {
         this.theme = { ...this.theme, ...options.theme };
+      }
+    } else if (options.tags && this.themeByTag) {
+      // If tags updated without explicit theme and mapping exists, try auto-select
+      for (const t of options.tags) {
+        const mapped = this.themeByTag[t];
+        if (mapped) {
+          this.theme = this.loadTheme(mapped);
+          break;
+        }
       }
     }
 
@@ -568,6 +625,7 @@ export abstract class LoggerBase extends EventEmitter {
     useColors: boolean;
     strictLevels: boolean;
     theme: Record<string, ColorName[]>;
+    themeByTag?: Record<string, string>;
   } {
     return {
       id: this.id,
@@ -577,6 +635,7 @@ export abstract class LoggerBase extends EventEmitter {
       useColors: this.useColors,
       strictLevels: this.strictLevels,
       theme: { ...this.theme },
+      themeByTag: this.themeByTag,
     };
   }
 
