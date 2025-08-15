@@ -1,14 +1,12 @@
-# MagicLogger 🪄
-
 <p align="center">
   <img src="https://img.shields.io/badge/zero_dependencies-✓-blue" alt="Zero Dependencies">
   <img src="https://img.shields.io/badge/typescript-5.0+-blue" alt="TypeScript">
   <img src="https://img.shields.io/badge/node-14+-green" alt="Node.js">
   <img src="https://img.shields.io/badge/license-MIT-blue" alt="License">
-  <img src="https://img.shields.io/badge/core_gzip-36kb-brightgreen" alt="core_gzip">
-  <img src="https://img.shields.io/badge/core_console_gzip-36kb-brightgreen" alt="core_console_gzip">
-  <img src="https://img.shields.io/badge/core_transports_gzip-44kb-brightgreen" alt="core_transports_gzip">
-  <img src="https://img.shields.io/badge/compat_gzip-43kb-brightgreen" alt="compat_gzip">
+  <img src="https://img.shields.io/badge/core_gzip-36kb-brightgreen.svg" alt="core_gzip">
+  <img src="https://img.shields.io/badge/core_console_gzip-36kb-brightgreen.svg" alt="core_console_gzip">
+  <img src="https://img.shields.io/badge/core_transports_gzip-44kb-brightgreen.svg" alt="core_transports_gzip">
+  <img src="https://img.shields.io/badge/compat_gzip-43kb-brightgreen.svg" alt="compat_gzip">
 </p>
 
 ## Why MagicLogger?
@@ -88,6 +86,94 @@ logger.log('Message with default info level');
 logger.log('Warning message', 'warn');
 logger.log('Error message', 'error');
 ```
+
+---
+
+## 🧱 Structured Logging (JSON)
+
+MagicLogger emits a consistent JSON structure to transports. Below are real inputs and the resulting JSON objects your transports receive.
+
+### Input → Output (with sensible defaults)
+
+```typescript
+import { Logger } from 'magiclogger';
+
+const logger = new Logger({ id: 'api', tags: ['service', 'api'] });
+
+// 1) Plain metadata object
+logger.info('User login', { userId: 'u_123', ip: '203.0.113.10' });
+
+// 2) Direct Error instance
+logger.error('Payment failed', new Error('Card declined'));
+
+// 3) Metadata object containing an error
+logger.error('DB query failed', {
+  error: new Error('timeout'),
+  query: 'SELECT * FROM users WHERE id = ?'
+});
+```
+
+Example JSON produced (Node.js environment shown):
+
+```json
+{
+  "id": "1733938475123-abc123xyz",              
+  "timestamp": "2025-08-14T12:34:35.123Z",       
+  "timestampMs": 1765769675123,                   
+  "level": "info",                               
+  "message": "User login",                       
+  "plainMessage": "User login",                  
+  "loggerId": "api",                             
+  "tags": ["service", "api"],                  
+  "context": { "userId": "u_123", "ip": "203.0.113.10" },
+  "metadata": {
+    "hostname": "my-host",                       
+    "pid": 1234,                                  
+    "platform": "linux",                         
+    "nodeVersion": "v18.20.8"                    
+  }
+}
+```
+
+Error examples:
+
+```json
+{
+  "level": "error",
+  "message": "Payment failed",
+  "error": {
+    "name": "Error",
+    "message": "Card declined",
+    "stack": "..."
+  },
+  "timestamp": "2025-08-14T12:34:36.234Z",
+  "timestampMs": 1765769676234
+}
+```
+
+```json
+{
+  "level": "error",
+  "message": "DB query failed",
+  "context": {
+    "query": "SELECT * FROM users WHERE id = ?"
+  },
+  "error": {
+    "name": "Error",
+    "message": "timeout",
+    "stack": "..."
+  },
+  "timestamp": "2025-08-14T12:34:37.345Z",
+  "timestampMs": 1765769677345
+}
+```
+
+Notes
+- id is auto-generated per entry; timestamp/timestampMs are always present.
+- message is the final (styled) string; plainMessage is ANSI-free for non-TTY transports.
+- loggerId and tags come from Logger options if provided.
+- context is either the metadata object you passed, or falls back to options.context.
+- metadata includes platform info (Node: hostname, pid, platform, nodeVersion; Browser: userAgent, platform).
 
 ---
 
@@ -563,6 +649,23 @@ paymentsLogger.warn('High latency to gateway', { tags: ['grpc'] });
 ```
 
 ## 📦 Build Output Sizes
+
+| File | Format | Raw Size | Gzip |
+|------|--------|----------|------|
+| `index.cjs` | CJS | 3.03 kB | 718 B |
+| `index.js` | ESM | 1.36 kB | 518 B |
+| `index.d.ts` | Types | 145 kB | 29 kB |
+
+### Reference bundle sizes (gzip)
+
+| Scenario | Size |
+|----------|------|
+| core (esm, gzip) | 37 kB |
+| core + console (esm, gzip) | 37 kB |
+| core + all core transports (esm, gzip) | 45.4 kB |
+| all compatibility layers (esm, gzip) | 43.8 kB |
+
+*Generated via `scripts/analyze-build.js`.*
 
 | File | Format | Raw Size | Gzip |
 |------|--------|----------|------|

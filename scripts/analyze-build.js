@@ -50,7 +50,8 @@ function detectIndentation(block) {
 function ensureNamedBadge(readme, label, bytes) {
   const kb = Math.max(1, Math.round((bytes || 0) / 1024));
   const existing = new RegExp(`https://img.shields.io/badge/${label}-\\d+kb(?:kb)?-brightgreen`, 'i');
-  const url = `https://img.shields.io/badge/${label}-${kb}kb-brightgreen`;
+  // Prefer SVG for reliability on GitHub rendering
+  const url = `https://img.shields.io/badge/${label}-${kb}kb-brightgreen.svg`;
   
   // If the badge already exists, just update its value
   if (existing.test(readme)) {
@@ -104,7 +105,7 @@ function removeAllNamedBadges(readme, label) {
   // Remove entire lines containing the badge, preserving other formatting
   const lines = readme.split('\n');
   const filtered = lines.filter(line => {
-    const imgRegex = new RegExp(`<img[^>]*src=["']https://img\\.shields\\.io/badge/${label}-[^"']+-brightgreen["'][^>]*>`, 'i');
+  const imgRegex = new RegExp(`<img[^>]*src=["']https://img\\.shields\\.io/badge/${label}-[^"']+-brightgreen(?:\\.svg)?["'][^>]*>`, 'i');
     return !imgRegex.test(line);
   });
   return filtered.join('\n');
