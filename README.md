@@ -1,10 +1,6 @@
 <p align="center">
   <a href="https://github.com/manicinc/magiclogger">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="website/static/img/magiclogger-primary-white-4x.png">
-      <source media="(prefers-color-scheme: light)" srcset="website/static/img/magiclogger-primary-no-subtitle-dark-4x.png">
-      <img src="website/static/img/magiclogger-primary-no-subtitle-dark-4x.png" alt="MagicLogger" width="420">
-    </picture>
+    <img src="website/static/img/magiclogger-primary-no-subtitle-dark-4x.png" alt="MagicLogger" width="420">
   </a>
 </p>
 
@@ -15,6 +11,7 @@
   <img src="https://img.shields.io/badge/typescript-5.0+-blue" alt="TypeScript">
   <img src="https://img.shields.io/badge/node-14+-green" alt="Node.js">
   <img src="https://img.shields.io/badge/license-MIT-blue" alt="License">
+  <a href="https://codecov.io/gh/manicinc/magiclogger"><img src="https://codecov.io/gh/manicinc/magiclogger/branch/master/graph/badge.svg" alt="codecov"></a>
   <img src="https://img.shields.io/badge/core_gzip-36kb-brightgreen.svg" alt="core_gzip">
   <img src="https://img.shields.io/badge/core_console_gzip-36kb-brightgreen.svg" alt="core_console_gzip">
   <img src="https://img.shields.io/badge/core_transports_gzip-44kb-brightgreen.svg" alt="core_transports_gzip">
@@ -278,9 +275,14 @@ logger.success('<green.bold>✓</> Deployment to <blue>production</> complete');
 ### Style Reference
 
 #### Colors
-- **Foreground**: `black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`, `gray`
+- **Foreground**: `black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`, `gray`, `brightBlack`
 - **Bright**: `brightRed`, `brightGreen`, `brightYellow`, `brightBlue`, `brightMagenta`, `brightCyan`, `brightWhite`
-- **Background**: `bgBlack`, `bgRed`, `bgGreen`, `bgYellow`, `bgBlue`, `bgMagenta`, `bgCyan`, `bgWhite`
+- **Background**: `bgBlack`, `bgRed`, `bgGreen`, `bgYellow`, `bgBlue`, `bgMagenta`, `bgCyan`, `bgWhite`, `bgGray`
+- **Bright Backgrounds**: `bgBrightBlack`, `bgBrightRed`, `bgBrightGreen`, `bgBrightYellow`, `bgBrightBlue`, `bgBrightMagenta`, `bgBrightCyan`, `bgBrightWhite`
+
+Extra popular colors (aliases or ANSI-256 picks with graceful fallbacks):
+- `orange` (`brightOrange`), `purple` (`brightPurple`), `teal` (`brightTeal`), `pink` (`brightPink`), `brown` (`brightBrown`), `indigo` (`brightIndigo`), `lime` (`brightLime`)
+- Background variants: `bgOrange`, `bgPurple`, `bgTeal`, `bgPink`, `bgBrown`, `bgIndigo`, `bgLime` and corresponding `bgBright*` variants.
 
 #### Modifiers
 - **Styles**: `bold`, `dim`, `italic`, `underline`, `blink`, `reverse`, `hidden`, `strikethrough`
@@ -402,47 +404,38 @@ const logger3 = new Logger({
 
 ### Built-in Transports
 
+Available out of the box:
+- Console (`ConsoleTransport`)
+- File (`FileTransport`)
+- HTTP (`HTTPTransport`)
+- WebSocket (`WebSocketTransport`)
+- Stream (`StreamTransport`)
+- S3 (`S3Transport`)
+- MongoDB (`MongoDBTransport`)
+
+Usage example:
+
 ```typescript
 import { Logger } from 'magiclogger';
-import { 
+import {
   ConsoleTransport,
   FileTransport,
   HTTPTransport,
-  OTLPTransport // OpenTelemetry Protocol
+  WebSocketTransport,
+  StreamTransport,
+  S3Transport,
+  MongoDBTransport,
 } from 'magiclogger/transports';
 
 const logger = new Logger({
   transports: [
-    // Beautiful console output
-    new ConsoleTransport({ 
-      level: 'debug',
-      useColors: true 
-    }),
-    
-    // Rotating file logs
-    new FileTransport({
-      filepath: './logs/app.log',
-      maxFiles: 7,
-      maxSize: '10MB'
-    }),
-    
-    // HTTP endpoint
-    new HTTPTransport({
-      url: 'https://logs.example.com',
-      batch: true,
-      compress: true
-    }),
-    
-    // OpenTelemetry (New!)
-    new OTLPTransport({
-      endpoint: 'http://localhost:4318',
-      protocol: 'http/protobuf',
-      serviceName: 'my-service',
-      resource: {
-        'service.version': '1.0.0',
-        'deployment.environment': 'production'
-      }
-    })
+    new ConsoleTransport({ level: 'debug', useColors: true }),
+    new FileTransport({ filepath: './logs/app.log', maxFiles: 7, maxSize: '10MB' }),
+    new HTTPTransport({ url: 'https://logs.example.com', batch: true, compress: true }),
+    new WebSocketTransport({ url: 'wss://logs.example.com/socket' }),
+    new StreamTransport({ stream: process.stdout }),
+    new S3Transport({ bucket: 'my-logs', prefix: 'prod/', region: 'us-east-1' }),
+    new MongoDBTransport({ uri: 'mongodb://localhost:27017', db: 'logs', collection: 'entries' }),
   ]
 });
 ```
@@ -610,54 +603,6 @@ async function deploy() {
     <dim>Completed in <yellow>4m 32s</> with <green>0 errors</></>
   `);
 }
-```
-
-### Microservices with OpenTelemetry
-
-```typescript
-import { Logger } from 'magiclogger';
-import { OTLPTransport } from 'magiclogger/transports/otlp';
-
-// Shared logger configuration for all services
-function createServiceLogger(serviceName: string) {
-  return new Logger({
-    id: serviceName,
-    theme: {
-      tags: {
-        [serviceName]: ['cyan', 'bold'],
-        'grpc': ['magenta'],
-        'http': ['blue'],
-        'db': ['yellow'],
-        'cache': ['green']
-      }
-    },
-    transports: [
-      new ConsoleTransport({ 
-        level: process.env.LOG_LEVEL || 'info' 
-      }),
-      new OTLPTransport({
-        endpoint: process.env.OTLP_ENDPOINT,
-        serviceName,
-        resource: {
-          'service.name': serviceName,
-          'service.namespace': 'production',
-          'service.instance.id': process.env.HOSTNAME || 'unknown',
-          'deployment.environment': process.env.NODE_ENV || 'production'
-        },
-        protocol: 'http/protobuf',
-        includeTraceContext: true
-      })
-    ]
-  });
-}
-
-// Usage in each service
-const apiLogger = createServiceLogger('api');
-apiLogger.info('Server started', { port: 8080, tags: ['http'] });
-apiLogger.error('DB connection failed', { tags: ['db'] });
-
-const paymentsLogger = createServiceLogger('payments');
-paymentsLogger.warn('High latency to gateway', { tags: ['grpc'] });
 ```
 
 ## 📦 Build Output Sizes

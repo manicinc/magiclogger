@@ -720,12 +720,16 @@ const logger = new Logger({
 ## Available Colors and Styles
 
 ### Foreground Colors
-- Basic: `black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`, `gray`
+- Basic: `black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`, `gray`, `brightBlack`
 - Bright: `brightRed`, `brightGreen`, `brightYellow`, `brightBlue`, `brightMagenta`, `brightCyan`, `brightWhite`
 
 ### Background Colors
 - Basic: `bgBlack`, `bgRed`, `bgGreen`, `bgYellow`, `bgBlue`, `bgMagenta`, `bgCyan`, `bgWhite`, `bgGray`
-- Bright: `bgBrightRed`, `bgBrightGreen`, `bgBrightYellow`, `bgBrightBlue`, `bgBrightMagenta`, `bgBrightCyan`, `bgBrightWhite`
+- Bright: `bgBrightBlack`, `bgBrightRed`, `bgBrightGreen`, `bgBrightYellow`, `bgBrightBlue`, `bgBrightMagenta`, `bgBrightCyan`, `bgBrightWhite`
+
+### Extra Colors (aliases or 256-color picks)
+- Foreground: `orange`, `brightOrange`, `purple`, `brightPurple`, `teal`, `brightTeal`, `pink`, `brightPink`, `brown`, `brightBrown`, `indigo`, `brightIndigo`, `lime`, `brightLime`
+- Background: `bgOrange`, `bgBrightOrange`, `bgPurple`, `bgBrightPurple`, `bgTeal`, `bgBrightTeal`, `bgPink`, `bgBrightPink`, `bgBrown`, `bgBrightBrown`, `bgIndigo`, `bgBrightIndigo`, `bgLime`, `bgBrightLime`
 
 ### Text Styles
 - `bold`, `dim`, `italic`, `underline`, `blink`, `reverse`, `hidden`, `strikethrough`
