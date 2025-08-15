@@ -45,6 +45,10 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.14.0
       - name: Enable corepack
         run: corepack enable
       - name: Install deps
@@ -78,6 +82,10 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           cache: 'pnpm'
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.14.0
       - name: Enable corepack
         run: corepack enable
       - name: Install deps
@@ -122,6 +130,10 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.14.0
       - name: Enable corepack
         run: corepack enable
       - name: Install deps (production only for audit)
@@ -153,6 +165,10 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.14.0
       - name: Enable corepack
         run: corepack enable
       - name: Install deps

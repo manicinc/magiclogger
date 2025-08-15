@@ -334,6 +334,35 @@ const logger = new Logger({
 ```
 ```
 
+### OTLP (OpenTelemetry) Transport
+
+```typescript
+import { Logger } from 'magiclogger';
+import { OTLPTransport, createOTLPTransport } from 'magiclogger/transports/otlp';
+
+// Direct
+const loggerA = new Logger({
+  transports: [
+    new OTLPTransport({
+      name: 'otlp',
+      serviceName: 'orders',
+      endpoint: 'http://localhost:4318',
+      protocol: 'http/protobuf',
+      includeTraceContext: true,
+      resource: {
+        'service.version': '1.0.0',
+        'deployment.environment': 'dev'
+      }
+    })
+  ]
+});
+
+// Helper
+const loggerB = new Logger({
+  transports: [createOTLPTransport('billing', { endpoint: 'http://localhost:4318' })]
+});
+```
+
 ### Transport Management
 
 ```typescript

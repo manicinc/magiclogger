@@ -59,6 +59,9 @@ export type {
   TransportManagerOptions,
 } from '../types/transport';
 
+// OTLP is defined in its own entry; re-export its options type here for convenience
+export type { OTLPTransportOptions } from './otlp';
+
 // Re-export Transport interface as ITransport for backwards compatibility
 export type { Transport as ITransport } from './base/Transport';
 

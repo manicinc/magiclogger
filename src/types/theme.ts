@@ -5,17 +5,29 @@ import type { StylePreset } from './preset';
 export type { ColorName } from './colors';
 
 /**
- * A theme definition maps log levels or style presets to arrays of color/style names.
+ * A theme definition maps log levels, style presets, and tags to arrays of color/style names.
  * Keys are StylePreset strings such as 'info', 'error', 'success', or custom presets.
+ * Tags can have associated styles that are automatically applied.
  *
  * @example
  * {
  *   info: ['cyan', 'bold'],
  *   error: ['brightRed', 'bold'],
- *   header: ['brightWhite', 'bgBlue', 'bold']
+ *   header: ['brightWhite', 'bgBlue', 'bold'],
+ *   tags: {
+ *     api: ['cyan', 'bold'],
+ *     database: ['yellow'],
+ *     critical: ['white', 'bgRed', 'bold']
+ *   }
  * }
  */
-export type ThemeDefinition = Partial<Record<StylePreset | string, ColorName[]>>;
+export type ThemeDefinition = Partial<Record<StylePreset | string, ColorName[]>> & {
+  /**
+   * Tag-specific styles that are automatically applied when tags are used.
+   * Maps tag names to arrays of color/style names.
+   */
+  tags?: Record<string, ColorName[]>;
+};
 
 /**
  * A map of theme names to their corresponding theme definitions.
@@ -23,8 +35,16 @@ export type ThemeDefinition = Partial<Record<StylePreset | string, ColorName[]>>
  *
  * @example
  * {
- *   default: { info: ['blue'], success: ['green', 'bold'] },
- *   dark:    { info: ['cyan'], error: ['brightRed'] }
+ *   default: { 
+ *     info: ['blue'], 
+ *     success: ['green', 'bold'],
+ *     tags: { api: ['cyan'], error: ['red', 'bold'] }
+ *   },
+ *   dark: { 
+ *     info: ['cyan'], 
+ *     error: ['brightRed'],
+ *     tags: { warning: ['yellow'], debug: ['gray'] }
+ *   }
  * }
  */
 export type ThemeMap = Record<string, ThemeDefinition>;
@@ -40,3 +60,29 @@ export type ThemeMap = Record<string, ThemeDefinition>;
  * }
  */
 export type ColorStyleMap = Partial<Record<ColorName, string>>;
+
+/**
+ * Theme configuration options for creating or extending themes.
+ */
+export interface ThemeConfig {
+  /**
+   * Base theme to extend from.
+   */
+  base?: string | ThemeDefinition;
+  
+  /**
+   * Override specific styles.
+   */
+  overrides?: Partial<Record<StylePreset | string, ColorName[]>>;
+  
+  /**
+   * Tag-specific style overrides.
+   */
+  tagOverrides?: Record<string, ColorName[]>;
+  
+  /**
+   * Whether to merge with base theme or replace.
+   * @default true
+   */
+  merge?: boolean;
+}

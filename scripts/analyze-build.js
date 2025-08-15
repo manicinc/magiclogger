@@ -41,29 +41,114 @@ function updateNamedBadge(readme, label, bytes) {
   return readme;
 }
 
+function detectIndentation(block) {
+  // Detect the indentation used in the existing block
+  const match = block.match(/\n(\s+)<img/);
+  return match ? match[1] : '  '; // Default to 2 spaces if not found
+}
+
 function ensureNamedBadge(readme, label, bytes) {
   const kb = Math.max(1, Math.round((bytes || 0) / 1024));
   const existing = new RegExp(`https://img.shields.io/badge/${label}-\\d+kb(?:kb)?-brightgreen`, 'i');
   const url = `https://img.shields.io/badge/${label}-${kb}kb-brightgreen`;
-  if (existing.test(readme)) return updateNamedBadge(readme, label, bytes);
-
-  // Insert into the main badges <p> block, just before its closing </p>
-  const blockRegex = /(<p align="center">[\s\S]*?https:\/\/img\.shields\.io\/badge[\s\S]*?)(<\/p>)/i;
-  if (blockRegex.test(readme)) {
-    return readme.replace(blockRegex, `$1  <img src="${url}" alt="${label}">$2`);
+  
+  // If the badge already exists, just update its value
+  if (existing.test(readme)) {
+    return updateNamedBadge(readme, label, bytes);
   }
-  // Fallback: append to top of README
-  return `<p align="center">  <img src="${url}" alt="${label}"></p>\n` + readme;
+
+  // Find the badges block and preserve its formatting
+  const blockRegex = /<p align="center">([\s\S]*?https:\/\/img\.shields\.io\/badge[\s\S]*?)<\/p>/i;
+  if (blockRegex.test(readme)) {
+    return readme.replace(blockRegex, (fullBlock, innerContent) => {
+      // Detect the original indentation
+      const indent = detectIndentation(fullBlock);
+      
+      // Parse existing badges while preserving their original formatting
+      const lines = innerContent.split('\n');
+      const badgeLines = [];
+      
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('<img') && trimmed.includes('https://img.shields.io/badge')) {
+          badgeLines.push(line);
+        }
+      }
+      
+      // Add the new badge with the same indentation
+      const newBadge = `${indent}<img src="${url}" alt="${label}">`;
+      badgeLines.push(newBadge);
+      
+      // Remove duplicates while preserving order
+      const uniqueBadges = [];
+      const seen = new Set();
+      for (const badge of badgeLines) {
+        const cleanBadge = badge.trim();
+        if (!seen.has(cleanBadge)) {
+          seen.add(cleanBadge);
+          uniqueBadges.push(badge);
+        }
+      }
+      
+      // Reconstruct the block preserving original structure
+      const formattedBadges = uniqueBadges.join('\n');
+      return `<p align="center">\n${formattedBadges}\n</p>`;
+    });
+  }
+  
+  // Fallback: append to top of README if no badges block exists
+  return `<p align="center">\n  <img src="${url}" alt="${label}">\n</p>\n\n` + readme;
 }
 
 function removeAllNamedBadges(readme, label) {
-  const imgRegex = new RegExp(`<img[^>]*src=["']https://img\\.shields\\.io/badge/${label}-[^"']+-brightgreen["'][^>]*>\\s*`, 'gi');
-  return readme.replace(imgRegex, '').replace(/\n\s*\n/g, '\n');
+  // Remove entire lines containing the badge, preserving other formatting
+  const lines = readme.split('\n');
+  const filtered = lines.filter(line => {
+    const imgRegex = new RegExp(`<img[^>]*src=["']https://img\\.shields\\.io/badge/${label}-[^"']+-brightgreen["'][^>]*>`, 'i');
+    return !imgRegex.test(line);
+  });
+  return filtered.join('\n');
 }
 
 function removeLegacyBundleBadge(readme) {
-  const bundleRegex = /<img[^>]*src=["']https:\/\/img\.shields\.io\/badge\/bundle_size-[^"']+["'][^>]*>\s*/gi;
-  return readme.replace(bundleRegex, '').replace(/\n\s*\n/g, '\n');
+  // Remove entire lines containing legacy bundle badges
+  const lines = readme.split('\n');
+  const filtered = lines.filter(line => {
+    const bundleRegex = /<img[^>]*src=["']https:\/\/img\.shields\.io\/badge\/bundle_size-[^"']+["'][^>]*>/i;
+    return !bundleRegex.test(line);
+  });
+  return filtered.join('\n');
+}
+
+// More conservative normalization that preserves existing formatting
+function normalizeBadgesBlock(readme) {
+  return readme.replace(/<p align="center">([\s\S]*?https:\/\/img\.shields\.io\/badge[\s\S]*?)<\/p>/i, (fullBlock, innerContent) => {
+    // Detect the original indentation
+    const indent = detectIndentation(fullBlock);
+    
+    // Extract all badge lines while preserving their content
+    const lines = innerContent.split('\n');
+    const badgeLines = [];
+    const seenBadges = new Set();
+    
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith('<img') && trimmed.includes('https://img.shields.io/badge')) {
+        // Deduplicate based on the actual badge content
+        if (!seenBadges.has(trimmed)) {
+          seenBadges.add(trimmed);
+          // Preserve original indentation or use detected indent
+          const indentedLine = line.trim() === trimmed ? `${indent}${trimmed}` : line;
+          badgeLines.push(indentedLine);
+        }
+      }
+    }
+    
+    if (!badgeLines.length) return fullBlock;
+    
+    // Reconstruct with consistent formatting
+    return `<p align="center">\n${badgeLines.join('\n')}\n</p>`;
+  });
 }
 
 // Measure a bundled scenario in bytes (gzip). Each import can specify symbols to ensure retention.
@@ -93,7 +178,7 @@ async function measureScenarioGzip(imports) {
     platform: 'node', // use node to satisfy built-in deps like events, path, zlib, etc.
     target: ['es2020'],
     minify: true,
-  logLevel: 'silent',
+    logLevel: 'silent',
     write: false,
   });
   const out = result.outputFiles?.[0]?.text || '';
@@ -102,26 +187,32 @@ async function measureScenarioGzip(imports) {
 
 async function injectIntoReadme(table) {
   let readme = readFileSync(README_PATH, 'utf8');
+  
   // Normalize any accidental double 'kbkb' occurrences
   readme = readme.replace(/-(\d+)kbkb-/gi, '-$1kb-');
+  
   // Remove legacy ambiguous bundle size badge
   readme = removeLegacyBundleBadge(readme);
-  // Scenario gzip sizes
+  
+  // Measure scenario gzip sizes
   let coreGz = 0;
   let coreConsoleGz = 0;
   let coreTransportsGz = 0;
   let compatAllGz = 0;
+  
   try {
     coreGz = await measureScenarioGzip([
       { path: './dist/index.js', symbols: ['Logger'] },
     ]);
   } catch (e) { /* ignore */ }
+  
   try {
     coreConsoleGz = await measureScenarioGzip([
       { path: './dist/index.js', symbols: ['Logger'] },
       { path: './dist/transports/console.js', symbols: ['ConsoleTransport'] },
     ]);
   } catch (e) { /* ignore */ }
+  
   try {
     coreTransportsGz = await measureScenarioGzip([
       { path: './dist/index.js', symbols: ['Logger'] },
@@ -131,6 +222,7 @@ async function injectIntoReadme(table) {
       { path: './dist/transports/http.js', symbols: ['HTTPTransport'] },
     ]);
   } catch (e) { /* ignore */ }
+  
   try {
     // Measure all compatibility layers bundled
     compatAllGz = await measureScenarioGzip([
@@ -138,31 +230,42 @@ async function injectIntoReadme(table) {
     ]);
   } catch (e) { /* ignore */ }
 
-  // Ensure our labeled badges are present and updated
+  // Update badges one by one, preserving formatting between updates
   readme = removeAllNamedBadges(readme, 'core_gzip');
   readme = ensureNamedBadge(readme, 'core_gzip', coreGz || 0);
+  
   readme = removeAllNamedBadges(readme, 'core_console_gzip');
   readme = ensureNamedBadge(readme, 'core_console_gzip', coreConsoleGz || 0);
+  
   readme = removeAllNamedBadges(readme, 'core_transports_gzip');
   readme = ensureNamedBadge(readme, 'core_transports_gzip', coreTransportsGz || 0);
+  
   readme = removeAllNamedBadges(readme, 'compat_gzip');
   readme = ensureNamedBadge(readme, 'compat_gzip', compatAllGz || 0);
+  
+  // Normalize formatting of the badges block (conservative)
+  readme = normalizeBadgesBlock(readme);
 
+  // Update the build output sizes section
   const sectionHeader = `## 📦 Build Output Sizes`;
   const sectionRegex = new RegExp(`## 📦 Build Output Sizes[\\s\\S]*?(?=\n## |$)`, 'm');
+  
   const scenarios = [
     coreGz ? `| core (esm, gzip) | ${prettyBytes(coreGz)} |` : null,
     coreConsoleGz ? `| core + console (esm, gzip) | ${prettyBytes(coreConsoleGz)} |` : null,
     coreTransportsGz ? `| core + all core transports (esm, gzip) | ${prettyBytes(coreTransportsGz)} |` : null,
     compatAllGz ? `| all compatibility layers (esm, gzip) | ${prettyBytes(compatAllGz)} |` : null,
   ].filter(Boolean).join('\n');
+  
   const scenarioBlock = scenarios ? `\n\n### Reference bundle sizes (gzip)\n\n| Scenario | Size |\n|----------|------|\n${scenarios}` : '';
   const newSection = `${sectionHeader}\n\n${table}${scenarioBlock}\n\n*Generated via \`scripts/analyze-build.js\`.*`;
+  
   if (sectionRegex.test(readme)) {
     readme = readme.replace(sectionRegex, newSection);
   } else {
     readme = readme + `\n\n${newSection}`;
   }
+  
   writeFileSync(README_PATH, readme);
   console.log('✅ README updated (sizes + badge).');
 }

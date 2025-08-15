@@ -293,6 +293,28 @@ if (!validation.valid) {
 }
 ```
 
+### Tag-Driven Theme Selection
+
+Tags can automatically select a theme when no explicit theme is set:
+
+```ts
+// Map specific tags to theme names
+const logger1 = new Logger({
+  tags: ['acme'],
+  themeByTag: { acme: 'cyberpunk', contoso: 'dark' }
+});
+
+// Or rely on implicit matching: if a tag equals a named theme
+const logger2 = new Logger({ tags: ['neon'] }); // loads the 'neon' theme if available
+
+// Changing tags can re-select the theme (when not explicitly set)
+logger2.updateConfig({ tags: ['dark'] });
+```
+
+Notes
+- An explicit theme object/string overrides auto-selection.
+- Auto-selection prefers themeByTag mappings, then tag-name matches.
+
 ## Transport Integration
 
 Both context and tags integrate seamlessly with transports for filtering and formatting.

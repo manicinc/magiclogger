@@ -132,15 +132,15 @@ describe('Logger Output Methods', () => {
     const ESC = String.fromCharCode(27);
     const ansiRegex = new RegExp(`${ESC}\\[[0-9;]*m`, 'g');
     const strip = (s: string) => s.replace(ansiRegex, '').replace(/\r/g, '').trim();
-    const firstCallArg = strip(stdoutWriteSpy.mock.calls[stdoutWriteSpy.mock.calls.length - 1][0] as string);
-    expect(firstCallArg).toContain('#####-----');
-    expect(firstCallArg).toMatch(/#####-----\s*50\.0%/);
+  const firstCallArg = strip(stdoutWriteSpy.mock.calls[stdoutWriteSpy.mock.calls.length - 1][0] as string);
+  expect(firstCallArg.replace(/[\[\]]/g, '')).toContain('#####-----');
+  expect(firstCallArg).toMatch(/#####-----\s*50\.0%/);
 
     // Test empty length (should use default)
     stdoutWriteSpy.mockClear();
     logger.progressBar(50, undefined, '#', '-');
-    const secondCallArg = strip(stdoutWriteSpy.mock.calls[stdoutWriteSpy.mock.calls.length - 1][0] as string);
-    expect(secondCallArg).toContain('##########----------');
+  const secondCallArg = strip(stdoutWriteSpy.mock.calls[stdoutWriteSpy.mock.calls.length - 1][0] as string);
+  expect(secondCallArg.replace(/[\[\]]/g, '')).toContain('##########----------');
   });
 
   it('prints newline when progress reaches 100%', () => {

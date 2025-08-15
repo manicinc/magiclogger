@@ -25,8 +25,20 @@ const BASE_ANSI = {
   white: ANSI.FG_WHITE,
   gray: ANSI.FG_BRIGHT_BLACK,
   grey: ANSI.FG_BRIGHT_BLACK, // Alias
+  
+  // Bright background colors
+  bgBrightBlack: ANSI.BG_BRIGHT_BLACK,
+  bgBrightRed: ANSI.BG_BRIGHT_RED,
+  bgBrightGreen: ANSI.BG_BRIGHT_GREEN,
+  bgBrightYellow: ANSI.BG_BRIGHT_YELLOW,
+  bgBrightBlue: ANSI.BG_BRIGHT_BLUE,
+  bgBrightMagenta: ANSI.BG_BRIGHT_MAGENTA,
+  bgBrightCyan: ANSI.BG_BRIGHT_CYAN,
+  bgBrightWhite: ANSI.BG_BRIGHT_WHITE,
 
   // Bright foreground colors
+  // Include brightBlack explicitly (alias of gray/bright black)
+  brightBlack: ANSI.FG_BRIGHT_BLACK,
   brightRed: ANSI.FG_BRIGHT_RED,
   brightGreen: ANSI.FG_BRIGHT_GREEN,
   brightYellow: ANSI.FG_BRIGHT_YELLOW,
@@ -46,6 +58,7 @@ const BASE_ANSI = {
   bgWhite: ANSI.BG_WHITE,
   bgGray: ANSI.BG_BRIGHT_BLACK,
   bgGrey: ANSI.BG_BRIGHT_BLACK, // Alias
+
 } as const;
 
 // Conditional styles (depend on terminal support). We define them separately and

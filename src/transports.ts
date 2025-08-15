@@ -13,6 +13,19 @@ export { HTTPTransport } from './transports/http';
 export { S3Transport } from './transports/s3';
 export { MongoDBTransport } from './transports/mongodb';
 export { WebSocketTransport } from './transports/websocket';
+// OpenTelemetry (OTLP) transport and helpers
+export {
+  OTLPTransport,
+  createOTLPTransport,
+  createJaegerTransport,
+  createGrafanaCloudTransport,
+  createNewRelicTransport,
+  createHoneycombTransport,
+  createXRayTransport,
+  createGoogleCloudTransport,
+  createDatadogTransport,
+  createElasticAPMTransport,
+} from './transports/otlp';
 
 // Base transport functionality
 export { Transport, TransportManager } from './transports/base';
@@ -101,3 +114,4 @@ export type {
   HTTPTransportOptions,
   StreamTransportOptions
 } from './types/transport';
+export type { OTLPTransportOptions } from './transports/otlp';

@@ -6,6 +6,9 @@ import { TransportManager } from './transports/base/TransportManager';
 import { Transport } from './transports/base/Transport';
 import { Colorizer } from './core/Colorizer';
 import { Formatter } from './core/Formatter';
+import { StyleBuilder } from './core/StyleBuilder';
+import { TemplateParser } from './parsers/TemplateParser';
+import { TextStyler } from './utils/TextStyler';
 import type { 
   LoggerOptions, 
   LogLevel, 
@@ -13,6 +16,12 @@ import type {
   ColorName,
   LogEntry
 } from './types';
+import type { 
+  StyledPart, 
+  WordStyleMap, 
+  TemplateFormatter,
+  IStyleBuilder 
+} from './types/styling';
 import type { LoggerBase } from './core/LoggerBase';
 import { FileManager } from './core/FileManager';
 import { IS_PATH_REGEX } from './constants/paths';
@@ -126,24 +135,10 @@ export type LogEntryMeta = LogMetadata | Error | { error?: Error; [key: string]:
  * 
  * @interface ExtendedLoggerOptions
  * @extends {LoggerOptions}
- * 
- * @example
- * ```typescript
- * const options: ExtendedLoggerOptions = {
- *   transports: [
- *     new ConsoleTransport({ level: 'debug' }),
- *     new FileTransport({ filepath: './logs/app.log' })
- *   ],
- *   useLegacyOutput: false,
- *   idGenerator: () => `custom-${Date.now()}`
- * };
- * ```
  */
 export interface ExtendedLoggerOptions extends LoggerOptions {
   /**
    * Array of transports to use for logging.
-   * If not provided and useLegacyOutput is false, no transports are added by default.
-   * This ensures tree-shaking works properly.
    * @type {Transport[]}
    * @default []
    */
@@ -151,7 +146,6 @@ export interface ExtendedLoggerOptions extends LoggerOptions {
 
   /**
    * Whether to use legacy console/file output in addition to transports.
-   * When true, logs are sent to both the legacy logger and transports.
    * @type {boolean}
    * @default false
    */
@@ -159,19 +153,14 @@ export interface ExtendedLoggerOptions extends LoggerOptions {
 
   /**
    * Custom ID generator function for log entries.
-   * Allows customization of how unique IDs are generated for each log entry.
    * @type {IdGenerator}
-   * @default () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
    */
   idGenerator?: IdGenerator;
 
   /**
    * Whether to automatically create default transports.
-   * When true, creates console and optionally file transports based on options.
-   * Set to false for complete control over transports (recommended for tree-shaking).
    * @type {boolean}
    * @default false
-   * @since 0.2.0
    */
   useDefaultTransports?: boolean;
 }
@@ -181,56 +170,37 @@ export interface ExtendedLoggerOptions extends LoggerOptions {
  * 
  * This class automatically detects the runtime environment (Node.js or Browser)
  * and instantiates the appropriate underlying logger implementation.
- * It manages transports for flexible log delivery to various destinations.
- * 
- * ## Features
- * - Environment detection (Node.js/Browser)
- * - Transport management for flexible log routing
- * - Structured logging with metadata
- * - Legacy compatibility methods
- * - Tree-shakeable design (transports loaded on-demand)
- * 
- * ## Tree-Shaking Note
- * As of v0.2.0, the Logger class no longer automatically imports default transports.
- * This ensures proper tree-shaking. You must explicitly add transports:
+ * It manages transports for flexible log delivery to various destinations
+ * and provides multiple styling APIs for rich text formatting.
  * 
  * @class Logger
  * 
  * @example
  * ```typescript
- * // Basic usage (no transports - logs go nowhere)
- * const logger = new Logger();
+ * // Basic usage with styling
+ * const logger = new Logger({ useColors: true });
  * 
- * // Add transports explicitly for tree-shaking
- * import { ConsoleTransport } from 'magiclogger/transports/console';
- * import { FileTransport } from 'magiclogger/transports/file';
+ * // Standard logging
+ * logger.info('Server started');
+ * logger.error('Connection failed');
  * 
- * const logger = new Logger({
- *   transports: [
- *     new ConsoleTransport({ level: 'debug' }),
- *     new FileTransport({ filepath: './app.log' })
- *   ]
- * });
- * 
- * // Log with metadata
- * logger.info('User logged in', { userId: '12345', ip: '192.168.1.1' });
- * logger.error('Database error', { error: err, query: 'SELECT * FROM users' });
+ * // Styled logging with multiple APIs
+ * logger.info(logger.s.green.bold('✓ Success'));
+ * logger.error(logger.fmt`@red.bold{Error:} ${message}`);
+ * logger.warn(logger.parts([['Warning:', 'yellow', 'bold']]));
+ * logger.info('<green>Success:</> Operation complete');
  * ```
  */
 export class Logger {
   /**
    * Legacy logger instance for backward compatibility.
-   * Provides environment-specific logging capabilities.
    * @private
-   * @type {NodeLogger | BrowserLogger}
    */
   private loggerInstance: NodeLogger | BrowserLogger;
 
   /**
    * Transport manager for handling multiple log destinations.
-   * Manages routing, filtering, and delivery of log entries.
    * @private
-   * @type {TransportManager}
    */
   private transportManager: TransportManager;
 
@@ -238,7 +208,6 @@ export class Logger {
    * Logger configuration options.
    * @private
    * @readonly
-   * @type {ExtendedLoggerOptions}
    */
   private readonly options: ExtendedLoggerOptions;
 
@@ -246,7 +215,6 @@ export class Logger {
    * Function for generating unique IDs for log entries.
    * @private
    * @readonly
-   * @type {IdGenerator}
    */
   private readonly idGenerator: IdGenerator;
 
@@ -254,48 +222,40 @@ export class Logger {
    * Whether to use legacy output methods in addition to transports.
    * @private
    * @readonly
-   * @type {boolean}
    */
   private readonly useLegacyOutput: boolean;
 
   /**
    * Formatter instance for text formatting and styling.
    * @private
-   * @type {Formatter | undefined}
    */
   private formatter?: Formatter;
 
   /**
+   * Style builder instance for chainable styling.
+   * @private
+   */
+  private styleBuilder?: StyleBuilder;
+
+  /**
+   * Template parser instance for template literal styling.
+   * @private
+   */
+  private templateParser?: TemplateParser;
+
+  /**
+   * Cached template formatter function.
+   * @private
+   */
+  private templateFormatter?: TemplateFormatter;
+
+  /**
    * Creates a new Logger instance with the specified options.
    * 
-   * The logger automatically detects the runtime environment and creates
-   * the appropriate underlying logger (NodeLogger for Node.js, BrowserLogger for browsers).
-   * 
    * @constructor
-   * @param {ExtendedLoggerOptions | boolean} [options={}] - Logger configuration options or verbose flag (backward compatibility)
+   * @param {ExtendedLoggerOptions | boolean} [options={}] - Logger configuration options or verbose flag
    * @param {boolean} [writeToDisk] - Whether to write to disk (backward compatibility)
    * @param {boolean} [useColors] - Whether to use colors (backward compatibility)
-   * 
-   * @example
-   * ```typescript
-   * // Simple logger with console output
-   * import { ConsoleTransport } from 'magiclogger/transports/console';
-   * const logger = new Logger({
-   *   transports: [new ConsoleTransport()]
-   * });
-   * 
-   * // Advanced configuration
-   * const logger = new Logger({
-   *   id: 'my-app',
-   *   tags: ['production'],
-   *   context: { version: '1.0.0' },
-   *   transports: [...],
-   *   idGenerator: () => crypto.randomUUID()
-   * });
-   * 
-   * // Backward compatibility with boolean parameters
-   * const logger = new Logger(true, true, false); // verbose, writeToDisk, useColors
-   * ```
    */
   constructor(
     options: ExtendedLoggerOptions | boolean = {}, 
@@ -347,10 +307,7 @@ export class Logger {
 
   /**
    * Processes constructor options and environment variables.
-   * 
    * @private
-   * @param {ExtendedLoggerOptions} options - Raw options
-   * @returns {ExtendedLoggerOptions} Processed options
    */
   private processOptions(options: ExtendedLoggerOptions): ExtendedLoggerOptions {
     const processed = { ...options };
@@ -387,10 +344,7 @@ export class Logger {
 
   /**
    * Validates and normalizes logger options.
-   * 
    * @private
-   * @param {ExtendedLoggerOptions} options - Options to validate
-   * @returns {ExtendedLoggerOptions} Validated options
    */
   private validateOptions(options: ExtendedLoggerOptions): ExtendedLoggerOptions {
     const validated = { ...options };
@@ -413,10 +367,7 @@ export class Logger {
 
   /**
    * Parses a boolean environment variable value.
-   * 
    * @private
-   * @param {string} value - Environment variable value
-   * @returns {boolean} Parsed boolean value
    */
   private parseBooleanEnv(value: string): boolean {
     const normalized = value.toLowerCase().trim();
@@ -425,12 +376,7 @@ export class Logger {
 
   /**
    * Initializes transports based on configuration.
-   * If transports are provided in options, uses those.
-   * If useDefaultTransports is true, attempts to create default transports.
-   * Otherwise, no transports are added (for tree-shaking).
-   * 
    * @private
-   * @returns {void}
    */
   private initializeTransports(): void {
     if (this.options.transports && this.options.transports.length > 0) {
@@ -447,12 +393,7 @@ export class Logger {
 
   /**
    * Asynchronously creates and adds default transports.
-   * Uses dynamic imports to maintain tree-shaking capabilities.
-   * Only imports transports if actually needed.
-   * 
    * @private
-   * @async
-   * @returns {Promise<void>}
    */
   private async createDefaultTransportsAsync(): Promise<void> {
     try {
@@ -491,16 +432,7 @@ export class Logger {
 
   /**
    * Default ID generator for log entries.
-   * Creates a unique identifier using timestamp and random string.
-   * 
    * @private
-   * @returns {string} Unique identifier in format: "timestamp-randomstring"
-   * 
-   * @example
-   * ```typescript
-   * // Returns something like: "1634567890123-a1b2c3d4e"
-   * const id = this.defaultIdGenerator();
-   * ```
    */
   private defaultIdGenerator(): string {
     return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -508,23 +440,7 @@ export class Logger {
 
   /**
    * Creates a structured log entry from raw log data.
-   * Processes the message and metadata to create a complete LogEntry object
-   * with all required fields and proper error handling.
-   * 
    * @private
-   * @param {LogLevel} level - Log level (e.g., 'info', 'error', 'debug')
-   * @param {string} message - Log message
-   * @param {LogEntryMeta} [meta] - Additional metadata, error, or context
-   * @returns {LogEntry} Complete log entry object
-   * 
-   * @example
-   * ```typescript
-   * const entry = this.createLogEntry('error', 'Database connection failed', {
-   *   error: new Error('ECONNREFUSED'),
-   *   host: 'localhost',
-   *   port: 5432
-   * });
-   * ```
    */
   private createLogEntry(level: LogLevel, message: string, meta?: LogEntryMeta): LogEntry {
     const now = new Date();
@@ -541,7 +457,7 @@ export class Logger {
         stack: meta.stack,
       };
       context = undefined;
-    } else if (meta?.error instanceof Error) {
+    } else if (meta && typeof meta === 'object' && 'error' in meta && meta.error instanceof Error) {
       // Metadata object containing an error
       error = {
         name: meta.error.name,
@@ -575,19 +491,7 @@ export class Logger {
 
   /**
    * Gathers environment metadata for log entries.
-   * Collects platform-specific information about the runtime environment.
-   * 
    * @private
-   * @returns {LogMetadata} Object containing environment information
-   * 
-   * @example
-   * ```typescript
-   * // In Node.js:
-   * // { hostname: 'server-01', pid: 12345, platform: 'linux', nodeVersion: 'v16.0.0' }
-   * 
-   * // In Browser:
-   * // { userAgent: 'Mozilla/5.0...', platform: 'MacIntel' }
-   * ```
    */
   private getMetadata(): LogMetadata {
     const metadata: LogMetadata = {};
@@ -609,18 +513,7 @@ export class Logger {
 
   /**
    * Strips ANSI escape codes from a string.
-   * Used to create plain text versions of colorized messages.
-   * 
    * @private
-   * @param {string} str - String potentially containing ANSI codes
-   * @returns {string} String with all ANSI codes removed
-   * 
-   * @example
-   * ```typescript
-   * const colored = '\x1b[31mError\x1b[0m: Something went wrong';
-   * const plain = this.stripAnsiCodes(colored);
-   * // Returns: 'Error: Something went wrong'
-   * ```
    */
   private stripAnsiCodes(str: string): string {
     // Handle non-string inputs
@@ -631,33 +524,154 @@ export class Logger {
     return str.replace(/\x1b\[[0-9;]*m/g, '');
   }
 
+  // ============================================================
+  // Modern Styling APIs
+  // ============================================================
+
   /**
-   * Core logging method that handles all log operations.
-   * Creates a structured log entry and sends it to all configured transports.
-   * Falls back to legacy output if no transports are configured.
+   * Chainable style builder for creating styled strings.
+   * Similar to Chalk's API, allows intuitive chaining of styles.
    * 
-   * @public
-   * @param {string} msg - The message to log
-   * @param {LogLevel} [level='info'] - Log level
-   * @param {LogEntryMeta} [meta] - Additional metadata or error
-   * @returns {void}
+   * @returns {IStyleBuilder} Chainable style builder
    * 
    * @example
    * ```typescript
-   * // Basic logging
-   * logger.log('User action', 'info');
+   * // Chain multiple styles
+   * logger.info(logger.s.red.bold('Error:') + ' Failed');
    * 
-   * // With metadata
-   * logger.log('Database query', 'debug', {
-   *   query: 'SELECT * FROM users',
-   *   duration: 145
-   * });
-   * 
-   * // With error
-   * logger.log('Operation failed', 'error', new Error('Timeout'));
+   * // Create reusable styles
+   * const error = logger.s.red.bold;
+   * logger.error(error('Critical failure'));
    * ```
    */
+  public get s(): IStyleBuilder {
+    if (!this.styleBuilder) {
+      this.styleBuilder = new StyleBuilder(this.useColors);
+    }
+    return this.styleBuilder as unknown as IStyleBuilder;
+  }
+
+  /**
+   * Alias for the style builder (s).
+   * Provides a more descriptive name for the chainable style API.
+   * 
+   * @returns {IStyleBuilder} Chainable style builder
+   */
+  public get style(): IStyleBuilder {
+    return this.s;
+  }
+
+  /**
+   * Template literal formatter for inline styling.
+   * Uses @style{content} syntax for applying styles.
+   * 
+   * @returns {TemplateFormatter} Template formatter function
+   * 
+   * @example
+   * ```typescript
+   * const user = 'john';
+   * logger.info(logger.fmt`@green.bold{User ${user}} logged in`);
+   * logger.error(logger.fmt`@red{Error:} @yellow{${errorMessage}}`);
+   * ```
+   */
+  public get fmt(): TemplateFormatter {
+    if (!this.templateFormatter) {
+      if (!this.templateParser) {
+        this.templateParser = new TemplateParser(this.useColors);
+      }
+      this.templateFormatter = this.templateParser.createFormatter();
+    }
+    return this.templateFormatter;
+  }
+
+  /**
+   * Styles an array of text parts with explicit style control.
+   * Each part is a tuple of [text, ...styles].
+   * 
+   * @param {StyledPart[]} parts - Array of text parts with styles
+   * @returns {string} Combined styled string
+   * 
+   * @example
+   * ```typescript
+   * logger.info(logger.parts([
+   *   ['SUCCESS:', 'green', 'bold'],
+   *   [' All tests passed'],
+   *   [' (100%)', 'dim']
+   * ]));
+   * ```
+   */
+  public parts(parts: StyledPart[]): string {
+    return TextStyler.styleParts(parts, this.useColors);
+  }
+
+  /**
+   * Styles text by applying colors to specific word indices.
+   * Words are indexed starting from 0, whitespace is ignored.
+   * 
+   * @param {string} text - Text to style
+   * @param {WordStyleMap} styleMap - Map of word indices to styles
+   * @returns {string} Styled text
+   * 
+   * @example
+   * ```typescript
+   * logger.info(logger.styleByIndex(
+   *   'GET /api/users 200 OK 45ms',
+   *   {
+   *     0: ['blue', 'bold'],    // "GET"
+   *     1: ['cyan'],            // "/api/users"
+   *     2: ['green', 'bold'],   // "200"
+   *     3: ['green'],           // "OK"
+   *     4: ['magenta']          // "45ms"
+   *   }
+   * ));
+   * ```
+   */
+  public styleByIndex(text: string, styleMap: WordStyleMap): string {
+    return TextStyler.styleByIndex(text, styleMap, this.useColors);
+  }
+
+  /**
+   * Parses and applies angle bracket syntax styling <style>text</>.
+   * Angle brackets avoid conflicts with regular brackets in text.
+   * This method is automatically applied to all log messages.
+   * 
+   * @param {string} text - Text with angle bracket syntax
+   * @returns {string} Styled text
+   * 
+   * @example
+   * ```typescript
+   * logger.info(logger.parseBrackets(
+   *   '<green.bold>SUCCESS:</> All <yellow>10</> tests passed'
+   * ));
+   * 
+   * // Or use directly in log methods (auto-parsed)
+   * logger.info('<green.bold>SUCCESS:</> Operation complete');
+   * ```
+   */
+  public parseBrackets(text: string): string {
+    return TextStyler.parseBrackets(text, this.useColors);
+  }
+
+  // ============================================================
+  // Core Logging Methods
+  // ============================================================
+
+  /**
+   * Core logging method that handles all log operations.
+   * Enhanced to support angle bracket syntax in messages.
+   * 
+   * @public
+   * @param {string} msg - The message to log (supports <style> syntax)
+   * @param {LogLevel} [level='info'] - Log level
+   * @param {LogEntryMeta} [meta] - Additional metadata or error
+   * @returns {void}
+   */
   public log(msg: string, level: LogLevel = 'info', meta?: LogEntryMeta): void {
+    // Parse angle bracket syntax if present
+    if (msg && msg.includes('<')) {
+      msg = this.parseBrackets(msg);
+    }
+
     // Create structured log entry
     const entry = this.createLogEntry(level, msg, meta);
 
@@ -676,18 +690,12 @@ export class Logger {
 
   /**
    * Logs an info-level message.
-   * Used for general informational messages about application flow.
+   * Enhanced to support angle bracket syntax <style>text</>.
    * 
    * @public
-   * @param {string} msg - Info message
+   * @param {string} msg - Info message (supports <style> syntax)
    * @param {LogEntryMeta} [meta] - Additional metadata
    * @returns {void}
-   * 
-   * @example
-   * ```typescript
-   * logger.info('Server started', { port: 3000, env: 'production' });
-   * logger.info('User logged in', { userId: '12345', ip: '192.168.1.1' });
-   * ```
    */
   public info(msg: string, meta?: LogEntryMeta): void {
     this.log(msg, 'info', meta);
@@ -695,18 +703,12 @@ export class Logger {
 
   /**
    * Logs a success message.
-   * Used to indicate successful completion of operations.
+   * Enhanced to support angle bracket syntax <style>text</>.
    * 
    * @public
-   * @param {string} msg - Success message
+   * @param {string} msg - Success message (supports <style> syntax)
    * @param {LogEntryMeta} [meta] - Additional metadata
    * @returns {void}
-   * 
-   * @example
-   * ```typescript
-   * logger.success('Database migration completed');
-   * logger.success('File uploaded', { filename: 'report.pdf', size: 1024000 });
-   * ```
    */
   public success(msg: string, meta?: LogEntryMeta): void {
     this.log(msg, 'success', meta);
@@ -714,18 +716,12 @@ export class Logger {
 
   /**
    * Logs a warning message.
-   * Used for potentially problematic situations that don't prevent operation.
+   * Enhanced to support angle bracket syntax <style>text</>.
    * 
    * @public
-   * @param {string} msg - Warning message
+   * @param {string} msg - Warning message (supports <style> syntax)
    * @param {LogEntryMeta} [meta] - Additional metadata
    * @returns {void}
-   * 
-   * @example
-   * ```typescript
-   * logger.warn('API rate limit approaching', { remaining: 100, resetAt: '2023-01-01T00:00:00Z' });
-   * logger.warn('Deprecated function called', { function: 'oldMethod', alternative: 'newMethod' });
-   * ```
    */
   public warn(msg: string, meta?: LogEntryMeta): void {
     this.log(msg, 'warn', meta);
@@ -733,25 +729,12 @@ export class Logger {
 
   /**
    * Logs an error message.
-   * Used for error conditions that require attention.
+   * Enhanced to support angle bracket syntax <style>text</>.
    * 
    * @public
-   * @param {string} msg - Error message
+   * @param {string} msg - Error message (supports <style> syntax)
    * @param {LogEntryMeta} [meta] - Additional metadata or error object
    * @returns {void}
-   * 
-   * @example
-   * ```typescript
-   * // Log with error object
-   * logger.error('Database connection failed', new Error('ECONNREFUSED'));
-   * 
-   * // Log with error and additional context
-   * logger.error('API request failed', {
-   *   error: new Error('Network error'),
-   *   endpoint: '/api/users',
-   *   retryCount: 3
-   * });
-   * ```
    */
   public error(msg: string, meta?: LogEntryMeta): void {
     this.log(msg, 'error', meta);
@@ -759,46 +742,26 @@ export class Logger {
 
   /**
    * Logs a debug message.
-   * Only shown when verbose mode is enabled. Used for detailed debugging information.
+   * Enhanced to support angle bracket syntax <style>text</>.
+   * Only shown when verbose mode is enabled.
    * 
    * @public
-   * @param {string} msg - Debug message
+   * @param {string} msg - Debug message (supports <style> syntax)
    * @param {LogEntryMeta} [meta] - Additional metadata
    * @returns {void}
-   * 
-   * @example
-   * ```typescript
-   * logger.debug('Function entry', { args: [1, 2, 3], caller: 'processData' });
-   * logger.debug('Cache hit', { key: 'user:12345', ttl: 3600 });
-   * ```
    */
   public debug(msg: string, meta?: LogEntryMeta): void {
     this.log(msg, 'debug', meta);
   }
 
+  // ============================================================
+  // Transport Management
+  // ============================================================
+
   /**
    * Adds a transport to the logger.
-   * Transports handle the actual delivery of log messages to their destinations.
-   * 
    * @public
    * @async
-   * @param {Transport} transport - Transport instance to add
-   * @returns {Promise<void>} Resolves when transport is successfully added
-   * @throws {Error} If transport with the same name already exists
-   * 
-   * @example
-   * ```typescript
-   * // Add console transport
-   * import { ConsoleTransport } from 'magiclogger/transports/console';
-   * await logger.addTransport(new ConsoleTransport({ level: 'debug' }));
-   * 
-   * // Add file transport
-   * import { FileTransport } from 'magiclogger/transports/file';
-   * await logger.addTransport(new FileTransport({ 
-   *   filepath: './logs/app.log',
-   *   maxFileSize: 10485760 // 10MB
-   * }));
-   * ```
    */
   public async addTransport(transport: Transport): Promise<void> {
     await this.transportManager.registerTransport(transport);
@@ -806,20 +769,8 @@ export class Logger {
 
   /**
    * Removes a transport by name.
-   * The transport is properly closed before removal.
-   * 
    * @public
    * @async
-   * @param {string} name - Name of the transport to remove
-   * @returns {Promise<void>} Resolves when transport is removed
-   * @throws {Error} If transport with given name is not found
-   * 
-   * @example
-   * ```typescript
-   * // Remove a specific transport
-   * await logger.removeTransport('console');
-   * await logger.removeTransport('file-app-log');
-   * ```
    */
   public async removeTransport(name: string): Promise<void> {
     await this.transportManager.removeTransport(name);
@@ -827,19 +778,7 @@ export class Logger {
 
   /**
    * Gets a transport by name.
-   * Useful for runtime transport configuration or inspection.
-   * 
    * @public
-   * @param {string} name - Transport name
-   * @returns {Transport | undefined} The transport instance if found, undefined otherwise
-   * 
-   * @example
-   * ```typescript
-   * const consoleTransport = logger.getTransport('console');
-   * if (consoleTransport) {
-   *   console.log('Console transport is configured');
-   * }
-   * ```
    */
   public getTransport(name: string): Transport | undefined {
     return this.transportManager.getTransport(name);
@@ -847,17 +786,7 @@ export class Logger {
 
   /**
    * Lists all configured transport names.
-   * Useful for debugging or dynamic transport management.
-   * 
    * @public
-   * @returns {string[]} Array of transport names
-   * 
-   * @example
-   * ```typescript
-   * const transports = logger.listTransports();
-   * console.log('Active transports:', transports);
-   * // Output: ['console', 'file-app-log', 'http-api']
-   * ```
    */
   public listTransports(): string[] {
     return this.transportManager.getTransportNames();
@@ -865,20 +794,7 @@ export class Logger {
 
   /**
    * Gets statistics for all transports.
-   * Provides insights into transport performance and health.
-   * 
    * @public
-   * @returns {Record<string, unknown>} Object containing statistics for each transport
-   * 
-   * @example
-   * ```typescript
-   * const stats = logger.getTransportStats();
-   * console.log('Transport statistics:', stats);
-   * // {
-   * //   'console': { processed: 1000, errors: 0, lastError: null },
-   * //   'file': { processed: 1000, errors: 2, lastError: 'ENOSPC' }
-   * // }
-   * ```
    */
   public getTransportStats(): Record<string, unknown> {
     return this.transportManager.getStats();
@@ -886,20 +802,8 @@ export class Logger {
 
   /**
    * Closes the logger and all transports.
-   * Ensures all pending logs are flushed and resources are cleaned up.
-   * 
    * @public
    * @async
-   * @returns {Promise<void>} Resolves when logger and all transports are closed
-   * 
-   * @example
-   * ```typescript
-   * // Graceful shutdown
-   * process.on('SIGTERM', async () => {
-   *   await logger.close();
-   *   process.exit(0);
-   * });
-   * ```
    */
   public async close(): Promise<void> {
     await this.transportManager.close();
@@ -917,21 +821,8 @@ export class Logger {
 
   /**
    * Logs a custom message with custom colors (legacy method).
-   * Primarily used for backward compatibility with older versions.
-   * 
    * @public
-   * @param {string} msg - The message to log
-   * @param {ColorName[]} [colors=['white']] - Array of color/style names
-   * @param {string} [prefix='LOG'] - The prefix to use
-   * @returns {void}
-   * 
    * @deprecated Use standard log methods with transports for better control
-   * 
-   * @example
-   * ```typescript
-   * logger.custom('Important message', ['red', 'bold'], 'ALERT');
-   * logger.custom('Debug info', ['gray'], 'DEBUG');
-   * ```
    */
   public custom(msg: string, colors: ColorName[] = ['white'], prefix = 'LOG'): void {
     if (this.useLegacyOutput) {
@@ -944,20 +835,8 @@ export class Logger {
 
   /**
    * Logs a message with a preset style (legacy method).
-   * Maps preset styles to standard log levels where possible.
-   * 
    * @public
-   * @param {string} msg - The message to log
-   * @param {StylePreset} preset - The preset style to apply
-   * @returns {void}
-   * 
    * @deprecated Use standard log methods for better consistency
-   * 
-   * @example
-   * ```typescript
-   * logger.styled('Server ready', 'success');
-   * logger.styled('Configuration loaded', 'highlight');
-   * ```
    */
   public styled(msg: string, preset: StylePreset): void {
     if (this.useLegacyOutput) {
@@ -984,18 +863,7 @@ export class Logger {
 
   /**
    * Prints a section header (legacy method).
-   * Creates a visually prominent header in the console output.
-   * 
    * @public
-   * @param {string} title - The header title
-   * @param {ColorName[]} [colors=['brightWhite', 'bgBlue', 'bold']] - Optional custom colors
-   * @returns {void}
-   * 
-   * @example
-   * ```typescript
-   * logger.header('Application Configuration');
-   * logger.header('Test Results', ['green', 'bold']);
-   * ```
    */
   public header(title: string, colors: ColorName[] = ['brightWhite', 'bgBlue', 'bold']): void {
     // Always use console for visual elements
@@ -1004,23 +872,10 @@ export class Logger {
 
   /**
    * Prints a table from an array of objects (legacy method).
-   * Creates a formatted table in the console output.
-   * 
    * @public
-   * @param {Record<string, unknown>[]} data - Array of objects to display
-   * @param {ColorName[]} [headerColor=['brightWhite', 'bold']] - Optional color for the header row
-   * @returns {void}
-   * 
-   * @example
-   * ```typescript
-   * logger.table([
-   *   { name: 'John', age: 30, city: 'New York' },
-   *   { name: 'Jane', age: 25, city: 'London' }
-   * ]);
-   * ```
    */
   public table(data: Record<string, unknown>[], headerColor: ColorName[] = ['brightWhite', 'bold']): void {
-    // Avoid printing when there is no data to display (Logger-level behavior)
+    // Avoid printing when there is no data to display
     if (!Array.isArray(data) || data.length === 0) {
       return;
     }
@@ -1030,23 +885,7 @@ export class Logger {
 
   /**
    * Prints a progress bar (legacy method).
-   * Displays a visual progress indicator in the console.
-   * 
    * @public
-   * @param {number} progress - Current progress (0-100)
-   * @param {number} [length=20] - Length of the progress bar in characters
-   * @param {string} [completeChar='█'] - Character for completed portion
-   * @param {string} [incompleteChar='░'] - Character for incomplete portion
-   * @returns {void}
-   * 
-   * @example
-   * ```typescript
-   * // Show 75% progress
-   * logger.progressBar(75);
-   * 
-   * // Custom progress bar
-   * logger.progressBar(50, 30, '=', '-');
-   * ```
    */
   public progressBar(progress: number, length = 20, completeChar = '█', incompleteChar = '░'): void {
     // Always use console for visual elements
@@ -1055,21 +894,10 @@ export class Logger {
 
   /**
    * Logs a clickable link (legacy method).
-   * Creates a clickable link in terminals that support it.
-   * 
    * @public
-   * @param {string} url - The URL or file path to link
-   * @param {string} [description] - Optional description text
-   * @returns {void}
-   * 
-   * @example
-   * ```typescript
-   * logger.link('https://github.com/user/repo');
-   * logger.link('file:///var/log/app.log', 'View log file');
-   * ```
    */
   public link(url: string, description?: string): void {
-    // Normalize Windows paths (convert backslashes to forward slashes)
+    // Normalize Windows paths
     if (typeof url === 'string' && /[A-Za-z]:\\/.test(url)) {
       url = url.replace(/\\/g, '/');
     }
@@ -1082,20 +910,7 @@ export class Logger {
 
   /**
    * Creates a reusable color function (legacy method).
-   * Returns a function that applies the specified colors to text.
-   * 
    * @public
-   * @param {...ColorName[]} colors - Array of color/style names
-   * @returns {(text: string) => string} Function that applies colors to text
-   * 
-   * @example
-   * ```typescript
-   * const errorStyle = logger.color('red', 'bold');
-   * console.log(errorStyle('Error:'), 'Something went wrong');
-   * 
-   * const highlight = logger.color('yellow', 'bgBlack');
-   * console.log(highlight('Important notice'));
-   * ```
    */
   public color(...colors: ColorName[]): (text: string) => string {
     return (text: string) => {
@@ -1121,23 +936,8 @@ export class Logger {
 
   /**
    * Applies different colors to specific parts of a message (legacy method).
-   * Allows fine-grained control over text coloring.
-   * 
    * @public
-   * @param {string} message - The full message
-   * @param {Record<string, ColorName[]>} colorMap - Object mapping text parts to color arrays
-   * @returns {string} The message with colors applied
-   * 
-   * @example
-   * ```typescript
-   * const colored = logger.colorParts('Status: OK, Errors: 0', {
-   *   'Status:': ['blue', 'bold'],
-   *   'OK': ['green'],
-   *   'Errors:': ['red', 'bold'],
-   *   '0': ['green']
-   * });
-   * console.log(colored);
-   * ```
+   * @deprecated Use parts() or styleByIndex() for better control
    */
   public colorParts(message: string, colorMap: Record<string, ColorName[]>): string {
     if (message === null) {
@@ -1176,10 +976,7 @@ export class Logger {
   
   /**
    * Escape special characters for regex.
-   * 
    * @private
-   * @param {string} string - String to escape
-   * @returns {string} Escaped string
    */
   private escapeRegExp(string: string): string {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -1187,10 +984,7 @@ export class Logger {
 
   /**
    * Preserve links in text by formatting them with ANSI codes.
-   * 
    * @public
-   * @param {string} text - Text possibly containing links
-   * @returns {string} Text with preserved/formatted links
    */
   public preserveLinks(text: string): string {
     if (!this.formatter) {
@@ -1201,22 +995,7 @@ export class Logger {
 
   /**
    * Sets verbose mode for the logger.
-   * When enabled, debug messages are shown.
-   * 
    * @public
-   * @param {boolean} enabled - Whether to enable verbose mode
-   * @returns {void}
-   * 
-   * @example
-   * ```typescript
-   * // Enable verbose logging
-   * logger.setVerbose(true);
-   * logger.debug('This will now be visible');
-   * 
-   * // Disable verbose logging
-   * logger.setVerbose(false);
-   * logger.debug('This will not be visible');
-   * ```
    */
   public setVerbose(enabled: boolean): void {
     this.loggerInstance.setVerbose(enabled);
@@ -1233,38 +1012,24 @@ export class Logger {
 
   /**
    * Enables or disables color output.
-   * Affects console output and legacy logging methods.
-   * 
    * @public
-   * @param {boolean} enabled - Whether to enable colors
-   * @returns {void}
-   * 
-   * @example
-   * ```typescript
-   * // Disable colors (useful for log files or CI environments)
-   * logger.setColorsEnabled(false);
-   * 
-   * // Re-enable colors
-   * logger.setColorsEnabled(true);
-   * ```
    */
   public setColorsEnabled(enabled: boolean): void {
     this.loggerInstance.setColorsEnabled(enabled);
+    
+    // Update style builders
+    if (this.styleBuilder) {
+      this.styleBuilder = new StyleBuilder(enabled);
+    }
+    if (this.templateParser) {
+      this.templateParser = new TemplateParser(enabled);
+      this.templateFormatter = this.templateParser.createFormatter();
+    }
   }
 
   /**
    * Gets the current theme configuration.
-   * Themes define color schemes for different log elements.
-   * 
    * @public
-   * @returns {Record<string, ColorName[]>} Current theme configuration
-   * 
-   * @example
-   * ```typescript
-   * const theme = logger.theme;
-   * console.log('Info colors:', theme.info);
-   * // Output: ['blue']
-   * ```
    */
   public get theme(): Record<string, ColorName[]> {
     return (this.loggerInstance as LoggerBase).getTheme();
@@ -1272,21 +1037,7 @@ export class Logger {
 
   /**
    * Sets or replaces the theme configuration.
-   * Allows customization of colors for different log levels and elements.
-   * 
    * @public
-   * @param {Record<string, unknown>} theme - The theme definition
-   * @returns {void}
-   * 
-   * @example
-   * ```typescript
-   * logger.setTheme({
-   *   info: ['cyan'],
-   *   success: ['green', 'bold'],
-   *   error: ['red', 'underline'],
-   *   warning: ['yellow', 'bgBlack']
-   * });
-   * ```
    */
   public setTheme(theme: Record<string, unknown>): void {
     const validated: Record<string, ColorName[]> = {};
@@ -1297,6 +1048,30 @@ export class Logger {
       }
     }
     (this.loggerInstance as LoggerBase).setTheme(validated);
+  }
+
+  /**
+   * Gets the current theme object (convenience for tests/integration).
+   * @public
+   */
+  public getTheme(): Record<string, ColorName[]> {
+    return (this.loggerInstance as LoggerBase).getTheme();
+  }
+
+  /**
+   * Creates a child logger with merged options (delegates to underlying logger).
+   * @public
+   */
+  public child(options: Partial<LoggerOptions>): Logger {
+    const base = this.loggerInstance as unknown as { child: (opts: Partial<LoggerOptions>) => LoggerBase };
+    const childImpl = base.child(options);
+    // Wrap the child implementation in a new Logger facade reusing transports/options
+    const facade = new Logger(this.options);
+    // Replace the internal instance with the concrete child
+    (facade as unknown as { loggerInstance: LoggerBase }).loggerInstance = childImpl as LoggerBase;
+    // Reuse the existing transport manager configuration
+    (facade as unknown as { transportManager: TransportManager }).transportManager = this.transportManager;
+    return facade;
   }
 
   // ============================================================
@@ -1333,10 +1108,6 @@ export class Logger {
   /**
    * Gets the log retention days setting (Node.js only).
    * @returns {number} Number of days to retain logs
-   * 
-   * @example
-   * // Example:
-   * // const days = logger.logRetentionDays;
    */
   public get logRetentionDays(): number {
     if (this.loggerInstance instanceof NodeLogger) {
@@ -1376,42 +1147,34 @@ export class Logger {
 
   /**
    * Applies colors to text using ANSI escape codes.
-   * Internal method exposed for compatibility.
-   * 
    * @public
-   * @param {string} text - Text to colorize
-   * @param {ColorName[]} colors - Array of color names
-   * @returns {string} Colored text
    */
   public colorize(text: string, colors: ColorName[]): string {
-    if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'test') {
-      console.log(`[LOGGER DEBUG] colorize called with text: "${text}", colors:`, colors, 'useColors:', this.useColors);
-    }
     try {
-      const result = Colorizer.applyColors(text, colors, this.useColors);
-      if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'test') {
-        console.log(`[LOGGER DEBUG] colorize result: "${result}"`);
+      const out = Colorizer.applyColors(text, colors, this.useColors);
+      // If colors are enabled but no ANSI was produced, try applying
+      // fallbacks for unsupported styles (e.g., italic->dim/normal, strikethrough->underline/normal)
+      if (this.useColors && typeof out === 'string' && out === text) {
+        const replaced: ColorName[] = colors.map(c => {
+          // Reuse Colorizer's internal fallback which consults terminal utils
+          const fb = (Colorizer as unknown as { getFallbackStyleInternal?: (s: string)=>string }).getFallbackStyleInternal?.(String(c))
+            || String(c);
+          return fb as ColorName;
+        });
+        const retry = Colorizer.applyColors(text, replaced, this.useColors);
+        return retry;
       }
-      return result;
+      return out;
     } catch (error) {
-      if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'test') {
-        console.log(`[LOGGER DEBUG] colorize error:`, error);
-      }
       return text;
     }
   }
 
   /**
    * Applies a preset style to text.
-   * Internal method exposed for compatibility.
-   * 
    * @public
-   * @param {string} text - Text to style
-   * @param {StylePreset} preset - Style preset to apply
-   * @returns {string} Styled text
    */
   public applyPreset(text: string, preset: StylePreset): string {
-    // Use the Colorizer class that was imported at the top
     if (this.useColors) {
       return Colorizer.applyPreset(text, preset, this.useColors);
     }
@@ -1420,11 +1183,7 @@ export class Logger {
 
   /**
    * Normalizes path separators to use forward slashes.
-   * Instance method for backward compatibility.
-   * 
    * @public
-   * @param {string} path - Path to normalize
-   * @returns {string} Normalized path with forward slashes
    */
   public normalizePath(path: string): string {
     return Logger.normalizePath(path);
@@ -1432,10 +1191,7 @@ export class Logger {
 
   /**
    * Initializes log file (Node.js only).
-   * Internal method exposed for compatibility.
-   * 
    * @public
-   * @returns {void}
    */
   public initLogFile(): void {
     if (this.loggerInstance instanceof NodeLogger) {
@@ -1451,10 +1207,7 @@ export class Logger {
 
   /**
    * Cleans up old log files (Node.js only).
-   * Internal method exposed for compatibility.
-   * 
    * @public
-   * @returns {void}
    */
   public cleanupOldLogs(): void {
     if (this.loggerInstance instanceof NodeLogger) {
@@ -1468,18 +1221,7 @@ export class Logger {
 
   /**
    * Gets the current log file path (Node.js only).
-   * Returns null if file logging is not enabled or in browser environment.
-   * 
    * @public
-   * @returns {string | null} The log file path or null
-   * 
-   * @example
-   * ```typescript
-   * const logPath = logger.getPath();
-   * if (logPath) {
-   *   console.log('Logging to:', logPath);
-   * }
-   * ```
    */
   public getPath(): string | null {
     if (this.loggerInstance instanceof NodeLogger) {
@@ -1491,43 +1233,28 @@ export class Logger {
 
   /**
    * Gets the current log directory (Node.js only).
-   * Returns the configured directory path for log files.
-   * 
    * @public
-   * @returns {string} The configured log directory
-   * 
-   * @example
-   * ```typescript
-   * const logDir = logger.getLogDir();
-   * console.log('Log directory:', logDir);
-   * // Output: './logs' or configured path
-   * ```
    */
   public getLogDir(): string {
-    if (this.loggerInstance instanceof NodeLogger) {
-      const nodeLogger = this.loggerInstance as NodeLogger;
-      return nodeLogger.getLogDirectory();
-    }
+    type MaybeNodeLike = {
+      getLogDirectory?: () => string;
+      logDir?: string;
+    };
+    const inst = this.loggerInstance as unknown as MaybeNodeLike;
+    try {
+      if (inst && typeof inst.getLogDirectory === 'function') {
+        return inst.getLogDirectory();
+      }
+      if (inst && typeof inst.logDir === 'string') {
+        return inst.logDir;
+      }
+    } catch { /* ignore */ }
     return 'logs';
   }
 
   /**
    * Sets the log directory (Node.js only).
-   * Changes where log files are stored on disk.
-   * 
    * @public
-   * @param {string} dir - New log directory path
-   * @param {boolean} [reinitialize=false] - Whether to reinitialize the log file
-   * @returns {void}
-   * 
-   * @example
-   * ```typescript
-   * // Change log directory
-   * logger.setLogDir('/var/log/myapp');
-   * 
-   * // Change and reinitialize
-   * logger.setLogDir('./logs/production', true);
-   * ```
    */
   public setLogDir(dir: string, reinitialize = false): void {
     // Validate input and provide fallback
@@ -1536,18 +1263,29 @@ export class Logger {
       dir = './logs';
     }
     
-    if (this.loggerInstance instanceof NodeLogger) {
+    type MaybeNodeLike = {
+      setLogDirectory?: (d: string, reinit?: boolean) => void;
+      logDir?: string;
+    };
+    const inst = this.loggerInstance as unknown as MaybeNodeLike;
+    if (inst) {
+      // Prefer calling implementation method if available
+      if (typeof inst.setLogDirectory === 'function') {
+        try { inst.setLogDirectory(dir, reinitialize); } catch { /* ignore */ }
+      }
+
+      // Ensure a FileManager exists and update its dir
       const nodeLogger = this.loggerInstance as unknown as ExtendedNodeLogger;
       if (!nodeLogger.fileManager) {
         nodeLogger.fileManager = new FileManager(dir, nodeLogger.logRetentionDays || 30) as ExtendedNodeLogger['fileManager'];
       } else {
-        nodeLogger.fileManager.setLogDir(dir);
+        try { nodeLogger.fileManager.setLogDir(dir); } catch { /* ignore */ }
       }
 
+      // Keep logDir property in sync so getLogDir() reflects the change
+  try { inst.logDir = dir; } catch { /* ignore */ }
+
       if (reinitialize && nodeLogger.writeToDisk && nodeLogger.fileManager) {
-        // Force a brand‑new initialization so fs.writeFileSync is invoked again.
-        // We do this by clearing the internal cached logFile so FileManager will always
-        // create a fresh file instead of returning the previous one.
         try {
           const fm = nodeLogger.fileManager as unknown as {
             initLogFile?: () => Promise<string | null>;
@@ -1555,10 +1293,9 @@ export class Logger {
             getLogFile?: () => string | null;
           } & { logFile?: string | null };
 
-          // Clear any previously cached log file so init always performs a new write
+          // Clear any previously cached log file
           if ('logFile' in fm) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (fm as any).logFile = null;
+            Reflect.set(fm as object, 'logFile', null);
           }
 
           let syncResult: string | null | undefined;
@@ -1584,15 +1321,7 @@ export class Logger {
 
   /**
    * Gets the log retention period in days (Node.js only).
-   * Returns the number of days log files are kept before deletion.
-   * 
    * @public
-   * @returns {number} Number of days to retain logs
-   * 
-   * @example
-   * // Example:
-   * // const retention = logger.getLogRetentionDays();
-   * // console.log('Logs are kept for ' + retention + ' days');
    */
   public getLogRetentionDays(): number {
     if (this.loggerInstance instanceof NodeLogger) {
@@ -1604,24 +1333,10 @@ export class Logger {
 
   /**
    * Sets the log retention period in days (Node.js only).
-   * Configures how long log files are kept before automatic deletion.
-   * 
    * @public
-   * @param {number} days - Number of days to retain logs (minimum: 1)
-   * @param {boolean} [cleanNow=false] - Whether to clean old logs immediately
-   * @returns {void}
-   * 
-   * @example
-   * ```typescript
-   * // Set 7-day retention
-   * logger.setLogRetentionDays(7);
-   * 
-   * // Set retention and clean immediately
-   * logger.setLogRetentionDays(3, true);
-   * ```
    */
   public setLogRetentionDays(days: number, cleanNow = false): void {
-    // Validate days parameter - minimum 1 day, must be finite
+    // Validate days parameter
     let validDays = 1;
     if (typeof days === 'number' && isFinite(days) && days > 0) {
       validDays = Math.max(1, Math.floor(days));
@@ -1633,10 +1348,8 @@ export class Logger {
 
     if (this.loggerInstance instanceof NodeLogger) {
       const nodeLogger = this.loggerInstance as NodeLogger;
-      // Set retention days without cleaning now - we'll handle cleanup separately
       nodeLogger.setLogRetentionDays(validDays, false);
       
-      // Handle cleanup at Logger level so spy can catch it
       if (cleanNow) {
         this.cleanupOldLogs();
       }
@@ -1645,37 +1358,21 @@ export class Logger {
 
   /**
    * Enables or disables file logging (Node.js only).
-   * Controls whether logs are written to disk in addition to other transports.
-   * 
    * @public
-   * @param {boolean} enabled - Whether to enable file logging
-   * @returns {void}
-   * 
-   * @example
-   * ```typescript
-   * // Enable file logging
-   * logger.setFileLogging(true);
-   * 
-   * // Disable file logging
-   * logger.setFileLogging(false);
-   * ```
    */
   public setFileLogging(enabled: boolean): void {
-    // Primary path: NodeLogger instance
     if (this.loggerInstance instanceof NodeLogger) {
       const nodeLogger = this.loggerInstance as unknown as ExtendedNodeLogger;
       if (!enabled) {
-        // Disabling: mark off and clear any cached logFile so re‑enable triggers a brand new write
         nodeLogger.writeToDisk = false;
-        if (nodeLogger.fileManager) {
+    if (nodeLogger.fileManager) {
           try {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (nodeLogger.fileManager as any).logFile = null;
+      Reflect.set(nodeLogger.fileManager as object, 'logFile', null);
           } catch { /* ignore */ }
         }
         return;
       }
-      // Enabling: don't mark true until init completes
+      
       nodeLogger.writeToDisk = false;
 
       if (enabled) {
@@ -1692,11 +1389,11 @@ export class Logger {
             initLogFile?: () => Promise<string | null>;
           };
           try {
-            // Always clear existing cached file so a fresh file is created and fs.writeFileSync is called
+            // Clear cached file
             try {
-              // Cast to unknown then to a shape that includes optional logFile for internal reset
-              (fm as unknown as { logFile?: string | null }).logFile = null;
+              Reflect.set(fm as object, 'logFile', null);
             } catch { /* ignore */ }
+            
             let syncResult: string | null | undefined;
             if (typeof fm.initLogFileSync === 'function') {
               syncResult = fm.initLogFileSync();
@@ -1713,7 +1410,7 @@ export class Logger {
               });
             }
             if (syncResult === undefined && typeof fm.initLogFileSync !== 'function' && typeof fm.initLogFile !== 'function') {
-              nodeLogger.writeToDisk = true; // If no init methods, assume enabled
+              nodeLogger.writeToDisk = true;
             }
           } catch (err) {
             console.error('Failed to initialize log file:', err);
@@ -1724,10 +1421,10 @@ export class Logger {
       return;
     }
 
-    // Fallback path: tests may inject a mock fileManager on a non-NodeLogger instance
-    const anyLogger = this.loggerInstance as unknown as { fileManager?: unknown };
+    // Fallback path for tests
+    const anyLogger = this.loggerInstance as unknown as { fileManager?: { initLogFileSync?: () => void; initLogFile?: () => Promise<void> } };
     if (enabled && anyLogger?.fileManager) {
-      const fm = anyLogger.fileManager as {
+      const fm: { initLogFileSync?: () => void; initLogFile?: () => Promise<void> } = anyLogger.fileManager as {
         initLogFileSync?: () => void;
         initLogFile?: () => Promise<void>;
       };
@@ -1751,19 +1448,7 @@ export class Logger {
 
   /**
    * Gets all stored logs from browser storage (browser only).
-   * Returns null in Node.js environment.
-   * 
    * @public
-   * @returns {string[] | null} Array of log entries or null
-   * 
-   * @example
-   * ```typescript
-   * const logs = logger.getLogs();
-   * if (logs) {
-   *   console.log(`Found ${logs.length} stored logs`);
-   *   logs.forEach(log => console.log(log));
-   * }
-   * ```
    */
   public getLogs(): string[] | null {
     if (typeof window !== 'undefined' && this.loggerInstance instanceof BrowserLogger) {
@@ -1774,17 +1459,7 @@ export class Logger {
 
   /**
    * Clears all stored logs from browser storage (browser only).
-   * No effect in Node.js environment.
-   * 
    * @public
-   * @returns {void}
-   * 
-   * @example
-   * ```typescript
-   * // Clear browser log storage
-   * logger.clearLogs();
-   * console.log('Browser logs cleared');
-   * ```
    */
   public clearLogs(): void {
     if (typeof window !== 'undefined' && this.loggerInstance instanceof BrowserLogger) {
@@ -1794,20 +1469,7 @@ export class Logger {
 
   /**
    * Downloads stored logs as a text file (browser only).
-   * Triggers a file download in the browser with all stored logs.
-   * 
    * @public
-   * @param {string} [filename='logs.txt'] - The filename to use for download
-   * @returns {void}
-   * 
-   * @example
-   * ```typescript
-   * // Download logs with default filename
-   * logger.downloadLogs();
-   * 
-   * // Download with custom filename
-   * logger.downloadLogs('debug-logs-2023-01-01.txt');
-   * ```
    */
   public downloadLogs(filename = 'logs.txt'): void {
     if (typeof window !== 'undefined' && this.loggerInstance instanceof BrowserLogger) {
@@ -1817,20 +1479,7 @@ export class Logger {
 
   /**
    * Enables or disables browser storage (browser only).
-   * Controls whether logs are stored in browser localStorage.
-   * 
    * @public
-   * @param {boolean} enabled - Whether to enable browser storage
-   * @returns {void}
-   * 
-   * @example
-   * ```typescript
-   * // Enable browser storage
-   * logger.setStorageEnabled(true);
-   * 
-   * // Disable browser storage (for sensitive environments)
-   * logger.setStorageEnabled(false);
-   * ```
    */
   public setStorageEnabled(enabled: boolean): void {
     if (typeof window !== 'undefined' && this.loggerInstance instanceof BrowserLogger) {
@@ -1844,18 +1493,8 @@ export class Logger {
 
   /**
    * Normalizes path separators to use forward slashes.
-   * Ensures consistent path handling across platforms.
-   * 
    * @static
    * @public
-   * @param {string} path - Path to normalize
-   * @returns {string} Normalized path with forward slashes
-   * 
-   * @example
-   * ```typescript
-   * const normalized = Logger.normalizePath('C:\\Users\\John\\logs');
-   * // Returns: 'C:/Users/John/logs'
-   * ```
    */
   public static normalizePath(path: string): string {
     if (!path) return path;
@@ -1863,19 +1502,9 @@ export class Logger {
   }
 
   /**
-   * Normalizes line endings to LF (\\n).
-   * Ensures consistent line endings across platforms.
-   * 
+   * Normalizes line endings to LF (\n).
    * @static
    * @public
-   * @param {string} text - Text to normalize
-   * @returns {string} Text with normalized line endings
-   * 
-   * @example
-   * ```typescript
-   * const normalized = Logger.normalizeLineEndings('Hello\r\nWorld\r\n');
-   * // Returns: 'Hello\nWorld\n'
-   * ```
    */
   public static normalizeLineEndings(text: string): string {
     if (!text || typeof text !== 'string') return text;
@@ -1884,27 +1513,15 @@ export class Logger {
 
   /**
    * Checks if a string looks like a URL or file path.
-   * Used for automatic link detection in log messages.
-   * 
    * @static
    * @public
-   * @param {string} text - Text to check
-   * @returns {boolean} True if text appears to be a link or path
-   * 
-   * @example
-   * ```typescript
-   * Logger.isLinkLike('https://example.com'); // true
-   * Logger.isLinkLike('file:///home/user/file.txt'); // true
-   * Logger.isLinkLike('/var/log/app.log'); // true
-   * Logger.isLinkLike('Just a normal message'); // false
-   * ```
    */
   public static isLinkLike(text: string): boolean {
-    // Handle non-string inputs first
-    if (typeof text !== 'string') return false;
-    if (text === null || text === undefined) return false;
-    if (text === '') return false;
-    if (text === 'null' || text === 'undefined') return false;
+  if (text == null) return false;
+  if (typeof text !== 'string') return false;
+  if (text.length === 0) return false;
+  // Guard against sentinel stringified values used in tests
+  if (text === 'null' || text === 'undefined') return false;
     
     try {
       return IS_PATH_REGEX.test(text);
@@ -1915,18 +1532,8 @@ export class Logger {
 
   /**
    * Recursively cleans up a directory and its contents.
-   * Used for log directory maintenance and cleanup operations.
-   * 
    * @static
    * @public
-   * @param {string} dir - Directory path to clean
-   * @returns {void}
-   * 
-   * @example
-   * ```typescript
-   * // Clean up old log directory
-   * Logger.cleanupDirectory('./logs/old');
-   * ```
    */
   public static cleanupDirectory(dir: string): void {
     try {
@@ -1955,10 +1562,6 @@ export class Logger {
 // Type Re-exports
 // ============================================================
 
-/**
- * Re-export commonly used types for convenience.
- * This allows users to import types alongside the Logger class.
- */
 export type { 
   LoggerOptions, 
   LogLevel, 
@@ -1968,3 +1571,11 @@ export type {
   TransportOptions,
   LogEntry 
 } from './types';
+
+export type {
+  StyledPart,
+  WordStyleMap,
+  TemplateFormatter,
+  IStyleBuilder,
+  IStylingAPI
+} from './types/styling';

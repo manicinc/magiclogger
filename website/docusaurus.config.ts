@@ -7,7 +7,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 const config: Config = {
   title: 'MagicLogger',
   tagline: 'The most colorful TypeScript/JavaScript logging library 🌈',
-  favicon: 'img/favicon.ico',
+  favicon: 'img/icon/favicon-32x32.png',
 
   // Set the production url of your site here
   url: 'https://manicinc.github.io',
@@ -65,12 +65,15 @@ const config: Config = {
 
   themeConfig: {
     // Replace with your project's social card
-    image: 'img/magiclogger-social-card.jpg',
+  image: 'img/magiclogger-primary-white-4x.png',
     navbar: {
       title: 'MagicLogger',
       logo: {
         alt: 'MagicLogger Logo',
-        src: 'img/logo.svg',
+    // Use transparent variant on light mode and dark variant on dark mode
+    // so the logo is always visible and on-brand
+    src: 'img/magiclogger-primary-no-subtitle-transparent-4x.png',
+    srcDark: 'img/magiclogger-primary-no-subtitle-dark-4x.png',
       },
       items: [
         {

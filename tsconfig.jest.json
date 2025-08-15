@@ -4,12 +4,12 @@
       "module": "CommonJS",
       "moduleResolution": "node",
       "isolatedModules": true,
-      "types": ["node", "jest"],
+    "types": ["node", "jest"],
       "noEmit": true,
       "esModuleInterop": true,
       "allowSyntheticDefaultImports": true,
       "target": "ES2020"
     },
-    "include": ["src/**/*.ts", "tests/**/*.ts"],
+  "include": ["src/**/*.ts", "tests/**/*.ts"],
     "exclude": ["node_modules", "dist"]
   }

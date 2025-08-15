@@ -163,18 +163,17 @@ export abstract class BatchingTransport extends Transport {
     this.currentBatchBytes += entrySize;
     this.queuedEntries++;
 
-    // Update stats
-    this.stats.queued = this.queuedEntries;
-
-    // Start timer if this is the first entry in the batch
-    if (this.currentBatch.length === 1) {
-      this.startBatchTimer();
-    }
+  // Update stats
+  this.stats.queued = this.queuedEntries;
 
     // Check if batch is full
     if (this.currentBatch.length >= this.maxBatchSize || 
         this.currentBatchBytes >= this.maxBatchBytes) {
+      // Hitting size limit: flush immediately and avoid scheduling timer
       await this.flushBatch();
+    } else {
+      // Reset/start timer on adds that don't immediately flush
+      this.startBatchTimer();
     }
   }
 
@@ -228,10 +227,10 @@ export abstract class BatchingTransport extends Transport {
    * @private
    */
   private startBatchTimer(): void {
+    // Always reset the timer to delay flush until maxBatchTime after last add
     if (this.batchTimer) {
-      return;
+      clearTimeout(this.batchTimer);
     }
-
     this.batchTimer = setTimeout(() => {
       this.flushBatch().catch(error => {
         this.handleError(error);
@@ -293,24 +292,26 @@ export abstract class BatchingTransport extends Transport {
       
       try {
         await this.sendBatchWithRetry(batch);
-        
-        // Update stats
+
+        // Update stats on success
         this.queuedEntries -= batch.length;
         this.stats.queued = this.queuedEntries;
-        
+        this.stats.succeeded += batch.length;
+        this.stats.lastSuccess = new Date();
       } catch (error) {
         // Put batch back at front of queue for retry
         if (this.retryOnFailure) {
           this.sendQueue.unshift(batch);
         } else {
-          // Update failed stats
+          // Update failed stats when not retrying
           this.queuedEntries -= batch.length;
           this.stats.queued = this.queuedEntries;
           this.stats.failed += batch.length;
         }
-        
+
         this.handleError(error as Error);
-        break; // Stop processing on error
+        // If retrying, stop to respect backoff handled in sendBatchWithRetry flow
+        if (this.retryOnFailure) break;
       }
     }
 

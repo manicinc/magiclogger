@@ -782,6 +782,28 @@ abstract class BatchingTransport extends Transport {
 }
 ```
 
+### Transport Registry and entrypoints
+
+MagicLogger exposes a central TransportRegistry to decouple discovery from usage. Transports register themselves by a stable key at load time. This enables both dynamic lookups (by name) and explicit, tree-shakeable imports.
+
+Key points:
+- Registration: a transport implementation calls `TransportRegistry.register('console', factory)` or similar during its entrypoint module init.
+- Lookup: the core can construct transports from config via `TransportRegistry.create('console', opts)` when desired.
+- Tree shaking: each transport has a dedicated ESM entrypoint under `magiclogger/transports/<name>`. Importing that file pulls in only the code you need.
+
+Example (OTLP):
+```ts
+import { OTLPTransport, createOTLPTransport } from 'magiclogger/transports/otlp';
+// Direct instantiation
+const t = new OTLPTransport({ endpoint: 'https://otlp.example.com/v1/logs', serviceName: 'api' });
+// Or factory helper with sane defaults
+const t2 = createOTLPTransport({ endpoint: 'https://otlp.example.com/v1/logs', serviceName: 'api' });
+```
+
+Build and packaging:
+- tsup bundles a separate "transports/otlp" artifact; package.json exports map includes "./transports/otlp".
+- Consumers can import only what they use, keeping bundles small. The top-level `./transports` barrel still exists for convenience when size is less critical.
+
 ### Error Handling
 
 Transports handle errors gracefully:
