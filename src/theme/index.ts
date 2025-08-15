@@ -122,8 +122,8 @@ if (isBrowserEnvironment()) {
     if (!fs || !path) {
       const fallbackCount = Object.keys(THEMES_FALLBACK || {}).length;
       warnTheme(
-        '[ThemeManager] No filesystem access (fs/path unavailable).',
-        `Falling back to bundled themes (${fallbackCount}) or built-in default. ` +
+        '[ThemeManager] Theme file not found',
+        `fs/path unavailable. Falling back to bundled themes (${fallbackCount}) or built-in default. ` +
           `This is expected under ESM/tsx or in the browser. ` +
           `To silence this info, set MAGICLOGGER_SILENCE_THEME_WARNINGS=1.`
       );
@@ -166,8 +166,8 @@ if (isBrowserEnvironment()) {
     } else {
       const fallbackCount = Object.keys(THEMES_FALLBACK || {}).length;
       warnTheme(
-        '[ThemeManager] themes.json not found on disk.',
-        `Falling back to bundled themes (${fallbackCount}) or built-in default. ` +
+        '[ThemeManager] Theme file not found',
+        `themes.json not found on disk. Falling back to bundled themes (${fallbackCount}) or built-in default. ` +
           `Place a valid themes.json in your project to load custom themes. ` +
           `To silence this info, set MAGICLOGGER_SILENCE_THEME_WARNINGS=1.`
       );
