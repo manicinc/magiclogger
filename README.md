@@ -275,17 +275,13 @@ logger.success('<green.bold>✓</> Deployment to <blue>production</> complete');
 ### Style Reference
 
 #### Colors
-- **Foreground**: `black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`, `gray`, `brightBlack`
-- **Bright**: `brightRed`, `brightGreen`, `brightYellow`, `brightBlue`, `brightMagenta`, `brightCyan`, `brightWhite`
-- **Background**: `bgBlack`, `bgRed`, `bgGreen`, `bgYellow`, `bgBlue`, `bgMagenta`, `bgCyan`, `bgWhite`, `bgGray`
-- **Bright Backgrounds**: `bgBrightBlack`, `bgBrightRed`, `bgBrightGreen`, `bgBrightYellow`, `bgBrightBlue`, `bgBrightMagenta`, `bgBrightCyan`, `bgBrightWhite`
-
-Extra popular colors (aliases or ANSI-256 picks with graceful fallbacks):
-- `orange` (`brightOrange`), `purple` (`brightPurple`), `teal` (`brightTeal`), `pink` (`brightPink`), `brown` (`brightBrown`), `indigo` (`brightIndigo`), `lime` (`brightLime`)
-- Background variants: `bgOrange`, `bgPurple`, `bgTeal`, `bgPink`, `bgBrown`, `bgIndigo`, `bgLime` and corresponding `bgBright*` variants.
+- Foreground: `black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`, `gray`, `orange`, `purple`, `teal`, `pink`, `brown`, `indigo`, `lime`
+- Bright (foreground): `brightRed`, `brightGreen`, `brightYellow`, `brightBlue`, `brightMagenta`, `brightCyan`, `brightWhite`, `brightOrange`, `brightPurple`, `brightTeal`, `brightPink`, `brightBrown`, `brightIndigo`, `brightLime`, `brightBlack`
+- Background: `bgBlack`, `bgRed`, `bgGreen`, `bgYellow`, `bgBlue`, `bgMagenta`, `bgCyan`, `bgWhite`, `bgGray`, `bgOrange`, `bgPurple`, `bgTeal`, `bgPink`, `bgBrown`, `bgIndigo`, `bgLime`
+- Bright backgrounds: `bgBrightBlack`, `bgBrightRed`, `bgBrightGreen`, `bgBrightYellow`, `bgBrightBlue`, `bgBrightMagenta`, `bgBrightCyan`, `bgBrightWhite`, `bgBrightOrange`, `bgBrightPurple`, `bgBrightTeal`, `bgBrightPink`, `bgBrightBrown`, `bgBrightIndigo`, `bgBrightLime`
 
 #### Modifiers
-- **Styles**: `bold`, `dim`, `italic`, `underline`, `blink`, `reverse`, `hidden`, `strikethrough`
+- Styles: `bold`, `dim`, `italic`, `underline`, `blink`, `reverse`, `hidden`, `strikethrough`
 
 ---
 
@@ -412,6 +408,12 @@ Available out of the box:
 - Stream (`StreamTransport`)
 - S3 (`S3Transport`)
 - MongoDB (`MongoDBTransport`)
+- OpenTelemetry OTLP (`OTLPTransport`)
+
+Notes
+- Core behavior: If you do not configure any transports, MagicLogger still writes to the console via its legacy output; this ensures you see logs during development. To automatically add console (and optional file) as managed transports, pass `{ useDefaultTransports: true }`.
+- Tree‑shaking: Importing from `magiclogger/transports` re‑exports all transport classes; for optimal tree‑shaking, prefer per‑transport imports like `magiclogger/transports/http`.
+- Core vs. extras: The Console transport is commonly used and can be auto‑enabled via `useDefaultTransports`. Other transports are opt‑in and only included in your bundle when you import/use them.
 
 Usage example:
 

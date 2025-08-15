@@ -81,7 +81,9 @@ describe('Logger Output Methods', () => {
     // Verify headers were printed
     expect(consoleSpy).toHaveBeenCalledTimes(3);
     expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Short'));
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('This is a medium length header'));
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining('This is a medium length header')
+    );
     expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('This is a very long header'));
 
     consoleSpy.mockRestore();
@@ -92,19 +94,13 @@ describe('Logger Output Methods', () => {
 
     // Test with custom color combinations
     logger.header('Red Header', ['red']);
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Red Header')
-    );
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Red Header'));
 
     logger.header('Green Bold Header', ['green', 'bold']);
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Green Bold Header')
-    );
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Green Bold Header'));
 
     logger.header('Blue BGWhite Header', ['blue', 'bgWhite']);
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Blue BGWhite Header')
-    );
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Blue BGWhite Header'));
     consoleSpy.mockRestore();
   });
 
@@ -130,17 +126,21 @@ describe('Logger Output Methods', () => {
     logger.progressBar(50, 10, '#', '-');
 
     const ESC = String.fromCharCode(27);
-    const ansiRegex = new RegExp(`${ESC}\\[[0-9;]*m`, 'g');
+    const ansiRegex = new RegExp(ESC + '\\[[0-9;]*m', 'g');
     const strip = (s: string) => s.replace(ansiRegex, '').replace(/\r/g, '').trim();
-  const firstCallArg = strip(stdoutWriteSpy.mock.calls[stdoutWriteSpy.mock.calls.length - 1][0] as string);
-  expect(firstCallArg.replace(/[\[\]]/g, '')).toContain('#####-----');
-  expect(firstCallArg).toMatch(/#####-----\s*50\.0%/);
+    const firstCallArg = strip(
+      stdoutWriteSpy.mock.calls[stdoutWriteSpy.mock.calls.length - 1][0] as string
+    );
+    expect(firstCallArg.replace(/\[|\]/g, '')).toContain('#####-----');
+    expect(firstCallArg).toMatch(/#####-----\s*50\.0%/);
 
     // Test empty length (should use default)
     stdoutWriteSpy.mockClear();
     logger.progressBar(50, undefined, '#', '-');
-  const secondCallArg = strip(stdoutWriteSpy.mock.calls[stdoutWriteSpy.mock.calls.length - 1][0] as string);
-  expect(secondCallArg.replace(/[\[\]]/g, '')).toContain('##########----------');
+    const secondCallArg = strip(
+      stdoutWriteSpy.mock.calls[stdoutWriteSpy.mock.calls.length - 1][0] as string
+    );
+    expect(secondCallArg.replace(/\[|\]/g, '')).toContain('##########----------');
   });
 
   it('prints newline when progress reaches 100%', () => {
@@ -192,8 +192,11 @@ describe('Logger Output Methods', () => {
     // Should create consistent column widths
     expect(consoleSpy).toHaveBeenCalledWith(
       expect.arrayContaining([
-        expect.objectContaining({ tiny: 'a', huge: 'this is a very long value that should cause wide padding' }),
-        expect.objectContaining({ tiny: 'b', huge: 'short' })
+        expect.objectContaining({
+          tiny: 'a',
+          huge: 'this is a very long value that should cause wide padding',
+        }),
+        expect.objectContaining({ tiny: 'b', huge: 'short' }),
       ]),
       expect.any(Array)
     );
@@ -221,7 +224,7 @@ describe('Logger Output Methods', () => {
       expect.arrayContaining([
         expect.objectContaining({ name: 'URL', path: 'https://example.com' }),
         expect.objectContaining({ name: 'File', path: '/path/to/file.txt' }),
-        expect.objectContaining({ name: 'Not a link', path: 'just text' })
+        expect.objectContaining({ name: 'Not a link', path: 'just text' }),
       ]),
       expect.any(Array)
     );
@@ -268,8 +271,14 @@ describe('Logger Output Methods', () => {
       expect.any(String),
       expect.stringContaining('[TABLE] 2 rows')
     );
-    expect(appendSpy).toHaveBeenCalledWith(expect.any(String), expect.stringMatching(/Row 1.*item1.*100/));
-    expect(appendSpy).toHaveBeenCalledWith(expect.any(String), expect.stringMatching(/Row 2.*item2.*200/));
+    expect(appendSpy).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.stringMatching(/Row 1.*item1.*100/)
+    );
+    expect(appendSpy).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.stringMatching(/Row 2.*item2.*200/)
+    );
 
     appendSpy.mockRestore();
   });
@@ -382,7 +391,7 @@ describe('Logger Output Methods', () => {
     expect(spy).toHaveBeenCalledWith(
       expect.arrayContaining([
         expect.objectContaining({ name: 'short', value: 1 }),
-        expect.objectContaining({ name: 'longerName', value: 2000 })
+        expect.objectContaining({ name: 'longerName', value: 2000 }),
       ]),
       expect.any(Array)
     );
@@ -403,7 +412,7 @@ describe('Logger Output Methods', () => {
     expect(spy).toHaveBeenCalledWith(
       expect.arrayContaining([
         expect.objectContaining({ name: 'URL', value: 'https://example.com' }),
-        expect.objectContaining({ name: 'PATH', value: '/path/to/file.js' })
+        expect.objectContaining({ name: 'PATH', value: '/path/to/file.js' }),
       ]),
       expect.any(Array)
     );
@@ -478,7 +487,7 @@ describe('Logger Output Methods', () => {
     const logger = new Logger({ useColors: true, useLegacyOutput: true });
     const spy = jest.spyOn(Printer, 'print').mockImplementation(() => undefined);
     logger.link('https://example.com', 'Example Website');
-    
+
     // Get all the calls and join them
     const out = spy.mock.calls.map(c => c[0] as string).join('');
     expect(out).toContain('Example Website');
