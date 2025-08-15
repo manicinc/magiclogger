@@ -46,18 +46,11 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           # cache disabled here to avoid requiring pnpm before it's installed
-      - name: Ensure pnpm available (matrix-aware)
+      - name: Ensure pnpm available
         run: |
-          set -e
           echo "Node: $(node -v)"
           corepack enable || true
-          if [ "${{ matrix.node }}" = "16" ]; then
-            echo "Using pnpm@8 for Node 16"
-            corepack prepare pnpm@8.15.4 --activate || npm i -g pnpm@8.15.4
-          else
-            echo "Using pnpm@10 (packageManager)"
-            corepack prepare pnpm@10.14.0 --activate || npm i -g pnpm@10.14.0
-          fi
+          corepack prepare pnpm@10.14.0 --activate || npm i -g pnpm@10.14.0
   # pnpm provided by action above; also see fallback below
       - name: Enable corepack
         run: corepack enable
@@ -108,7 +101,6 @@ jobs:
           # cache disabled here to avoid requiring pnpm before it's installed
       - name: Ensure pnpm available
         run: |
-          set -e
           echo "Node: $(node -v)"
           corepack enable || true
           corepack prepare pnpm@10.14.0 --activate || npm i -g pnpm@10.14.0
