@@ -10,8 +10,8 @@
  *   - TypeScript: npx ts-node examples/animated-demo.ts
  */
 
-import { Logger, COLORS, ColorName, StylePreset } from '../src';
-import { ANSI } from '../src/constants/ansi';
+import { Logger, COLORS, type ColorName, type StylePreset } from 'magiclogger';
+import { ANSI } from 'magiclogger/constants';
 
 // Helper function to pause execution
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));

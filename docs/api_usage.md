@@ -600,6 +600,10 @@ logger.info(`For more information, visit: ${docsUrl}`);
 logger.link(docsUrl);
 ```
 
+## Progress Tracking
+
+MagicLogger supports in-terminal progress rendering in Node environments and provides a browser-safe no-op wrapper in the website demo. Use the progress helpers to show task advancement and finalize cleanly at 100%.
+
 ### Progress Bars
 
 ```typescript

@@ -735,7 +735,8 @@ export class BrowserLogger extends LoggerBase {
     progress: number,
     length = 20,
     completeChar = '█',
-    incompleteChar = '░'
+    incompleteChar = '░',
+    _clear = false
   ): void {
     const percent = Math.min(100, Math.max(0, progress));
     const filled = Math.floor(length * percent / 100);

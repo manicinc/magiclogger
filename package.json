@@ -8,6 +8,10 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "browser": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/browser/index.js"
+      },
       "import": {
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
@@ -272,14 +276,18 @@
     "demo:tree-shaking": "npx tsx examples/tree-shaking-demo.ts",
     "demo:web": "npm run build && node -e \"const fs = require('fs-extra'); fs.copySync('dist', 'examples/web-demo/dist')\" && serve examples/web-demo",
     "docs": "cd website && npm start",
-    "docs:build": "npm run build && cd website && npm install && npm run build",
+  "docs:build": "npm run build && cd website && npm install && npm run build",
+  "docs:build:clean": "npm run clean && npm run build && cd website && rimraf build && npm install && npm run build",
     "docs:serve": "cd website && npm run serve",
+  "docs:start:root": "cd website && npm run start:root",
+  "docs:build:root": "npm run build && cd website && npm install && npm run build:root",
+  "docs:serve:root": "cd website && npm run serve:root",
     "docs:deploy": "cd website && npm run deploy",
     "docs:install": "cd website && npm install",
     "clean": "rimraf dist test_logs .tsbuildinfo",
     "check": "npm run format && npm run lint",
     "dev": "tsup --watch",
-    "build": "npm run clean && tsup",
+  "build": "npm run clean && tsup && tsup --platform=browser --entry.src=src/index.browser.ts",
     "build:analyze": "npm run build && npm run analyze:build",
     "build:examples": "tsup examples/*.ts --format=cjs --outDir=dist/examples",
     "build:examples:esm": "tsup examples/*.ts --format=esm --outDir=dist/examples --outExtension='.mjs'",
@@ -287,6 +295,7 @@
     "test:coverage": "jest --coverage",
     "test:treeshake": "node scripts/test-tree-shaking.js",
     "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\" \"examples/**/*.ts\"",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint:fix": "eslint \"src/**/*.ts\" \"tests/**/*.ts\" \"examples/**/*.ts\" --fix",
     "format": "prettier --write \"src/**/*.{ts,json}\" \"tests/**/*.{ts,json}\" \"examples/**/*.{ts,json}\"",
     "format:check": "prettier --check \"src/**/*.{ts,json}\" \"tests/**/*.{ts,json}\" \"examples/**/*.{ts,json}\"",

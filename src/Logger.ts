@@ -9,19 +9,8 @@ import { Formatter } from './core/Formatter';
 import { StyleBuilder } from './core/StyleBuilder';
 import { TemplateParser } from './parsers/TemplateParser';
 import { TextStyler } from './utils/TextStyler';
-import type { 
-  LoggerOptions, 
-  LogLevel, 
-  StylePreset, 
-  ColorName,
-  LogEntry
-} from './types';
-import type { 
-  StyledPart, 
-  WordStyleMap, 
-  TemplateFormatter,
-  IStyleBuilder 
-} from './types/styling';
+import type { LoggerOptions, LogLevel, StylePreset, ColorName, LogEntry } from './types';
+import type { StyledPart, WordStyleMap, TemplateFormatter, IStyleBuilder } from './types/styling';
 import type { LoggerBase } from './core/LoggerBase';
 import { FileManager } from './core/FileManager';
 import { IS_PATH_REGEX } from './constants/paths';
@@ -44,10 +33,10 @@ if (typeof process !== 'undefined' && typeof require !== 'undefined') {
 
 /**
  * ID generator function type for creating unique log entry identifiers.
- * 
+ *
  * @typedef {Function} IdGenerator
  * @returns {string} A unique identifier string
- * 
+ *
  * @example
  * ```typescript
  * const customIdGenerator: IdGenerator = () => {
@@ -60,7 +49,7 @@ export type IdGenerator = () => string;
 /**
  * Extended logger instance interface with optional close method.
  * Used internally for type augmentation of logger implementations.
- * 
+ *
  * @interface ExtendedLoggerInstance
  * @internal
  */
@@ -75,7 +64,7 @@ interface ExtendedLoggerInstance {
 /**
  * Extended node logger instance interface for file operations.
  * Adds file management capabilities to the base logger interface.
- * 
+ *
  * @interface ExtendedNodeLogger
  * @extends {ExtendedLoggerInstance}
  * @internal
@@ -94,9 +83,9 @@ interface ExtendedNodeLogger extends ExtendedLoggerInstance {
 /**
  * Metadata type for log entries.
  * Can contain any key-value pairs for additional context.
- * 
+ *
  * @typedef {Object} LogMetadata
- * 
+ *
  * @example
  * ```typescript
  * const metadata: LogMetadata = {
@@ -111,16 +100,16 @@ export type LogMetadata = Record<string, unknown>;
 /**
  * Log entry metadata type that can be an Error, metadata object, or object containing an error.
  * Provides flexibility in how errors and metadata are passed to log methods.
- * 
+ *
  * @typedef {LogMetadata | Error | { error?: Error; [key: string]: unknown }} LogEntryMeta
- * 
+ *
  * @example
  * ```typescript
  * // Pass an error directly
  * logger.error('Operation failed', new Error('Connection timeout'));
- * 
+ *
  * // Pass metadata with an error
- * logger.error('Operation failed', { 
+ * logger.error('Operation failed', {
  *   error: new Error('Connection timeout'),
  *   retryCount: 3,
  *   userId: '12345'
@@ -132,7 +121,7 @@ export type LogEntryMeta = LogMetadata | Error | { error?: Error; [key: string]:
 /**
  * Extended logger options that include transport configuration.
  * Extends the base LoggerOptions with transport-specific settings.
- * 
+ *
  * @interface ExtendedLoggerOptions
  * @extends {LoggerOptions}
  */
@@ -167,23 +156,23 @@ export interface ExtendedLoggerOptions extends LoggerOptions {
 
 /**
  * Main Logger class that provides a unified logging interface.
- * 
+ *
  * This class automatically detects the runtime environment (Node.js or Browser)
  * and instantiates the appropriate underlying logger implementation.
  * It manages transports for flexible log delivery to various destinations
  * and provides multiple styling APIs for rich text formatting.
- * 
+ *
  * @class Logger
- * 
+ *
  * @example
  * ```typescript
  * // Basic usage with styling
  * const logger = new Logger({ useColors: true });
- * 
+ *
  * // Standard logging
  * logger.info('Server started');
  * logger.error('Connection failed');
- * 
+ *
  * // Styled logging with multiple APIs
  * logger.info(logger.s.green.bold('✓ Success'));
  * logger.error(logger.fmt`@red.bold{Error:} ${message}`);
@@ -251,15 +240,15 @@ export class Logger {
 
   /**
    * Creates a new Logger instance with the specified options.
-   * 
+   *
    * @constructor
    * @param {ExtendedLoggerOptions | boolean} [options={}] - Logger configuration options or verbose flag
    * @param {boolean} [writeToDisk] - Whether to write to disk (backward compatibility)
    * @param {boolean} [useColors] - Whether to use colors (backward compatibility)
    */
   constructor(
-    options: ExtendedLoggerOptions | boolean = {}, 
-    writeToDisk?: boolean, 
+    options: ExtendedLoggerOptions | boolean = {},
+    writeToDisk?: boolean,
     useColors?: boolean
   ) {
     // Handle backward compatibility with boolean constructor
@@ -285,12 +274,16 @@ export class Logger {
     if (typeof window !== 'undefined') {
       this.loggerInstance = new BrowserLogger(this.options);
     } else {
-      const instance = new NodeLogger(this.options) as unknown as Record<string, unknown> & { constructor?: { name: string } };
+      const instance = new NodeLogger(this.options) as unknown as Record<string, unknown> & {
+        constructor?: { name: string };
+      };
       // If a mock returns a plain object (constructor.name === 'Object'), adjust for tests
       if (instance && instance.constructor && instance.constructor.name === 'Object') {
         // Assign a dummy constructor with the expected name so tests can detect NodeLogger
         Object.defineProperty(instance, 'constructor', {
-          value: function NodeLogger() { /* test shim */ },
+          value: function NodeLogger() {
+            /* test shim */
+          },
           writable: true,
           configurable: true,
         });
@@ -352,7 +345,9 @@ export class Logger {
     // Validate logRetentionDays - must be at least 1
     if (validated.logRetentionDays !== undefined) {
       if (typeof validated.logRetentionDays !== 'number' || validated.logRetentionDays < 1) {
-        console.warn(`[Logger] Invalid logRetentionDays: ${validated.logRetentionDays}. Using default: 30`);
+        console.warn(
+          `[Logger] Invalid logRetentionDays: ${validated.logRetentionDays}. Using default: 30`
+        );
         validated.logRetentionDays = 30;
       }
     }
@@ -398,21 +393,23 @@ export class Logger {
   private async createDefaultTransportsAsync(): Promise<void> {
     try {
       // Dynamically import console transport
-      const { ConsoleTransport } = await import('./transports/base/implementations/ConsoleTransport');
-      
+      const { ConsoleTransport } = await import(
+        './transports/base/implementations/ConsoleTransport'
+      );
+
       const consoleTransport = new ConsoleTransport({
         name: 'default-console',
         enabled: true,
         level: this.options.verbose ? 'debug' : 'info',
         useColors: this.options.useColors ?? true,
       });
-      
+
       await this.addTransport(consoleTransport);
 
       // Add file transport if writeToDisk is enabled (Node.js only)
       if (this.options.writeToDisk && typeof window === 'undefined') {
         const { FileTransport } = await import('./transports/base/implementations/FileTransport');
-        
+
         const fileTransport = new FileTransport({
           name: 'default-file',
           enabled: true,
@@ -421,7 +418,7 @@ export class Logger {
           isDirectory: true,
           retentionDays: this.options.logRetentionDays,
         });
-        
+
         await this.addTransport(fileTransport);
       }
     } catch (error) {
@@ -444,7 +441,7 @@ export class Logger {
    */
   private createLogEntry(level: LogLevel, message: string, meta?: LogEntryMeta): LogEntry {
     const now = new Date();
-    
+
     // Extract error and context from metadata
     let error: LogEntry['error'];
     let context: Record<string, unknown> | undefined;
@@ -531,14 +528,14 @@ export class Logger {
   /**
    * Chainable style builder for creating styled strings.
    * Similar to Chalk's API, allows intuitive chaining of styles.
-   * 
+   *
    * @returns {IStyleBuilder} Chainable style builder
-   * 
+   *
    * @example
    * ```typescript
    * // Chain multiple styles
    * logger.info(logger.s.red.bold('Error:') + ' Failed');
-   * 
+   *
    * // Create reusable styles
    * const error = logger.s.red.bold;
    * logger.error(error('Critical failure'));
@@ -554,7 +551,7 @@ export class Logger {
   /**
    * Alias for the style builder (s).
    * Provides a more descriptive name for the chainable style API.
-   * 
+   *
    * @returns {IStyleBuilder} Chainable style builder
    */
   public get style(): IStyleBuilder {
@@ -564,9 +561,9 @@ export class Logger {
   /**
    * Template literal formatter for inline styling.
    * Uses @style{content} syntax for applying styles.
-   * 
+   *
    * @returns {TemplateFormatter} Template formatter function
-   * 
+   *
    * @example
    * ```typescript
    * const user = 'john';
@@ -587,10 +584,10 @@ export class Logger {
   /**
    * Styles an array of text parts with explicit style control.
    * Each part is a tuple of [text, ...styles].
-   * 
+   *
    * @param {StyledPart[]} parts - Array of text parts with styles
    * @returns {string} Combined styled string
-   * 
+   *
    * @example
    * ```typescript
    * logger.info(logger.parts([
@@ -607,11 +604,11 @@ export class Logger {
   /**
    * Styles text by applying colors to specific word indices.
    * Words are indexed starting from 0, whitespace is ignored.
-   * 
+   *
    * @param {string} text - Text to style
    * @param {WordStyleMap} styleMap - Map of word indices to styles
    * @returns {string} Styled text
-   * 
+   *
    * @example
    * ```typescript
    * logger.info(logger.styleByIndex(
@@ -634,16 +631,16 @@ export class Logger {
    * Parses and applies angle bracket syntax styling <style>text</>.
    * Angle brackets avoid conflicts with regular brackets in text.
    * This method is automatically applied to all log messages.
-   * 
+   *
    * @param {string} text - Text with angle bracket syntax
    * @returns {string} Styled text
-   * 
+   *
    * @example
    * ```typescript
    * logger.info(logger.parseBrackets(
    *   '<green.bold>SUCCESS:</> All <yellow>10</> tests passed'
    * ));
-   * 
+   *
    * // Or use directly in log methods (auto-parsed)
    * logger.info('<green.bold>SUCCESS:</> Operation complete');
    * ```
@@ -659,7 +656,7 @@ export class Logger {
   /**
    * Core logging method that handles all log operations.
    * Enhanced to support angle bracket syntax in messages.
-   * 
+   *
    * @public
    * @param {string} msg - The message to log (supports <style> syntax)
    * @param {LogLevel} [level='info'] - Log level
@@ -691,7 +688,7 @@ export class Logger {
   /**
    * Logs an info-level message.
    * Enhanced to support angle bracket syntax <style>text</>.
-   * 
+   *
    * @public
    * @param {string} msg - Info message (supports <style> syntax)
    * @param {LogEntryMeta} [meta] - Additional metadata
@@ -704,7 +701,7 @@ export class Logger {
   /**
    * Logs a success message.
    * Enhanced to support angle bracket syntax <style>text</>.
-   * 
+   *
    * @public
    * @param {string} msg - Success message (supports <style> syntax)
    * @param {LogEntryMeta} [meta] - Additional metadata
@@ -717,7 +714,7 @@ export class Logger {
   /**
    * Logs a warning message.
    * Enhanced to support angle bracket syntax <style>text</>.
-   * 
+   *
    * @public
    * @param {string} msg - Warning message (supports <style> syntax)
    * @param {LogEntryMeta} [meta] - Additional metadata
@@ -730,7 +727,7 @@ export class Logger {
   /**
    * Logs an error message.
    * Enhanced to support angle bracket syntax <style>text</>.
-   * 
+   *
    * @public
    * @param {string} msg - Error message (supports <style> syntax)
    * @param {LogEntryMeta} [meta] - Additional metadata or error object
@@ -744,7 +741,7 @@ export class Logger {
    * Logs a debug message.
    * Enhanced to support angle bracket syntax <style>text</>.
    * Only shown when verbose mode is enabled.
-   * 
+   *
    * @public
    * @param {string} msg - Debug message (supports <style> syntax)
    * @param {LogEntryMeta} [meta] - Additional metadata
@@ -807,7 +804,7 @@ export class Logger {
    */
   public async close(): Promise<void> {
     await this.transportManager.close();
-    
+
     // Close legacy logger if it has a close method
     const extendedLogger = this.loggerInstance as ExtendedLoggerInstance;
     if (typeof extendedLogger.close === 'function') {
@@ -828,7 +825,7 @@ export class Logger {
     if (this.useLegacyOutput) {
       this.loggerInstance.custom(msg, colors, prefix);
     }
-    
+
     // Convert to standard log
     this.log(msg, prefix.toLowerCase() as LogLevel);
   }
@@ -842,22 +839,22 @@ export class Logger {
     if (this.useLegacyOutput) {
       this.loggerInstance.styled(msg, preset);
     }
-    
+
     // Convert preset to level if possible
     const levelMap: Record<StylePreset, LogLevel> = {
-      'info': 'info',
-      'success': 'success',
-      'warning': 'warn',
-      'error': 'error',
-      'debug': 'debug',
-      'important': 'warn',
-      'highlight': 'info',
-      'muted': 'debug',
-      'special': 'info',
-      'code': 'debug',
-      'header': 'info',
+      info: 'info',
+      success: 'success',
+      warning: 'warn',
+      error: 'error',
+      debug: 'debug',
+      important: 'warn',
+      highlight: 'info',
+      muted: 'debug',
+      special: 'info',
+      code: 'debug',
+      header: 'info',
     };
-    
+
     this.log(msg, levelMap[preset] || 'info');
   }
 
@@ -874,7 +871,10 @@ export class Logger {
    * Prints a table from an array of objects (legacy method).
    * @public
    */
-  public table(data: Record<string, unknown>[], headerColor: ColorName[] = ['brightWhite', 'bold']): void {
+  public table(
+    data: Record<string, unknown>[],
+    headerColor: ColorName[] = ['brightWhite', 'bold']
+  ): void {
     // Avoid printing when there is no data to display
     if (!Array.isArray(data) || data.length === 0) {
       return;
@@ -887,9 +887,16 @@ export class Logger {
    * Prints a progress bar (legacy method).
    * @public
    */
-  public progressBar(progress: number, length = 20, completeChar = '█', incompleteChar = '░'): void {
+  public progressBar(
+    progress: number,
+    length = 20,
+    completeChar = '█',
+  incompleteChar = '░',
+  clear = false
+  ): void {
     // Always use console for visual elements
-    this.loggerInstance.progressBar(progress, length, completeChar, incompleteChar);
+  // clear flag preserves default behavior when omitted (false)
+  this.loggerInstance.progressBar(progress, length, completeChar, incompleteChar, clear);
   }
 
   /**
@@ -946,7 +953,7 @@ export class Logger {
     if (message === undefined) {
       return undefined as unknown as string;
     }
-    
+
     if (typeof message !== 'string') {
       return String(message);
     }
@@ -957,23 +964,23 @@ export class Logger {
 
     // Sort parts by length (longest first) to avoid partial matches
     const sortedParts = Object.keys(colorMap).sort((a, b) => b.length - a.length);
-    
+
     let result = message;
-    
+
     for (const part of sortedParts) {
       const colors = colorMap[part];
       if (colors && Array.isArray(colors) && colors.length > 0) {
         // Find and replace all instances of this part
         const regex = new RegExp(this.escapeRegExp(part), 'g');
-        result = result.replace(regex, (match) => {
+        result = result.replace(regex, match => {
           return this.colorize(match, colors);
         });
       }
     }
-    
+
     return result;
   }
-  
+
   /**
    * Escape special characters for regex.
    * @private
@@ -984,13 +991,15 @@ export class Logger {
 
   /**
    * Preserve links in text by formatting them with ANSI codes.
+   * Passes through null/undefined unchanged; non-strings are stringified.
    * @public
    */
-  public preserveLinks(text: string): string {
+  public preserveLinks(text: unknown): string {
     if (!this.formatter) {
       this.formatter = new Formatter(this.useColors);
     }
-    return this.formatter.preserveLinks(text);
+    const out = this.formatter.preserveLinks(text);
+    return out == null ? String(out) : out;
   }
 
   /**
@@ -999,7 +1008,7 @@ export class Logger {
    */
   public setVerbose(enabled: boolean): void {
     this.loggerInstance.setVerbose(enabled);
-    
+
     // Update transports
     this.transportManager.getTransportNames().forEach((name: string) => {
       const transport = this.transportManager.getTransport(name);
@@ -1016,7 +1025,7 @@ export class Logger {
    */
   public setColorsEnabled(enabled: boolean): void {
     this.loggerInstance.setColorsEnabled(enabled);
-    
+
     // Update style builders
     if (this.styleBuilder) {
       this.styleBuilder = new StyleBuilder(enabled);
@@ -1063,14 +1072,17 @@ export class Logger {
    * @public
    */
   public child(options: Partial<LoggerOptions>): Logger {
-    const base = this.loggerInstance as unknown as { child: (opts: Partial<LoggerOptions>) => LoggerBase };
+    const base = this.loggerInstance as unknown as {
+      child: (opts: Partial<LoggerOptions>) => LoggerBase;
+    };
     const childImpl = base.child(options);
     // Wrap the child implementation in a new Logger facade reusing transports/options
     const facade = new Logger(this.options);
     // Replace the internal instance with the concrete child
     (facade as unknown as { loggerInstance: LoggerBase }).loggerInstance = childImpl as LoggerBase;
     // Reuse the existing transport manager configuration
-    (facade as unknown as { transportManager: TransportManager }).transportManager = this.transportManager;
+    (facade as unknown as { transportManager: TransportManager }).transportManager =
+      this.transportManager;
     return facade;
   }
 
@@ -1157,8 +1169,10 @@ export class Logger {
       if (this.useColors && typeof out === 'string' && out === text) {
         const replaced: ColorName[] = colors.map(c => {
           // Reuse Colorizer's internal fallback which consults terminal utils
-          const fb = (Colorizer as unknown as { getFallbackStyleInternal?: (s: string)=>string }).getFallbackStyleInternal?.(String(c))
-            || String(c);
+          const fb =
+            (
+              Colorizer as unknown as { getFallbackStyleInternal?: (s: string) => string }
+            ).getFallbackStyleInternal?.(String(c)) || String(c);
           return fb as ColorName;
         });
         const retry = Colorizer.applyColors(text, replaced, this.useColors);
@@ -1248,7 +1262,9 @@ export class Logger {
       if (inst && typeof inst.logDir === 'string') {
         return inst.logDir;
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     return 'logs';
   }
 
@@ -1262,7 +1278,7 @@ export class Logger {
       console.warn(`Invalid log directory type: ${typeof dir}. Using default.`);
       dir = './logs';
     }
-    
+
     type MaybeNodeLike = {
       setLogDirectory?: (d: string, reinit?: boolean) => void;
       logDir?: string;
@@ -1271,19 +1287,34 @@ export class Logger {
     if (inst) {
       // Prefer calling implementation method if available
       if (typeof inst.setLogDirectory === 'function') {
-        try { inst.setLogDirectory(dir, reinitialize); } catch { /* ignore */ }
+        try {
+          inst.setLogDirectory(dir, reinitialize);
+        } catch {
+          /* ignore */
+        }
       }
 
       // Ensure a FileManager exists and update its dir
       const nodeLogger = this.loggerInstance as unknown as ExtendedNodeLogger;
       if (!nodeLogger.fileManager) {
-        nodeLogger.fileManager = new FileManager(dir, nodeLogger.logRetentionDays || 30) as ExtendedNodeLogger['fileManager'];
+        nodeLogger.fileManager = new FileManager(
+          dir,
+          nodeLogger.logRetentionDays || 30
+        ) as ExtendedNodeLogger['fileManager'];
       } else {
-        try { nodeLogger.fileManager.setLogDir(dir); } catch { /* ignore */ }
+        try {
+          nodeLogger.fileManager.setLogDir(dir);
+        } catch {
+          /* ignore */
+        }
       }
 
       // Keep logDir property in sync so getLogDir() reflects the change
-  try { inst.logDir = dir; } catch { /* ignore */ }
+      try {
+        inst.logDir = dir;
+      } catch {
+        /* ignore */
+      }
 
       if (reinitialize && nodeLogger.writeToDisk && nodeLogger.fileManager) {
         try {
@@ -1304,12 +1335,14 @@ export class Logger {
             nodeLogger.writeToDisk = !!syncResult;
           }
           if (!syncResult && typeof fm.initLogFile === 'function') {
-            fm.initLogFile().then(path => {
-              if (!path) nodeLogger.writeToDisk = false;
-            }).catch((err: Error) => {
-              console.error('Failed to initialize log file:', err);
-              nodeLogger.writeToDisk = false;
-            });
+            fm.initLogFile()
+              .then(path => {
+                if (!path) nodeLogger.writeToDisk = false;
+              })
+              .catch((err: Error) => {
+                console.error('Failed to initialize log file:', err);
+                nodeLogger.writeToDisk = false;
+              });
           }
         } catch (err) {
           console.error('Failed to initialize log file:', err);
@@ -1341,7 +1374,7 @@ export class Logger {
     if (typeof days === 'number' && isFinite(days) && days > 0) {
       validDays = Math.max(1, Math.floor(days));
     }
-    
+
     if (validDays !== days && days !== undefined) {
       console.warn(`[Logger] Invalid logRetentionDays: ${days}. Using: ${validDays}`);
     }
@@ -1349,7 +1382,7 @@ export class Logger {
     if (this.loggerInstance instanceof NodeLogger) {
       const nodeLogger = this.loggerInstance as NodeLogger;
       nodeLogger.setLogRetentionDays(validDays, false);
-      
+
       if (cleanNow) {
         this.cleanupOldLogs();
       }
@@ -1365,14 +1398,16 @@ export class Logger {
       const nodeLogger = this.loggerInstance as unknown as ExtendedNodeLogger;
       if (!enabled) {
         nodeLogger.writeToDisk = false;
-    if (nodeLogger.fileManager) {
+        if (nodeLogger.fileManager) {
           try {
-      Reflect.set(nodeLogger.fileManager as object, 'logFile', null);
-          } catch { /* ignore */ }
+            Reflect.set(nodeLogger.fileManager as object, 'logFile', null);
+          } catch {
+            /* ignore */
+          }
         }
         return;
       }
-      
+
       nodeLogger.writeToDisk = false;
 
       if (enabled) {
@@ -1392,24 +1427,32 @@ export class Logger {
             // Clear cached file
             try {
               Reflect.set(fm as object, 'logFile', null);
-            } catch { /* ignore */ }
-            
+            } catch {
+              /* ignore */
+            }
+
             let syncResult: string | null | undefined;
             if (typeof fm.initLogFileSync === 'function') {
               syncResult = fm.initLogFileSync();
               nodeLogger.writeToDisk = !!syncResult;
             }
             if (!syncResult && typeof fm.initLogFile === 'function') {
-              fm.initLogFile().then(path => {
-                if (path) nodeLogger.writeToDisk = true;
-              }).catch((err: Error) => {
-                if (!nodeLogger.writeToDisk) {
-                  console.error('Failed to initialize log file:', err);
-                  nodeLogger.writeToDisk = false;
-                }
-              });
+              fm.initLogFile()
+                .then(path => {
+                  if (path) nodeLogger.writeToDisk = true;
+                })
+                .catch((err: Error) => {
+                  if (!nodeLogger.writeToDisk) {
+                    console.error('Failed to initialize log file:', err);
+                    nodeLogger.writeToDisk = false;
+                  }
+                });
             }
-            if (syncResult === undefined && typeof fm.initLogFileSync !== 'function' && typeof fm.initLogFile !== 'function') {
+            if (
+              syncResult === undefined &&
+              typeof fm.initLogFileSync !== 'function' &&
+              typeof fm.initLogFile !== 'function'
+            ) {
               nodeLogger.writeToDisk = true;
             }
           } catch (err) {
@@ -1422,12 +1465,15 @@ export class Logger {
     }
 
     // Fallback path for tests
-    const anyLogger = this.loggerInstance as unknown as { fileManager?: { initLogFileSync?: () => void; initLogFile?: () => Promise<void> } };
+    const anyLogger = this.loggerInstance as unknown as {
+      fileManager?: { initLogFileSync?: () => void; initLogFile?: () => Promise<void> };
+    };
     if (enabled && anyLogger?.fileManager) {
-      const fm: { initLogFileSync?: () => void; initLogFile?: () => Promise<void> } = anyLogger.fileManager as {
-        initLogFileSync?: () => void;
-        initLogFile?: () => Promise<void>;
-      };
+      const fm: { initLogFileSync?: () => void; initLogFile?: () => Promise<void> } =
+        anyLogger.fileManager as {
+          initLogFileSync?: () => void;
+          initLogFile?: () => Promise<void>;
+        };
       try {
         if (typeof fm.initLogFile === 'function') {
           fm.initLogFile().catch((err: Error) => {
@@ -1517,12 +1563,12 @@ export class Logger {
    * @public
    */
   public static isLinkLike(text: string): boolean {
-  if (text == null) return false;
-  if (typeof text !== 'string') return false;
-  if (text.length === 0) return false;
-  // Guard against sentinel stringified values used in tests
-  if (text === 'null' || text === 'undefined') return false;
-    
+    if (text == null) return false;
+    if (typeof text !== 'string') return false;
+    if (text.length === 0) return false;
+    // Guard against sentinel stringified values used in tests
+    if (text === 'null' || text === 'undefined') return false;
+
     try {
       return IS_PATH_REGEX.test(text);
     } catch {
@@ -1562,14 +1608,14 @@ export class Logger {
 // Type Re-exports
 // ============================================================
 
-export type { 
-  LoggerOptions, 
-  LogLevel, 
-  StylePreset, 
+export type {
+  LoggerOptions,
+  LogLevel,
+  StylePreset,
   ColorName,
   Transport,
   TransportOptions,
-  LogEntry 
+  LogEntry,
 } from './types';
 
 export type {
@@ -1577,5 +1623,5 @@ export type {
   WordStyleMap,
   TemplateFormatter,
   IStyleBuilder,
-  IStylingAPI
+  IStylingAPI,
 } from './types/styling';

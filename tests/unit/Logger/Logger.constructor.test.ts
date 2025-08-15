@@ -4,7 +4,7 @@ import { LOG_DIR, LoggerInternal, fsMocks } from '../../../jest.setup';
 
 describe('Logger Constructor and Basic Behavior', () => {
   // Mock console.error before tests
-  let originalConsoleError;
+  let originalConsoleError: Console['error'];
 
   // Store original process.env
   const originalEnv = { ...process.env };
@@ -40,7 +40,10 @@ describe('Logger Constructor and Basic Behavior', () => {
 
     const logger = new Logger({ writeToDisk: true, logDir: '/invalid/path' });
     expect(logger.getPath()).toBeNull();
-    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('[FileManager] Failed to initialize log file'), expect.any(Error));
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('[FileManager] Failed to initialize log file'),
+      expect.any(Error)
+    );
   });
 
   it('uses environment variables', () => {
@@ -315,7 +318,7 @@ describe('Logger Constructor and Basic Behavior', () => {
     // Re-enable file logging to test recovery
     fsMocks.appendFileSync.mockImplementation(() => undefined);
     fsMocks.writeFileSync.mockImplementation(() => undefined);
-    
+
     logger.setFileLogging(true);
 
     // Now logging should work again

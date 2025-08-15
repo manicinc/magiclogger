@@ -10,7 +10,8 @@
  */
 
 // Re-export all types from specific type modules
-export * from './logger';
+// Avoid re-exporting logger to prevent circular chunking issues.
+// Import specific types directly from './logger' where needed.
 export * from './transport';
 export * from './colors';
 export * from './console';

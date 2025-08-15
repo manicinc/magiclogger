@@ -236,8 +236,9 @@ describe('Logger Formatting and Color Handling', () => {
 
       // Test with empty and null input
       expect(preserveLinks('')).toBe('');
-      expect(preserveLinks(null)).toBeNull();
-      expect(preserveLinks(undefined)).toBeUndefined();
+      // Logger.preserveLinks coerces nullish to their string form
+      expect(preserveLinks(null as unknown as string)).toBe(String(null));
+      expect(preserveLinks(undefined as unknown as string)).toBe(String(undefined));
     });
 
     it('handles colorParts with identical parts in different positions', () => {

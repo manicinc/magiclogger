@@ -2,7 +2,6 @@ import { defineConfig } from 'tsup';
 
 export default defineConfig(options => {
   const isBrowser = options.platform === 'browser';
-  const isESM = options.format === 'esm';
 
   // NOTE: We explicitly list all public entry points referenced in package.json "exports".
   // This allows bundlers to tree-shake by importing only the specific sub-path.
@@ -20,7 +19,7 @@ export default defineConfig(options => {
     'transports/mongodb': 'src/transports/mongodb.ts',
     'transports/stream': 'src/transports/stream.ts',
     'transports/websocket': 'src/transports/websocket.ts',
-  'transports/otlp': 'src/transports/otlp.ts',
+    'transports/otlp': 'src/transports/otlp.ts',
     'transports/base': 'src/transports/index.ts', // registry + base classes
 
     // Compatibility layers
@@ -62,7 +61,7 @@ export default defineConfig(options => {
     },
     sourcemap: true,
     clean: true,
-    outDir: 'dist',
+    outDir: isBrowser ? 'dist/browser' : 'dist',
     minify: false, // keep readable for analysis; can enable in release pipeline
     target: 'es2022',
     tsconfig: 'tsconfig.build.json',
@@ -73,7 +72,7 @@ export default defineConfig(options => {
     },
 
     esbuildOptions: config => {
-      if (isBrowser || isESM) {
+      if (isBrowser) {
         config.define = {
           'process.env.NODE_ENV': '"production"',
           'process.platform': '"browser"',
@@ -81,10 +80,11 @@ export default defineConfig(options => {
       }
     },
 
-    // Node built-ins we never want bundled
-    external: ['fs', 'path', 'os', 'util', 'tty', 'module'],
+    // Node built-ins we never want bundled in Node builds
+    // Also mark 'events' external for Node so esbuild doesn't try to resolve it during ESM build
+    external: isBrowser ? [] : ['fs', 'path', 'os', 'util', 'tty', 'module', 'events'],
 
-    conditions: isBrowser || isESM ? ['browser', 'module'] : ['node'],
+    conditions: isBrowser ? ['browser', 'module'] : ['node'],
     platform: isBrowser ? 'browser' : 'node',
   };
 });

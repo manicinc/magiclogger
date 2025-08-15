@@ -5,7 +5,7 @@ import { LOG_DIR, LoggerInternal, fsMocks } from '../../../jest.setup';
 
 describe('Logger File Operations', () => {
   // Store original console.error and mock it
-  let originalConsoleError;
+  let originalConsoleError: Console['error'];
 
   beforeEach(() => {
     // Save original console.error
@@ -141,7 +141,7 @@ describe('Logger File Operations', () => {
   it('getPath returns the correct log file path', () => {
     const logger = new Logger({ writeToDisk: true, logDir: LOG_DIR });
     const logPath = logger.getPath();
-    
+
     expect(logPath).toBeTruthy();
     expect(logPath).toMatch(/log-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z\.log$/);
     expect(logPath).toContain(LOG_DIR);

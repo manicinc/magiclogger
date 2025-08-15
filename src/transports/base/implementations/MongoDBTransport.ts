@@ -1,10 +1,10 @@
 // File: src/transports/base/implementations/MongoDBTransport.ts
 
 import { NetworkTransport } from '../NetworkTransport';
-import type { 
-  MongoDBTransportOptions, 
+import type {
+  MongoDBTransportOptions,
   LogEntry,
-  // TransportStats 
+  // TransportStats
 } from '../../../types/transport';
 
 // MongoDB type definitions (since mongodb package is optional)
@@ -20,17 +20,23 @@ interface MongoDatabase {
 }
 
 interface MongoCollection {
-  insertMany(docs: Record<string, unknown>[], options?: {
-    ordered?: boolean;
-    writeConcern?: { w: number; j: boolean };
-  }): Promise<{ insertedCount: number }>;
+  insertMany(
+    docs: Record<string, unknown>[],
+    options?: {
+      ordered?: boolean;
+      writeConcern?: { w: number; j: boolean };
+    }
+  ): Promise<{ insertedCount: number }>;
   createIndexes(indexes: IndexSpec[]): Promise<void>;
   find(query: Record<string, unknown>): MongoCursor;
   deleteMany(query: Record<string, unknown>): Promise<{ deletedCount: number }>;
   aggregate(pipeline: Record<string, unknown>[]): MongoCursor;
-  watch(pipeline?: Record<string, unknown>[], options?: {
-    fullDocument?: string;
-  }): unknown;
+  watch(
+    pipeline?: Record<string, unknown>[],
+    options?: {
+      fullDocument?: string;
+    }
+  ): unknown;
 }
 
 interface MongoCursor {
@@ -58,7 +64,7 @@ interface WriteError {
 
 /**
  * MongoDB transport for storing logs in MongoDB collections.
- * 
+ *
  * Features:
  * - Automatic connection management with reconnection
  * - Bulk insert operations for performance
@@ -67,10 +73,10 @@ interface WriteError {
  * - Aggregation support for analytics
  * - Change streams for real-time monitoring
  * - Duplicate handling and error recovery
- * 
+ *
  * @class MongoDBTransport
  * @extends {NetworkTransport}
- * 
+ *
  * @example
  * ```typescript
  * const mongoTransport = new MongoDBTransport({
@@ -170,7 +176,7 @@ export class MongoDBTransport extends NetworkTransport {
 
   /**
    * Creates a new MongoDBTransport instance.
-   * 
+   *
    * @param {MongoDBTransportOptions} options - Transport configuration
    */
   constructor(options: MongoDBTransportOptions) {
@@ -187,7 +193,7 @@ export class MongoDBTransport extends NetworkTransport {
 
   /**
    * Connect to MongoDB.
-   * 
+   *
    * @returns {Promise<void>} Resolves when connected
    * @protected
    */
@@ -223,34 +229,61 @@ export class MongoDBTransport extends NetworkTransport {
         if (process.env.NODE_ENV === 'test') {
           // Debug: confirm which MongoClient is used
           // eslint-disable-next-line no-console
-    // Narrow type for debug logging without using `any`.
-    const ctor = MongoClientCtor as { name?: string; _isMockFunction?: boolean } | undefined;
-    console.log('[MongoDBTransport] Using mocked MongoClient:', typeof ctor, ctor?.name, 'isMockFn:', !!ctor?._isMockFunction);
+          // Narrow type for debug logging without using `any`.
+          const ctor = MongoClientCtor as { name?: string; _isMockFunction?: boolean } | undefined;
+          console.log(
+            '[MongoDBTransport] Using mocked MongoClient:',
+            typeof ctor,
+            ctor?.name,
+            'isMockFn:',
+            !!ctor?._isMockFunction
+          );
         }
       } catch {
         // Fall back to dynamic import if require fails (ESM environments)
         try {
-          // @ts-expect-error - Optional dependency
           const mod = await import('mongodb');
-          MongoClientCtor = (mod as unknown as { MongoClient: new (...args: unknown[]) => MongoClient }).MongoClient;
+          MongoClientCtor = (
+            mod as unknown as { MongoClient: new (...args: unknown[]) => MongoClient }
+          ).MongoClient;
           if (process.env.NODE_ENV === 'test') {
             // Debug: confirm which MongoClient is used
             // eslint-disable-next-line no-console
-            const ctor = MongoClientCtor as { name?: string; _isMockFunction?: boolean } | undefined;
-            console.log('[MongoDBTransport] Using imported MongoClient:', typeof ctor, ctor?.name, 'isMockFn:', !!ctor?._isMockFunction);
+            const ctor = MongoClientCtor as
+              | { name?: string; _isMockFunction?: boolean }
+              | undefined;
+            console.log(
+              '[MongoDBTransport] Using imported MongoClient:',
+              typeof ctor,
+              ctor?.name,
+              'isMockFn:',
+              !!ctor?._isMockFunction
+            );
           }
         } catch (importError) {
-          throw new Error(`MongoDB package not found. Please install it: npm install mongodb. Error: ${importError}`);
+          throw new Error(
+            `MongoDB package not found. Please install it: npm install mongodb. Error: ${importError}`
+          );
         }
       }
 
       // Create client and connect
-      this.client = new (MongoClientCtor as new (...args: unknown[]) => MongoClient)(this.uri, this.clientOptions);
+      this.client = new (MongoClientCtor as new (...args: unknown[]) => MongoClient)(
+        this.uri,
+        this.clientOptions
+      );
       if (process.env.NODE_ENV === 'test') {
         // Debug: confirm mockClient shape
         // eslint-disable-next-line no-console
-  const dbFn = this.client.db as unknown as { _isMockFunction?: boolean } | ((...args: unknown[]) => unknown);
-  console.log('[MongoDBTransport] client.db:', typeof dbFn, 'isMockFn:', !!(dbFn as { _isMockFunction?: boolean })?._isMockFunction);
+        const dbFn = this.client.db as unknown as
+          | { _isMockFunction?: boolean }
+          | ((...args: unknown[]) => unknown);
+        console.log(
+          '[MongoDBTransport] client.db:',
+          typeof dbFn,
+          'isMockFn:',
+          !!(dbFn as { _isMockFunction?: boolean })?._isMockFunction
+        );
       }
       // Ensure client was created successfully
       if (!this.client) {
@@ -283,7 +316,7 @@ export class MongoDBTransport extends NetworkTransport {
 
   /**
    * Get database and collection
-   * 
+   *
    * @returns {Promise<void>} Resolves when database and collection are set
    * @private
    */
@@ -298,7 +331,7 @@ export class MongoDBTransport extends NetworkTransport {
 
   /**
    * Disconnect from MongoDB.
-   * 
+   *
    * @returns {Promise<void>} Resolves when disconnected
    * @protected
    */
@@ -314,7 +347,7 @@ export class MongoDBTransport extends NetworkTransport {
 
   /**
    * Send data to MongoDB (not used, see performNetworkRequest).
-   * 
+   *
    * @param {unknown} _data - Data to send (unused)
    * @returns {Promise<void>} Resolves when sent
    * @protected
@@ -326,7 +359,7 @@ export class MongoDBTransport extends NetworkTransport {
 
   /**
    * Check MongoDB connection health.
-   * 
+   *
    * @returns {Promise<void>} Resolves if healthy
    * @protected
    */
@@ -334,7 +367,7 @@ export class MongoDBTransport extends NetworkTransport {
     if (!this.client) {
       throw new Error('MongoDB client not connected');
     }
-    
+
     if (!this.db) {
       throw new Error('MongoDB database not initialized');
     }
@@ -345,7 +378,7 @@ export class MongoDBTransport extends NetworkTransport {
 
   /**
    * Create indexes for the collection.
-   * 
+   *
    * @returns {Promise<void>} Resolves when indexes are created
    * @private
    */
@@ -357,26 +390,26 @@ export class MongoDBTransport extends NetworkTransport {
     const indexes: IndexSpec[] = [
       // Timestamp index for time-based queries
       { key: { timestamp: -1 }, name: 'timestamp_desc' },
-      
+
       // Level index for filtering by severity
       { key: { level: 1 }, name: 'level' },
-      
+
       // Logger ID index for multi-service setups
       { key: { loggerId: 1 }, name: 'logger_id' },
-      
+
       // Tags index for categorization
       { key: { tags: 1 }, name: 'tags' },
-      
+
       // Compound index for common queries
-      { 
-        key: { level: 1, timestamp: -1 }, 
-        name: 'level_timestamp' 
+      {
+        key: { level: 1, timestamp: -1 },
+        name: 'level_timestamp',
       },
-      
+
       // Text index for searching messages
-      { 
-        key: { message: 'text', 'error.message': 'text' }, 
-        name: 'message_text' 
+      {
+        key: { message: 'text', 'error.message': 'text' },
+        name: 'message_text',
       },
     ];
 
@@ -398,7 +431,7 @@ export class MongoDBTransport extends NetworkTransport {
 
   /**
    * Perform the network request to insert logs.
-   * 
+   *
    * @param {LogEntry[]} entries - Log entries to insert
    * @returns {Promise<void>} Resolves when inserted
    * @protected
@@ -416,12 +449,12 @@ export class MongoDBTransport extends NetworkTransport {
     // Transform documents if needed
     const documents = entries.map(entry => {
       const doc = this.transformDocument ? this.transformDocument(entry) : { ...entry };
-      
+
       // Ensure _id is not duplicated
       if ('id' in doc && !('_id' in doc)) {
         (doc as Record<string, unknown>)._id = doc.id;
       }
-      
+
       // Convert ISO timestamp to Date object for better querying
       if (typeof doc.timestamp === 'string') {
         (doc as Record<string, unknown>)._timestamp = new Date(doc.timestamp);
@@ -445,9 +478,10 @@ export class MongoDBTransport extends NetworkTransport {
       });
 
       if (result.insertedCount < documents.length) {
-        console.warn(`[MongoDBTransport] Only inserted ${result.insertedCount} of ${documents.length} documents`);
+        console.warn(
+          `[MongoDBTransport] Only inserted ${result.insertedCount} of ${documents.length} documents`
+        );
       }
-
     } catch (error: unknown) {
       const mongoError = error as MongoError;
       // Handle bulk write errors
@@ -465,13 +499,16 @@ export class MongoDBTransport extends NetworkTransport {
 
   /**
    * Filter out documents that caused duplicate key errors.
-   * 
+   *
    * @param {Record<string, unknown>[]} documents - Original documents
    * @param {MongoError} error - MongoDB error
    * @returns {Record<string, unknown>[]} Filtered documents
    * @private
    */
-  private filterDuplicates(documents: Record<string, unknown>[], error: MongoError): Record<string, unknown>[] {
+  private filterDuplicates(
+    documents: Record<string, unknown>[],
+    error: MongoError
+  ): Record<string, unknown>[] {
     if (!error.writeErrors) return documents;
 
     const failedIndexes = new Set(error.writeErrors.map((e: WriteError) => e.index));
@@ -480,7 +517,7 @@ export class MongoDBTransport extends NetworkTransport {
 
   /**
    * Query logs from MongoDB.
-   * 
+   *
    * @param {Record<string, unknown>} query - MongoDB query
    * @param {object} options - Query options
    * @returns {Promise<Record<string, unknown>[]>} Query results as generic records
@@ -526,15 +563,17 @@ export class MongoDBTransport extends NetworkTransport {
 
   /**
    * Get aggregated statistics.
-   * 
+   *
    * @param {object} options - Aggregation options
    * @returns {Promise<Record<string, unknown>[]>} Aggregation results
    */
-  public async getStatistics(options: {
-    startDate?: Date;
-    endDate?: Date;
-    groupBy?: 'hour' | 'day' | 'level' | 'loggerId';
-  } = {}): Promise<Record<string, unknown>[]> {
+  public async getStatistics(
+    options: {
+      startDate?: Date;
+      endDate?: Date;
+      groupBy?: 'hour' | 'day' | 'level' | 'loggerId';
+    } = {}
+  ): Promise<Record<string, unknown>[]> {
     if (this.connectionState !== 'connected') {
       await this.connect();
     }
@@ -559,7 +598,7 @@ export class MongoDBTransport extends NetworkTransport {
 
     // Grouping
     let groupId: Record<string, unknown> | string | null = null;
-    
+
     switch (options.groupBy) {
       case 'hour':
         groupId = {
@@ -569,7 +608,7 @@ export class MongoDBTransport extends NetworkTransport {
           hour: { $hour: '$_timestamp' },
         };
         break;
-        
+
       case 'day':
         groupId = {
           year: { $year: '$_timestamp' },
@@ -577,15 +616,15 @@ export class MongoDBTransport extends NetworkTransport {
           day: { $dayOfMonth: '$_timestamp' },
         };
         break;
-        
+
       case 'level':
         groupId = '$level';
         break;
-        
+
       case 'loggerId':
         groupId = '$loggerId';
         break;
-        
+
       default:
         groupId = null;
     }
@@ -613,14 +652,16 @@ export class MongoDBTransport extends NetworkTransport {
 
   /**
    * Create a change stream for real-time monitoring.
-   * 
+   *
    * @param {object} options - Change stream options
    * @returns {Promise<unknown>} MongoDB change stream
    */
-  public async createChangeStream(options: {
-    filter?: Record<string, unknown>;
-    fullDocument?: 'default' | 'updateLookup';
-  } = {}): Promise<unknown> {
+  public async createChangeStream(
+    options: {
+      filter?: Record<string, unknown>;
+      fullDocument?: 'default' | 'updateLookup';
+    } = {}
+  ): Promise<unknown> {
     if (this.connectionState !== 'connected') {
       await this.connect();
     }
@@ -630,7 +671,7 @@ export class MongoDBTransport extends NetworkTransport {
     }
 
     const pipeline = options.filter ? [{ $match: options.filter }] : [];
-    
+
     return this.logCollection.watch(pipeline, {
       fullDocument: options.fullDocument || 'default',
     });
@@ -638,7 +679,7 @@ export class MongoDBTransport extends NetworkTransport {
 
   /**
    * Clean up old logs manually.
-   * 
+   *
    * @param {Date} before - Delete logs before this date
    * @returns {Promise<number>} Number of deleted documents
    */
@@ -660,7 +701,7 @@ export class MongoDBTransport extends NetworkTransport {
 
   /**
    * Close MongoDB connection.
-   * 
+   *
    * @returns {Promise<void>} Resolves when closed
    * @protected
    */
@@ -670,7 +711,7 @@ export class MongoDBTransport extends NetworkTransport {
 
   /**
    * Handle connection errors with reconnection.
-   * 
+   *
    * @param {Error} error - The error that occurred
    * @param {LogEntry} [entry] - The log entry that caused the error
    * @protected
@@ -679,10 +720,12 @@ export class MongoDBTransport extends NetworkTransport {
     super.handleError(error, entry);
 
     // Check for connection errors
-    if (error.message.includes('topology was destroyed') ||
-        error.message.includes('server selection timed out')) {
+    if (
+      error.message.includes('topology was destroyed') ||
+      error.message.includes('server selection timed out')
+    ) {
       this.connectionState = 'disconnected';
-      
+
       // Attempt reconnection
       setTimeout(() => {
         this.connect().catch(err => {

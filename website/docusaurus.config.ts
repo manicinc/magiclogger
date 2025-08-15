@@ -1,6 +1,7 @@
 import { themes as prismThemes } from 'prism-react-renderer';
 import type { Config } from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
+import path from 'path';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
@@ -39,8 +40,7 @@ const config: Config = {
           // Configure to use docs from parent directory
           path: '../docs',
           // Edit links point to GitHub
-          editUrl:
-            'https://github.com/manicinc/magiclogger/tree/main/docs/',
+          editUrl: 'https://github.com/manicinc/magiclogger/tree/main/docs/',
         },
         blog: {
           showReadingTime: true,
@@ -49,8 +49,7 @@ const config: Config = {
             xslt: true,
           },
           // Edit links point to GitHub
-          editUrl:
-            'https://github.com/manicinc/magiclogger/tree/main/my-website/blog/',
+          editUrl: 'https://github.com/manicinc/magiclogger/tree/main/my-website/blog/',
           // Useful options to enforce blogging best practices
           onInlineTags: 'warn',
           onInlineAuthors: 'warn',
@@ -65,15 +64,15 @@ const config: Config = {
 
   themeConfig: {
     // Replace with your project's social card
-  image: 'img/magiclogger-primary-white-4x.png',
+    image: 'img/magiclogger-primary-white-4x.png',
     navbar: {
       title: 'MagicLogger',
       logo: {
         alt: 'MagicLogger Logo',
-    // Use transparent variant on light mode and dark variant on dark mode
-    // so the logo is always visible and on-brand
-    src: 'img/magiclogger-primary-no-subtitle-transparent-4x.png',
-    srcDark: 'img/magiclogger-primary-no-subtitle-dark-4x.png',
+        // Use transparent variant on light mode and dark variant on dark mode
+        // so the logo is always visible and on-brand
+        src: 'img/magiclogger-primary-no-subtitle-transparent-4x.png',
+        srcDark: 'img/magiclogger-primary-no-subtitle-dark-4x.png',
       },
       items: [
         {
@@ -144,6 +143,46 @@ const config: Config = {
       darkTheme: prismThemes.dracula,
     },
   } satisfies Preset.ThemeConfig,
+  // Plugin to alias 'magiclogger' to the local dist build during docs build/serve
+  // This keeps docs working without requiring a published package.
+  plugins: [
+    function magicloggerLocalAliasPlugin() {
+      return {
+        name: 'magiclogger-local-alias',
+        // Provide aliases for both client and server builds
+        // Use ESM bundle for client and CJS bundle for server (SSR)
+        // so that both compilers can resolve the local package without publishing.
+        // Docusaurus will merge this with its own webpack config.
+        configureWebpack(_config: unknown, isServer: boolean) {
+          const repoRoot = path.resolve(__dirname, '..');
+          const distEsmBrowser = path.join(repoRoot, 'dist', 'browser', 'index.js');
+          const distCjs = path.join(repoRoot, 'dist', 'index.cjs');
+          const target = isServer ? distCjs : distEsmBrowser;
+          return {
+            resolve: {
+              fallback: isServer
+                ? {}
+                : {
+                    fs: false,
+                    path: false,
+                    os: false,
+                    zlib: false,
+                    module: false,
+                    events: false,
+                    'node:fs': false,
+                    'node:path': false,
+                  },
+              alias: {
+                // Exact match and bare import support
+                magiclogger: target,
+                magiclogger$: target,
+              },
+            },
+          };
+        },
+      };
+    },
+  ],
 };
 
 export default config;

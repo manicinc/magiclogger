@@ -4,17 +4,17 @@
 
 import {
   Logger,
-  ColorName,
-  LogLevel,
-  StylePreset,
-  LoggerOptions,
+  type ColorName,
+  type LogLevel,
+  type StylePreset,
+  type LoggerOptions,
   createWinstonCompatible,
-} from 'magiclogger';
+} from '../dist/index.js';
 
 // Type-safe logger options
 const options: LoggerOptions = {
   verbose: true, // Show debug messages
-  writeToDisk: true, // Write logs to file (Node.js only)
+  writeToDisk: true,
   logDir: './typed-logs', // Custom log directory
   logRetentionDays: 7, // Keep logs for 7 days
   theme: 'dark', // Use a predefined theme
