@@ -15,7 +15,8 @@ import path from 'path';
  */
 export function getModuleDirname(importMeta?: ImportMeta | { url?: string }): string {
   let metaUrl: string | undefined;
-  if (importMeta && typeof importMeta === 'object' && 'url' in importMeta) metaUrl = (importMeta as { url?: string }).url;
+  if (importMeta && typeof importMeta === 'object' && 'url' in importMeta)
+    metaUrl = (importMeta as { url?: string }).url;
   if (metaUrl) {
     try {
       return path.dirname(fileURLToPath(metaUrl));

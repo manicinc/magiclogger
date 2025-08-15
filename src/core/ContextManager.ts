@@ -4,14 +4,14 @@ import { EventEmitter } from 'events';
 
 /**
  * Sanitization modes for context values.
- * 
+ *
  * @enum {string}
  */
 export type SanitizeMode = 'none' | 'basic' | 'strict' | 'custom';
 
 /**
  * Context manager configuration options.
- * 
+ *
  * @interface ContextManagerOptions
  */
 export interface ContextManagerOptions {
@@ -53,7 +53,7 @@ export interface ContextManagerOptions {
 
 /**
  * Context validation rules.
- * 
+ *
  * @interface ContextValidationRules
  */
 export interface ContextValidationRules {
@@ -75,7 +75,7 @@ export interface ContextValidationRules {
 
 /**
  * Context validation result.
- * 
+ *
  * @interface ContextValidationResult
  */
 export interface ContextValidationResult {
@@ -97,7 +97,7 @@ export interface ContextValidationResult {
 
 /**
  * Context snapshot for state management.
- * 
+ *
  * @interface ContextSnapshot
  */
 export interface ContextSnapshot {
@@ -119,7 +119,7 @@ export interface ContextSnapshot {
 
 /**
  * ContextManager handles context data for logging.
- * 
+ *
  * Features:
  * - Deep merging of context objects
  * - Circular reference detection
@@ -127,23 +127,23 @@ export interface ContextSnapshot {
  * - Context validation
  * - Snapshot management
  * - Performance optimization
- * 
+ *
  * @class ContextManager
  * @extends {EventEmitter}
- * 
+ *
  * @example
  * ```typescript
  * const contextManager = new ContextManager({
  *   maxDepth: 5,
  *   sanitizeMode: 'strict'
  * });
- * 
+ *
  * // Set global context
  * contextManager.set({
  *   app: 'my-app',
  *   version: '1.0.0'
  * });
- * 
+ *
  * // Merge additional context
  * const merged = contextManager.merge(globalContext, localContext);
  * ```
@@ -181,12 +181,12 @@ export class ContextManager extends EventEmitter {
 
   /**
    * Creates a new ContextManager instance.
-   * 
+   *
    * @param {ContextManagerOptions} options - Configuration options
    */
   constructor(options: ContextManagerOptions = {}) {
     super();
-    
+
     this.options = {
       maxDepth: options.maxDepth ?? 10,
       maxProperties: options.maxProperties ?? 100,
@@ -199,7 +199,7 @@ export class ContextManager extends EventEmitter {
 
   /**
    * Set global context.
-   * 
+   *
    * @param {Record<string, unknown>} context - Context to set
    */
   public set(context: Record<string, unknown>): void {
@@ -209,11 +209,11 @@ export class ContextManager extends EventEmitter {
 
   /**
    * Get global context.
-   * 
+   *
    * @returns {Record<string, unknown>} Global context
    */
   public get(): Record<string, unknown> {
-    return this.options.freezeContext 
+    return this.options.freezeContext
       ? Object.freeze({ ...this.globalContext })
       : { ...this.globalContext };
   }
@@ -228,26 +228,26 @@ export class ContextManager extends EventEmitter {
 
   /**
    * Merge multiple context objects.
-   * 
+   *
    * @param {...Record<string, unknown>[]} contexts - Contexts to merge
    * @returns {Record<string, unknown>} Merged context
    */
   public merge(...contexts: (Record<string, unknown> | undefined)[]): Record<string, unknown> {
     const result: Record<string, unknown> = {};
     const seenObjects = new WeakSet();
-    
+
     for (const context of contexts) {
       if (context) {
         this.deepMerge(result, context, 0, seenObjects);
       }
     }
-    
+
     return this.processContext(result);
   }
 
   /**
    * Deep merge two objects.
-   * 
+   *
    * @param {object} target - Target object
    * @param {object} source - Source object
    * @param {number} depth - Current depth
@@ -255,8 +255,8 @@ export class ContextManager extends EventEmitter {
    * @private
    */
   private deepMerge(
-    target: Record<string, unknown>, 
-    source: Record<string, unknown>, 
+    target: Record<string, unknown>,
+    source: Record<string, unknown>,
     depth: number,
     seen: WeakSet<object>
   ): void {
@@ -268,7 +268,7 @@ export class ContextManager extends EventEmitter {
     if (seen.has(source)) {
       return;
     }
-    
+
     if (typeof source === 'object' && source !== null) {
       seen.add(source);
     }
@@ -283,7 +283,12 @@ export class ContextManager extends EventEmitter {
 
       if (this.isObject(sourceValue) && this.isObject(targetValue)) {
         target[key] = target[key] || {};
-        this.deepMerge(target[key] as Record<string, unknown>, sourceValue as Record<string, unknown>, depth + 1, seen);
+        this.deepMerge(
+          target[key] as Record<string, unknown>,
+          sourceValue as Record<string, unknown>,
+          depth + 1,
+          seen
+        );
       } else {
         target[key] = this.cloneValue(sourceValue, depth + 1, seen);
       }
@@ -292,20 +297,18 @@ export class ContextManager extends EventEmitter {
 
   /**
    * Check if value is a plain object.
-   * 
+   *
    * @param {unknown} value - Value to check
    * @returns {boolean} True if plain object
    * @private
    */
   private isObject(value: unknown): boolean {
-    return value !== null && 
-           typeof value === 'object' && 
-           (value as object).constructor === Object;
+    return value !== null && typeof value === 'object' && (value as object).constructor === Object;
   }
 
   /**
    * Clone a value safely.
-   * 
+   *
    * @param {unknown} value - Value to clone
    * @param {number} depth - Current depth
    * @param {WeakSet} seen - Seen objects
@@ -341,7 +344,7 @@ export class ContextManager extends EventEmitter {
     if (this.isObject(value)) {
       seen.add(value);
       const cloned: Record<string, unknown> = {};
-      
+
       let propCount = 0;
       for (const key in value) {
         if (Object.prototype.hasOwnProperty.call(value, key)) {
@@ -353,7 +356,7 @@ export class ContextManager extends EventEmitter {
           propCount++;
         }
       }
-      
+
       return cloned;
     }
 
@@ -363,7 +366,7 @@ export class ContextManager extends EventEmitter {
 
   /**
    * Process context through sanitization and validation.
-   * 
+   *
    * @param {Record<string, unknown>} context - Context to process
    * @returns {Record<string, unknown>} Processed context
    * @private
@@ -371,7 +374,7 @@ export class ContextManager extends EventEmitter {
   private processContext(context: Record<string, unknown>): Record<string, unknown> {
     // Sanitize
     const sanitized = this.sanitize(context);
-    
+
     // Validate
     if (this.options.enableValidation && this.validationRules) {
       const validation = this.validate(sanitized);
@@ -379,18 +382,18 @@ export class ContextManager extends EventEmitter {
         this.emit('validationFailed', validation);
       }
     }
-    
+
     // Freeze if required
     if (this.options.freezeContext) {
       return this.deepFreeze(sanitized) as Record<string, unknown>;
     }
-    
+
     return sanitized;
   }
 
   /**
    * Sanitize context based on mode.
-   * 
+   *
    * @param {Record<string, unknown>} context - Context to sanitize
    * @returns {Record<string, unknown>} Sanitized context
    * @private
@@ -399,16 +402,16 @@ export class ContextManager extends EventEmitter {
     switch (this.options.sanitizeMode) {
       case 'none':
         return context;
-      
+
       case 'basic':
         return this.basicSanitize(context) as Record<string, unknown>;
-      
+
       case 'strict':
         return this.strictSanitize(context) as Record<string, unknown>;
-      
+
       case 'custom':
         return this.options.sanitize(context) as Record<string, unknown>;
-      
+
       default:
         return context;
     }
@@ -416,7 +419,7 @@ export class ContextManager extends EventEmitter {
 
   /**
    * Default sanitization function.
-   * 
+   *
    * @param {unknown} value - Value to sanitize
    * @returns {unknown} Sanitized value
    * @private
@@ -427,7 +430,7 @@ export class ContextManager extends EventEmitter {
 
   /**
    * Basic sanitization.
-   * 
+   *
    * @param {unknown} value - Value to sanitize
    * @returns {unknown} Sanitized value
    * @private
@@ -438,11 +441,11 @@ export class ContextManager extends EventEmitter {
       // eslint-disable-next-line no-control-regex
       return value.replace(/\x1b\[[0-9;]*m/g, '');
     }
-    
+
     if (Array.isArray(value)) {
       return value.map(item => this.basicSanitize(item));
     }
-    
+
     if (this.isObject(value)) {
       const sanitized: Record<string, unknown> = {};
       const objValue = value as Record<string, unknown>;
@@ -458,14 +461,14 @@ export class ContextManager extends EventEmitter {
       }
       return sanitized;
     }
-    
+
     return value;
   }
 
   /**
    * Strict sanitization.
    * Removes ANSI codes, control characters, and redacts sensitive keys.
-   * 
+   *
    * @param {unknown} value - Value to sanitize
    * @returns {unknown} Sanitized value
    * @private
@@ -473,17 +476,19 @@ export class ContextManager extends EventEmitter {
   private strictSanitize(value: unknown): unknown {
     if (typeof value === 'string') {
       // Remove ANSI codes and control characters
-      return value
-      // eslint-disable-next-line no-control-regex
-        .replace(/\x1b\[[0-9;]*m/g, '')
-        // eslint-disable-next-line no-control-regex
-        .replace(/[\x00-\x1F\x7F]/g, '');
+      return (
+        value
+          // eslint-disable-next-line no-control-regex
+          .replace(/\x1b\[[0-9;]*m/g, '')
+          // eslint-disable-next-line no-control-regex
+          .replace(/[\x00-\x1F\x7F]/g, '')
+      );
     }
-    
+
     if (Array.isArray(value)) {
       return value.map(item => this.strictSanitize(item));
     }
-    
+
     if (this.isObject(value)) {
       const sanitized: Record<string, unknown> = {};
       const objValue = value as Record<string, unknown>;
@@ -499,13 +504,13 @@ export class ContextManager extends EventEmitter {
       }
       return sanitized;
     }
-    
+
     return value;
   }
 
   /**
    * Deep freeze an object.
-   * 
+   *
    * @param {object} obj - Object to freeze
    * @returns {object} Frozen object
    * @private
@@ -514,24 +519,26 @@ export class ContextManager extends EventEmitter {
     if (typeof obj !== 'object' || obj === null) {
       return obj;
     }
-    
+
     Object.freeze(obj);
-    
+
     Object.getOwnPropertyNames(obj).forEach(prop => {
       const value = (obj as Record<string, unknown>)[prop];
-      if (value !== null && 
-          (typeof value === 'object' || typeof value === 'function') && 
-          !Object.isFrozen(value)) {
+      if (
+        value !== null &&
+        (typeof value === 'object' || typeof value === 'function') &&
+        !Object.isFrozen(value)
+      ) {
         this.deepFreeze(value);
       }
     });
-    
+
     return obj;
   }
 
   /**
    * Check if a key is sensitive.
-   * 
+   *
    * @param {string} key - Key to check
    * @returns {boolean} True if sensitive
    * @private
@@ -546,13 +553,13 @@ export class ContextManager extends EventEmitter {
       /credential/i,
       /private/i,
     ];
-    
+
     return sensitivePatterns.some(pattern => pattern.test(key));
   }
 
   /**
    * Set validation rules.
-   * 
+   *
    * @param {ContextValidationRules} rules - Validation rules
    */
   public setValidationRules(rules: ContextValidationRules): void {
@@ -562,7 +569,7 @@ export class ContextManager extends EventEmitter {
 
   /**
    * Validate structure for circular references and depth.
-   * 
+   *
    * @param {unknown} value - Value to validate
    * @param {number} depth - Current depth
    * @param {WeakSet<object>} seen - Seen objects for circular reference detection
@@ -595,7 +602,7 @@ export class ContextManager extends EventEmitter {
 
   /**
    * Validate context against rules.
-   * 
+   *
    * @param {Record<string, unknown>} context - Context to validate
    * @returns {ContextValidationResult} Validation result
    */
@@ -627,7 +634,9 @@ export class ContextManager extends EventEmitter {
           if (field in context) {
             const actualType = typeof context[field];
             if (actualType !== expectedType) {
-              errors.push(`Field ${field} has wrong type: expected ${expectedType}, got ${actualType}`);
+              errors.push(
+                `Field ${field} has wrong type: expected ${expectedType}, got ${actualType}`
+              );
             }
           }
         }
@@ -659,7 +668,7 @@ export class ContextManager extends EventEmitter {
 
   /**
    * Create a snapshot of current context.
-   * 
+   *
    * @param {Record<string, unknown>} [metadata] - Optional metadata
    * @returns {ContextSnapshot} Created snapshot
    */
@@ -684,17 +693,20 @@ export class ContextManager extends EventEmitter {
 
   /**
    * Restore from a snapshot.
-   * 
+   *
    * @param {ContextSnapshot} snapshot - Snapshot to restore
    */
   public restore(snapshot: ContextSnapshot): void {
-    this.globalContext = this.cloneValue(snapshot.data, 0, new WeakSet()) as Record<string, unknown>;
+    this.globalContext = this.cloneValue(snapshot.data, 0, new WeakSet()) as Record<
+      string,
+      unknown
+    >;
     this.emit('snapshotRestored', snapshot);
   }
 
   /**
    * Get all snapshots.
-   * 
+   *
    * @returns {ContextSnapshot[]} All snapshots
    */
   public getSnapshots(): ContextSnapshot[] {
@@ -711,7 +723,7 @@ export class ContextManager extends EventEmitter {
 
   /**
    * Flatten nested context to dot notation.
-   * 
+   *
    * @param {Record<string, unknown>} context - Context to flatten
    * @param {string} [prefix=''] - Key prefix
    * @returns {Record<string, unknown>} Flattened context
@@ -740,7 +752,7 @@ export class ContextManager extends EventEmitter {
   /**
    * Unflatten dot notation to nested object.
    * Converts a flat object with dot-notation keys into a nested object structure.
-   * 
+   *
    * @param {Record<string, unknown>} flattened - Flattened context
    * @returns {Record<string, unknown>} Nested context
    */
@@ -771,7 +783,7 @@ export class ContextManager extends EventEmitter {
 
   /**
    * Extract specific fields from context.
-   * 
+   *
    * @param {Record<string, unknown>} context - Source context
    * @param {string[]} fields - Fields to extract
    * @returns {Record<string, unknown>} Extracted context
@@ -796,7 +808,7 @@ export class ContextManager extends EventEmitter {
 
   /**
    * Get nested value using dot notation.
-   * 
+   *
    * @param {object} obj - Source object
    * @param {string} path - Dot notation path
    * @returns {unknown} Value at path
@@ -819,7 +831,7 @@ export class ContextManager extends EventEmitter {
 
   /**
    * Set nested value using dot notation.
-   * 
+   *
    * @param {object} obj - Target object
    * @param {string} path - Dot notation path
    * @param {unknown} value - Value to set
@@ -846,7 +858,7 @@ export class ContextManager extends EventEmitter {
 
   /**
    * Get context statistics.
-   * 
+   *
    * @returns {object} Context statistics
    */
   public getStats(): {
@@ -856,7 +868,7 @@ export class ContextManager extends EventEmitter {
     snapshotCount: number;
   } {
     const flattened = this.flatten(this.globalContext);
-    
+
     return {
       size: JSON.stringify(this.globalContext).length,
       depth: this.getMaxDepth(this.globalContext),
@@ -867,7 +879,7 @@ export class ContextManager extends EventEmitter {
 
   /**
    * Get maximum depth of object.
-   * 
+   *
    * @param {object} obj - Object to measure
    * @param {number} currentDepth - Current depth
    * @returns {number} Maximum depth

@@ -7,7 +7,11 @@ describe('colors constants', () => {
     // Acquire fresh terminal utils AFTER reset so colors will see the spied function
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const terminalUtils = require('../../../src/utils/terminal');
-  const spy = jest.spyOn(terminalUtils, 'isStyleSupported').mockImplementation((style: unknown) => String(style) !== 'italic' && String(style) !== 'hidden');
+    const spy = jest
+      .spyOn(terminalUtils, 'isStyleSupported')
+      .mockImplementation(
+        (style: unknown) => String(style) !== 'italic' && String(style) !== 'hidden'
+      );
     // Import after spy so current reference is mock
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const colorsMod = require('../../../src/constants/colors');
@@ -54,30 +58,30 @@ describe('colors constants', () => {
     const spy1 = jest.spyOn(terminalUtils1, 'isStyleSupported').mockImplementation(() => true);
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const first = require('../../../src/constants/colors');
-  // Trigger multiple evaluation paths
-  void ('bold' in first.COLORS); // has trap
-  // Access property (get trap)
-  // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-  first.COLORS.bold;
-  Object.getOwnPropertyDescriptor(first.COLORS, 'bold'); // descriptor trap
-  expect(first.COLORS.bold).not.toBe('');
+    // Trigger multiple evaluation paths
+    void ('bold' in first.COLORS); // has trap
+    // Access property (get trap)
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    first.COLORS.bold;
+    Object.getOwnPropertyDescriptor(first.COLORS, 'bold'); // descriptor trap
+    expect(first.COLORS.bold).not.toBe('');
 
     // Reset modules (colors + terminal reloaded)
     jest.resetModules();
-  // Clear cached global mock so new spy is adopted
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  delete (globalThis as any).__MAGICLOGGER_IS_STYLE_SUPPORTED;
+    // Clear cached global mock so new spy is adopted
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (globalThis as any).__MAGICLOGGER_IS_STYLE_SUPPORTED;
     // Second cycle: new terminal utils instance
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const terminalUtils2 = require('../../../src/utils/terminal');
     const spy2 = jest.spyOn(terminalUtils2, 'isStyleSupported').mockImplementation(() => true);
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const second = require('../../../src/constants/colors');
-  void ('bold' in second.COLORS);
-  // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-  second.COLORS.bold;
-  Object.keys(second.COLORS); // ownKeys trap
-  expect(second.COLORS.bold).not.toBe('');
+    void ('bold' in second.COLORS);
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    second.COLORS.bold;
+    Object.keys(second.COLORS); // ownKeys trap
+    expect(second.COLORS.bold).not.toBe('');
 
     // At least one call recorded overall
     expect(spy1.mock.calls.length + spy2.mock.calls.length).toBeGreaterThan(0);

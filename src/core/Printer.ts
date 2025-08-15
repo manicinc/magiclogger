@@ -7,7 +7,7 @@ import { ColorName } from '../types';
 
 /**
  * Configuration options for Printer.
- * 
+ *
  * @interface PrinterOptions
  */
 export interface PrinterOptions {
@@ -52,7 +52,7 @@ interface BorderChars {
 
 /**
  * Printer module abstracts output logic for both terminal and browser environments.
- * 
+ *
  * Features:
  * - Cross-platform output handling
  * - Table formatting for both environments
@@ -60,9 +60,9 @@ interface BorderChars {
  * - Stream redirection
  * - Performance optimizations
  * - Memory-safe output
- * 
+ *
  * @class Printer
- * 
+ *
  * @example
  * ```typescript
  * // Configure printer
@@ -70,10 +70,10 @@ interface BorderChars {
  *   useColors: true,
  *   timestamps: true
  * });
- * 
+ *
  * // Print formatted output
  * Printer.print('Hello World');
- * 
+ *
  * // Print table
  * Printer.printTable([
  *   { name: 'John', age: 30 },
@@ -110,7 +110,10 @@ export class Printer {
    */
   private static config: Required<PrinterOptions> = {
     useColors: true,
-    stream: typeof process !== 'undefined' ? process.stdout : undefined as unknown as NodeJS.WriteStream,
+    stream:
+      typeof process !== 'undefined'
+        ? process.stdout
+        : (undefined as unknown as NodeJS.WriteStream),
     timestamps: false,
     timestampFormat: 'HH:mm:ss.SSS',
     console: console,
@@ -164,7 +167,7 @@ export class Printer {
 
   /**
    * Configure printer options.
-   * 
+   *
    * @param {PrinterOptions} options - Configuration options
    * @static
    */
@@ -175,7 +178,7 @@ export class Printer {
 
   /**
    * Set whether to use colors in the output.
-   * 
+   *
    * @param {boolean} useColors - Whether to enable colors
    * @static
    */
@@ -218,7 +221,7 @@ export class Printer {
         // In tests, check if console is enhanced (has recursion guard)
         const recursionGuard = Symbol.for('recursionGuard');
         const hasEnhancedConsole = recursionGuard in console;
-        
+
         if (hasEnhancedConsole) {
           // Use original console to avoid recursion
           this.getConsole().log(output);
@@ -243,14 +246,17 @@ export class Printer {
   /**
    * Prints a log message to console.
    * Handles browser or terminal output.
-   * 
+   *
    * @param {string} message - The formatted message
    * @static
    */
   public static print(message: string): void {
     // Add timestamp if configured
     if (this.config.timestamps) {
-  const timestamp = this.formatter.formatTimestamp(new Date(), this.config.timestampFormat ?? 'YYYY-MM-DD HH:mm:ss.SSS');
+      const timestamp = this.formatter.formatTimestamp(
+        new Date(),
+        this.config.timestampFormat ?? 'YYYY-MM-DD HH:mm:ss.SSS'
+      );
       message = `${timestamp} ${message}`;
     }
 
@@ -277,7 +283,7 @@ export class Printer {
         // Respect recursion guard to avoid infinite loops with enhanced console
         const recursionGuard = Symbol.for('recursionGuard');
         const hasEnhancedConsole = recursionGuard in console;
-        
+
         if (hasEnhancedConsole) {
           // Use the captured original console method to bypass enhanced console
           this.originalConsole.log(message);
@@ -294,7 +300,7 @@ export class Printer {
 
   /**
    * Print multiple lines efficiently.
-   * 
+   *
    * @param {string[]} lines - Array of lines to print
    * @static
    */
@@ -306,13 +312,18 @@ export class Printer {
       return;
     }
 
-  // If a progress bar is active, finalize it (preserve the last rendered state)
-    if (!isBrowserEnvironment() && this.progressState.active && typeof process !== 'undefined' && process.stdout) {
+    // If a progress bar is active, finalize it (preserve the last rendered state)
+    if (
+      !isBrowserEnvironment() &&
+      this.progressState.active &&
+      typeof process !== 'undefined' &&
+      process.stdout
+    ) {
       this.finalizeProgress();
     }
 
     const output = lines.join('\n');
-    
+
     if (isBrowserEnvironment()) {
       this.getConsole().log(output);
     } else {
@@ -320,7 +331,7 @@ export class Printer {
         // Respect recursion guard to avoid infinite loops with enhanced console
         const recursionGuard = Symbol.for('recursionGuard');
         const hasEnhancedConsole = recursionGuard in console;
-        
+
         if (hasEnhancedConsole) {
           this.originalConsole.log(output);
         } else {
@@ -335,7 +346,7 @@ export class Printer {
 
   /**
    * Print to error stream.
-   * 
+   *
    * @param {string} message - Error message
    * @static
    */
@@ -351,14 +362,14 @@ export class Printer {
 
   /**
    * Print progress bar visually.
-   * 
+   *
    * @param {string} bar - The filled bar string
    * @param {string} percent - The percentage string
    * @param {object} options - Additional options
    * @static
    */
   public static printProgress(
-    bar: string, 
+    bar: string,
     percent: string,
     options: {
       label?: string;
@@ -388,7 +399,7 @@ export class Printer {
       if (options.current && options.total) {
         parts.push(`${options.current}/${options.total}`);
       }
-      
+
       // Use configured console
       this.getConsole().log(parts.join(' '));
     } else {
@@ -397,7 +408,7 @@ export class Printer {
       if (options.label) parts.push(options.label);
       parts.push(bar);
       parts.push(percent);
-      
+
       if (options.showTime && this.progressState.startTime) {
         const elapsed = Date.now() - this.progressState.startTime;
         parts.push(`[${this.formatter.formatDuration(elapsed)}]`);
@@ -414,7 +425,7 @@ export class Printer {
       }
 
       const line = parts.join(' ');
-      
+
       // Track progress state
       if (!this.progressState.active) {
         this.progressState.active = true;
@@ -459,7 +470,12 @@ export class Printer {
    * @static
    */
   private static clearProgress(): void {
-    if (!isBrowserEnvironment() && this.progressState.active && typeof process !== 'undefined' && process.stdout) {
+    if (
+      !isBrowserEnvironment() &&
+      this.progressState.active &&
+      typeof process !== 'undefined' &&
+      process.stdout
+    ) {
       process.stdout.write(`\r${' '.repeat(process.stdout.columns || 80)}\r`);
       this.progressState.active = false;
     }
@@ -471,7 +487,12 @@ export class Printer {
    * @static
    */
   private static finalizeProgress(): void {
-    if (!isBrowserEnvironment() && this.progressState.active && typeof process !== 'undefined' && process.stdout) {
+    if (
+      !isBrowserEnvironment() &&
+      this.progressState.active &&
+      typeof process !== 'undefined' &&
+      process.stdout
+    ) {
       process.stdout.write('\n');
       this.progressState.active = false;
     }
@@ -492,7 +513,7 @@ export class Printer {
 
   /**
    * Print tabular data with proper formatting for both environments.
-   * 
+   *
    * @param {Record<string, unknown>[]} data - Array of objects
    * @param {ColorName[]} headerColors - Colors for header row
    * @param {object} options - Table options
@@ -509,8 +530,13 @@ export class Printer {
       compact?: boolean;
     } = {}
   ): void {
-  // Ensure any active progress bar is finalized and preserved before the table
-    if (!isBrowserEnvironment() && this.progressState.active && typeof process !== 'undefined' && process.stdout) {
+    // Ensure any active progress bar is finalized and preserved before the table
+    if (
+      !isBrowserEnvironment() &&
+      this.progressState.active &&
+      typeof process !== 'undefined' &&
+      process.stdout
+    ) {
       this.finalizeProgress();
     }
     if (isBrowserEnvironment()) {
@@ -543,15 +569,11 @@ export class Printer {
       }
 
       // Calculate column widths
-  const resolvedMaxWidth: number = (typeof maxColumnWidth === 'number' && maxColumnWidth > 0) ? maxColumnWidth : 50;
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore - suppress maxWidth narrow inference (confirmed resolvedMaxWidth is number)
-  const columnWidths = this.calculateColumnWidths(
-        data,
-        columns,
-        resolvedMaxWidth,
-        showIndex
-      );
+      const resolvedMaxWidth: number =
+        typeof maxColumnWidth === 'number' && maxColumnWidth > 0 ? maxColumnWidth : 50;
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore - suppress maxWidth narrow inference (confirmed resolvedMaxWidth is number)
+      const columnWidths = this.calculateColumnWidths(data, columns, resolvedMaxWidth, showIndex);
 
       // Get border characters
       const borders = this.getBorderChars(borderStyle);
@@ -565,14 +587,16 @@ export class Printer {
       }
 
       // Header row
-      lines.push(this.buildDataRow(
-        columns.reduce((obj, col) => ({ ...obj, [col]: col }), {}),
-        columns,
-        columnWidths,
-        borders.vertical,
-        headerColors,
-        truncate
-      ));
+      lines.push(
+        this.buildDataRow(
+          columns.reduce((obj, col) => ({ ...obj, [col]: col }), {}),
+          columns,
+          columnWidths,
+          borders.vertical,
+          headerColors,
+          truncate
+        )
+      );
 
       // Separator after header
       if (borderStyle !== 'none' && !compact) {
@@ -599,7 +623,7 @@ export class Printer {
 
   /**
    * Get all unique columns from data.
-   * 
+   *
    * @param {Record<string, unknown>[]} data - Table data
    * @returns {string[]} Column names
    * @private
@@ -615,7 +639,7 @@ export class Printer {
 
   /**
    * Calculate optimal column widths.
-   * 
+   *
    * @param {Record<string, unknown>[]} data - Table data
    * @param {string[]} columns - Column names
    * @param {number} maxWidth - Maximum column width
@@ -637,7 +661,7 @@ export class Printer {
       widths[col] = col.length;
 
       // Special handling for index column
-  if (col === '#' && hasIndex) {
+      if (col === '#' && hasIndex) {
         widths[col] = Math.max(widths[col], String(data.length).length);
         return;
       }
@@ -660,7 +684,7 @@ export class Printer {
 
   /**
    * Format a cell value for display.
-   * 
+   *
    * @param {unknown} value - Cell value
    * @returns {string} Formatted value
    * @private
@@ -680,7 +704,7 @@ export class Printer {
 
   /**
    * Get border characters for table style.
-   * 
+   *
    * @param {string} style - Border style
    * @returns {BorderChars} Border characters
    * @private
@@ -713,7 +737,7 @@ export class Printer {
 
   /**
    * Build a border line for the table.
-   * 
+   *
    * @param {Record<string, number>} widths - Column widths
    * @param {BorderChars['top']} chars - Border characters
    * @returns {string} Border line
@@ -730,7 +754,7 @@ export class Printer {
 
   /**
    * Build a data row for the table.
-   * 
+   *
    * @param {Record<string, any>} row - Row data
    * @param {string[]} columns - Column names
    * @param {Record<string, number>} widths - Column widths
@@ -751,13 +775,13 @@ export class Printer {
   ): string {
     const cells = columns.map(col => {
       let value = this.formatCellValue(row[col]);
-  const fallbackLen = value.length;
-  const w = widths[col];
-  const width = typeof w === 'number' && !Number.isNaN(w) ? w : fallbackLen;
+      const fallbackLen = value.length;
+      const w = widths[col];
+      const width = typeof w === 'number' && !Number.isNaN(w) ? w : fallbackLen;
       widths[col] = width; // ensure cached numeric width
 
       // Truncate if needed
-  if (truncate && value.length > width) {
+      if (truncate && value.length > width) {
         const cut = Math.max(0, width - 3);
         value = value.substring(0, cut) + (cut < value.length ? '...' : '');
       }
@@ -774,7 +798,7 @@ export class Printer {
 
   /**
    * Print a tree structure.
-   * 
+   *
    * @param {Record<string, unknown>} data - Tree data
    * @param {object} options - Tree options
    * @static
@@ -796,7 +820,7 @@ export class Printer {
     } = options;
 
     const lines: string[] = [];
-    
+
     // Add label
     if (label) {
       lines.push(colors ? Colorizer.bold(label) : label);
@@ -811,7 +835,7 @@ export class Printer {
 
   /**
    * Build tree structure recursively.
-   * 
+   *
    * @param {Record<string, unknown>} node - Current node
    * @param {string[]} lines - Output lines
    * @param {string} prefix - Line prefix
@@ -826,8 +850,8 @@ export class Printer {
   private static buildTree(
     node: Record<string, unknown>,
     lines: string[],
-  prefix: string,
-  _isLast: boolean, // parameter retained for API compatibility; underscore to silence unused warning
+    prefix: string,
+    _isLast: boolean, // parameter retained for API compatibility; underscore to silence unused warning
     depth: number,
     maxDepth: number,
     showValues: boolean,
@@ -845,7 +869,7 @@ export class Printer {
       const extension = isLastEntry ? '  ' : '│ ';
 
       let line = prefix + connector + ' ';
-      
+
       if (colors) {
         line += Colorizer.cyan(key);
       } else {
@@ -892,7 +916,7 @@ export class Printer {
 
   /**
    * Move cursor to specific position (terminal only).
-   * 
+   *
    * @param {number} x - X position
    * @param {number} y - Y position
    * @static
@@ -945,7 +969,7 @@ export class Printer {
 
   /**
    * Get terminal size.
-   * 
+   *
    * @returns {object} Terminal dimensions
    * @static
    */
@@ -962,7 +986,7 @@ export class Printer {
 
   /**
    * Check if output is a TTY.
-   * 
+   *
    * @returns {boolean} True if TTY
    * @static
    */
@@ -976,7 +1000,7 @@ export class Printer {
 
   /**
    * Get output stream.
-   * 
+   *
    * @returns {NodeJS.WriteStream | Console} Output stream
    * @static
    */
@@ -986,7 +1010,7 @@ export class Printer {
 
   /**
    * Redirect output to a different stream.
-   * 
+   *
    * @param {NodeJS.WriteStream} stream - New output stream
    * @static
    */

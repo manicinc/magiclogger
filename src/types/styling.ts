@@ -5,9 +5,9 @@ import { ColorName } from './colors';
 /**
  * Represents a styled text part with optional color/style modifiers.
  * Used by the parts API for explicit style control.
- * 
+ *
  * @type {StyledPart}
- * 
+ *
  * @example
  * ```typescript
  * const part: StyledPart = ['Error:', 'red', 'bold'];
@@ -19,9 +19,9 @@ export type StyledPart = [text: string, ...styles: ColorName[]];
 /**
  * Maps word indices to their respective styles.
  * Used by the index-based styling API.
- * 
+ *
  * @type {WordStyleMap}
- * 
+ *
  * @example
  * ```typescript
  * const styleMap: WordStyleMap = {
@@ -36,7 +36,7 @@ export type WordStyleMap = Record<number, ColorName[]>;
 /**
  * Options for styling text.
  * Provides configuration for various styling operations.
- * 
+ *
  * @interface StyleOptions
  */
 export interface StyleOptions {
@@ -68,7 +68,7 @@ export interface StyleOptions {
 /**
  * Result of parsing styled text.
  * Contains the styled output and metadata.
- * 
+ *
  * @interface StyleResult
  */
 export interface StyleResult {
@@ -101,18 +101,15 @@ export interface StyleResult {
 /**
  * Template literal tag function signature.
  * Used for the fmt`` template API.
- * 
+ *
  * @type {TemplateFormatter}
  */
-export type TemplateFormatter = (
-  strings: TemplateStringsArray,
-  ...values: unknown[]
-) => string;
+export type TemplateFormatter = (strings: TemplateStringsArray, ...values: unknown[]) => string;
 
 /**
  * Style builder function signature.
  * Used for chainable style API.
- * 
+ *
  * @type {StyleFunction}
  */
 export type StyleFunction = (text: string) => string;
@@ -120,7 +117,7 @@ export type StyleFunction = (text: string) => string;
 /**
  * Chainable style builder interface.
  * Provides fluent API for building styled strings.
- * 
+ *
  * @interface IStyleBuilder
  */
 export interface IStyleBuilder {
@@ -186,7 +183,7 @@ export interface IStyleBuilder {
 /**
  * Styling API interface.
  * Defines all styling methods available on a logger.
- * 
+ *
  * @interface IStylingAPI
  */
 export interface IStylingAPI {
@@ -230,7 +227,7 @@ export interface IStylingAPI {
 /**
  * Style validation result.
  * Contains validation status and any errors.
- * 
+ *
  * @interface StyleValidation
  */
 export interface StyleValidation {
@@ -258,7 +255,7 @@ export interface StyleValidation {
 /**
  * Style statistics for a styled string.
  * Provides metrics about styling usage.
- * 
+ *
  * @interface StyleStats
  */
 export interface StyleStats {
@@ -295,7 +292,7 @@ export interface StyleStats {
 
 /**
  * Configuration for bracket syntax parsing.
- * 
+ *
  * @interface BracketParseOptions
  */
 export interface BracketParseOptions {
@@ -338,7 +335,7 @@ export interface BracketParseOptions {
 
 /**
  * Configuration for template parsing.
- * 
+ *
  * @interface TemplateParseOptions
  */
 export interface TemplateParseOptions {
@@ -382,7 +379,7 @@ export interface TemplateParseOptions {
 /**
  * Style preset definition.
  * Maps preset names to style combinations.
- * 
+ *
  * @type {StylePresetMap}
  */
 export type StylePresetMap = Record<string, ColorName[]>;
@@ -390,7 +387,7 @@ export type StylePresetMap = Record<string, ColorName[]>;
 /**
  * Extended logger with styling capabilities.
  * Combines standard logging with styling APIs.
- * 
+ *
  * @interface IStyledLogger
  */
 export interface IStyledLogger {
@@ -416,7 +413,7 @@ export interface IStyledLogger {
 
 /**
  * Type guard to check if a value is a StyledPart.
- * 
+ *
  * @param {unknown} value - Value to check
  * @returns {boolean} True if value is a StyledPart
  */
@@ -429,7 +426,7 @@ export function isStyledPart(value: unknown): value is StyledPart {
 
 /**
  * Type guard to check if a value is a WordStyleMap.
- * 
+ *
  * @param {unknown} value - Value to check
  * @returns {boolean} True if value is a WordStyleMap
  */
@@ -448,32 +445,32 @@ export function isWordStyleMap(value: unknown): value is WordStyleMap {
 
 /**
  * Type guard to check if a value is a style builder.
- * 
+ *
  * @param {unknown} value - Value to check
  * @returns {boolean} True if value is an IStyleBuilder
  */
 export function isStyleBuilder(value: unknown): value is IStyleBuilder {
   if (typeof value !== 'function') return false;
-  const obj = (value as unknown) as Record<string, unknown>;
+  const obj = value as unknown as Record<string, unknown>;
   return 'red' in obj && 'green' in obj && 'blue' in obj;
 }
 
 /**
  * Helper type for style method parameters.
  * Allows both direct strings and styled strings.
- * 
+ *
  * @type {StylableString}
  */
 export type StylableString = string | (() => string);
 
 /**
  * Helper type for methods that can accept styled input.
- * 
+ *
  * @type {StyleInput}
  */
-export type StyleInput = 
-  | string 
-  | StyledPart[] 
+export type StyleInput =
+  | string
+  | StyledPart[]
   | { text: string; styles: ColorName[] }
   | (() => string);
 

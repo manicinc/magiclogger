@@ -15,12 +15,12 @@ const withEnv = (vars: Record<string, string | undefined>, fn: () => void) => {
       process.env[k] = vars[k] as string;
     }
   }
-  try { 
-    fn(); 
+  try {
+    fn();
   } finally {
     for (const k of Object.keys(vars)) {
       if (original[k] === undefined) {
-        delete process.env[k]; 
+        delete process.env[k];
       } else {
         process.env[k] = original[k] as string;
       }
@@ -30,7 +30,7 @@ const withEnv = (vars: Record<string, string | undefined>, fn: () => void) => {
 
 /**
  * Comprehensive test suite for the Colorizer class.
- * 
+ *
  * Tests static color application methods, style combinations, link detection,
  * environment detection, caching, and various formatting utilities.
  */
@@ -43,24 +43,24 @@ describe('Colorizer', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     // Save original function
     originalGetFallbackStyle = terminalUtils.getFallbackStyle;
-    
+
     // Mock getFallbackStyle to return consistent results
     jest.spyOn(terminalUtils, 'getFallbackStyle').mockImplementation((style: string): string => {
       // Return a fallback style for testing
       const fallbacks: Record<string, string> = {
-        'italic': 'dim',
-        'strikethrough': 'dim',
-        'blink': 'bold'
+        italic: 'dim',
+        strikethrough: 'dim',
+        blink: 'bold',
       };
       return fallbacks[style] || style;
     });
-    
-  // Clear any cached color support and reset detection flag
-  Colorizer.clearCache();
-  resetSupportsColor(); // force auto-detect next call
+
+    // Clear any cached color support and reset detection flag
+    Colorizer.clearCache();
+    resetSupportsColor(); // force auto-detect next call
   });
 
   afterEach(() => {
@@ -122,7 +122,7 @@ describe('Colorizer', () => {
     it('getColorLevel 0 when no support or dumb term', () => {
       Colorizer.setColorSupport(false);
       expect(Colorizer.getColorLevel()).toBe(0);
-      
+
       Colorizer.setColorSupport(true);
       withEnv({ TERM: 'dumb' }, () => {
         resetSupportsColor(); // force re-detection
@@ -146,7 +146,7 @@ describe('Colorizer', () => {
 
     it('getColorLevel patterns and default 1', () => {
       Colorizer.setColorSupport(true);
-  withEnv({ TERM: 'ansi', COLORTERM: undefined, TERM_PROGRAM: undefined }, () => {
+      withEnv({ TERM: 'ansi', COLORTERM: undefined, TERM_PROGRAM: undefined }, () => {
         expect(Colorizer.getColorLevel()).toBe(2); // ansi matches 256 pattern
       });
       withEnv({ TERM: 'vt-no-match', COLORTERM: undefined, TERM_PROGRAM: undefined }, () => {
@@ -204,23 +204,23 @@ describe('Colorizer', () => {
       const parts = [
         { text: 'Hello', color: 'red' as ColorName },
         { text: ' ', color: 'white' as ColorName },
-        { text: 'World', color: 'blue' as ColorName }
+        { text: 'World', color: 'blue' as ColorName },
       ];
-      
+
       const result = Colorizer.colorParts(parts);
       expect(result).toBe(
         `${COLORS.red}Hello${COLORS.reset}` +
-        `${COLORS.white} ${COLORS.reset}` +
-        `${COLORS.blue}World${COLORS.reset}`
+          `${COLORS.white} ${COLORS.reset}` +
+          `${COLORS.blue}World${COLORS.reset}`
       );
     });
 
     it('should return concatenated text when useColors is false', () => {
       const parts = [
         { text: 'Hello', color: 'red' as ColorName },
-        { text: ' World', color: 'blue' as ColorName }
+        { text: ' World', color: 'blue' as ColorName },
       ];
-      
+
       const result = Colorizer.colorParts(parts, false);
       expect(result).toBe('Hello World');
     });
@@ -233,9 +233,9 @@ describe('Colorizer', () => {
     it('should handle parts with invalid colors', () => {
       const parts = [
         { text: 'Valid', color: 'green' as ColorName },
-        { text: ' Invalid', color: 'notAColor' as ColorName }
+        { text: ' Invalid', color: 'notAColor' as ColorName },
       ];
-      
+
       const result = Colorizer.colorParts(parts);
       expect(result).toContain('Valid');
       expect(result).toContain(' Invalid');
@@ -278,7 +278,7 @@ describe('Colorizer', () => {
     it('should apply all text styles', () => {
       const styles: ColorName[] = ['bold', 'dim', 'italic', 'underline', 'reverse', 'hidden'];
       const result = Colorizer.applyColors('Hello', styles);
-      
+
       // Should contain some color codes
       expect(result).toContain('Hello');
       expect(result).toContain(COLORS.reset);
@@ -323,8 +323,17 @@ describe('Colorizer', () => {
 
     it('should work with all built-in presets', () => {
       const presets: StylePreset[] = [
-        'info', 'success', 'warning', 'error', 'debug',
-        'important', 'highlight', 'muted', 'special', 'code', 'header'
+        'info',
+        'success',
+        'warning',
+        'error',
+        'debug',
+        'important',
+        'highlight',
+        'muted',
+        'special',
+        'code',
+        'header',
       ];
 
       presets.forEach(preset => {
@@ -398,7 +407,7 @@ describe('Colorizer', () => {
   describe('Rainbow Effect', () => {
     it('should apply rainbow colors to each character', () => {
       const result = Colorizer.rainbow('Hello!');
-      
+
       // Each character should have a different color
       expect(result).toContain(COLORS.red);
       expect(result).toContain(COLORS.yellow);
@@ -408,9 +417,10 @@ describe('Colorizer', () => {
     });
 
     it('should cycle through colors for long text', () => {
-      const longText = 'This is a very long text that should cycle through all rainbow colors multiple times';
+      const longText =
+        'This is a very long text that should cycle through all rainbow colors multiple times';
       const result = Colorizer.rainbow(longText);
-      
+
       // Should contain all rainbow colors
       const rainbowColors = ['red', 'yellow', 'green', 'cyan', 'blue', 'magenta'];
       rainbowColors.forEach(color => {
@@ -492,16 +502,16 @@ describe('Colorizer', () => {
     it('should cache color codes in production', () => {
       const originalNodeEnv = process.env.NODE_ENV;
       process.env.NODE_ENV = 'production';
-      
+
       try {
         // Clear cache first
         Colorizer.clearCache();
-        
+
         // Apply same colors multiple times
         const text1 = Colorizer.applyColors('Test1', ['red', 'bold']);
         const text2 = Colorizer.applyColors('Test2', ['red', 'bold']);
         const text3 = Colorizer.applyColors('Test3', ['red', 'bold']);
-        
+
         // All should contain the same color codes
         expect(text1).toContain(COLORS.red);
         expect(text2).toContain(COLORS.red);
@@ -515,10 +525,10 @@ describe('Colorizer', () => {
     it('should handle cache eviction for large number of unique combinations', () => {
       const originalNodeEnv = process.env.NODE_ENV;
       process.env.NODE_ENV = 'production';
-      
+
       try {
         Colorizer.clearCache();
-        
+
         // Create many unique color combinations
         // Note: Since we can't access MAX_CACHE_SIZE directly, we'll just test that
         // the function continues to work with many combinations
@@ -526,7 +536,7 @@ describe('Colorizer', () => {
           const uniqueColor = `color${i}` as ColorName;
           Colorizer.applyColors(`Test${i}`, ['red', uniqueColor]);
         }
-        
+
         // Should still work after many entries
         const result = Colorizer.applyColors('Final', ['green', 'bold']);
         expect(result).toContain('Final');
@@ -540,15 +550,15 @@ describe('Colorizer', () => {
     it('clearCache should reset cache', () => {
       const originalNodeEnv = process.env.NODE_ENV;
       process.env.NODE_ENV = 'production';
-      
+
       try {
         // Apply some colors to populate cache
         Colorizer.applyColors('Test1', ['red']);
         Colorizer.applyColors('Test2', ['blue']);
-        
+
         // Clear cache
         Colorizer.clearCache();
-        
+
         // Apply colors again - should work fine
         const result = Colorizer.applyColors('Test3', ['green']);
         expect(result).toContain('Test3');

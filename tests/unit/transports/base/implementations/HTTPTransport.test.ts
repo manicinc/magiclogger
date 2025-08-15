@@ -10,15 +10,21 @@ import * as zlibMod from 'zlib';
 interface CapturedRequest {
   options: Record<string, unknown>;
   body?: Buffer;
-  responder?: EventEmitter & { statusCode?: number; statusMessage?: string; headers: Record<string,string>; };
+  responder?: EventEmitter & {
+    statusCode?: number;
+    statusMessage?: string;
+    headers: Record<string, string>;
+  };
 }
 let lastRequest: CapturedRequest | undefined;
 let nextResponse: { statusCode: number; statusMessage?: string; body?: string } | undefined;
-function setNextResponse(r: { statusCode: number; statusMessage?: string; body?: string }) { nextResponse = r; }
+function setNextResponse(r: { statusCode: number; statusMessage?: string; body?: string }) {
+  nextResponse = r;
+}
 
 // Mock zlib
 jest.mock('zlib', () => ({
-  gzip: jest.fn((data: Buffer|string, cb: (e: Error|null, r: Buffer)=>void) => {
+  gzip: jest.fn((data: Buffer | string, cb: (e: Error | null, r: Buffer) => void) => {
     const buf = Buffer.isBuffer(data) ? data : Buffer.from(data);
     cb(null, Buffer.from('gz:' + buf.toString()));
   }),
@@ -32,31 +38,42 @@ interface NativeReq {
   on: jest.Mock;
   destroy: jest.Mock;
 }
-interface NativeRes extends EventEmitter { statusCode?: number; statusMessage?: string; headers: Record<string,string>; }
+interface NativeRes extends EventEmitter {
+  statusCode?: number;
+  statusMessage?: string;
+  headers: Record<string, string>;
+}
 
-function makeHttpModule(_protocol: 'http'|'https') {
-  const request = jest.fn((options: Record<string, unknown>, callback: (res: NativeRes)=>void): NativeReq => {
-    const res = new EventEmitter() as NativeRes;
-    res.statusCode = nextResponse?.statusCode ?? 200;
-    res.statusMessage = nextResponse?.statusMessage ?? 'OK';
-    res.headers = {};
-    lastRequest = { options, responder: res };
-    setImmediate(() => { 
-      callback(res); 
-      if (nextResponse?.body) res.emit('data', nextResponse.body);
-      res.emit('end'); 
-      nextResponse = undefined;
-    });
-    return {
-      write: jest.fn((chunk: unknown) => {
-        const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk));
-        lastRequest = lastRequest ? { ...lastRequest, body: lastRequest.body ? Buffer.concat([lastRequest.body, buf]) : buf } : { options, body: buf };
-      }),
-      end: jest.fn(() => undefined),
-      on: jest.fn(),
-      destroy: jest.fn(),
-    };
-  });
+function makeHttpModule(_protocol: 'http' | 'https') {
+  const request = jest.fn(
+    (options: Record<string, unknown>, callback: (res: NativeRes) => void): NativeReq => {
+      const res = new EventEmitter() as NativeRes;
+      res.statusCode = nextResponse?.statusCode ?? 200;
+      res.statusMessage = nextResponse?.statusMessage ?? 'OK';
+      res.headers = {};
+      lastRequest = { options, responder: res };
+      setImmediate(() => {
+        callback(res);
+        if (nextResponse?.body) res.emit('data', nextResponse.body);
+        res.emit('end');
+        nextResponse = undefined;
+      });
+      return {
+        write: jest.fn((chunk: unknown) => {
+          const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk));
+          lastRequest = lastRequest
+            ? {
+                ...lastRequest,
+                body: lastRequest.body ? Buffer.concat([lastRequest.body, buf]) : buf,
+              }
+            : { options, body: buf };
+        }),
+        end: jest.fn(() => undefined),
+        on: jest.fn(),
+        destroy: jest.fn(),
+      };
+    }
+  );
   const Agent = jest.fn().mockImplementation(() => ({ destroy: jest.fn() }));
   return { request, Agent };
 }
@@ -74,7 +91,9 @@ describe('HTTPTransport (native)', () => {
     lastRequest = undefined;
     jest.clearAllMocks();
     // Dynamically import after mocks so HttpTransport picks up mocked http/https
-    ({ HTTPTransport, createHTTPTransport } = await import('../../../../../src/transports/base/implementations/HttpTransport'));
+    ({ HTTPTransport, createHTTPTransport } = await import(
+      '../../../../../src/transports/base/implementations/HttpTransport'
+    ));
 
     entry = {
       id: 'id1',
@@ -85,14 +104,16 @@ describe('HTTPTransport (native)', () => {
       plainMessage: 'Hello',
       loggerId: 'logger',
       tags: ['t1'],
-      context: { a: 1 }
+      context: { a: 1 },
     };
     transport = new HTTPTransport({ name: 'http', url: 'https://logs.example.com/ingest' });
   });
 
   describe('constructor', () => {
     it('validates url', () => {
-      expect(() => new HTTPTransport({ name: 'bad', url: 'not a url' as unknown as string })).toThrow('Invalid URL: not a url');
+      expect(
+        () => new HTTPTransport({ name: 'bad', url: 'not a url' as unknown as string })
+      ).toThrow('Invalid URL: not a url');
     });
     it('sets defaults', () => {
       const t = new HTTPTransport({ name: 'x', url: 'https://example.com' });
@@ -135,47 +156,65 @@ describe('HTTPTransport (native)', () => {
       const body = decodeURIComponent(String(lastRequest?.body));
       expect(body).toContain('log[0]');
       expect(body).toContain('Hello');
-      expect((lastRequest?.options as { headers: Record<string,string> }).headers['Content-Type']).toMatch(/application\/x-www-form-urlencoded/);
+      expect(
+        (lastRequest?.options as { headers: Record<string, string> }).headers['Content-Type']
+      ).toMatch(/application\/x-www-form-urlencoded/);
     });
   });
 
   describe('authentication headers', () => {
     it('basic auth', async () => {
       await send([entry], { auth: { type: 'basic', username: 'u', password: 'p' } });
-      expect((lastRequest?.options as { headers: Record<string,string> }).headers.Authorization).toMatch(/^Basic /);
+      expect(
+        (lastRequest?.options as { headers: Record<string, string> }).headers.Authorization
+      ).toMatch(/^Basic /);
     });
     it('bearer', async () => {
       await send([entry], { auth: { type: 'bearer', token: 'tok' } });
-      expect((lastRequest?.options as { headers: Record<string,string> }).headers.Authorization).toBe('Bearer tok');
+      expect(
+        (lastRequest?.options as { headers: Record<string, string> }).headers.Authorization
+      ).toBe('Bearer tok');
     });
     it('api key default header', async () => {
       await send([entry], { auth: { type: 'apikey', apiKey: 'k' } });
-      expect((lastRequest?.options as { headers: Record<string,string> }).headers['X-API-Key']).toBe('k');
+      expect(
+        (lastRequest?.options as { headers: Record<string, string> }).headers['X-API-Key']
+      ).toBe('k');
     });
     it('api key custom header', async () => {
       await send([entry], { auth: { type: 'apikey', apiKey: 'k', apiKeyHeader: 'X-Key' } });
-      expect((lastRequest?.options as { headers: Record<string,string> }).headers['X-Key']).toBe('k');
+      expect((lastRequest?.options as { headers: Record<string, string> }).headers['X-Key']).toBe(
+        'k'
+      );
     });
     it('custom auth function', async () => {
-      await send([entry], { auth: { type: 'custom', customAuth: async () => ({ 'X-Custom': 'v1' }) } });
-      expect((lastRequest?.options as { headers: Record<string,string> }).headers['X-Custom']).toBe('v1');
+      await send([entry], {
+        auth: { type: 'custom', customAuth: async () => ({ 'X-Custom': 'v1' }) },
+      });
+      expect(
+        (lastRequest?.options as { headers: Record<string, string> }).headers['X-Custom']
+      ).toBe('v1');
     });
   });
 
   describe('compression', () => {
     it('adds gzip headers & compresses', async () => {
       await send([entry], { compress: true, bodyFormat: 'ndjson' });
-      expect((zlibMod.gzip as unknown as jest.Mock)).toHaveBeenCalled();
-      expect((lastRequest?.options as { headers: Record<string,string> }).headers['Content-Encoding']).toBe('gzip');
+      expect(zlibMod.gzip as unknown as jest.Mock).toHaveBeenCalled();
+      expect(
+        (lastRequest?.options as { headers: Record<string, string> }).headers['Content-Encoding']
+      ).toBe('gzip');
       expect(String(lastRequest?.body)).toContain('gz:');
     });
   });
 
   describe('error handling', () => {
     it('propagates non-2xx status', async () => {
-      await expect(send([entry], {}, () => {
-        setNextResponse({ statusCode: 400, statusMessage: 'Bad Request', body: 'ERR' });
-      })).rejects.toThrow('HTTP 400: Bad Request');
+      await expect(
+        send([entry], {}, () => {
+          setNextResponse({ statusCode: 400, statusMessage: 'Bad Request', body: 'ERR' });
+        })
+      ).rejects.toThrow('HTTP 400: Bad Request');
     });
   });
 
@@ -185,7 +224,9 @@ describe('HTTPTransport (native)', () => {
       const stats = transport.getStats();
       expect(stats.custom?.connectionState).toBeDefined();
       await transport.close();
-      expect((transport as unknown as { agent: { destroy: jest.Mock } }).agent.destroy).toHaveBeenCalled();
+      expect(
+        (transport as unknown as { agent: { destroy: jest.Mock } }).agent.destroy
+      ).toHaveBeenCalled();
     });
   });
 
@@ -214,29 +255,49 @@ describe('HTTPTransport (native)', () => {
       internal.lastFailureTime = Date.now() - 61_000; // > resetTimeout
       // Provide successive successes (default success threshold 3) to close breaker
       for (let s = 0; s < 3; s++) {
-        setNextResponse({ statusCode: 200, statusMessage: 'OK', body: '{}'});
+        setNextResponse({ statusCode: 200, statusMessage: 'OK', body: '{}' });
         await expect((t as any).sendData({ ok: s })).resolves.toBeUndefined();
       }
       expect(t.getCircuitBreakerState()).toBe('closed');
     });
 
     it('transformRequest returning Buffer and object; ensure ensureBodyType branches', async () => {
-      const bufTransport = new HTTPTransport({ name: 'buf', url: 'https://logs.example.com', transformRequest: async () => Buffer.from('raw-bytes'), bodyFormat: 'json' });
+      const bufTransport = new HTTPTransport({
+        name: 'buf',
+        url: 'https://logs.example.com',
+        transformRequest: async () => Buffer.from('raw-bytes'),
+        bodyFormat: 'json',
+      });
       await bufTransport.init();
-      setNextResponse({ statusCode: 200, statusMessage: 'OK', body: '{}'});
-      await (bufTransport as any).performNetworkRequest([{ message: 'x' }], { entries: [{ message: 'x' }] });
+      setNextResponse({ statusCode: 200, statusMessage: 'OK', body: '{}' });
+      await (bufTransport as any).performNetworkRequest([{ message: 'x' }], {
+        entries: [{ message: 'x' }],
+      });
       expect(String(lastRequest?.body)).toContain('raw-bytes');
 
-      const objTransport = new HTTPTransport({ name: 'obj', url: 'https://logs.example.com', transformRequest: async () => ({ foo: 'bar' }), bodyFormat: 'json' });
+      const objTransport = new HTTPTransport({
+        name: 'obj',
+        url: 'https://logs.example.com',
+        transformRequest: async () => ({ foo: 'bar' }),
+        bodyFormat: 'json',
+      });
       await objTransport.init();
-      setNextResponse({ statusCode: 200, statusMessage: 'OK', body: '{}'});
-      await (objTransport as any).performNetworkRequest([{ message: 'y' }], { entries: [{ message: 'y' }] });
+      setNextResponse({ statusCode: 200, statusMessage: 'OK', body: '{}' });
+      await (objTransport as any).performNetworkRequest([{ message: 'y' }], {
+        entries: [{ message: 'y' }],
+      });
       expect(String(lastRequest?.body)).toContain('foo');
     });
 
     it('transformResponse parse failure warns', async () => {
-  const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => { /* silence expected parse warning */ });
-      const tr = new HTTPTransport({ name: 'resp', url: 'https://logs.example.com', transformResponse: jest.fn() });
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {
+        /* silence expected parse warning */
+      });
+      const tr = new HTTPTransport({
+        name: 'resp',
+        url: 'https://logs.example.com',
+        transformResponse: jest.fn(),
+      });
       await tr.init();
       setNextResponse({ statusCode: 200, statusMessage: 'OK', body: 'not-json' });
       await (tr as any).performNetworkRequest([{ m: 'a' }], { entries: [{ m: 'a' }] });
@@ -246,9 +307,15 @@ describe('HTTPTransport (native)', () => {
     });
 
     it('custom body format without transformRequest throws', async () => {
-      const tr = new HTTPTransport({ name: 'cust', url: 'https://logs.example.com', bodyFormat: 'custom' as any });
+      const tr = new HTTPTransport({
+        name: 'cust',
+        url: 'https://logs.example.com',
+        bodyFormat: 'custom' as any,
+      });
       await tr.init();
-      await expect((tr as any).performNetworkRequest([{ m: 'a' }], { entries: [{ m: 'a' }] })).rejects.toThrow(/Custom body format/);
+      await expect(
+        (tr as any).performNetworkRequest([{ m: 'a' }], { entries: [{ m: 'a' }] })
+      ).rejects.toThrow(/Custom body format/);
     });
 
     it('retry conditions', async () => {
@@ -256,9 +323,11 @@ describe('HTTPTransport (native)', () => {
       await tr.init();
       const shouldRetry = (tr as any).shouldRetryError.bind(tr);
       expect(shouldRetry(new Error('Request timeout after 3000ms'), 0)).toBe(true);
-      const e500: any = new Error('HTTP 500'); e500.statusCode = 500; expect(shouldRetry(e500, 1)).toBe(true);
-  const eOther = new Error('Other failure'); // generic message without retry keywords should not retry
-  expect(shouldRetry(eOther, 1)).toBe(false);
+      const e500: any = new Error('HTTP 500');
+      e500.statusCode = 500;
+      expect(shouldRetry(e500, 1)).toBe(true);
+      const eOther = new Error('Other failure'); // generic message without retry keywords should not retry
+      expect(shouldRetry(eOther, 1)).toBe(false);
     });
 
     it('health check path logic', async () => {
@@ -271,10 +340,15 @@ describe('HTTPTransport (native)', () => {
     });
 
     it('proxy configuration with auth', async () => {
-      const tr = new HTTPTransport({ 
-        name: 'proxy', 
-        url: 'https://logs.example.com/ingest', 
-        proxy: { protocol: 'http:', host: 'proxy.local', port: 8080, auth: { username: 'u', password: 'p' } }
+      const tr = new HTTPTransport({
+        name: 'proxy',
+        url: 'https://logs.example.com/ingest',
+        proxy: {
+          protocol: 'http:',
+          host: 'proxy.local',
+          port: 8080,
+          auth: { username: 'u', password: 'p' },
+        },
       });
       await tr.init();
       setNextResponse({ statusCode: 200, statusMessage: 'OK', body: '{}' });
@@ -285,11 +359,19 @@ describe('HTTPTransport (native)', () => {
     });
 
     it('compression error path rejects', async () => {
-      const tr = new HTTPTransport({ name: 'gzerr', url: 'https://logs.example.com', compress: true });
+      const tr = new HTTPTransport({
+        name: 'gzerr',
+        url: 'https://logs.example.com',
+        compress: true,
+      });
       await tr.init();
       const orig = (zlibMod.gzip as unknown as jest.Mock).getMockImplementation();
-      (zlibMod.gzip as unknown as jest.Mock).mockImplementationOnce((_d: any, cb: any) => cb(new Error('gzip fail')));
-      await expect((tr as any).performNetworkRequest([{ m: 'e' }], { entries: [{ m: 'e' }] })).rejects.toThrow('gzip fail');
+      (zlibMod.gzip as unknown as jest.Mock).mockImplementationOnce((_d: any, cb: any) =>
+        cb(new Error('gzip fail'))
+      );
+      await expect(
+        (tr as any).performNetworkRequest([{ m: 'e' }], { entries: [{ m: 'e' }] })
+      ).rejects.toThrow('gzip fail');
       if (orig) (zlibMod.gzip as unknown as jest.Mock).mockImplementation(orig);
     });
   });

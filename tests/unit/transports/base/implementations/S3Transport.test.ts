@@ -5,8 +5,8 @@
 jest.mock('crypto', () => ({
   createHash: jest.fn(() => ({
     update: jest.fn().mockReturnThis(),
-    digest: jest.fn(() => 'a1b2c3d4e5f6789012345678')
-  }))
+    digest: jest.fn(() => 'a1b2c3d4e5f6789012345678'),
+  })),
 }));
 
 // Mock zlib
@@ -14,13 +14,13 @@ jest.mock('zlib', () => ({
   gzip: jest.fn((data: Buffer | string, cb: (e: Error | null, r: Buffer) => void) => {
     const buf = Buffer.isBuffer(data) ? data : Buffer.from(data);
     cb(null, Buffer.from('gzip:' + buf.toString()));
-  })
+  }),
 }));
 
 // Mock AWS SDK
 const mockSend = jest.fn();
 const mockS3Client = jest.fn().mockImplementation(() => ({
-  send: mockSend
+  send: mockSend,
 }));
 
 const mockPutObjectCommand = jest.fn();
@@ -28,13 +28,17 @@ const mockHeadBucketCommand = jest.fn();
 const mockListObjectsV2Command = jest.fn();
 const mockDeleteObjectsCommand = jest.fn();
 
-jest.mock('@aws-sdk/client-s3', () => ({
-  S3Client: mockS3Client,
-  PutObjectCommand: mockPutObjectCommand,
-  HeadBucketCommand: mockHeadBucketCommand,
-  ListObjectsV2Command: mockListObjectsV2Command,
-  DeleteObjectsCommand: mockDeleteObjectsCommand
-}), { virtual: true });
+jest.mock(
+  '@aws-sdk/client-s3',
+  () => ({
+    S3Client: mockS3Client,
+    PutObjectCommand: mockPutObjectCommand,
+    HeadBucketCommand: mockHeadBucketCommand,
+    ListObjectsV2Command: mockListObjectsV2Command,
+    DeleteObjectsCommand: mockDeleteObjectsCommand,
+  }),
+  { virtual: true }
+);
 
 describe('S3Transport', () => {
   let S3Transport: any;
@@ -43,20 +47,22 @@ describe('S3Transport', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
-    
+
     // Reset mock implementations
     mockSend.mockResolvedValue({ ETag: '"etag123"', VersionId: 'v1' });
-    
+
     // Dynamic import after mocks
-    ({ S3Transport } = await import('../../../../../src/transports/base/implementations/S3Transport'));
-    
+    ({ S3Transport } = await import(
+      '../../../../../src/transports/base/implementations/S3Transport'
+    ));
+
     entry = {
       id: 'test-id',
       timestamp: new Date().toISOString(),
       timestampMs: Date.now(),
       level: 'info',
       message: 'Test message',
-      context: { test: true }
+      context: { test: true },
     };
   });
 
@@ -64,7 +70,7 @@ describe('S3Transport', () => {
     it('creates transport with required options', () => {
       transport = new S3Transport({
         name: 's3',
-        bucket: 'my-logs'
+        bucket: 'my-logs',
       });
       expect(transport.name).toBe('s3');
     });
@@ -73,7 +79,7 @@ describe('S3Transport', () => {
       transport = new S3Transport({
         name: 's3',
         bucket: 'my-logs',
-        region: 'eu-west-1'
+        region: 'eu-west-1',
       });
       expect(transport.name).toBe('s3');
     });
@@ -85,8 +91,8 @@ describe('S3Transport', () => {
         credentials: {
           accessKeyId: 'key',
           secretAccessKey: 'secret',
-          sessionToken: 'token'
-        }
+          sessionToken: 'token',
+        },
       });
       expect(transport.name).toBe('s3');
     });
@@ -95,7 +101,7 @@ describe('S3Transport', () => {
       transport = new S3Transport({
         name: 's3',
         bucket: 'my-logs',
-        storageClass: 'GLACIER'
+        storageClass: 'GLACIER',
       });
       expect(transport.name).toBe('s3');
     });
@@ -106,8 +112,8 @@ describe('S3Transport', () => {
         bucket: 'my-logs',
         encryption: {
           type: 'KMS',
-          kmsKeyId: 'arn:aws:kms:us-east-1:123456789012:key/12345678'
-        }
+          kmsKeyId: 'arn:aws:kms:us-east-1:123456789012:key/12345678',
+        },
       });
       expect(transport.name).toBe('s3');
     });
@@ -118,7 +124,7 @@ describe('S3Transport', () => {
         name: 's3',
         bucket: 'my-logs',
         keyStrategy: 'custom',
-        keyGenerator: keyGen
+        keyGenerator: keyGen,
       });
       expect(transport.name).toBe('s3');
     });
@@ -129,15 +135,15 @@ describe('S3Transport', () => {
       transport = new S3Transport({
         name: 's3',
         bucket: 'my-logs',
-        region: 'us-east-1'
+        region: 'us-east-1',
       });
     });
 
     it('initializes S3 client', async () => {
       await transport.init();
-      
+
       expect(mockS3Client).toHaveBeenCalledWith({
-        region: 'us-east-1'
+        region: 'us-east-1',
       });
       expect(mockHeadBucketCommand).toHaveBeenCalledWith({ Bucket: 'my-logs' });
       expect(mockSend).toHaveBeenCalled();
@@ -149,25 +155,25 @@ describe('S3Transport', () => {
         bucket: 'my-logs',
         credentials: {
           accessKeyId: 'key',
-          secretAccessKey: 'secret'
-        }
+          secretAccessKey: 'secret',
+        },
       });
-      
+
       await transport.init();
-      
+
       expect(mockS3Client).toHaveBeenCalledWith({
         region: 'us-east-1',
         credentials: {
           accessKeyId: 'key',
           secretAccessKey: 'secret',
-          sessionToken: undefined
-        }
+          sessionToken: undefined,
+        },
       });
     });
 
     it('handles bucket check failure', async () => {
       mockSend.mockRejectedValueOnce(new Error('Bucket not found'));
-      
+
       await expect(transport.init()).rejects.toThrow('S3 connection failed');
     });
   });
@@ -177,12 +183,12 @@ describe('S3Transport', () => {
       transport = new S3Transport({
         name: 's3',
         bucket: 'my-logs',
-        keyStrategy: 'timestamp'
+        keyStrategy: 'timestamp',
       });
       await transport.init();
-      
+
       await transport.log(entry);
-      
+
       const command = mockPutObjectCommand.mock.calls[0][0];
       expect(command.Key).toMatch(/^\d+-[a-f0-9]{8}\.json$/);
     });
@@ -192,40 +198,44 @@ describe('S3Transport', () => {
         name: 's3',
         bucket: 'my-logs',
         keyStrategy: 'date-hierarchy',
-        prefix: 'logs/'
+        prefix: 'logs/',
       });
       await transport.init();
-      
+
       await transport.log(entry);
-      
+
       const command = mockPutObjectCommand.mock.calls[0][0];
-      expect(command.Key).toMatch(/^logs\/year=\d{4}\/month=\d{2}\/day=\d{2}\/\d+-[a-f0-9]{8}\.json$/);
+      expect(command.Key).toMatch(
+        /^logs\/year=\d{4}\/month=\d{2}\/day=\d{2}\/\d+-[a-f0-9]{8}\.json$/
+      );
     });
 
     it('generates hourly keys', async () => {
       transport = new S3Transport({
         name: 's3',
         bucket: 'my-logs',
-        keyStrategy: 'hourly'
+        keyStrategy: 'hourly',
       });
       await transport.init();
-      
+
       await transport.log(entry);
-      
+
       const command = mockPutObjectCommand.mock.calls[0][0];
-      expect(command.Key).toMatch(/^year=\d{4}\/month=\d{2}\/day=\d{2}\/hour=\d{2}\/\d+-[a-f0-9]{8}\.json$/);
+      expect(command.Key).toMatch(
+        /^year=\d{4}\/month=\d{2}\/day=\d{2}\/hour=\d{2}\/\d+-[a-f0-9]{8}\.json$/
+      );
     });
 
     it('uses custom key generator', async () => {
       transport = new S3Transport({
         name: 's3',
         bucket: 'my-logs',
-        keyGenerator: (entries: any[]) => `custom/${entries[0].level}/${entries[0].id}.log`
+        keyGenerator: (entries: any[]) => `custom/${entries[0].level}/${entries[0].id}.log`,
       });
       await transport.init();
-      
+
       await transport.log(entry);
-      
+
       const command = mockPutObjectCommand.mock.calls[0][0];
       expect(command.Key).toBe('custom/info/test-id.log');
     });
@@ -234,23 +244,25 @@ describe('S3Transport', () => {
       transport = new S3Transport({
         name: 's3',
         bucket: 'my-logs',
-        keyStrategy: 'custom'
+        keyStrategy: 'custom',
       });
       await transport.init();
-      
-      await expect(transport.log(entry)).rejects.toThrow('Custom key strategy requires keyGenerator');
+
+      await expect(transport.log(entry)).rejects.toThrow(
+        'Custom key strategy requires keyGenerator'
+      );
     });
 
     it('adds compression extension to keys', async () => {
       transport = new S3Transport({
         name: 's3',
         bucket: 'my-logs',
-        compress: true
+        compress: true,
       });
       await transport.init();
-      
+
       await transport.log(entry);
-      
+
       const command = mockPutObjectCommand.mock.calls[0][0];
       expect(command.Key).toMatch(/\.json\.gz$/);
     });
@@ -261,16 +273,16 @@ describe('S3Transport', () => {
       transport = new S3Transport({
         name: 's3',
         bucket: 'my-logs',
-        fileFormat: 'json'
+        fileFormat: 'json',
       });
       await transport.init();
-      
+
       await transport.log(entry);
-      
+
       const command = mockPutObjectCommand.mock.calls[0][0];
       const body = command.Body.toString();
       const parsed = JSON.parse(body);
-      
+
       expect(Array.isArray(parsed)).toBe(true);
       expect(parsed[0].message).toBe('Test message');
       expect(command.ContentType).toBe('application/json');
@@ -280,17 +292,17 @@ describe('S3Transport', () => {
       transport = new S3Transport({
         name: 's3',
         bucket: 'my-logs',
-        fileFormat: 'jsonl'
+        fileFormat: 'jsonl',
       });
       await transport.init();
-      
+
       const entries = [entry, { ...entry, id: 'test-id-2' }];
       await transport.logBatch(entries);
-      
+
       const command = mockPutObjectCommand.mock.calls[0][0];
       const body = command.Body.toString();
       const lines = body.trim().split('\n');
-      
+
       expect(lines).toHaveLength(2);
       expect(JSON.parse(lines[0]).id).toBe('test-id');
       expect(JSON.parse(lines[1]).id).toBe('test-id-2');
@@ -301,16 +313,16 @@ describe('S3Transport', () => {
       transport = new S3Transport({
         name: 's3',
         bucket: 'my-logs',
-        fileFormat: 'csv'
+        fileFormat: 'csv',
       });
       await transport.init();
-      
+
       await transport.log(entry);
-      
+
       const command = mockPutObjectCommand.mock.calls[0][0];
       const body = command.Body.toString();
       const lines = body.trim().split('\n');
-      
+
       expect(lines[0]).toContain('id,timestamp'); // Header row
       expect(lines[1]).toContain('test-id');
       expect(command.ContentType).toBe('text/csv');
@@ -320,22 +332,22 @@ describe('S3Transport', () => {
       transport = new S3Transport({
         name: 's3',
         bucket: 'my-logs',
-        fileFormat: 'csv'
+        fileFormat: 'csv',
       });
       await transport.init();
-      
+
       const entryWithComma = {
         ...entry,
         message: 'Test, with comma',
-        context: { value: 'Quote"Test' }
+        context: { value: 'Quote"Test' },
       };
-      
+
       await transport.log(entryWithComma);
-      
+
       const command = mockPutObjectCommand.mock.calls[0][0];
       const body = command.Body.toString();
       const lines = body.trim().split('\n');
-      
+
       expect(lines[1]).toContain('"Test, with comma"');
       expect(lines[1]).toContain('Quote""Test'); // Escaped quotes
     });
@@ -344,11 +356,13 @@ describe('S3Transport', () => {
       transport = new S3Transport({
         name: 's3',
         bucket: 'my-logs',
-        fileFormat: 'parquet'
+        fileFormat: 'parquet',
       });
       await transport.init();
-      
-      await expect(transport.log(entry)).rejects.toThrow('Parquet format requires additional dependencies');
+
+      await expect(transport.log(entry)).rejects.toThrow(
+        'Parquet format requires additional dependencies'
+      );
     });
   });
 
@@ -357,12 +371,12 @@ describe('S3Transport', () => {
       transport = new S3Transport({
         name: 's3',
         bucket: 'my-logs',
-        compress: true
+        compress: true,
       });
       await transport.init();
-      
+
       await transport.log(entry);
-      
+
       const command = mockPutObjectCommand.mock.calls[0][0];
       expect(command.Body.toString()).toContain('gzip:');
       expect(command.ContentEncoding).toBe('gzip');
@@ -372,12 +386,12 @@ describe('S3Transport', () => {
       transport = new S3Transport({
         name: 's3',
         bucket: 'my-logs',
-        compress: false
+        compress: false,
       });
       await transport.init();
-      
+
       await transport.log(entry);
-      
+
       const command = mockPutObjectCommand.mock.calls[0][0];
       expect(command.Body.toString()).not.toContain('gzip:');
       expect(command.ContentEncoding).toBeUndefined();
@@ -389,12 +403,12 @@ describe('S3Transport', () => {
       transport = new S3Transport({
         name: 's3',
         bucket: 'my-logs',
-        encryption: { type: 'AES256' }
+        encryption: { type: 'AES256' },
       });
       await transport.init();
-      
+
       await transport.log(entry);
-      
+
       const command = mockPutObjectCommand.mock.calls[0][0];
       expect(command.ServerSideEncryption).toBe('AES256');
     });
@@ -405,13 +419,13 @@ describe('S3Transport', () => {
         bucket: 'my-logs',
         encryption: {
           type: 'KMS',
-          kmsKeyId: 'arn:aws:kms:us-east-1:123456789012:key/12345678'
-        }
+          kmsKeyId: 'arn:aws:kms:us-east-1:123456789012:key/12345678',
+        },
       });
       await transport.init();
-      
+
       await transport.log(entry);
-      
+
       const command = mockPutObjectCommand.mock.calls[0][0];
       expect(command.ServerSideEncryption).toBe('aws:kms');
       expect(command.SSEKMSKeyId).toBe('arn:aws:kms:us-east-1:123456789012:key/12345678');
@@ -422,12 +436,12 @@ describe('S3Transport', () => {
     it('adds metadata to objects', async () => {
       transport = new S3Transport({
         name: 's3',
-        bucket: 'my-logs'
+        bucket: 'my-logs',
       });
       await transport.init();
-      
+
       await transport.log(entry);
-      
+
       const command = mockPutObjectCommand.mock.calls[0][0];
       expect(command.Metadata['log-count']).toBe('1');
       expect(command.Metadata['log-format']).toBe('jsonl');
@@ -441,13 +455,13 @@ describe('S3Transport', () => {
         bucket: 'my-logs',
         objectTags: {
           Environment: 'production',
-          Application: 'api'
-        }
+          Application: 'api',
+        },
       });
       await transport.init();
-      
+
       await transport.log(entry);
-      
+
       const command = mockPutObjectCommand.mock.calls[0][0];
       expect(command.Tagging).toBe('Environment=production&Application=api');
     });
@@ -457,13 +471,13 @@ describe('S3Transport', () => {
         name: 's3',
         bucket: 'my-logs',
         objectTags: {
-          'Key With Spaces': 'Value=With&Special'
-        }
+          'Key With Spaces': 'Value=With&Special',
+        },
       });
       await transport.init();
-      
+
       await transport.log(entry);
-      
+
       const command = mockPutObjectCommand.mock.calls[0][0];
       expect(command.Tagging).toBe('Key%20With%20Spaces=Value%3DWith%26Special');
     });
@@ -473,12 +487,12 @@ describe('S3Transport', () => {
     it('uses STANDARD by default', async () => {
       transport = new S3Transport({
         name: 's3',
-        bucket: 'my-logs'
+        bucket: 'my-logs',
       });
       await transport.init();
-      
+
       await transport.log(entry);
-      
+
       const command = mockPutObjectCommand.mock.calls[0][0];
       expect(command.StorageClass).toBe('STANDARD');
     });
@@ -487,12 +501,12 @@ describe('S3Transport', () => {
       transport = new S3Transport({
         name: 's3',
         bucket: 'my-logs',
-        storageClass: 'GLACIER_IR'
+        storageClass: 'GLACIER_IR',
       });
       await transport.init();
-      
+
       await transport.log(entry);
-      
+
       const command = mockPutObjectCommand.mock.calls[0][0];
       expect(command.StorageClass).toBe('GLACIER_IR');
     });
@@ -502,20 +516,16 @@ describe('S3Transport', () => {
     beforeEach(async () => {
       transport = new S3Transport({
         name: 's3',
-        bucket: 'my-logs'
+        bucket: 'my-logs',
       });
       await transport.init();
     });
 
     it('uploads batch of entries', async () => {
-      const entries = [
-        entry,
-        { ...entry, id: 'test-id-2' },
-        { ...entry, id: 'test-id-3' }
-      ];
-      
+      const entries = [entry, { ...entry, id: 'test-id-2' }, { ...entry, id: 'test-id-3' }];
+
       await transport.logBatch(entries);
-      
+
       expect(mockPutObjectCommand).toHaveBeenCalledTimes(1);
       const command = mockPutObjectCommand.mock.calls[0][0];
       expect(command.Metadata['log-count']).toBe('3');
@@ -524,16 +534,16 @@ describe('S3Transport', () => {
     it('emits upload event with details', async () => {
       const uploadHandler = jest.fn();
       transport.on('uploaded', uploadHandler);
-      
+
       await transport.log(entry);
-      
+
       expect(uploadHandler).toHaveBeenCalledWith({
         bucket: 'my-logs',
         key: expect.any(String),
         etag: '"etag123"',
         versionId: 'v1',
         size: expect.any(Number),
-        entries: 1
+        entries: 1,
       });
     });
   });
@@ -543,7 +553,7 @@ describe('S3Transport', () => {
       transport = new S3Transport({
         name: 's3',
         bucket: 'my-logs',
-        prefix: 'logs/'
+        prefix: 'logs/',
       });
       await transport.init();
     });
@@ -552,19 +562,19 @@ describe('S3Transport', () => {
       mockSend.mockResolvedValueOnce({
         Contents: [
           { Key: 'logs/file1.json', Size: 1024, LastModified: new Date() },
-          { Key: 'logs/file2.json', Size: 2048, LastModified: new Date() }
-        ]
+          { Key: 'logs/file2.json', Size: 2048, LastModified: new Date() },
+        ],
       });
-      
+
       const objects = await transport.listObjects({
         prefix: '2024/',
-        maxKeys: 100
+        maxKeys: 100,
       });
-      
+
       expect(mockListObjectsV2Command).toHaveBeenCalledWith({
         Bucket: 'my-logs',
         Prefix: 'logs/2024/',
-        MaxKeys: 100
+        MaxKeys: 100,
       });
       expect(objects).toHaveLength(2);
       expect(objects[0].Key).toBe('logs/file1.json');
@@ -572,16 +582,16 @@ describe('S3Transport', () => {
 
     it('handles continuation token', async () => {
       mockSend.mockResolvedValueOnce({ Contents: [] });
-      
+
       await transport.listObjects({
-        continuationToken: 'token123'
+        continuationToken: 'token123',
       });
-      
+
       expect(mockListObjectsV2Command).toHaveBeenCalledWith({
         Bucket: 'my-logs',
         Prefix: 'logs/',
         MaxKeys: 1000,
-        ContinuationToken: 'token123'
+        ContinuationToken: 'token123',
       });
     });
   });
@@ -590,40 +600,37 @@ describe('S3Transport', () => {
     beforeEach(async () => {
       transport = new S3Transport({
         name: 's3',
-        bucket: 'my-logs'
+        bucket: 'my-logs',
       });
       await transport.init();
     });
 
     it('deletes objects by key', async () => {
       const keys = ['logs/file1.json', 'logs/file2.json'];
-      
+
       await transport.deleteObjects(keys);
-      
+
       expect(mockDeleteObjectsCommand).toHaveBeenCalledWith({
         Bucket: 'my-logs',
         Delete: {
-          Objects: [
-            { Key: 'logs/file1.json' },
-            { Key: 'logs/file2.json' }
-          ]
-        }
+          Objects: [{ Key: 'logs/file1.json' }, { Key: 'logs/file2.json' }],
+        },
       });
     });
 
     it('handles batch deletion for large lists', async () => {
       // Create 2500 keys (requires 3 batches)
       const keys = Array.from({ length: 2500 }, (_, i) => `logs/file${i}.json`);
-      
+
       await transport.deleteObjects(keys);
-      
+
       // Should be called 3 times (1000 + 1000 + 500)
       expect(mockDeleteObjectsCommand).toHaveBeenCalledTimes(3);
     });
 
     it('handles empty key list', async () => {
       await transport.deleteObjects([]);
-      
+
       expect(mockDeleteObjectsCommand).not.toHaveBeenCalled();
     });
   });
@@ -632,23 +639,23 @@ describe('S3Transport', () => {
     beforeEach(async () => {
       transport = new S3Transport({
         name: 's3',
-        bucket: 'my-logs'
+        bucket: 'my-logs',
       });
       await transport.init();
     });
 
     it('performs health check via HeadBucket', async () => {
       const healthy = await transport.isHealthy();
-      
+
       expect(mockHeadBucketCommand).toHaveBeenCalledWith({ Bucket: 'my-logs' });
       expect(healthy).toBe(true);
     });
 
     it('reports unhealthy on bucket check failure', async () => {
       mockSend.mockRejectedValueOnce(new Error('Bucket not accessible'));
-      
+
       const healthy = await transport.isHealthy();
-      
+
       expect(healthy).toBe(false);
     });
   });
@@ -657,12 +664,12 @@ describe('S3Transport', () => {
     it('closes S3 transport', async () => {
       transport = new S3Transport({
         name: 's3',
-        bucket: 'my-logs'
+        bucket: 'my-logs',
       });
       await transport.init();
-      
+
       await transport.close();
-      
+
       // S3 doesn't require explicit close, just clears client
       expect(transport.name).toBe('s3');
     });

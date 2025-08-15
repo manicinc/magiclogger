@@ -2,15 +2,15 @@
 
 /**
  * OTLP Transport Entry Point
- * 
+ *
  * Provides OpenTelemetry Protocol transport for sending logs to OTLP-compatible backends.
- * 
+ *
  * @module transports/otlp
- * 
+ *
  * @example
  * ```typescript
  * import { OTLPTransport } from 'magiclogger/transports/otlp';
- * 
+ *
  * const transport = new OTLPTransport({
  *   endpoint: 'http://localhost:4318',
  *   serviceName: 'my-service',
@@ -31,11 +31,11 @@ import { TransportRegistry } from './index';
 
 /**
  * Creates an OTLP transport with common defaults.
- * 
+ *
  * @param {string} serviceName - Service name
  * @param {Partial<OTLPTransportOptions>} options - Additional options
  * @returns {OTLPTransport} Configured transport
- * 
+ *
  * @example
  * ```typescript
  * const transport = createOTLPTransport('my-service', {
@@ -51,12 +51,12 @@ export function createOTLPTransport(
   return new OTLPTransport({
     name: options.name || 'otlp',
     serviceName,
-    ...options
+    ...options,
   });
 }
 
 // Register with TransportRegistry for factory support
-TransportRegistry.register('otlp', (config) => {
+TransportRegistry.register('otlp', config => {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { type, name, serviceName, ...rest } = config as Record<string, unknown>;
   if (!serviceName || typeof serviceName !== 'string') {
@@ -71,7 +71,7 @@ TransportRegistry.register('otlp', (config) => {
 
 /**
  * Creates an OTLP transport for Jaeger.
- * 
+ *
  * @param {string} serviceName - Service name
  * @param {string} [endpoint] - Jaeger endpoint
  * @returns {OTLPTransport} Configured transport
@@ -85,13 +85,13 @@ export function createJaegerTransport(
     serviceName,
     endpoint,
     exportPath: '/api/v2/logs',
-    protocol: 'http/json'
+    protocol: 'http/json',
   });
 }
 
 /**
  * Creates an OTLP transport for Grafana Cloud.
- * 
+ *
  * @param {string} serviceName - Service name
  * @param {string} instanceId - Grafana instance ID
  * @param {string} apiKey - API key
@@ -108,16 +108,16 @@ export function createGrafanaCloudTransport(
     endpoint: `https://${instanceId}.grafana.net`,
     exportPath: '/otlp/v1/logs',
     headers: {
-      'Authorization': `Bearer ${apiKey}`
+      Authorization: `Bearer ${apiKey}`,
     },
     protocol: 'http/protobuf',
-    compression: 'gzip'
+    compression: 'gzip',
   });
 }
 
 /**
  * Creates an OTLP transport for New Relic.
- * 
+ *
  * @param {string} serviceName - Service name
  * @param {string} apiKey - New Relic API key
  * @param {string} [region] - Region (us or eu)
@@ -128,9 +128,7 @@ export function createNewRelicTransport(
   apiKey: string,
   region: 'us' | 'eu' = 'us'
 ): OTLPTransport {
-  const endpoint = region === 'eu' 
-    ? 'https://otlp.eu01.nr-data.net'
-    : 'https://otlp.nr-data.net';
+  const endpoint = region === 'eu' ? 'https://otlp.eu01.nr-data.net' : 'https://otlp.nr-data.net';
 
   return new OTLPTransport({
     name: 'otlp-newrelic',
@@ -138,16 +136,16 @@ export function createNewRelicTransport(
     endpoint,
     exportPath: '/v1/logs',
     headers: {
-      'Api-Key': apiKey
+      'Api-Key': apiKey,
     },
     protocol: 'http/protobuf',
-    compression: 'gzip'
+    compression: 'gzip',
   });
 }
 
 /**
  * Creates an OTLP transport for Honeycomb.
- * 
+ *
  * @param {string} serviceName - Service name
  * @param {string} apiKey - Honeycomb API key
  * @param {string} [dataset] - Dataset name
@@ -165,24 +163,21 @@ export function createHoneycombTransport(
     exportPath: '/v1/logs',
     headers: {
       'x-honeycomb-team': apiKey,
-      'x-honeycomb-dataset': dataset
+      'x-honeycomb-dataset': dataset,
     },
     protocol: 'http/protobuf',
-    compression: 'gzip'
+    compression: 'gzip',
   });
 }
 
 /**
  * Creates an OTLP transport for AWS X-Ray.
- * 
+ *
  * @param {string} serviceName - Service name
  * @param {string} region - AWS region
  * @returns {OTLPTransport} Configured transport
  */
-export function createXRayTransport(
-  serviceName: string,
-  region: string
-): OTLPTransport {
+export function createXRayTransport(serviceName: string, region: string): OTLPTransport {
   return new OTLPTransport({
     name: 'otlp-xray',
     serviceName,
@@ -191,22 +186,19 @@ export function createXRayTransport(
     protocol: 'http/protobuf',
     resource: {
       'cloud.provider': 'aws',
-      'cloud.region': region
-    }
+      'cloud.region': region,
+    },
   });
 }
 
 /**
  * Creates an OTLP transport for Google Cloud Operations.
- * 
+ *
  * @param {string} serviceName - Service name
  * @param {string} projectId - GCP project ID
  * @returns {OTLPTransport} Configured transport
  */
-export function createGoogleCloudTransport(
-  serviceName: string,
-  projectId: string
-): OTLPTransport {
+export function createGoogleCloudTransport(serviceName: string, projectId: string): OTLPTransport {
   return new OTLPTransport({
     name: 'otlp-gcp',
     serviceName,
@@ -215,14 +207,14 @@ export function createGoogleCloudTransport(
     protocol: 'http/json',
     resource: {
       'cloud.provider': 'gcp',
-      'cloud.project': projectId
-    }
+      'cloud.project': projectId,
+    },
   });
 }
 
 /**
  * Creates an OTLP transport for Datadog.
- * 
+ *
  * @param {string} serviceName - Service name
  * @param {string} apiKey - Datadog API key
  * @param {string} [site] - Datadog site
@@ -239,20 +231,20 @@ export function createDatadogTransport(
     endpoint: `https://http-intake.logs.${site}`,
     exportPath: '/api/v2/logs',
     headers: {
-      'DD-API-KEY': apiKey
+      'DD-API-KEY': apiKey,
     },
     protocol: 'http/json',
     resource: {
-      'service': serviceName,
-      'ddsource': 'nodejs',
-      'ddtags': `service:${serviceName}`
-    }
+      service: serviceName,
+      ddsource: 'nodejs',
+      ddtags: `service:${serviceName}`,
+    },
   });
 }
 
 /**
  * Creates an OTLP transport for Elastic APM.
- * 
+ *
  * @param {string} serviceName - Service name
  * @param {string} serverUrl - APM server URL
  * @param {string} [secretToken] - Secret token
@@ -274,6 +266,6 @@ export function createElasticAPMTransport(
     endpoint: serverUrl,
     exportPath: '/intake/v2/logs',
     headers,
-    protocol: 'http/json'
+    protocol: 'http/json',
   });
 }

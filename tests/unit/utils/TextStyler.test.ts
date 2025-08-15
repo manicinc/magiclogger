@@ -10,16 +10,16 @@ describe('TextStyler', () => {
       const parts: Part[] = [
         ['SUCCESS:', 'green', 'bold'],
         [' All tests passed'],
-        [' (100%)', 'dim']
+        [' (100%)', 'dim'],
       ];
-      
+
       const result = TextStyler.styleParts(parts);
       expect(result).toContain('SUCCESS:');
       expect(result).toContain('All tests passed');
       expect(result).toContain('(100%)');
       expect(result).toContain('\x1b[32m'); // green
-      expect(result).toContain('\x1b[1m');  // bold
-      expect(result).toContain('\x1b[2m');  // dim
+      expect(result).toContain('\x1b[1m'); // bold
+      expect(result).toContain('\x1b[2m'); // dim
     });
 
     it('should handle empty parts array', () => {
@@ -28,9 +28,7 @@ describe('TextStyler', () => {
     });
 
     it('should handle parts with no styles', () => {
-      const parts: Part[] = [
-        ['Plain text']
-      ];
+      const parts: Part[] = [['Plain text']];
       const result = TextStyler.styleParts(parts);
       expect(result).toBe('Plain text');
       expect(result).not.toContain('\x1b[');
@@ -40,7 +38,7 @@ describe('TextStyler', () => {
       const parts: Part[] = [
         ['', 'red'],
         ['Text', 'blue'],
-        ['', 'green']
+        ['', 'green'],
       ];
       const result = TextStyler.styleParts(parts);
       expect(result).toBe(Colorizer.applyColors('Text', ['blue'], true));
@@ -49,7 +47,7 @@ describe('TextStyler', () => {
     it('should handle colors disabled', () => {
       const parts: Part[] = [
         ['Colored', 'red', 'bold'],
-        [' text', 'blue']
+        [' text', 'blue'],
       ];
       const result = TextStyler.styleParts(parts, false);
       expect(result).toBe('Colored text');
@@ -57,12 +55,10 @@ describe('TextStyler', () => {
     });
 
     it('should filter invalid styles', () => {
-      const parts: Part[] = [
-        ['Text', 'red', '', 'bold', 'invalid-style'] as Part
-      ];
+      const parts: Part[] = [['Text', 'red', '', 'bold', 'invalid-style'] as Part];
       const result = TextStyler.styleParts(parts);
       expect(result).toContain('\x1b[31m'); // red
-      expect(result).toContain('\x1b[1m');  // bold
+      expect(result).toContain('\x1b[1m'); // bold
       expect(result).toContain('Text');
     });
 
@@ -73,7 +69,7 @@ describe('TextStyler', () => {
         [] as unknown,
         ['Valid', 'red'] as unknown,
         'not-an-array' as unknown,
-        ['Another', 'blue'] as unknown
+        ['Another', 'blue'] as unknown,
       ];
       const result = TextStyler.styleParts(partsUnknown as unknown as Part[]);
       expect(result).toContain('Valid');
@@ -81,14 +77,12 @@ describe('TextStyler', () => {
     });
 
     it('should handle multiple colors per part', () => {
-      const parts: Part[] = [
-        ['Header', 'white', 'bgBlue', 'bold', 'underline']
-      ];
+      const parts: Part[] = [['Header', 'white', 'bgBlue', 'bold', 'underline']];
       const result = TextStyler.styleParts(parts);
       expect(result).toContain('\x1b[37m'); // white
       expect(result).toContain('\x1b[44m'); // bgBlue
-      expect(result).toContain('\x1b[1m');  // bold
-      expect(result).toContain('\x1b[4m');  // underline
+      expect(result).toContain('\x1b[1m'); // bold
+      expect(result).toContain('\x1b[4m'); // underline
     });
   });
 
@@ -96,13 +90,13 @@ describe('TextStyler', () => {
     it('should style words by index', () => {
       const text = 'GET /api/users 200 OK 45ms';
       const styleMap: StyleMap = {
-        0: ['blue', 'bold'],      // "GET"
-        1: ['cyan'],               // "/api/users"
-        2: ['green', 'bold'],      // "200"
-        3: ['green'],              // "OK"
-        4: ['magenta']             // "45ms"
+        0: ['blue', 'bold'], // "GET"
+        1: ['cyan'], // "/api/users"
+        2: ['green', 'bold'], // "200"
+        3: ['green'], // "OK"
+        4: ['magenta'], // "45ms"
       };
-      
+
       const result = TextStyler.styleByIndex(text, styleMap);
       expect(result).toContain('GET');
       expect(result).toContain('/api/users');
@@ -124,8 +118,10 @@ describe('TextStyler', () => {
     });
 
     it('should handle null/undefined inputs', () => {
-  expect(TextStyler.styleByIndex(null as unknown as string, {})).toBe('');
-  expect(TextStyler.styleByIndex('text', null as unknown as Record<number, string[]> as StyleMap)).toBe('text');
+      expect(TextStyler.styleByIndex(null as unknown as string, {})).toBe('');
+      expect(
+        TextStyler.styleByIndex('text', null as unknown as Record<number, string[]> as StyleMap)
+      ).toBe('text');
     });
 
     it('should preserve multiple spaces', () => {
@@ -133,9 +129,9 @@ describe('TextStyler', () => {
       const styleMap: StyleMap = {
         0: ['red'],
         1: ['blue'],
-        2: ['green']
+        2: ['green'],
       };
-      
+
       const result = TextStyler.styleByIndex(text, styleMap);
       expect(result).toContain('word1');
       expect(result).toContain('    ');
@@ -148,9 +144,9 @@ describe('TextStyler', () => {
       const styleMap: StyleMap = {
         0: ['red'],
         1: ['blue'],
-        2: ['green']
+        2: ['green'],
       };
-      
+
       const result = TextStyler.styleByIndex(text, styleMap);
       expect(result).toContain('word1');
       expect(result).toContain('\t');
@@ -163,10 +159,10 @@ describe('TextStyler', () => {
       const text = 'one two three four';
       const styleMap: StyleMap = {
         0: ['red'],
-        2: ['blue']
+        2: ['blue'],
         // 1 and 3 have no styles
       };
-      
+
       const result = TextStyler.styleByIndex(text, styleMap);
       expect(result).toContain('\x1b[31m'); // red for "one"
       expect(result).toContain('\x1b[34m'); // blue for "three"
@@ -179,9 +175,9 @@ describe('TextStyler', () => {
       const styleMap: StyleMap = {
         0: ['red'],
         5: ['blue'], // out of range
-        10: ['green'] // out of range
+        10: ['green'], // out of range
       };
-      
+
       const result = TextStyler.styleByIndex(text, styleMap);
       expect(result).toContain('\x1b[31m'); // red for "one"
       expect(result).not.toContain('\x1b[34m'); // blue not applied
@@ -193,9 +189,9 @@ describe('TextStyler', () => {
       const styleMap: StyleMap = {
         0: ['red'],
         1: ['blue'],
-        2: ['green']
+        2: ['green'],
       };
-      
+
       const result = TextStyler.styleByIndex(text, styleMap, false);
       expect(result).toBe('one two three');
       expect(result).not.toContain('\x1b[');
@@ -204,12 +200,12 @@ describe('TextStyler', () => {
     it('should filter invalid styles', () => {
       const text = 'word';
       const styleMap: StyleMap = {
-        0: ['red', '', 'bold', 'invalid-color' as unknown as ColorName]
+        0: ['red', '', 'bold', 'invalid-color' as unknown as ColorName],
       };
-      
+
       const result = TextStyler.styleByIndex(text, styleMap);
       expect(result).toContain('\x1b[31m'); // red
-      expect(result).toContain('\x1b[1m');  // bold
+      expect(result).toContain('\x1b[1m'); // bold
     });
   });
 
@@ -298,7 +294,7 @@ describe('TextStyler', () => {
       for (let i = 0; i < 110; i++) {
         nested = `<red>${nested}</>`;
       }
-      
+
       const result = TextStyler.parseBrackets(nested);
       expect(result).toContain('core');
     });
@@ -337,15 +333,51 @@ describe('TextStyler', () => {
 
     it('should handle all valid color names', () => {
       const allColors = [
-        'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white', 'gray', 'grey',
-        'brightBlack', 'brightRed', 'brightGreen', 'brightYellow',
-        'brightBlue', 'brightMagenta', 'brightCyan', 'brightWhite',
-        'bgBlack', 'bgRed', 'bgGreen', 'bgYellow', 'bgBlue', 'bgMagenta', 'bgCyan', 'bgWhite',
-        'bgGray', 'bgGrey',
-        'bgBrightBlack', 'bgBrightRed', 'bgBrightGreen', 'bgBrightYellow',
-        'bgBrightBlue', 'bgBrightMagenta', 'bgBrightCyan', 'bgBrightWhite',
-        'bold', 'dim', 'italic', 'underline', 'blink',
-        'reverse', 'inverse', 'hidden', 'strikethrough'
+        'black',
+        'red',
+        'green',
+        'yellow',
+        'blue',
+        'magenta',
+        'cyan',
+        'white',
+        'gray',
+        'grey',
+        'brightBlack',
+        'brightRed',
+        'brightGreen',
+        'brightYellow',
+        'brightBlue',
+        'brightMagenta',
+        'brightCyan',
+        'brightWhite',
+        'bgBlack',
+        'bgRed',
+        'bgGreen',
+        'bgYellow',
+        'bgBlue',
+        'bgMagenta',
+        'bgCyan',
+        'bgWhite',
+        'bgGray',
+        'bgGrey',
+        'bgBrightBlack',
+        'bgBrightRed',
+        'bgBrightGreen',
+        'bgBrightYellow',
+        'bgBrightBlue',
+        'bgBrightMagenta',
+        'bgBrightCyan',
+        'bgBrightWhite',
+        'bold',
+        'dim',
+        'italic',
+        'underline',
+        'blink',
+        'reverse',
+        'inverse',
+        'hidden',
+        'strikethrough',
       ];
 
       allColors.forEach(color => {
@@ -367,43 +399,34 @@ describe('TextStyler', () => {
 
   describe('combinedStyle', () => {
     it('should combine bracket parsing with additional parts', () => {
-      const result = TextStyler.combinedStyle(
-        '<red>Error:</> Connection failed',
-        {
-          additionalParts: [[' [CRITICAL]', 'red', 'bold', 'blink']],
-          useColors: true
-        }
-      );
-      
+      const result = TextStyler.combinedStyle('<red>Error:</> Connection failed', {
+        additionalParts: [[' [CRITICAL]', 'red', 'bold', 'blink']],
+        useColors: true,
+      });
+
       expect(result).toContain('Error:');
       expect(result).toContain('Connection failed');
       expect(result).toContain('[CRITICAL]');
     });
 
     it('should combine with style map', () => {
-      const result = TextStyler.combinedStyle(
-        'one two three',
-        {
-          styleMap: { 1: ['blue', 'bold'] },
-          useColors: true
-        }
-      );
-      
+      const result = TextStyler.combinedStyle('one two three', {
+        styleMap: { 1: ['blue', 'bold'] },
+        useColors: true,
+      });
+
       expect(result).toContain('one');
       expect(result).toContain('two'); // styled
       expect(result).toContain('three');
     });
 
     it('should apply all styling methods in order', () => {
-      const result = TextStyler.combinedStyle(
-        '<green>Status:</> Running smoothly',
-        {
-          styleMap: { 2: ['yellow'] }, // "smoothly"
-          additionalParts: [[' ✓', 'green', 'bold']],
-          useColors: true
-        }
-      );
-      
+      const result = TextStyler.combinedStyle('<green>Status:</> Running smoothly', {
+        styleMap: { 2: ['yellow'] }, // "smoothly"
+        additionalParts: [[' ✓', 'green', 'bold']],
+        useColors: true,
+      });
+
       expect(result).toContain('Status:');
       expect(result).toContain('Running');
       expect(result).toContain('smoothly');
@@ -411,14 +434,11 @@ describe('TextStyler', () => {
     });
 
     it('should handle colors disabled', () => {
-      const result = TextStyler.combinedStyle(
-        '<red>Error</> occurred',
-        {
-          additionalParts: [[' [INFO]', 'blue']],
-          useColors: false
-        }
-      );
-      
+      const result = TextStyler.combinedStyle('<red>Error</> occurred', {
+        additionalParts: [[' [INFO]', 'blue']],
+        useColors: false,
+      });
+
       expect(result).toBe('Error occurred [INFO]');
       expect(result).not.toContain('\x1b[');
     });
@@ -478,9 +498,9 @@ describe('TextStyler', () => {
       const styleMap: StyleMap = {
         0: ['red'],
         1: ['blue'],
-        2: ['green']
+        2: ['green'],
       };
-      
+
       const result = TextStyler.validateStyleMap(text, styleMap);
       expect(result.valid).toBe(true);
       expect(result.errors).toHaveLength(0);
@@ -494,12 +514,12 @@ describe('TextStyler', () => {
 
     it('should detect invalid indices', () => {
       const text = 'one two';
-  const styleMap = {
+      const styleMap = {
         'not-a-number': ['red'],
         '-1': ['blue'],
-        '5': ['green'] // out of bounds
-  } as unknown as Record<string, string[]> as unknown as StyleMap;
-      
+        '5': ['green'], // out of bounds
+      } as unknown as Record<string, string[]> as unknown as StyleMap;
+
       const result = TextStyler.validateStyleMap(text, styleMap);
       expect(result.valid).toBe(false);
       expect(result.errors).toContain('Invalid index: not-a-number');
@@ -510,9 +530,9 @@ describe('TextStyler', () => {
     it('should detect non-array styles', () => {
       const text = 'word';
       const styleMap = {
-        0: 'red' // not an array
+        0: 'red', // not an array
       } as unknown as StyleMap;
-      
+
       const result = TextStyler.validateStyleMap(text, styleMap);
       expect(result.valid).toBe(false);
       expect(result.errors).toContain('Styles for index 0 must be an array');
@@ -521,9 +541,9 @@ describe('TextStyler', () => {
     it('should detect invalid style types', () => {
       const text = 'word';
       const styleMap = {
-        0: [123 as unknown as never, 'red', null as unknown as never, 'blue']
+        0: [123 as unknown as never, 'red', null as unknown as never, 'blue'],
       } as unknown as StyleMap;
-      
+
       const result = TextStyler.validateStyleMap(text, styleMap);
       expect(result.valid).toBe(false);
       expect(result.errors[0]).toContain('Invalid style type at index 0');
@@ -532,7 +552,7 @@ describe('TextStyler', () => {
     it('should handle text with only whitespace correctly', () => {
       const text = '   ';
       const styleMap: StyleMap = { 0: ['red'] };
-      
+
       const result = TextStyler.validateStyleMap(text, styleMap);
       expect(result.valid).toBe(false);
       expect(result.errors).toContain('Index 0 out of bounds (text has 0 words)');
@@ -571,31 +591,31 @@ describe('TextStyler', () => {
   describe('Integration with Colorizer', () => {
     it('should use Colorizer.applyColors internally', () => {
       const spy = jest.spyOn(Colorizer, 'applyColors');
-      
+
       TextStyler.styleParts([['text', 'red', 'bold']]);
-      
+
       expect(spy).toHaveBeenCalledWith('text', ['red', 'bold'], true);
-      
+
       spy.mockRestore();
     });
 
     it('should use Colorizer.stripAnsi for stripStyles', () => {
       const spy = jest.spyOn(Colorizer, 'stripAnsi');
-      
+
       TextStyler.stripStyles('\x1b[31mRed\x1b[0m');
-      
+
       expect(spy).toHaveBeenCalled();
-      
+
       spy.mockRestore();
     });
 
     it('should use Colorizer.visibleLength', () => {
       const spy = jest.spyOn(Colorizer, 'visibleLength');
-      
+
       TextStyler.visibleLength('\x1b[31mRed\x1b[0m');
-      
+
       expect(spy).toHaveBeenCalled();
-      
+
       spy.mockRestore();
     });
   });
@@ -605,16 +625,16 @@ describe('TextStyler', () => {
       const words = Array.from({ length: 100 }, (_, i) => `word${i}`);
       const text = words.join(' ');
       const styleMap: StyleMap = {};
-      
+
       // Style every word
       for (let i = 0; i < 100; i++) {
         styleMap[i] = ['red', 'bold'];
       }
-      
+
       const start = Date.now();
       TextStyler.styleByIndex(text, styleMap);
       const duration = Date.now() - start;
-      
+
       expect(duration).toBeLessThan(50);
     });
 
@@ -623,24 +643,22 @@ describe('TextStyler', () => {
       for (let i = 0; i < 50; i++) {
         nested = `<red>${nested}</>`;
       }
-      
+
       const start = Date.now();
       TextStyler.parseBrackets(nested);
       const duration = Date.now() - start;
-      
+
       expect(duration).toBeLessThan(100);
     });
 
     it('should handle many bracket segments efficiently', () => {
-      const segments = Array.from({ length: 100 }, (_, i) => 
-        `<red>segment${i}</>`
-      );
+      const segments = Array.from({ length: 100 }, (_, i) => `<red>segment${i}</>`);
       const text = segments.join(' ');
-      
+
       const start = Date.now();
       TextStyler.parseBrackets(text);
       const duration = Date.now() - start;
-      
+
       expect(duration).toBeLessThan(50);
     });
   });

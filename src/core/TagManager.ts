@@ -4,7 +4,7 @@ import { EventEmitter } from 'events';
 
 /**
  * Tag manager configuration options.
- * 
+ *
  * @interface TagManagerOptions
  */
 export interface TagManagerOptions {
@@ -41,7 +41,7 @@ export interface TagManagerOptions {
 
 /**
  * Tag normalization rules.
- * 
+ *
  * @interface TagNormalizationRules
  */
 export interface TagNormalizationRules {
@@ -77,7 +77,7 @@ export interface TagNormalizationRules {
 
 /**
  * Tag filter options.
- * 
+ *
  * @interface TagFilterOptions
  */
 export interface TagFilterOptions {
@@ -104,7 +104,7 @@ export interface TagFilterOptions {
 
 /**
  * Tag match criteria.
- * 
+ *
  * @interface TagMatchCriteria
  */
 export interface TagMatchCriteria {
@@ -128,7 +128,7 @@ export interface TagMatchCriteria {
 
 /**
  * Tag extraction options.
- * 
+ *
  * @interface TagExtractionOptions
  */
 export interface TagExtractionOptions {
@@ -159,7 +159,7 @@ export interface TagExtractionOptions {
 
 /**
  * Tag validation rules.
- * 
+ *
  * @interface TagValidationRules
  */
 export interface TagValidationRules {
@@ -194,7 +194,7 @@ export interface TagValidationRules {
 
 /**
  * Tag validation result.
- * 
+ *
  * @interface TagValidationResult
  */
 export interface TagValidationResult {
@@ -216,7 +216,7 @@ export interface TagValidationResult {
 
 /**
  * Tag statistics structure.
- * 
+ *
  * @interface TagStats
  */
 export interface TagStats {
@@ -243,7 +243,7 @@ export interface TagStats {
 
 /**
  * TagManager handles tag operations for logging.
- * 
+ *
  * Features:
  * - Tag normalization and validation
  * - Tag extraction from text
@@ -251,21 +251,21 @@ export interface TagStats {
  * - Tag hierarchy support
  * - Tag statistics
  * - Performance optimization
- * 
+ *
  * @class TagManager
  * @extends {EventEmitter}
- * 
+ *
  * @example
  * ```typescript
  * const tagManager = new TagManager({
  *   maxTags: 20,
  *   autoNormalize: true
  * });
- * 
+ *
  * // Normalize tags
  * const normalized = tagManager.normalize(['API', 'User Login', 'v2.0']);
  * // Result: ['api', 'user-login', 'v2-0']
- * 
+ *
  * // Extract tags from text
  * const extracted = tagManager.extract('Fixed #bug in #authentication flow');
  * // Result: ['bug', 'authentication']
@@ -316,12 +316,12 @@ export class TagManager extends EventEmitter {
 
   /**
    * Creates a new TagManager instance.
-   * 
+   *
    * @param {TagManagerOptions} options - Configuration options
    */
   constructor(options: TagManagerOptions = {}) {
     super();
-    
+
     this.options = {
       maxTags: options.maxTags ?? 50,
       maxTagLength: options.maxTagLength ?? 50,
@@ -353,7 +353,7 @@ export class TagManager extends EventEmitter {
 
   /**
    * Set normalization rules.
-   * 
+   *
    * @param {TagNormalizationRules} rules - Normalization rules
    */
   public setNormalizationRules(rules: TagNormalizationRules): void {
@@ -363,7 +363,7 @@ export class TagManager extends EventEmitter {
 
   /**
    * Set validation rules.
-   * 
+   *
    * @param {TagValidationRules} rules - Validation rules
    */
   public setValidationRules(rules: TagValidationRules): void {
@@ -373,22 +373,22 @@ export class TagManager extends EventEmitter {
 
   /**
    * Normalize tags according to rules.
-   * 
+   *
    * @param {string | string[]} tags - Tags to normalize
    * @returns {string[]} Normalized tags
    */
   public normalize(tags: string | string[]): string[] {
     const tagArray = this.toArray(tags);
-    
+
     if (!this.options.autoNormalize) {
       return tagArray;
     }
 
     const normalized = tagArray.map(tag => this.normalizeTag(tag));
-    
+
     // Remove duplicates
     const unique = [...new Set(normalized)];
-    
+
     // Apply max tags limit
     if (unique.length > this.options.maxTags) {
       this.emit('tagsLimitExceeded', {
@@ -397,13 +397,13 @@ export class TagManager extends EventEmitter {
       });
       return unique.slice(0, this.options.maxTags);
     }
-    
+
     return unique;
   }
 
   /**
    * Normalize a single tag.
-   * 
+   *
    * @param {string} tag - Tag to normalize
    * @returns {string} Normalized tag
    * @private
@@ -437,7 +437,7 @@ export class TagManager extends EventEmitter {
     if (this.normalizationRules.removeSpecialChars) {
       // Remove special characters except hyphens and alphanumeric
       normalized = normalized.replace(/[^a-zA-Z0-9-]/g, '');
-      
+
       // Clean up multiple consecutive hyphens and leading/trailing hyphens
       normalized = normalized.replace(/-+/g, '-'); // Replace multiple hyphens with single hyphen
       normalized = normalized.replace(/^-+|-+$/g, ''); // Remove leading and trailing hyphens
@@ -461,7 +461,7 @@ export class TagManager extends EventEmitter {
 
   /**
    * Validate tags against rules.
-   * 
+   *
    * @param {string | string[]} tags - Tags to validate
    * @returns {TagValidationResult} Validation result
    */
@@ -528,16 +528,13 @@ export class TagManager extends EventEmitter {
 
   /**
    * Extract tags from text.
-   * 
+   *
    * @param {string} text - Text to extract from
    * @param {TagExtractionOptions} options - Extraction options
    * @returns {string[]} Extracted tags
    */
   public extract(text: string, options: TagExtractionOptions = {}): string[] {
-    const {
-      pattern = /#([\w-]+)/g,
-      maxExtract = 10,
-    } = options;
+    const { pattern = /#([\w-]+)/g, maxExtract = 10 } = options;
 
     const matches: string[] = [];
     let match;
@@ -561,7 +558,7 @@ export class TagManager extends EventEmitter {
 
   /**
    * Filter tags based on criteria.
-   * 
+   *
    * @param {string[]} tags - Tags to filter
    * @param {TagFilterOptions} options - Filter options
    * @returns {string[]} Filtered tags
@@ -594,7 +591,7 @@ export class TagManager extends EventEmitter {
 
   /**
    * Check if tags match criteria.
-   * 
+   *
    * @param {string[]} tags - Tags to check
    * @param {TagMatchCriteria} criteria - Match criteria
    * @returns {boolean} Whether tags match
@@ -609,14 +606,16 @@ export class TagManager extends EventEmitter {
     switch (mode) {
       case 'any':
         return normalizedMatch.some(tag => normalizedTags.includes(tag));
-      
+
       case 'all':
         return normalizedMatch.every(tag => normalizedTags.includes(tag));
-      
+
       case 'exact':
-        return normalizedTags.length === normalizedMatch.length &&
-               normalizedTags.every(tag => normalizedMatch.includes(tag));
-      
+        return (
+          normalizedTags.length === normalizedMatch.length &&
+          normalizedTags.every(tag => normalizedMatch.includes(tag))
+        );
+
       default:
         return false;
     }
@@ -624,13 +623,13 @@ export class TagManager extends EventEmitter {
 
   /**
    * Merge multiple tag arrays.
-   * 
+   *
    * @param {...(string[] | undefined)[]} tagArrays - Tag arrays to merge
    * @returns {string[]} Merged tags
    */
   public merge(...tagArrays: (string[] | undefined)[]): string[] {
     const merged = new Set<string>();
-    
+
     for (const tags of tagArrays) {
       if (tags) {
         for (const tag of tags) {
@@ -638,20 +637,20 @@ export class TagManager extends EventEmitter {
         }
       }
     }
-    
+
     const result = Array.from(merged);
-    
+
     // Apply normalization if enabled
     if (this.options.autoNormalize) {
       return this.normalize(result);
     }
-    
+
     return result;
   }
 
   /**
    * Add tag alias.
-   * 
+   *
    * @param {string} alias - Alias tag
    * @param {string} target - Target tag
    */
@@ -662,7 +661,7 @@ export class TagManager extends EventEmitter {
 
   /**
    * Remove tag alias.
-   * 
+   *
    * @param {string} alias - Alias to remove
    */
   public removeAlias(alias: string): void {
@@ -673,7 +672,7 @@ export class TagManager extends EventEmitter {
 
   /**
    * Get all aliases.
-   * 
+   *
    * @returns {Map<string, string>} All aliases
    */
   public getAliases(): Map<string, string> {
@@ -682,7 +681,7 @@ export class TagManager extends EventEmitter {
 
   /**
    * Set tag hierarchy.
-   * 
+   *
    * @param {string} parent - Parent tag
    * @param {string[]} children - Child tags
    */
@@ -693,7 +692,7 @@ export class TagManager extends EventEmitter {
 
   /**
    * Get tag children.
-   * 
+   *
    * @param {string} parent - Parent tag
    * @returns {string[]} Child tags
    */
@@ -704,53 +703,49 @@ export class TagManager extends EventEmitter {
 
   /**
    * Get tag parents.
-   * 
+   *
    * @param {string} child - Child tag
    * @returns {string[]} Parent tags
    */
   public getParents(child: string): string[] {
     const parents: string[] = [];
-    
+
     for (const [parent, children] of this.hierarchy) {
       if (children.has(child)) {
         parents.push(parent);
       }
     }
-    
+
     return parents;
   }
 
   /**
    * Get tag with hierarchy.
-   * 
+   *
    * @param {string} tag - Tag to expand
    * @param {boolean} includeParents - Include parent tags
    * @param {boolean} includeChildren - Include child tags
    * @returns {string[]} Expanded tags
    */
-  public expandHierarchy(
-    tag: string,
-    includeParents = true,
-    includeChildren = true
-  ): string[] {
+  public expandHierarchy(tag: string, includeParents = true, includeChildren = true): string[] {
     const expanded = new Set<string>([tag]);
-    
+
     if (includeParents) {
       const parents = this.getParents(tag);
       parents.forEach(parent => expanded.add(parent));
     }
-    
+
     if (includeChildren) {
       const children = this.getChildren(tag);
       children.forEach(child => expanded.add(child));
     }
-    
+
     return Array.from(expanded);
   }
 
   /**
    * Update tag statistics.
-   * 
+   *
    * @param {string[]} tags - Tags to count
    */
   public updateStats(tags: string[]): void {
@@ -759,35 +754,34 @@ export class TagManager extends EventEmitter {
       this.stats.set(tag, count + 1);
       this.tags.add(tag);
     }
-    
+
     this.emit('statsUpdated', tags);
   }
 
   /**
    * Get tag statistics.
-   * 
+   *
    * @param {number} [limit] - Limit results
    * @returns {Array<[string, number]>} Tag counts
    */
   public getStats(limit?: number): Array<[string, number]> {
-    const sorted = Array.from(this.stats.entries())
-      .sort((a, b) => b[1] - a[1]);
-    
+    const sorted = Array.from(this.stats.entries()).sort((a, b) => b[1] - a[1]);
+
     if (limit) {
       return sorted.slice(0, limit);
     }
-    
+
     return sorted;
   }
 
   /**
    * Get comprehensive tag statistics.
-   * 
+   *
    * @returns {TagStats} Tag statistics
    */
   public getComprehensiveStats(): TagStats {
     const sorted = this.getStats();
-    
+
     return {
       totalTags: Array.from(this.stats.values()).reduce((sum, count) => sum + count, 0),
       uniqueTags: this.tags.size,
@@ -807,25 +801,28 @@ export class TagManager extends EventEmitter {
 
   /**
    * Parse tags from string.
-   * 
+   *
    * @param {string} text - Text to parse
    * @param {string} [separator] - Separator to use
    * @returns {string[]} Parsed tags
    */
   public parse(text: string, separator?: string): string[] {
     const sep = separator || this.options.separator;
-    const tags = text.split(sep).map(tag => tag.trim()).filter(tag => tag.length > 0);
-    
+    const tags = text
+      .split(sep)
+      .map(tag => tag.trim())
+      .filter(tag => tag.length > 0);
+
     if (this.options.autoNormalize) {
       return this.normalize(tags);
     }
-    
+
     return tags;
   }
 
   /**
    * Format tags to string.
-   * 
+   *
    * @param {string[]} tags - Tags to format
    * @param {string} [separator] - Separator to use
    * @returns {string} Formatted string
@@ -837,7 +834,7 @@ export class TagManager extends EventEmitter {
 
   /**
    * Convert to array helper.
-   * 
+   *
    * @param {string | string[]} value - Value to convert
    * @returns {string[]} Array of strings
    * @private
@@ -851,27 +848,27 @@ export class TagManager extends EventEmitter {
 
   /**
    * Get suggested tags based on partial input.
-   * 
+   *
    * @param {string} partial - Partial tag
    * @param {number} [limit=10] - Maximum suggestions
    * @returns {string[]} Suggested tags
    */
   public suggest(partial: string, limit = 10): string[] {
-    const normalized = this.options.autoNormalize 
+    const normalized = this.options.autoNormalize
       ? this.normalizeTag(partial)
       : partial.toLowerCase();
-    
+
     const suggestions: Array<[string, number]> = [];
-    
+
     for (const [tag, count] of this.stats) {
       if (tag.toLowerCase().startsWith(normalized)) {
         suggestions.push([tag, count]);
       }
     }
-    
+
     // Sort by frequency
     suggestions.sort((a, b) => b[1] - a[1]);
-    
+
     return suggestions.slice(0, limit).map(s => s[0]);
   }
 

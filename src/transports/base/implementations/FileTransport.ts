@@ -322,7 +322,12 @@ export class FileTransport extends Transport {
       try {
         const fsMod = getFs();
         const mockFn = fsMod.createWriteStream as unknown as JestLikeMockFn;
-        if (mockFn && mockFn.mock && Array.isArray(mockFn.mock.results) && mockFn.mock.results.length > 0) {
+        if (
+          mockFn &&
+          mockFn.mock &&
+          Array.isArray(mockFn.mock.results) &&
+          mockFn.mock.results.length > 0
+        ) {
           const last = mockFn.mock.results[mockFn.mock.results.length - 1];
           if (last) {
             (last as { value?: unknown }).value = this.stream;
@@ -353,7 +358,9 @@ export class FileTransport extends Transport {
         return;
       }
       (s as { once: (ev: string, cb: () => void) => void }).once('open', () => resolve());
-      (s as { once: (ev: string, cb: (err: Error) => void) => void }).once('error', (err: Error) => reject(err));
+      (s as { once: (ev: string, cb: (err: Error) => void) => void }).once('error', (err: Error) =>
+        reject(err)
+      );
     });
   }
 

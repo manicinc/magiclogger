@@ -17,7 +17,7 @@ describe('ThemeManager Integration', () => {
   beforeEach(() => {
     // Clear all mocks before each test
     jest.clearAllMocks();
-    
+
     // Set up default mock implementations
     fsMocks.existsSync.mockReturnValue(true);
     fsMocks.readFileSync.mockReturnValue(JSON.stringify(testThemesData));
@@ -43,17 +43,17 @@ describe('Logger with file-loaded theme', () => {
   beforeEach(() => {
     // Clear all mocks before each test
     jest.clearAllMocks();
-    
+
     // Set up mock implementations
     fsMocks.existsSync.mockReturnValue(true);
     fsMocks.readFileSync.mockReturnValue(JSON.stringify(testThemesData));
 
     const themeManager = new ThemeManager();
     const loadedTheme = themeManager.getTheme(testThemeName);
-    logger = new Logger({ 
+    logger = new Logger({
       theme: loadedTheme,
       writeToDisk: false, // Ensure we're using console transport
-      useColors: true
+      useColors: true,
     });
   });
 

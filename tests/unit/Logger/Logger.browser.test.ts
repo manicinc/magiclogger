@@ -41,10 +41,10 @@ jest.mock('../../../src/core/NodeLogger', () => {
     separator: jest.fn(),
     close: jest.fn(),
   }));
-  
+
   // Set the constructor name to match what the test expects
   Object.defineProperty(MockNodeLoggerClass, 'name', { value: 'NodeLogger' });
-  
+
   return {
     NodeLogger: MockNodeLoggerClass,
   };
@@ -53,7 +53,7 @@ jest.mock('../../../src/core/NodeLogger', () => {
 import { Logger } from '../../../src/Logger';
 import { BrowserLogger } from '../../../src/core/BrowserLogger';
 
-// Get reference to the mocked constructor for tests  
+// Get reference to the mocked constructor for tests
 const MockBrowserLogger = BrowserLogger as jest.MockedClass<typeof BrowserLogger>;
 
 describe('Logger Browser Integration', () => {
@@ -64,7 +64,7 @@ describe('Logger Browser Integration', () => {
 
   it('creates a NodeLogger in Node.js environment (current environment)', () => {
     const logger = new Logger();
-    
+
     // In Node.js environment (Jest), it should create a NodeLogger
     expect(logger['loggerInstance']).toBeDefined();
     expect(logger['loggerInstance'].constructor.name).toBe('NodeLogger');

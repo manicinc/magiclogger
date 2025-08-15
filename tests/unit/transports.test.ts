@@ -1,9 +1,9 @@
 // File: tests/unit/transports.test.ts
 
-import { 
-  ConsoleTransport, 
-  FileTransport, 
-  StreamTransport, 
+import {
+  ConsoleTransport,
+  FileTransport,
+  StreamTransport,
   HTTPTransport,
   Transport,
   NetworkTransport,
@@ -14,7 +14,7 @@ import {
   createConsole,
   createFile,
   createHTTP,
-  createStream
+  createStream,
 } from '../../src/transports';
 
 import type {
@@ -23,21 +23,19 @@ import type {
   ConsoleTransportOptions,
   FileTransportOptions,
   HTTPTransportOptions,
-  StreamTransportOptions
+  StreamTransportOptions,
 } from '../../src/transports';
 
 import { Writable } from 'stream';
 
 /**
  * Test suite for the main transports.ts module
- * 
+ *
  * This tests the tree-shakable exports and convenience factory functions
  * to ensure proper module structure and functionality.
  */
 describe('transports.ts module', () => {
-  
   describe('Core Transport Exports', () => {
-    
     it('should export ConsoleTransport class', () => {
       expect(ConsoleTransport).toBeDefined();
       expect(typeof ConsoleTransport).toBe('function');
@@ -82,7 +80,6 @@ describe('transports.ts module', () => {
   });
 
   describe('Optional Transport Exports', () => {
-    
     it('should export S3Transport class', () => {
       expect(S3Transport).toBeDefined();
       expect(typeof S3Transport).toBe('function');
@@ -103,7 +100,6 @@ describe('transports.ts module', () => {
   });
 
   describe('Type Exports', () => {
-    
     it('should export transport types (compile-time check)', () => {
       // This test ensures types are exported properly
       const testLogEntry: LogEntry = {
@@ -111,18 +107,18 @@ describe('transports.ts module', () => {
         timestamp: new Date().toISOString(),
         timestampMs: Date.now(),
         level: 'info',
-        message: 'Test message'
+        message: 'Test message',
       };
 
       const testTransportOptions: TransportOptions = {
         name: 'test-transport',
         enabled: true,
-        level: 'info'
+        level: 'info',
       };
 
       const testConsoleOptions: ConsoleTransportOptions = {
         name: 'test-console',
-        colorize: true
+        colorize: true,
       };
 
       // If this compiles without error, type exports are working
@@ -133,12 +129,10 @@ describe('transports.ts module', () => {
   });
 
   describe('Convenience Factory Functions', () => {
-    
     describe('createConsole', () => {
-      
       it('should create a ConsoleTransport with default name', () => {
         const transport = createConsole();
-        
+
         expect(transport).toBeInstanceOf(ConsoleTransport);
         expect(transport.name).toBe('console');
         expect(transport.enabled).toBe(true);
@@ -148,11 +142,11 @@ describe('transports.ts module', () => {
         const options: Partial<ConsoleTransportOptions> = {
           name: 'custom-console',
           colorize: false,
-          enabled: false
+          enabled: false,
         };
 
         const transport = createConsole(options);
-        
+
         expect(transport).toBeInstanceOf(ConsoleTransport);
         expect(transport.name).toBe('custom-console');
         expect(transport.enabled).toBe(false);
@@ -160,17 +154,16 @@ describe('transports.ts module', () => {
 
       it('should override default name when provided in options', () => {
         const transport = createConsole({ name: 'my-console' });
-        
+
         expect(transport.name).toBe('my-console');
       });
     });
 
     describe('createFile', () => {
-      
       it('should create a FileTransport with generated name', () => {
         const filepath = '/tmp/test.log';
         const transport = createFile(filepath);
-        
+
         expect(transport).toBeInstanceOf(FileTransport);
         expect(transport.name).toBe('file--tmp-test-log');
       });
@@ -181,11 +174,11 @@ describe('transports.ts module', () => {
           name: 'app-logs',
           maxFileSize: 1024 * 1024,
           maxFiles: 5,
-          enabled: false
+          enabled: false,
         };
 
         const transport = createFile(filepath, options);
-        
+
         expect(transport).toBeInstanceOf(FileTransport);
         expect(transport.name).toBe('app-logs');
         expect(transport.enabled).toBe(false);
@@ -193,17 +186,16 @@ describe('transports.ts module', () => {
 
       it('should sanitize filepath for name generation', () => {
         const transport = createFile('/path/with/special-chars_123.log');
-        
+
         expect(transport.name).toBe('file--path-with-special-chars-123-log');
       });
     });
 
     describe('createHTTP', () => {
-      
       it('should create an HTTPTransport with hostname-based name', () => {
         const url = 'https://api.example.com/logs';
         const transport = createHTTP(url);
-        
+
         expect(transport).toBeInstanceOf(HTTPTransport);
         expect(transport.name).toBe('http-api.example.com');
       });
@@ -213,11 +205,11 @@ describe('transports.ts module', () => {
         const options: Partial<HTTPTransportOptions> = {
           name: 'local-api',
           method: 'PUT',
-          enabled: false
+          enabled: false,
         };
 
         const transport = createHTTP(url, options);
-        
+
         expect(transport).toBeInstanceOf(HTTPTransport);
         expect(transport.name).toBe('local-api');
         expect(transport.enabled).toBe(false);
@@ -227,7 +219,7 @@ describe('transports.ts module', () => {
         const tests = [
           { url: 'https://logs.company.io:8080/endpoint', expected: 'http-logs.company.io' },
           { url: 'http://127.0.0.1:9200/_bulk', expected: 'http-127.0.0.1' },
-          { url: 'https://subdomain.domain.com/path', expected: 'http-subdomain.domain.com' }
+          { url: 'https://subdomain.domain.com/path', expected: 'http-subdomain.domain.com' },
         ];
 
         for (const test of tests) {
@@ -238,16 +230,15 @@ describe('transports.ts module', () => {
     });
 
     describe('createStream', () => {
-      
       it('should create a StreamTransport with default name', () => {
         const stream = new Writable({
           write(chunk, encoding, callback) {
             callback();
-          }
+          },
         });
 
         const transport = createStream(stream);
-        
+
         expect(transport).toBeInstanceOf(StreamTransport);
         expect(transport.name).toBe('stream');
       });
@@ -256,17 +247,17 @@ describe('transports.ts module', () => {
         const stream = new Writable({
           write(chunk, encoding, callback) {
             callback();
-          }
+          },
         });
 
         const options: Partial<StreamTransportOptions> = {
           name: 'custom-stream',
           encoding: 'utf8',
-          enabled: false
+          enabled: false,
         };
 
         const transport = createStream(stream, options);
-        
+
         expect(transport).toBeInstanceOf(StreamTransport);
         expect(transport.name).toBe('custom-stream');
         expect(transport.enabled).toBe(false);
@@ -275,17 +266,16 @@ describe('transports.ts module', () => {
   });
 
   describe('Tree-shaking verification', () => {
-    
     it('should allow importing only specific transports', () => {
       // This test verifies that individual imports work
       // If tree-shaking is working properly, unused transports won't be bundled
-      
+
       // These should all be available
       expect(ConsoleTransport).toBeDefined();
       expect(FileTransport).toBeDefined();
       expect(StreamTransport).toBeDefined();
       expect(HTTPTransport).toBeDefined();
-      
+
       // Optional transports should be available but lazy-loaded
       expect(S3Transport).toBeDefined();
       expect(MongoDBTransport).toBeDefined();
@@ -296,14 +286,13 @@ describe('transports.ts module', () => {
       // Simulate tree-shaken imports by only using specific exports
       const consoleTransport = createConsole({ name: 'tree-shake-test' });
       expect(consoleTransport.name).toBe('tree-shake-test');
-      
+
       // This should work even if other transports aren't used
       expect(typeof FileTransport).toBe('function');
     });
   });
 
   describe('Integration with TransportRegistry', () => {
-    
     it('should allow registering transport factories', () => {
       // Test that static registry methods work
       expect(TransportRegistry).toBeDefined();
@@ -314,7 +303,6 @@ describe('transports.ts module', () => {
   });
 
   describe('Error handling in factory functions', () => {
-    
     it('should handle invalid URLs in createHTTP gracefully', () => {
       expect(() => createHTTP('not-a-valid-url')).toThrow();
     });

@@ -148,7 +148,12 @@ export function prepareFileData(data: string | object[]): string {
  *   NetworkBatch: Envelope containing metadata and payload.
  */
 export function batchForNetwork(data: string | object[], endpoint: string): NetworkBatch {
-  return { endpoint, data, timestamp: new Date().toISOString(), count: Array.isArray(data) ? data.length : 1 };
+  return {
+    endpoint,
+    data,
+    timestamp: new Date().toISOString(),
+    count: Array.isArray(data) ? data.length : 1,
+  };
 }
 
 /**
@@ -178,7 +183,8 @@ export function updateMetrics(state: WorkerState, count: number, time: number): 
   state.metrics.lastBatchSize = count;
   state.processingTimes.push(time);
   if (state.processingTimes.length > MAX_TIMING_SAMPLES) state.processingTimes.shift();
-  state.metrics.avgProcessingTime = state.processingTimes.reduce((a, b) => a + b, 0) / state.processingTimes.length;
+  state.metrics.avgProcessingTime =
+    state.processingTimes.reduce((a, b) => a + b, 0) / state.processingTimes.length;
 }
 
 /**
@@ -197,7 +203,7 @@ export function updateMetrics(state: WorkerState, count: number, time: number): 
  *     metrics: Snapshot of updated metrics.
  */
 export function processLogs(state: WorkerState, entries: LogEntry[]) {
-  const start = (globalThis.performance?.now?.() ?? Date.now());
+  const start = globalThis.performance?.now?.() ?? Date.now();
   try {
     const formatted = formatEntries(entries, state.config);
     let fileData: string | undefined;

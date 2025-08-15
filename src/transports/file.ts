@@ -1,9 +1,9 @@
 /**
  * File Transport Entry Point
- * 
+ *
  * This module provides file transport functionality for MagicLogger.
  * Import this module directly for optimal tree-shaking.
- * 
+ *
  * @module transports/file
  */
 
@@ -23,15 +23,15 @@ export function createFileTransport(filepath: string, options?: Record<string, u
 // Register with TransportRegistry for factory support
 import { TransportRegistry } from './index';
 
-TransportRegistry.register('file', (config) => {
+TransportRegistry.register('file', config => {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { type, ...fileOptions } = config;
   if (!fileOptions.filepath) {
     throw new Error('FileTransport requires filepath option');
   }
-  return new FileTransport({ 
-    name: config.name || 'file', 
+  return new FileTransport({
+    name: config.name || 'file',
     filepath: fileOptions.filepath as string,
-    ...fileOptions 
+    ...fileOptions,
   });
 });

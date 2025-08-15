@@ -18,7 +18,14 @@ describe('compatibility entrypoint shims', () => {
   it('pino shim exports factory and level maps', () => {
     const logger = createPinoCompatible({ level: 'info', prettyPrint: false });
     logger.info('shim test'); // ensure instantiated without error
-    expect(levels).toMatchObject({ trace: 10, debug: 20, info: 30, warn: 40, error: 50, fatal: 60 });
+    expect(levels).toMatchObject({
+      trace: 10,
+      debug: 20,
+      info: 30,
+      warn: 40,
+      error: 50,
+      fatal: 60,
+    });
     expect(levelNames[30 as keyof typeof levelNames]).toBe('info');
   });
 

@@ -455,7 +455,9 @@ describe('AsyncLogger', () => {
 
       // Call the sendToWorker method directly to test fallback
       const entries = [createMockEntry('info', 'Test')];
-      (asyncLogger as unknown as { sendToWorker: (entries: unknown[]) => void }).sendToWorker(entries);
+      (asyncLogger as unknown as { sendToWorker: (entries: unknown[]) => void }).sendToWorker(
+        entries
+      );
 
       // Should log error and fallback to original handler
       expect(consoleSpy).toHaveBeenCalledWith(
@@ -619,12 +621,12 @@ describe('AsyncLogger', () => {
 
       // Wait for the promise rejection to be handled
       await new Promise(resolve => setTimeout(resolve, 0));
-      
+
       expect(consoleSpy).toHaveBeenCalledWith(
         '[AsyncLogger] Flush handler error:',
         expect.any(Error)
       );
-      
+
       consoleSpy.mockRestore();
     });
 

@@ -14,7 +14,7 @@ import type { Transport } from '../../../src/transports/base/Transport';
  * Integration test suite for the compatibility layer.
  * Tests the interaction between different compatibility implementations
  * and ensures they work correctly together.
- * 
+ *
  * @group compatibility
  * @group integration
  */
@@ -32,7 +32,7 @@ describe('Magic Logger Compatibility Layer Integration', () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
-    
+
     // Ensure console is restored
     const extended = console as unknown as Record<string, unknown>;
     if (typeof extended.restoreOriginalConsole === 'function') {
@@ -44,16 +44,16 @@ describe('Magic Logger Compatibility Layer Integration', () => {
     it('should export all compatibility functions', () => {
       expect(enhanceConsole).toBeDefined();
       expect(typeof enhanceConsole).toBe('function');
-      
+
       expect(createWinstonCompatible).toBeDefined();
       expect(typeof createWinstonCompatible).toBe('function');
-      
+
       expect(createBunyanCompatible).toBeDefined();
       expect(typeof createBunyanCompatible).toBe('function');
-      
+
       expect(createPinoCompatible).toBeDefined();
       expect(typeof createPinoCompatible).toBe('function');
-      
+
       expect(BaseCompatibleLogger).toBeDefined();
       expect(typeof BaseCompatibleLogger).toBe('function');
     });
@@ -67,7 +67,7 @@ describe('Magic Logger Compatibility Layer Integration', () => {
       const debugSpy = jest.spyOn(Logger.prototype, 'debug');
       const successSpy = jest.spyOn(Logger.prototype, 'success');
       const headerSpy = jest.spyOn(Logger.prototype, 'header');
-      
+
       const { restoreConsole } = enhanceConsole({ verbose: true });
       const enhanced = console as unknown as Record<string, unknown>;
 
@@ -77,7 +77,7 @@ describe('Magic Logger Compatibility Layer Integration', () => {
       console.warn('warn message');
       console.error('error message');
       console.debug('debug message');
-      
+
       // Test enhanced methods
       if (typeof enhanced.success === 'function') {
         enhanced.success('success message');
@@ -99,33 +99,33 @@ describe('Magic Logger Compatibility Layer Integration', () => {
 
     it('should handle recursion guard correctly', () => {
       const { restoreConsole } = enhanceConsole();
-      
+
       // Should not cause infinite recursion
       expect(() => console.log(console)).not.toThrow();
-      
+
       restoreConsole();
     });
 
     it('should delegate multi-argument calls correctly', () => {
       const multiArgSpy = jest.fn();
       console.log = multiArgSpy;
-      
+
       const { restoreConsole } = enhanceConsole();
-      
+
       const obj = { a: 1, b: 2 };
       const arr = [1, 2, 3];
-      
+
       console.log('message', obj, arr, 123);
-      
+
       expect(multiArgSpy).toHaveBeenCalledWith('message', obj, arr, 123);
-      
+
       restoreConsole();
     });
   });
 
   describe('Winston Compatibility Integration', () => {
     it('should create Winston-compatible logger with all features', () => {
-      const winston = createWinstonCompatible({ 
+      const winston = createWinstonCompatible({
         verbose: true,
         level: 'silly',
         timestamp: true,
@@ -138,7 +138,7 @@ describe('Magic Logger Compatibility Layer Integration', () => {
       // Test standard levels
       winston.info('info message');
       winston.log('notice', 'notice message');
-      
+
       // Test Winston-specific levels
       winston.verbose('verbose message');
       winston.silly('silly message');
@@ -156,10 +156,7 @@ describe('Magic Logger Compatibility Layer Integration', () => {
         expect.stringContaining('verbose message'),
         expect.any(Object)
       );
-      expect(debugSpy).toHaveBeenCalledWith(
-        expect.stringContaining('SILLY:'),
-        expect.any(Object)
-      );
+      expect(debugSpy).toHaveBeenCalledWith(expect.stringContaining('SILLY:'), expect.any(Object));
     });
 
     it('should support Winston method signatures', () => {
@@ -168,10 +165,10 @@ describe('Magic Logger Compatibility Layer Integration', () => {
 
       // String only
       winston.info('simple');
-      
+
       // String with metadata
       winston.info('with meta', { userId: 123 });
-      
+
       // Object only
       winston.info({ message: 'object message', data: 'test' });
 
@@ -193,11 +190,11 @@ describe('Magic Logger Compatibility Layer Integration', () => {
     it('should support header method', () => {
       const winston = createWinstonCompatible({});
       const headerSpy = jest.spyOn(Logger.prototype, 'header');
-      
+
       winston.header('Test Header');
-      
+
       expect(headerSpy).toHaveBeenCalledWith('Test Header', ['brightWhite', 'bgBlue', 'bold']);
-      
+
       winston.header('Custom Header', ['red', 'bold']);
       expect(headerSpy).toHaveBeenCalledWith('Custom Header', ['red', 'bold']);
     });
@@ -205,7 +202,7 @@ describe('Magic Logger Compatibility Layer Integration', () => {
 
   describe('Bunyan Compatibility Integration', () => {
     it('should create Bunyan-compatible logger with all features', () => {
-      const bunyan = createBunyanCompatible({ 
+      const bunyan = createBunyanCompatible({
         name: 'test-app',
         level: 'trace',
         showName: true,
@@ -218,10 +215,10 @@ describe('Magic Logger Compatibility Layer Integration', () => {
 
       // Test with object + message
       bunyan.info({ foo: 'bar' }, 'extra message');
-      
+
       // Test error logging
       bunyan.error(new Error('test error'));
-      
+
       // Test trace/fatal levels
       bunyan.trace('trace message');
       bunyan.fatal('fatal message');
@@ -237,10 +234,10 @@ describe('Magic Logger Compatibility Layer Integration', () => {
 
       // String only
       bunyan.info('simple');
-      
+
       // Object + message
       bunyan.info({ user: 'john' }, 'User action');
-      
+
       // Error
       bunyan.info(new Error('info error'));
 
@@ -259,11 +256,11 @@ describe('Magic Logger Compatibility Layer Integration', () => {
 
   describe('Pino Compatibility Integration', () => {
     it('should create Pino-compatible logger with all features', () => {
-      const pino = createPinoCompatible({ 
+      const pino = createPinoCompatible({
         level: 'trace',
-        prettyPrint: false,  // Disable pretty printing for predictable test output
-        timestamp: false,   // Disable timestamp for predictable test output
-        onlyMessage: true,  // Only output the message for simpler test assertions
+        prettyPrint: false, // Disable pretty printing for predictable test output
+        timestamp: false, // Disable timestamp for predictable test output
+        onlyMessage: true, // Only output the message for simpler test assertions
         base: typeof process !== 'undefined' ? { pid: process.pid } : {},
       });
 
@@ -274,10 +271,10 @@ describe('Magic Logger Compatibility Layer Integration', () => {
       // Test standard logging
       pino.info('simple message');
       pino.info({ user: 'john' }, 'User action');
-      
+
       // Test error handling
       pino.error(new Error('test error'));
-      
+
       // Test trace/fatal
       pino.trace('trace message');
       pino.fatal('fatal message');
@@ -294,13 +291,13 @@ describe('Magic Logger Compatibility Layer Integration', () => {
 
       // String only
       pino.info('simple');
-      
+
       // Object only
       pino.info({ data: 'test' });
-      
+
       // Object + message
       pino.info({ userId: 123 }, 'User action');
-      
+
       // Error
       pino.info(new Error('info error'));
 
@@ -310,7 +307,7 @@ describe('Magic Logger Compatibility Layer Integration', () => {
     it('should support child loggers with bindings', () => {
       const pino = createPinoCompatible({ base: { app: 'test' } });
       const child = pino.child({ module: 'auth' });
-      
+
       expect(child.bindings()).toEqual({
         app: 'test',
         module: 'auth',
@@ -324,12 +321,12 @@ describe('Magic Logger Compatibility Layer Integration', () => {
       });
 
       const logSpy = jest.spyOn(Logger.prototype, 'info');
-      
+
       pino.info('JSON format test');
-      
+
       const call = logSpy.mock.calls[0][0];
       const parsed = JSON.parse(call);
-      
+
       expect(parsed).toHaveProperty('level', 'info');
       expect(parsed).toHaveProperty('msg', 'JSON format test');
       expect(parsed).toHaveProperty('time');
@@ -413,7 +410,9 @@ describe('Magic Logger Compatibility Layer Integration', () => {
         isSilent: jest.fn().mockReturnValue(false),
         setTimeout: jest.fn(),
         getTimeout: jest.fn().mockReturnValue(5000),
-        getStats: jest.fn().mockReturnValue({ logsWritten: 0, errorsOccurred: 0, lastLogTime: null }),
+        getStats: jest
+          .fn()
+          .mockReturnValue({ logsWritten: 0, errorsOccurred: 0, lastLogTime: null }),
         resetStats: jest.fn(),
         clone: jest.fn(),
         toString: jest.fn().mockReturnValue('[Transport shared-transport]'),
@@ -527,7 +526,7 @@ describe('Magic Logger Compatibility Layer Integration', () => {
       pino.error(error, 'Pino error');
 
       expect(errorSpy).toHaveBeenCalledTimes(3);
-      
+
       // Each should include the error message
       errorSpy.mock.calls.forEach(call => {
         expect(call[0]).toContain('error');
@@ -568,8 +567,8 @@ describe('Magic Logger Compatibility Layer Integration', () => {
       });
 
       const duration = Date.now() - start;
-      const maxMs = process.env.CI ? 8000 : (process.platform === 'win32' ? 6000 : 4000);
-      
+      const maxMs = process.env.CI ? 8000 : process.platform === 'win32' ? 6000 : 4000;
+
       expect(logSpy).toHaveBeenCalledTimes(iterations * 3);
       expect(duration).toBeLessThan(maxMs); // Allow headroom for CI/Windows variability
     });
@@ -596,19 +595,19 @@ describe('Magic Logger Compatibility Layer Integration', () => {
     });
 
     it('should maintain separate configurations', () => {
-      const winston = createWinstonCompatible({ 
+      const winston = createWinstonCompatible({
         verbose: true,
         level: 'debug',
         timestamp: true,
       });
-      
-      const bunyan = createBunyanCompatible({ 
+
+      const bunyan = createBunyanCompatible({
         name: 'bunyan-app',
         level: 'warn',
         showPid: true,
       });
-      
-      const pino = createPinoCompatible({ 
+
+      const pino = createPinoCompatible({
         level: 'error',
         prettyPrint: false,
         timestamp: false,
@@ -617,11 +616,11 @@ describe('Magic Logger Compatibility Layer Integration', () => {
       // Each maintains its own configuration
       expect(winston['level']).toBe('debug');
       expect(winston['timestamp']).toBe(true);
-      
+
       expect(bunyan['name']).toBe('bunyan-app');
       expect(bunyan.level()).toBe(40); // warn
       expect(bunyan['showPid']).toBe(true);
-      
+
       expect(pino.level).toBe('error');
       expect(pino['prettyPrint']).toBe(false);
       expect(pino['timestamp']).toBe(false);
@@ -702,7 +701,7 @@ describe('Magic Logger Compatibility Layer Integration', () => {
       const pino = createPinoCompatible();
 
       const longMessage = 'x'.repeat(10000);
-      
+
       // Should not throw
       expect(() => winston.info(longMessage)).not.toThrow();
       expect(() => bunyan.info(longMessage)).not.toThrow();
@@ -790,23 +789,29 @@ describe('Magic Logger Compatibility Layer Integration', () => {
       };
 
       // Each logger handles the pattern differently but all work
-      winston.info('Request received', { 
+      winston.info('Request received', {
         method: req.method,
         url: req.url,
         ip: req.ip,
       });
 
-      bunyan.info({ 
-        req: req,
-        type: 'request',
-      }, 'Request received');
-
-      pino.info({
-        req: {
-          method: req.method,
-          url: req.url,
+      bunyan.info(
+        {
+          req: req,
+          type: 'request',
         },
-      }, 'Request received');
+        'Request received'
+      );
+
+      pino.info(
+        {
+          req: {
+            method: req.method,
+            url: req.url,
+          },
+        },
+        'Request received'
+      );
 
       // All three logged successfully
       expect(logSpy).toHaveBeenCalledTimes(3);
@@ -820,7 +825,7 @@ describe('Magic Logger Compatibility Layer Integration', () => {
       const errorSpy = jest.spyOn(Logger.prototype, 'error');
 
       const error = new Error('Database connection failed');
-      const context = { 
+      const context = {
         userId: 123,
         action: 'fetchUser',
         timestamp: Date.now(),

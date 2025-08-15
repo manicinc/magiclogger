@@ -2,20 +2,20 @@
 
 /**
  * MagicLogger Transport System
- * 
+ *
  * This module exports base transport functionality and types only.
  * Individual transport implementations should be imported directly from their
  * specific entry points to enable tree-shaking.
- * 
+ *
  * @module transports
- * 
+ *
  * @example
  * ```typescript
  * // ✅ Good - Tree-shakable imports
  * import { Transport } from 'magiclogger/transports/base';
  * import { ConsoleTransport } from 'magiclogger/console';
  * import { FileTransport } from 'magiclogger/file';
- * 
+ *
  * // ❌ Bad - Imports everything
  * import { ConsoleTransport, FileTransport } from 'magiclogger/transports';
  * ```
@@ -25,8 +25,12 @@
 export { Transport } from './base/Transport';
 export { TransportManager } from './base/TransportManager';
 
-// Import types for local use  
-import type { TransportConfig, TransportManagerOptions, Transport as ITransport } from '../types/transport';
+// Import types for local use
+import type {
+  TransportConfig,
+  TransportManagerOptions,
+  Transport as ITransport,
+} from '../types/transport';
 import { TransportManager } from './base/TransportManager';
 
 // Re-export all types
@@ -37,15 +41,15 @@ export type {
   TransportStats,
   TransportConfig,
   TransportType,
-  
+
   // Batching
   BatchingOptions,
   BatchingTransportOptions,
-  
+
   // Network
   NetworkTransportOptions,
   RetryOptions,
-  
+
   // Implementation-specific
   ConsoleTransportOptions,
   FileTransportOptions,
@@ -54,7 +58,7 @@ export type {
   MongoDBTransportOptions,
   WebSocketTransportOptions,
   StreamTransportOptions,
-  
+
   // Manager
   TransportManagerOptions,
 } from '../types/transport';
@@ -125,7 +129,7 @@ declare global {
   interface Window {
     __MAGICLOGGER_TRANSPORT_REGISTRY__?: typeof TransportRegistry;
   }
-  
+
   // eslint-disable-next-line no-var
   var __MAGICLOGGER_TRANSPORT_REGISTRY__: typeof TransportRegistry | undefined;
 }
@@ -158,13 +162,15 @@ export function __installTransportRegistry(
 const maybeWindow: unknown = typeof window !== 'undefined' ? window : undefined;
 __installTransportRegistry(
   // globalThis may not exist in very old runtimes (defensive)
-  typeof globalThis !== 'undefined' ? (globalThis as unknown as Record<string, unknown>) : undefined,
-  (maybeWindow as Record<string, unknown> | undefined)
+  typeof globalThis !== 'undefined'
+    ? (globalThis as unknown as Record<string, unknown>)
+    : undefined,
+  maybeWindow as Record<string, unknown> | undefined
 );
 
 /**
  * Convenience function to create a pre-configured transport manager
- * 
+ *
  * @param {Partial<TransportManagerOptions>} options - Manager options
  * @returns {TransportManager} Configured transport manager
  */
@@ -175,6 +181,6 @@ export function createDefaultTransportManager(
     useExternalRegistry: true,
     ...options,
   });
-  
+
   return manager;
 }

@@ -17,7 +17,7 @@ import { Logger } from '../../../src/Logger';
  * - Serializers and redaction
  * - Output formatting
  * - Edge cases
- * 
+ *
  * @group compatibility
  * @group pino
  */
@@ -166,7 +166,7 @@ describe('PinoCompatibleLogger', () => {
     it('should support silent level', () => {
       const logger = createPinoCompatible({ level: 'silent' });
       logger.info('Should not be logged');
-      
+
       expect(logSpy).not.toHaveBeenCalled();
     });
   });
@@ -199,7 +199,7 @@ describe('PinoCompatibleLogger', () => {
     it('should handle Error objects', () => {
       const error = new Error('Test error');
       error.stack = 'Error: Test error\n  at Test.suite';
-      
+
       pino.error(error);
       expect(errorSpy).toHaveBeenCalledWith(
         expect.stringContaining('Test error'),
@@ -208,7 +208,7 @@ describe('PinoCompatibleLogger', () => {
             type: 'Error',
             message: 'Test error',
             stack: expect.stringContaining('Test error'),
-          })
+          }),
         })
       );
     });
@@ -216,13 +216,13 @@ describe('PinoCompatibleLogger', () => {
     it('should handle Error with message', () => {
       const error = new Error('Database error');
       pino.error(error, 'Failed to save user');
-      
+
       expect(errorSpy).toHaveBeenCalledWith(
         expect.stringContaining('Failed to save user'),
         expect.objectContaining({
           err: expect.objectContaining({
             message: 'Database error',
-          })
+          }),
         })
       );
     });
@@ -230,14 +230,14 @@ describe('PinoCompatibleLogger', () => {
     it('should handle Error with object', () => {
       const error = new Error('API error');
       pino.error({ userId: 123, err: error }, 'User operation failed');
-      
+
       expect(errorSpy).toHaveBeenCalledWith(
         expect.stringContaining('User operation failed'),
         expect.objectContaining({
           userId: 123,
           err: expect.objectContaining({
             message: 'API error',
-          })
+          }),
         })
       );
     });
@@ -251,10 +251,10 @@ describe('PinoCompatibleLogger', () => {
       });
 
       logger.info({ user: 'john' }, 'Test message');
-      
+
       const call = logSpy.mock.calls[0][0];
       const parsed = JSON.parse(call);
-      
+
       expect(parsed).toHaveProperty('level', 'info');
       expect(parsed).toHaveProperty('msg', 'Test message');
       expect(parsed).toHaveProperty('user', 'john');
@@ -268,10 +268,10 @@ describe('PinoCompatibleLogger', () => {
       });
 
       logger.info('Custom key test');
-      
+
       const call = logSpy.mock.calls[0][0];
       const parsed = JSON.parse(call);
-      
+
       expect(parsed).toHaveProperty('message', 'Custom key test');
       expect(parsed).not.toHaveProperty('msg');
     });
@@ -283,10 +283,10 @@ describe('PinoCompatibleLogger', () => {
       });
 
       logger.info('Base fields test');
-      
+
       const call = logSpy.mock.calls[0][0];
       const parsed = JSON.parse(call);
-      
+
       expect(parsed).toHaveProperty('pid', 12345);
       expect(parsed).toHaveProperty('hostname', 'test-host');
     });
@@ -295,7 +295,7 @@ describe('PinoCompatibleLogger', () => {
   describe('Bindings and Child Loggers', () => {
     it('should support bindings', () => {
       pino.setBindings({ app: 'myapp', version: '1.0.0' });
-      
+
       expect(pino.bindings()).toEqual({
         app: 'myapp',
         version: '1.0.0',
@@ -304,7 +304,7 @@ describe('PinoCompatibleLogger', () => {
 
     it('should create child logger with bindings', () => {
       const child = pino.child({ requestId: '123', userId: 'abc' });
-      
+
       expect(child).toBeInstanceOf(PinoCompatibleLogger);
       expect(child.bindings()).toEqual({
         requestId: '123',
@@ -315,7 +315,7 @@ describe('PinoCompatibleLogger', () => {
     it('should merge parent and child bindings', () => {
       pino.setBindings({ app: 'myapp' });
       const child = pino.child({ requestId: '123' });
-      
+
       expect(child.bindings()).toEqual({
         app: 'myapp',
         requestId: '123',
@@ -330,10 +330,10 @@ describe('PinoCompatibleLogger', () => {
 
       const child = logger.child({ requestId: '123' });
       child.info('Child log');
-      
+
       const call = logSpy.mock.calls[0][0];
       const parsed = JSON.parse(call);
-      
+
       expect(parsed).toHaveProperty('app', 'test');
       expect(parsed).toHaveProperty('requestId', '123');
     });
@@ -344,12 +344,12 @@ describe('PinoCompatibleLogger', () => {
       const logger = createPinoCompatible({ prettyPrint: false });
       const error = new Error('Test error');
       error.stack = 'Error: Test error\n  at Test.suite';
-      
+
       logger.error({ err: error }, 'Error occurred');
-      
+
       const call = errorSpy.mock.calls[0][0];
       const parsed = JSON.parse(call);
-      
+
       expect(parsed.err).toEqual({
         type: 'Error',
         message: 'Test error',
@@ -367,10 +367,10 @@ describe('PinoCompatibleLogger', () => {
 
       // Test through actual logging
       logger.info({ user: { id: 123, password: 'secret' } }, 'Test');
-      
+
       const call = logSpy.mock.calls[0][0];
       const parsed = JSON.parse(call);
-      
+
       expect(parsed.user).toEqual({ id: 123 });
     });
 
@@ -382,14 +382,17 @@ describe('PinoCompatibleLogger', () => {
         },
       });
 
-      logger.info({
-        custom: 'value',
-        regular: 'unchanged',
-      }, 'Test');
-      
+      logger.info(
+        {
+          custom: 'value',
+          regular: 'unchanged',
+        },
+        'Test'
+      );
+
       const call = logSpy.mock.calls[0][0];
       const parsed = JSON.parse(call);
-      
+
       expect(parsed.custom).toBe('custom-value');
       expect(parsed.regular).toBe('unchanged');
     });
@@ -405,16 +408,19 @@ describe('PinoCompatibleLogger', () => {
         },
       });
 
-      logger.info({
-        password: 'secret123',
-        user: { name: 'john', password: 'userpass' },
-        credentials: { secret: 'api-key' },
-        safe: 'visible',
-      }, 'Test');
-      
+      logger.info(
+        {
+          password: 'secret123',
+          user: { name: 'john', password: 'userpass' },
+          credentials: { secret: 'api-key' },
+          safe: 'visible',
+        },
+        'Test'
+      );
+
       const call = logSpy.mock.calls[0][0];
       const parsed = JSON.parse(call);
-      
+
       expect(parsed.password).toBe('[REDACTED]');
       expect(parsed.user.password).toBe('[REDACTED]');
       expect(parsed.credentials.secret).toBe('[REDACTED]');
@@ -430,13 +436,16 @@ describe('PinoCompatibleLogger', () => {
         },
       });
 
-      logger.info({
-        data: 'value',
-      }, 'Test');
-      
+      logger.info(
+        {
+          data: 'value',
+        },
+        'Test'
+      );
+
       const call = logSpy.mock.calls[0][0];
       const parsed = JSON.parse(call);
-      
+
       expect(parsed.data).toBe('value');
     });
 
@@ -449,14 +458,17 @@ describe('PinoCompatibleLogger', () => {
         },
       });
 
-      logger.info({
-        secret: 'password1234',
-        safe: 'visible',
-      }, 'Test');
-      
+      logger.info(
+        {
+          secret: 'password1234',
+          safe: 'visible',
+        },
+        'Test'
+      );
+
       const call = logSpy.mock.calls[0][0];
       const parsed = JSON.parse(call);
-      
+
       expect(parsed.secret).toBe('***1234');
     });
 
@@ -469,20 +481,23 @@ describe('PinoCompatibleLogger', () => {
         },
       });
 
-      logger.info({
-        users: [
-          { name: 'john', password: 'pass1' },
-          { name: 'jane', password: 'pass2' },
-        ],
-        items: [
-          { id: 1, secret: 'key1' },
-          { id: 2, secret: 'key2' },
-        ],
-      }, 'Test');
-      
+      logger.info(
+        {
+          users: [
+            { name: 'john', password: 'pass1' },
+            { name: 'jane', password: 'pass2' },
+          ],
+          items: [
+            { id: 1, secret: 'key1' },
+            { id: 2, secret: 'key2' },
+          ],
+        },
+        'Test'
+      );
+
       const call = logSpy.mock.calls[0][0];
       const parsed = JSON.parse(call);
-      
+
       expect(parsed.users[0].password).toBe('[REDACTED]');
       expect(parsed.users[1].password).toBe('[REDACTED]');
       expect(parsed.items[0].secret).toBe('[REDACTED]');
@@ -498,17 +513,20 @@ describe('PinoCompatibleLogger', () => {
         },
       });
 
-      logger.info({
-        a: {
-          x: { b: { y: { c: 'secret1' } } },
-          z: { b: { w: { c: 'secret2' } } },
+      logger.info(
+        {
+          a: {
+            x: { b: { y: { c: 'secret1' } } },
+            z: { b: { w: { c: 'secret2' } } },
+          },
+          regular: 'visible',
         },
-        regular: 'visible',
-      }, 'Test');
-      
+        'Test'
+      );
+
       const call = logSpy.mock.calls[0][0];
       const parsed = JSON.parse(call);
-      
+
       expect(parsed.a.x.b.y.c).toBe('X');
       expect(parsed.a.z.b.w.c).toBe('X');
     });
@@ -524,10 +542,10 @@ describe('PinoCompatibleLogger', () => {
 
       logger.info('First');
       logger.info('Second');
-      
+
       const firstCall = JSON.parse(logSpy.mock.calls[0][0]);
       const secondCall = JSON.parse(logSpy.mock.calls[1][0]);
-      
+
       expect(firstCall.requestId).toBe('req-1');
       expect(secondCall.requestId).toBe('req-2');
     });
@@ -541,11 +559,8 @@ describe('PinoCompatibleLogger', () => {
       });
 
       logger.info('Test');
-      
-      expect(mixinFn).toHaveBeenCalledWith(
-        expect.objectContaining({ level: 'info' }),
-        30
-      );
+
+      expect(mixinFn).toHaveBeenCalledWith(expect.objectContaining({ level: 'info' }), 30);
     });
   });
 
@@ -559,10 +574,10 @@ describe('PinoCompatibleLogger', () => {
       });
 
       logger.info('Test');
-      
+
       const call = logSpy.mock.calls[0][0];
       const parsed = JSON.parse(call);
-      
+
       expect(parsed).toHaveProperty('levelValue', 30);
       expect(parsed).not.toHaveProperty('level');
     });
@@ -580,10 +595,10 @@ describe('PinoCompatibleLogger', () => {
       });
 
       logger.info('Test');
-      
+
       const call = logSpy.mock.calls[0][0];
       const parsed = JSON.parse(call);
-      
+
       expect(parsed).toHaveProperty('pid', 123);
       expect(parsed).toHaveProperty('formatted', true);
     });
@@ -600,10 +615,10 @@ describe('PinoCompatibleLogger', () => {
       });
 
       logger.info({ custom: 'field' }, 'Test');
-      
+
       const call = logSpy.mock.calls[0][0];
       const parsed = JSON.parse(call);
-      
+
       expect(parsed).toHaveProperty('custom', 'field');
       expect(parsed).toHaveProperty('transformed', true);
     });
@@ -616,11 +631,8 @@ describe('PinoCompatibleLogger', () => {
       });
 
       logger.info({ extra: 'data' }, 'Only this message');
-      
-      expect(logSpy).toHaveBeenCalledWith(
-        'Only this message',
-        expect.any(Object)
-      );
+
+      expect(logSpy).toHaveBeenCalledWith('Only this message', expect.any(Object));
     });
 
     it('should support pretty print mode', () => {
@@ -630,7 +642,7 @@ describe('PinoCompatibleLogger', () => {
       });
 
       logger.info({ user: 'john' }, 'Pretty message');
-      
+
       expect(logSpy).toHaveBeenCalledWith(
         expect.stringContaining('[INFO]'),
         expect.objectContaining({
@@ -647,7 +659,7 @@ describe('PinoCompatibleLogger', () => {
 
       logger.info('Should not log');
       logger.error('Should not log');
-      
+
       expect(logSpy).not.toHaveBeenCalled();
       expect(errorSpy).not.toHaveBeenCalled();
     });
@@ -656,13 +668,13 @@ describe('PinoCompatibleLogger', () => {
   describe('Level Management', () => {
     it('should filter logs by level', () => {
       const logger = createPinoCompatible({ level: 'warn' });
-      
+
       logger.trace('Trace - should not log');
       logger.debug('Debug - should not log');
       logger.info('Info - should not log');
       logger.warn('Warn - should log');
       logger.error('Error - should log');
-      
+
       expect(debugSpy).not.toHaveBeenCalled();
       expect(logSpy).not.toHaveBeenCalled();
       expect(warnSpy).toHaveBeenCalledTimes(1);
@@ -671,7 +683,7 @@ describe('PinoCompatibleLogger', () => {
 
     it('should check if level is enabled', () => {
       const logger = createPinoCompatible({ level: 'info' });
-      
+
       expect(logger.isLevelEnabled('trace')).toBe(false);
       expect(logger.isLevelEnabled('debug')).toBe(false);
       expect(logger.isLevelEnabled('info')).toBe(true);
@@ -703,22 +715,16 @@ describe('PinoCompatibleLogger', () => {
     it('should handle null and undefined', () => {
       const testPino = createPinoCompatible({ prettyPrint: false });
       testPino.info(null as unknown as string);
-      expect(logSpy).toHaveBeenCalledWith(
-        '{"level":"info","msg":"null"}',
-        expect.any(Object)
-      );
+      expect(logSpy).toHaveBeenCalledWith('{"level":"info","msg":"null"}', expect.any(Object));
 
       pino.info(undefined as unknown as string);
-      expect(logSpy).toHaveBeenCalledWith(
-        expect.stringContaining('undefined'),
-        expect.any(Object)
-      );
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('undefined'), expect.any(Object));
     });
 
     it('should handle circular references', () => {
       const circular: Record<string, unknown> = { a: 1 };
       circular.self = circular;
-      
+
       pino.info(circular);
       expect(logSpy).toHaveBeenCalled();
     });
@@ -726,11 +732,8 @@ describe('PinoCompatibleLogger', () => {
     it('should handle very long messages', () => {
       const longMessage = 'x'.repeat(10000);
       pino.info(longMessage);
-      
-      expect(logSpy).toHaveBeenCalledWith(
-        expect.stringContaining(longMessage),
-        expect.any(Object)
-      );
+
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining(longMessage), expect.any(Object));
     });
 
     it('should handle special values', () => {
@@ -742,7 +745,7 @@ describe('PinoCompatibleLogger', () => {
         regex: /test/,
         symbol: Symbol('test'),
       });
-      
+
       expect(logSpy).toHaveBeenCalled();
     });
   });
@@ -785,7 +788,7 @@ describe('PinoCompatibleLogger', () => {
       }
 
       const duration = Date.now() - start;
-      
+
       expect(logSpy).toHaveBeenCalledTimes(iterations);
       expect(duration).toBeLessThan(1000); // Should complete quickly
     });

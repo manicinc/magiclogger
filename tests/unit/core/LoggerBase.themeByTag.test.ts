@@ -6,22 +6,56 @@ class TestLogger extends LoggerBase {
   public printed: Array<{ level: string; msg: string }> = [];
   public customPrinted: Array<{ prefix: string; msg: string; colors: ColorName[] }> = [];
 
-  public info(msg: string): void { this.printed.push({ level: 'info', msg }); }
-  public warn(msg: string): void { this.printed.push({ level: 'warn', msg }); }
-  public error(msg: string): void { this.printed.push({ level: 'error', msg }); }
-  public debug(msg: string): void { this.printed.push({ level: 'debug', msg }); }
-  public success(msg: string): void { this.printed.push({ level: 'success', msg }); }
+  public info(msg: string): void {
+    this.printed.push({ level: 'info', msg });
+  }
+  public warn(msg: string): void {
+    this.printed.push({ level: 'warn', msg });
+  }
+  public error(msg: string): void {
+    this.printed.push({ level: 'error', msg });
+  }
+  public debug(msg: string): void {
+    this.printed.push({ level: 'debug', msg });
+  }
+  public success(msg: string): void {
+    this.printed.push({ level: 'success', msg });
+  }
   public custom(msg: string, colors: ColorName[] = ['white'], prefix = 'LOG'): void {
     this.customPrinted.push({ prefix, msg, colors });
   }
-  public styled(_msg: string, _preset: string): void { /* noop for tests */ }
-  public header(_title: string, _colors: ColorName[] = ['brightWhite']): void { /* noop */ }
-  public table(_data: Record<string, unknown>[], _headerColor: ColorName[] = ['brightWhite']): void { /* noop */ }
-  public progressBar(_progress: number, _length = 40, _completeChar = '#', _incompleteChar = '-'): void { /* noop */ }
-  public link(_url: string, _description?: string): void { /* noop */ }
-  public color(..._colors: ColorName[]): (text: string) => string { return (t: string) => t; }
-  public colorParts(message: string, _colorMap: Record<string, ColorName[]>): string { return message; }
-  public separator(_char = '-', _length = 80): void { /* noop */ }
+  public styled(_msg: string, _preset: string): void {
+    /* noop for tests */
+  }
+  public header(_title: string, _colors: ColorName[] = ['brightWhite']): void {
+    /* noop */
+  }
+  public table(
+    _data: Record<string, unknown>[],
+    _headerColor: ColorName[] = ['brightWhite']
+  ): void {
+    /* noop */
+  }
+  public progressBar(
+    _progress: number,
+    _length = 40,
+    _completeChar = '#',
+    _incompleteChar = '-'
+  ): void {
+    /* noop */
+  }
+  public link(_url: string, _description?: string): void {
+    /* noop */
+  }
+  public color(..._colors: ColorName[]): (text: string) => string {
+    return (t: string) => t;
+  }
+  public colorParts(message: string, _colorMap: Record<string, ColorName[]>): string {
+    return message;
+  }
+  public separator(_char = '-', _length = 80): void {
+    /* noop */
+  }
 
   // Expose protected helper for testing preset resolution without using any
   public presetColors(preset: string): ColorName[] {

@@ -12,8 +12,5 @@
       "magiclogger/constants/themes": ["./src/constants/themes.ts"]
     }
   },
-  "include": [
-    "../src/**/*.ts",
-    "./**/*.ts"
-  ]
+  "include": ["../src/**/*.ts", "./**/*.ts"]
 }

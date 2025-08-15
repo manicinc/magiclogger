@@ -22,7 +22,11 @@ describe('JSONFormatter', () => {
   });
 
   it('includeFields and excludeFields precedence', () => {
-    const f = new JSONFormatter({ includeFields: ['timestamp', 'level', 'message', 'context'], excludeFields: ['context'], includeSchema: false });
+    const f = new JSONFormatter({
+      includeFields: ['timestamp', 'level', 'message', 'context'],
+      excludeFields: ['context'],
+      includeSchema: false,
+    });
     const out = JSON.parse(f.format(makeEntry()));
     expect(out).toHaveProperty('timestamp');
     expect(out).not.toHaveProperty('context');

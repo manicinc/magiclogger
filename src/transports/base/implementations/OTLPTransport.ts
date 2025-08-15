@@ -5,7 +5,7 @@ import type { LogEntry, BatchingTransportOptions, TransportStats } from '../../.
 
 /**
  * OTLP (OpenTelemetry Protocol) Transport Options.
- * 
+ *
  * @interface OTLPTransportOptions
  * @extends {BatchingTransportOptions}
  */
@@ -140,10 +140,10 @@ interface OTLPExportRequest {
 /**
  * OTLPTransport sends logs to OpenTelemetry Collector or compatible backends.
  * Supports HTTP/Protobuf, HTTP/JSON, and gRPC protocols.
- * 
+ *
  * @class OTLPTransport
  * @extends {BatchingTransport}
- * 
+ *
  * @example
  * ```typescript
  * const otlpTransport = new OTLPTransport({
@@ -159,7 +159,7 @@ interface OTLPExportRequest {
  *   },
  *   includeTraceContext: true
  * });
- * 
+ *
  * logger.addTransport(otlpTransport);
  * ```
  */
@@ -238,21 +238,21 @@ export class OTLPTransport extends BatchingTransport {
 
   /**
    * Creates a new OTLPTransport instance.
-   * 
+   *
    * @param {OTLPTransportOptions} options - Transport options
    */
   constructor(options: OTLPTransportOptions) {
     super({
       ...options,
       name: options.name || 'otlp-transport',
-  level: options.level ?? 'debug',
+      level: options.level ?? 'debug',
       maxBatchSize: options.maxBatchSize || 100,
-  maxBatchTime: options.maxBatchTime ?? 100,
-  compress: false, // We handle compression ourselves
-  // For test determinism and clearer failure reporting, default to no retries
-  maxRetries: options.maxRetries ?? 0,
-  retryDelay: options.retryDelay ?? 0,
-  retryOnFailure: options.retryOnFailure ?? false
+      maxBatchTime: options.maxBatchTime ?? 100,
+      compress: false, // We handle compression ourselves
+      // For test determinism and clearer failure reporting, default to no retries
+      maxRetries: options.maxRetries ?? 0,
+      retryDelay: options.retryDelay ?? 0,
+      retryOnFailure: options.retryOnFailure ?? false,
     });
 
     this.endpoint = options.endpoint || 'http://localhost:4318';
@@ -287,7 +287,7 @@ export class OTLPTransport extends BatchingTransport {
    * @private
    */
   private loadNodeModules(): void {
-  if (typeof require !== 'undefined') {
+    if (typeof require !== 'undefined') {
       try {
         const url = new URL(this.endpoint);
         if (url.protocol === 'https:') {
@@ -295,11 +295,11 @@ export class OTLPTransport extends BatchingTransport {
         } else {
           this.httpModule = require('http');
         }
-        
+
         if (this.compression === 'gzip') {
           this.zlibModule = require('zlib');
         }
-  } catch {
+      } catch {
         // Modules not available
       }
     }
@@ -339,7 +339,7 @@ export class OTLPTransport extends BatchingTransport {
 
   /**
    * Creates an OTLP export request from log entries.
-   * 
+   *
    * @param {LogEntry[]} entries - Log entries
    * @returns {OTLPExportRequest} Export request
    * @private
@@ -349,29 +349,33 @@ export class OTLPTransport extends BatchingTransport {
     const logRecords = entries.map(entry => this.createLogRecord(entry));
 
     return {
-      resourceLogs: [{
-        resource,
-        scopeLogs: [{
-          scope: {
-            name: 'magiclogger',
-            version: '1.0.0'
-          },
-          logRecords
-        }]
-      }]
+      resourceLogs: [
+        {
+          resource,
+          scopeLogs: [
+            {
+              scope: {
+                name: 'magiclogger',
+                version: '1.0.0',
+              },
+              logRecords,
+            },
+          ],
+        },
+      ],
     };
   }
 
   /**
    * Creates an OTLP resource.
-   * 
+   *
    * @returns {OTLPResource} Resource
    * @private
    */
   private createResource(): OTLPResource {
     const attributes: OTLPResource['attributes'] = [
       { key: 'service.name', value: { stringValue: this.serviceName } },
-      { key: 'service.version', value: { stringValue: this.serviceVersion } }
+      { key: 'service.version', value: { stringValue: this.serviceVersion } },
     ];
 
     // Add custom resource attributes
@@ -397,7 +401,7 @@ export class OTLPTransport extends BatchingTransport {
 
   /**
    * Creates an OTLP log record from a log entry.
-   * 
+   *
    * @param {LogEntry} entry - Log entry
    * @returns {OTLPLogRecord} Log record
    * @private
@@ -408,16 +412,16 @@ export class OTLPTransport extends BatchingTransport {
       severityNumber: this.getSeverityNumber(entry.level),
       severityText: entry.level.toUpperCase(),
       body: {
-        stringValue: entry.message
+        stringValue: entry.message,
       },
-      attributes: []
+      attributes: [],
     };
 
     // Add logger ID if present
     if (entry.loggerId) {
       record.attributes.push({
         key: 'logger.id',
-        value: { stringValue: entry.loggerId }
+        value: { stringValue: entry.loggerId },
       });
     }
 
@@ -425,7 +429,7 @@ export class OTLPTransport extends BatchingTransport {
     if (entry.tags && entry.tags.length > 0) {
       record.attributes.push({
         key: 'tags',
-        value: { stringValue: entry.tags.join(',') }
+        value: { stringValue: entry.tags.join(',') },
       });
     }
 
@@ -451,7 +455,7 @@ export class OTLPTransport extends BatchingTransport {
       if (entry.error.stack) {
         record.attributes.push({
           key: 'exception.stacktrace',
-          value: { stringValue: entry.error.stack }
+          value: { stringValue: entry.error.stack },
         });
       }
     }
@@ -470,7 +474,7 @@ export class OTLPTransport extends BatchingTransport {
 
   /**
    * Gets trace context from OpenTelemetry API if available.
-   * 
+   *
    * @returns {object | null} Trace context
    * @private
    */
@@ -500,7 +504,7 @@ export class OTLPTransport extends BatchingTransport {
 
   /**
    * Converts log level to OTLP severity number.
-   * 
+   *
    * @param {string} level - Log level
    * @returns {number} Severity number
    * @private
@@ -521,7 +525,7 @@ export class OTLPTransport extends BatchingTransport {
 
   /**
    * Converts timestamp to Unix nanoseconds.
-   * 
+   *
    * @param {number} timestampMs - Timestamp in milliseconds
    * @returns {string} Unix nanoseconds
    * @private
@@ -532,15 +536,14 @@ export class OTLPTransport extends BatchingTransport {
 
   /**
    * Exports logs to OTLP endpoint.
-   * 
+   *
    * @param {OTLPExportRequest} request - Export request
    * @returns {Promise<void>}
    * @private
    */
   private async exportLogs(request: OTLPExportRequest): Promise<void> {
-    const data = this.protocol === 'http/json'
-      ? JSON.stringify(request)
-      : this.encodeProtobuf(request);
+    const data =
+      this.protocol === 'http/json' ? JSON.stringify(request) : this.encodeProtobuf(request);
 
     const compressedData = await this.compressData(data);
 
@@ -562,7 +565,7 @@ export class OTLPTransport extends BatchingTransport {
 
   /**
    * Encodes request as protobuf (simplified).
-   * 
+   *
    * @param {OTLPExportRequest} request - Export request
    * @returns {Buffer | string} Encoded data
    * @private
@@ -575,7 +578,7 @@ export class OTLPTransport extends BatchingTransport {
 
   /**
    * Compresses data if needed.
-   * 
+   *
    * @param {Buffer | string} data - Data to compress
    * @returns {Promise<Buffer | string>} Compressed data
    * @private
@@ -597,7 +600,7 @@ export class OTLPTransport extends BatchingTransport {
 
   /**
    * Exports using fetch API (browser).
-   * 
+   *
    * @param {Buffer | string} data - Data to send
    * @returns {Promise<void>}
    * @private
@@ -606,40 +609,60 @@ export class OTLPTransport extends BatchingTransport {
     const url = `${this.endpoint}${this.exportPath}`;
     // Use AbortSignal.timeout when available; otherwise omit to avoid runtime errors in jsdom
     const hasAbortSignalTimeout =
-      typeof AbortSignal !== 'undefined' && typeof (AbortSignal as unknown as { timeout?: unknown }).timeout === 'function';
-    const signal = hasAbortSignalTimeout ? (AbortSignal as unknown as { timeout: (ms: number) => AbortSignal }).timeout(this.exportTimeout) : undefined;
-    
+      typeof AbortSignal !== 'undefined' &&
+      typeof (AbortSignal as unknown as { timeout?: unknown }).timeout === 'function';
+    const signal = hasAbortSignalTimeout
+      ? (AbortSignal as unknown as { timeout: (ms: number) => AbortSignal }).timeout(
+          this.exportTimeout
+        )
+      : undefined;
+
     try {
-  const response = await fetch(url, {
+      const response = await fetch(url, {
         method: 'POST',
         headers: this.headers,
-        body: typeof data === 'string' ? data : (data as unknown as string | Blob | ArrayBufferView | ArrayBuffer | FormData | URLSearchParams | ReadableStream<Uint8Array>),
+        body:
+          typeof data === 'string'
+            ? data
+            : (data as unknown as
+                | string
+                | Blob
+                | ArrayBufferView
+                | ArrayBuffer
+                | FormData
+                | URLSearchParams
+                | ReadableStream<Uint8Array>),
         // Only include signal when supported
-        ...(signal ? { signal } : {})
+        ...(signal ? { signal } : {}),
       });
 
       if (!response.ok) {
-        this.stats.failed += ((this.stats.custom as Record<string, unknown>)?.sendingBatchSize as number | undefined) ?? 1;
+        this.stats.failed +=
+          ((this.stats.custom as Record<string, unknown>)?.sendingBatchSize as
+            | number
+            | undefined) ?? 1;
         throw new Error(`OTLP export failed: ${response.status} ${response.statusText}`);
       }
-  } catch (err) {
+    } catch (err) {
       // Increment failed when fetch throws (network error/timeout)
-      this.stats.failed += ((this.stats.custom as Record<string, unknown>)?.sendingBatchSize as number | undefined) ?? 1;
+      this.stats.failed +=
+        ((this.stats.custom as Record<string, unknown>)?.sendingBatchSize as number | undefined) ??
+        1;
       throw err;
     }
   }
 
   /**
    * Exports using Node.js HTTP module.
-   * 
+   *
    * @param {Buffer | string} data - Data to send
    * @returns {Promise<void>}
    * @private
    */
   private async exportUsingHttp(data: Buffer | string): Promise<void> {
-  return new Promise((resolve, reject) => {
+    return new Promise((resolve, reject) => {
       const url = new URL(`${this.endpoint}${this.exportPath}`);
-      
+
       const options = {
         hostname: url.hostname,
         port: url.port,
@@ -647,9 +670,9 @@ export class OTLPTransport extends BatchingTransport {
         method: 'POST',
         headers: {
           ...this.headers,
-          'Content-Length': Buffer.byteLength(data)
+          'Content-Length': Buffer.byteLength(data),
         },
-        timeout: this.exportTimeout
+        timeout: this.exportTimeout,
       };
 
       const http = this.httpModule;
@@ -658,10 +681,10 @@ export class OTLPTransport extends BatchingTransport {
         return;
       }
 
-      const req = http.request(options, (res) => {
+      const req = http.request(options, res => {
         let responseData = '';
-        
-        res.on('data', (chunk) => {
+
+        res.on('data', chunk => {
           responseData += chunk;
         });
 
@@ -670,19 +693,28 @@ export class OTLPTransport extends BatchingTransport {
             resolve();
           } else {
             // Count a failure for the whole batch
-            this.stats.failed += ((this.stats.custom as Record<string, unknown>)?.sendingBatchSize as number | undefined) ?? 1;
+            this.stats.failed +=
+              ((this.stats.custom as Record<string, unknown>)?.sendingBatchSize as
+                | number
+                | undefined) ?? 1;
             reject(new Error(`OTLP export failed: ${res.statusCode} ${responseData}`));
           }
         });
       });
 
-      req.on('error', (e) => {
-        this.stats.failed += ((this.stats.custom as Record<string, unknown>)?.sendingBatchSize as number | undefined) ?? 1;
+      req.on('error', e => {
+        this.stats.failed +=
+          ((this.stats.custom as Record<string, unknown>)?.sendingBatchSize as
+            | number
+            | undefined) ?? 1;
         reject(e);
       });
       req.on('timeout', () => {
         req.destroy();
-        this.stats.failed += ((this.stats.custom as Record<string, unknown>)?.sendingBatchSize as number | undefined) ?? 1;
+        this.stats.failed +=
+          ((this.stats.custom as Record<string, unknown>)?.sendingBatchSize as
+            | number
+            | undefined) ?? 1;
         reject(new Error('OTLP export timeout'));
       });
 
@@ -693,7 +725,7 @@ export class OTLPTransport extends BatchingTransport {
 
   /**
    * Gets transport statistics.
-   * 
+   *
    * @returns {TransportStats} Statistics
    */
   public getStats(): TransportStats {

@@ -191,7 +191,9 @@ class TestCompatibleLogger extends BaseCompatibleLogger {
    * @returns {Promise<void>} Promise that resolves when flush completes
    */
   public async flush(): Promise<void> {
-    const loggerWithAsync = this.logger as unknown as { async?: { flushAndWait: () => Promise<void> } };
+    const loggerWithAsync = this.logger as unknown as {
+      async?: { flushAndWait: () => Promise<void> };
+    };
     if (loggerWithAsync.async && typeof loggerWithAsync.async.flushAndWait === 'function') {
       return loggerWithAsync.async.flushAndWait();
     }
@@ -246,13 +248,27 @@ describe('BaseCompatibleLogger', () => {
       getLogs: jest.fn(() => []),
       getTransportStats: jest.fn(() => ({})),
       // Add getters as properties
-      get theme() { return {}; },
-      get verbose() { return false; },
-      get writeToDisk() { return false; },
-      get useColors() { return true; },
-      get logRetentionDays() { return 30; },
-      get logDir() { return './logs'; },
-      get logFile() { return null; },
+      get theme() {
+        return {};
+      },
+      get verbose() {
+        return false;
+      },
+      get writeToDisk() {
+        return false;
+      },
+      get useColors() {
+        return true;
+      },
+      get logRetentionDays() {
+        return 30;
+      },
+      get logDir() {
+        return './logs';
+      },
+      get logFile() {
+        return null;
+      },
     }) as jest.Mocked<Logger>;
 
     // Set up the Logger constructor mock to return our mock instance
@@ -359,7 +375,7 @@ describe('BaseCompatibleLogger', () => {
       const setFileLoggingMock = jest.fn();
       const setLogDirMock = jest.fn();
       const setLogRetentionDaysMock = jest.fn();
-      
+
       // Create a fresh mock for this specific test
       const testMockLogger = Object.assign(Object.create(Logger.prototype), {
         ...mockLogger,
@@ -367,7 +383,7 @@ describe('BaseCompatibleLogger', () => {
         setLogDir: setLogDirMock,
         setLogRetentionDays: setLogRetentionDaysMock,
       });
-      
+
       MockedLogger.mockImplementation(() => testMockLogger);
 
       new TestCompatibleLogger({
@@ -949,7 +965,7 @@ describe('BaseCompatibleLogger', () => {
   describe('Lifecycle Methods', () => {
     it('should flush transports when async logger is available', async () => {
       const flushAndWaitSpy = jest.fn().mockResolvedValue(undefined);
-      
+
       // Create a new mock logger with async capabilities
       const testMockLogger = Object.assign(Object.create(Logger.prototype), {
         ...mockLogger,
@@ -957,9 +973,9 @@ describe('BaseCompatibleLogger', () => {
           flushAndWait: flushAndWaitSpy,
         },
       });
-      
+
       MockedLogger.mockImplementation(() => testMockLogger);
-      
+
       // Create a new logger instance to use the updated mock
       const testLogger = new TestCompatibleLogger({
         name: 'flush-test-logger',

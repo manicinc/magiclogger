@@ -68,11 +68,11 @@ export interface AsyncBufferOptions {
 
 /**
  * High-performance ring buffer for async logging.
- * 
+ *
  * This implementation avoids promises in the hot path and uses a pre-allocated
  * ring buffer for zero-allocation logging. The buffer is flushed based on size,
  * time, or manual triggers.
- * 
+ *
  * @example
  * ```typescript
  * const buffer = new AsyncBuffer({
@@ -83,7 +83,7 @@ export interface AsyncBufferOptions {
  *     worker.postMessage({ type: 'logs', entries });
  *   }
  * });
- * 
+ *
  * // Add logs - no promises, no allocations
  * buffer.add(logEntry);
  * ```
@@ -167,7 +167,7 @@ export class AsyncBuffer {
 
   /**
    * Creates a new AsyncBuffer instance.
-   * 
+   *
    * @param {AsyncBufferOptions} options - Configuration options
    */
   constructor(options: AsyncBufferOptions) {
@@ -187,12 +187,12 @@ export class AsyncBuffer {
 
   /**
    * Add a log entry to the buffer.
-   * 
+   *
    * This method is designed to be as fast as possible:
    * - No promises
    * - No allocations (except when buffer is full)
    * - Direct array access
-   * 
+   *
    * @param {LogEntry} entry - The log entry to add
    * @returns {boolean} True if entry was added, false if dropped
    */
@@ -248,7 +248,7 @@ export class AsyncBuffer {
 
   /**
    * Manually flush the buffer.
-   * 
+   *
    * This method extracts all entries and calls the flush handler.
    * It's designed to be non-blocking and handle errors gracefully.
    */
@@ -278,8 +278,8 @@ export class AsyncBuffer {
       if (this.enableMetrics) {
         this.metrics.totalFlushed += entries.length;
         this.metrics.flushCount++;
-        this.metrics.avgFlushSize = 
-          (this.metrics.avgFlushSize * (this.metrics.flushCount - 1) + entries.length) / 
+        this.metrics.avgFlushSize =
+          (this.metrics.avgFlushSize * (this.metrics.flushCount - 1) + entries.length) /
           this.metrics.flushCount;
         this.metrics.lastFlushTime = Date.now() - startTime;
       }
@@ -287,7 +287,7 @@ export class AsyncBuffer {
       // Call flush handler
       try {
         const result = this.onFlush(entries);
-        
+
         // Handle promise if returned
         if (result && typeof result.then === 'function') {
           result.catch(error => {
@@ -304,14 +304,14 @@ export class AsyncBuffer {
 
   /**
    * Force flush and wait for completion.
-   * 
+   *
    * This method is async and waits for the flush to complete.
    * Used during shutdown to ensure all logs are processed.
-   * 
+   *
    * @returns {Promise<void>} Resolves when flush is complete
    */
   public async flushAndWait(): Promise<void> {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       if (this.size === 0) {
         resolve();
         return;
@@ -348,7 +348,7 @@ export class AsyncBuffer {
 
   /**
    * Get current buffer statistics.
-   * 
+   *
    * @returns {object} Buffer statistics
    */
   public getStats(): {
@@ -372,7 +372,7 @@ export class AsyncBuffer {
 
   /**
    * Close the buffer and clean up resources.
-   * 
+   *
    * @returns {Promise<void>} Resolves when buffer is closed
    */
   public async close(): Promise<void> {
@@ -399,7 +399,10 @@ export class AsyncBuffer {
 
     // Use consistent timer method selection
     let timerFunction: typeof setInterval;
-    if (typeof global !== 'undefined' && (global as { setInterval?: typeof setInterval }).setInterval) {
+    if (
+      typeof global !== 'undefined' &&
+      (global as { setInterval?: typeof setInterval }).setInterval
+    ) {
       timerFunction = (global as { setInterval: typeof setInterval }).setInterval;
     } else if (typeof setInterval !== 'undefined') {
       timerFunction = setInterval;
@@ -427,7 +430,10 @@ export class AsyncBuffer {
   private stopFlushTimer(): void {
     if (this.flushTimer) {
       // Use the same method we used to set the timer
-      if (typeof global !== 'undefined' && (global as { clearInterval?: typeof clearInterval }).clearInterval) {
+      if (
+        typeof global !== 'undefined' &&
+        (global as { clearInterval?: typeof clearInterval }).clearInterval
+      ) {
         (global as { clearInterval: typeof clearInterval }).clearInterval(this.flushTimer);
       } else if (typeof clearInterval !== 'undefined') {
         clearInterval(this.flushTimer);
@@ -441,7 +447,7 @@ export class AsyncBuffer {
 
   /**
    * Check if buffer is empty.
-   * 
+   *
    * @returns {boolean} True if buffer is empty
    */
   public isEmpty(): boolean {
@@ -450,7 +456,7 @@ export class AsyncBuffer {
 
   /**
    * Check if buffer is full.
-   * 
+   *
    * @returns {boolean} True if buffer is full
    */
   public isFull(): boolean {
@@ -459,7 +465,7 @@ export class AsyncBuffer {
 
   /**
    * Get current buffer size.
-   * 
+   *
    * @returns {number} Number of entries in buffer
    */
   public getSize(): number {

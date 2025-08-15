@@ -14,14 +14,14 @@ const defaultSupport: TerminalSupport = {
   rgb: false,
 
   styles: {
-  bold: true,
-  dim: true,
-  italic: true,
-  underline: true,
-  blink: true,
-  reverse: true,
-  hidden: true,
-  strikethrough: true,
+    bold: true,
+    dim: true,
+    italic: true,
+    underline: true,
+    blink: true,
+    reverse: true,
+    hidden: true,
+    strikethrough: true,
     doubleUnderline: false,
     curlyUnderline: false,
   },
@@ -350,9 +350,9 @@ class TerminalCapabilityDetector {
   public isStyleSupported(style: string): boolean {
     // For actual usage, return the detected support
     const styles = this.support.styles as Record<string, boolean>;
-  if (!style || typeof style !== 'string') return true;
-  if (!Object.prototype.hasOwnProperty.call(styles, style)) return true;
-  return styles[style];
+    if (!style || typeof style !== 'string') return true;
+    if (!Object.prototype.hasOwnProperty.call(styles, style)) return true;
+    return styles[style];
   }
 
   /**
@@ -361,8 +361,8 @@ class TerminalCapabilityDetector {
    * @returns {string} Fallback style name, or 'normal' if none.
    */
   public getFallbackStyle(style: string): string {
-  // Edge cases: empty/invalid style strings fall back to 'normal'
-  if (!style || typeof style !== 'string') return 'normal';
+    // Edge cases: empty/invalid style strings fall back to 'normal'
+    if (!style || typeof style !== 'string') return 'normal';
 
     // If style is known and supported, return it
     if (style in this.support.styles && this.isStyleSupported(style)) {

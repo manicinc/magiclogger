@@ -1,5 +1,8 @@
 // File: tests/unit/transports/formatters/CustomFormatter.test.ts
-import { CustomFormatter as BaseCustomFormatter, FunctionFormatter } from '../../../../src/transports/formatters/BaseFormatter';
+import {
+  CustomFormatter as BaseCustomFormatter,
+  FunctionFormatter,
+} from '../../../../src/transports/formatters/BaseFormatter';
 import { XMLFormatter as IndexXMLFormatter } from '../../../../src/transports/formatters/XMLFormatter';
 import { CSVFormatter as IndexCSVFormatter } from '../../../../src/transports/formatters';
 import type { LogEntry } from '../../../../src/types/transport';
@@ -16,7 +19,9 @@ const entry: LogEntry = {
 };
 
 class UpperFormatter extends BaseCustomFormatter {
-  format(e: LogEntry): string { return e.message.toUpperCase(); }
+  format(e: LogEntry): string {
+    return e.message.toUpperCase();
+  }
 }
 
 describe('CustomFormatter (index exports)', () => {

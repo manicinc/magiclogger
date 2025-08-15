@@ -1,4 +1,12 @@
-import { createInitialState, formatEntries, prepareFileData, batchForNetwork, processLogs, updateConfig, type WorkerConfig } from '../../../../src/async/workers/log-processor-core';
+import {
+  createInitialState,
+  formatEntries,
+  prepareFileData,
+  batchForNetwork,
+  processLogs,
+  updateConfig,
+  type WorkerConfig,
+} from '../../../../src/async/workers/log-processor-core';
 import type { LogEntry } from '../../../../src/types/transport';
 
 function makeEntries(n = 3): LogEntry[] {
@@ -81,16 +89,26 @@ describe('log-processor-core', () => {
 });
 
 describe('worker wrapper handleWorkerMessage', () => {
-  interface PostedMessage { type: string; [k: string]: unknown }
+  interface PostedMessage {
+    type: string;
+    [k: string]: unknown;
+  }
   const posted: PostedMessage[] = [];
   const originalSelf = (globalThis as unknown as { self?: unknown }).self as unknown;
   type WorkerMessage = { type: string; entries?: LogEntry[]; config?: WorkerConfig };
   let handleWorkerMessage: (msg: WorkerMessage) => void;
   beforeAll(async () => {
-    (globalThis as unknown as { self: any }).self = { // eslint-disable-line @typescript-eslint/no-explicit-any
-      postMessage: (msg: PostedMessage) => { posted.push(msg); },
-      addEventListener: (_t: string, _l: unknown) => { return; },
-      close: () => { return; },
+    (globalThis as unknown as { self: any }).self = {
+      // eslint-disable-line @typescript-eslint/no-explicit-any
+      postMessage: (msg: PostedMessage) => {
+        posted.push(msg);
+      },
+      addEventListener: (_t: string, _l: unknown) => {
+        return;
+      },
+      close: () => {
+        return;
+      },
     };
     const mod = await import('../../../../src/async/workers/log-processor.worker');
     handleWorkerMessage = mod.handleWorkerMessage;
@@ -99,7 +117,10 @@ describe('worker wrapper handleWorkerMessage', () => {
     (globalThis as unknown as { self: unknown }).self = originalSelf;
   });
   it('handles config then logs then shutdown', () => {
-    handleWorkerMessage({ type: 'config', config: { destination: 'network', endpoint: 'https://e' } });
+    handleWorkerMessage({
+      type: 'config',
+      config: { destination: 'network', endpoint: 'https://e' },
+    });
     handleWorkerMessage({ type: 'logs', entries: makeEntries(1) });
     handleWorkerMessage({ type: 'shutdown' });
     expect(posted.some(m => m.type === 'processed')).toBe(true);

@@ -1,5 +1,7 @@
 describe('http transport entrypoint', () => {
-  beforeEach(() => { jest.resetModules(); });
+  beforeEach(() => {
+    jest.resetModules();
+  });
 
   it('registers factory and supports createHTTPTransport helper + error branch', async () => {
     // Import entrypoint (registration happens on import)
@@ -9,9 +11,9 @@ describe('http transport entrypoint', () => {
 
     expect(TransportRegistry.has('http')).toBe(true);
 
-  const t1 = httpMod.createHTTPTransport('https://api.example.com/ingest');
-  // Implementation uses hostname directly (dots preserved)
-  expect(t1.name).toBe('http-api.example.com');
+    const t1 = httpMod.createHTTPTransport('https://api.example.com/ingest');
+    // Implementation uses hostname directly (dots preserved)
+    expect(t1.name).toBe('http-api.example.com');
 
     type MinimalConfig = { type: string; name?: string; url?: string };
     type FactoryFn = (cfg: MinimalConfig) => { name: string };

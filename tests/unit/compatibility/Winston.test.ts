@@ -51,7 +51,7 @@ describe('WinstonCompatibleLogger', () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
-    
+
     // Clean up process event listeners to prevent interference between tests
     process.removeAllListeners('uncaughtException');
     process.removeAllListeners('unhandledRejection');
@@ -384,7 +384,7 @@ describe('WinstonCompatibleLogger', () => {
         expect.stringContaining('Circular:'),
         expect.objectContaining({
           a: 1,
-          self: expect.objectContaining({ a: 1 })
+          self: expect.objectContaining({ a: 1 }),
         })
       );
     });
@@ -976,10 +976,7 @@ describe('WinstonCompatibleLogger', () => {
   describe('Edge Cases', () => {
     it('should handle empty log calls', () => {
       winston.info(''); // Fixed: Added empty string argument
-      expect(infoSpy).toHaveBeenCalledWith(
-        expect.stringContaining(''),
-        expect.any(Object)
-      );
+      expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining(''), expect.any(Object));
     });
 
     it('should handle null and undefined arguments', () => {

@@ -36,7 +36,11 @@ jest.mock('path', () => ({
 }));
 
 // NOW import FileTransport after spies/mocks are set up
-import { FileTransport, type FileTransportOptions, createFileTransport } from '../../../../../src/transports/base/implementations/FileTransport';
+import {
+  FileTransport,
+  type FileTransportOptions,
+  createFileTransport,
+} from '../../../../../src/transports/base/implementations/FileTransport';
 import type { LogEntry } from '../../../../../src/types/transport';
 
 // Spies for fs.promises API we assert against
@@ -78,10 +82,12 @@ describe('FileTransport', () => {
     delete (global as any).window;
 
     // Reset write stream mock
-    mockWriteStream.write.mockImplementation((data: any, callback?: (err?: Error | null) => void) => {
-      if (callback) callback();
-      return true;
-    });
+    mockWriteStream.write.mockImplementation(
+      (data: any, callback?: (err?: Error | null) => void) => {
+        if (callback) callback();
+        return true;
+      }
+    );
     mockWriteStream.end.mockImplementation((callback?: () => void) => {
       if (callback) callback();
     });
@@ -102,11 +108,13 @@ describe('FileTransport', () => {
 
     // Prepare fs.promises spies and defaults
     mkdirSpy = jest.spyOn((fs as any).promises, 'mkdir').mockResolvedValue(undefined as any);
-    statSpy = jest.spyOn((fs as any).promises, 'stat').mockRejectedValue(new Error('File not found'));
+    statSpy = jest
+      .spyOn((fs as any).promises, 'stat')
+      .mockRejectedValue(new Error('File not found'));
 
     transport = new FileTransport({
       name: 'file',
-      filepath: './logs'
+      filepath: './logs',
     });
 
     mockEntry = {
@@ -118,7 +126,7 @@ describe('FileTransport', () => {
       plainMessage: 'Test message',
       loggerId: 'test-logger',
       tags: ['test'],
-      context: { test: true }
+      context: { test: true },
     } as LogEntry;
   });
 
@@ -135,8 +143,9 @@ describe('FileTransport', () => {
     });
 
     it('should throw if filepath is missing', () => {
-      expect(() => new FileTransport({ name: 'test' } as FileTransportOptions))
-        .toThrow('FileTransport requires filepath option');
+      expect(() => new FileTransport({ name: 'test' } as FileTransportOptions)).toThrow(
+        'FileTransport requires filepath option'
+      );
     });
 
     it('should initialize with all options', () => {
@@ -153,18 +162,18 @@ describe('FileTransport', () => {
         includeTimestamp: false,
         createDir: false,
         retentionDays: 7,
-        eol: '\r\n'
+        eol: '\r\n',
       });
-      
+
       expect(t).toBeDefined();
     });
 
     it('should use default options', () => {
       const t = new FileTransport({
         name: 'defaults',
-        filepath: './logs'
+        filepath: './logs',
       });
-      
+
       expect(t).toBeDefined();
     });
   });
@@ -172,15 +181,19 @@ describe('FileTransport', () => {
   describe('initialization', () => {
     it('should initialize successfully', async () => {
       await transport.init();
-      
+
       expect(mkdirSpy).toHaveBeenCalledWith('./logs', { recursive: true });
-      expect((fs.createWriteStream as jest.Mock) || (fsMockFromSetup?.createWriteStream as jest.Mock)).toHaveBeenCalled();
+      expect(
+        (fs.createWriteStream as jest.Mock) || (fsMockFromSetup?.createWriteStream as jest.Mock)
+      ).toHaveBeenCalled();
     });
 
     it('should throw in browser environment', async () => {
       (global as any).window = {} as any;
       const t = new FileTransport({ name: 'browser', filepath: './logs' });
-      await expect(t.init()).rejects.toThrow('FileTransport is not supported in browser environments');
+      await expect(t.init()).rejects.toThrow(
+        'FileTransport is not supported in browser environments'
+      );
     });
 
     it('should create directory if createDir is true', async () => {
@@ -213,7 +226,7 @@ describe('FileTransport', () => {
     beforeEach(async () => {
       await transport.init();
     }, 15000);
-  
+
     it('should log entry as JSON', async () => {
       await transport.log(mockEntry);
       await new Promise(resolve => setTimeout(resolve, 10));
@@ -222,7 +235,7 @@ describe('FileTransport', () => {
         expect.any(Function)
       );
     });
-  
+
     it('should log entry as plain text', async () => {
       transport = new FileTransport({ name: 'plain', filepath: './logs', format: 'plain' });
       await transport.init();
@@ -232,34 +245,47 @@ describe('FileTransport', () => {
       expect(writeCall[0]).toContain('[INFO]');
       expect(writeCall[0]).toContain('Test message');
     });
-  
+
     it('should use custom formatter', async () => {
-      transport = new FileTransport({ name: 'custom', filepath: './logs', format: 'custom', formatter: (e) => `CUSTOM: ${e.message}` });
+      transport = new FileTransport({
+        name: 'custom',
+        filepath: './logs',
+        format: 'custom',
+        formatter: e => `CUSTOM: ${e.message}`,
+      });
       await transport.init();
       await transport.log(mockEntry);
       await new Promise(resolve => setTimeout(resolve, 10));
-      expect(mockWriteStream.write).toHaveBeenCalledWith('CUSTOM: Test message\n', expect.any(Function));
+      expect(mockWriteStream.write).toHaveBeenCalledWith(
+        'CUSTOM: Test message\n',
+        expect.any(Function)
+      );
     });
-  
+
     it('should include error details in plain format', async () => {
       transport = new FileTransport({ name: 'error', filepath: './logs', format: 'plain' });
       await transport.init();
-      const entryWithError = { ...mockEntry, error: { name: 'TestError', message: 'Failed', stack: 'Error: Failed\n  at test.js:1:1' } } as any;
+      const entryWithError = {
+        ...mockEntry,
+        error: { name: 'TestError', message: 'Failed', stack: 'Error: Failed\n  at test.js:1:1' },
+      } as any;
       await transport.log(entryWithError);
       await new Promise(resolve => setTimeout(resolve, 10));
       const content = (mockWriteStream.write as jest.Mock).mock.calls[0][0];
       expect(content).toContain('Error: Failed');
       expect(content).toContain('Stack:');
     });
-  
+
     it('should handle write errors', async () => {
-      (mockWriteStream.write as jest.Mock).mockImplementation((data: any, callback?: (err?: Error | null) => void) => {
-        if (callback) callback(new Error('Write failed'));
-        return false;
-      });
+      (mockWriteStream.write as jest.Mock).mockImplementation(
+        (data: any, callback?: (err?: Error | null) => void) => {
+          if (callback) callback(new Error('Write failed'));
+          return false;
+        }
+      );
       await expect(transport.log(mockEntry)).rejects.toThrow('Write failed');
     });
-  
+
     it('should update file size after write', async () => {
       await transport.log(mockEntry);
       await new Promise(resolve => setTimeout(resolve, 10));
@@ -267,25 +293,40 @@ describe('FileTransport', () => {
     });
 
     it('should skip log when disabled & filter rejected', async () => {
-      const t = new FileTransport({ name: 'disabled', filepath: './logs', enabled: false, filter: () => { throw new Error('should not run'); } });
+      const t = new FileTransport({
+        name: 'disabled',
+        filepath: './logs',
+        enabled: false,
+        filter: () => {
+          throw new Error('should not run');
+        },
+      });
       await t.init();
       await t.log(makeEntry()); // should no-op
       const t2 = new FileTransport({ name: 'filtered', filepath: './logs', filter: () => false });
       await t2.init();
       await t2.log(makeEntry());
       // No writes for both transports
-      const createWriteStreamMock = (fs.createWriteStream as jest.Mock) || (fsMockFromSetup?.createWriteStream as jest.Mock);
+      const createWriteStreamMock =
+        (fs.createWriteStream as jest.Mock) || (fsMockFromSetup?.createWriteStream as jest.Mock);
       expect(createWriteStreamMock.mock.calls.length).toBeGreaterThanOrEqual(2); // streams created
     });
 
     it('json format without timestamp', async () => {
-      const t = new FileTransport({ name: 'json-notime', filepath: './logs', includeTimestamp: false, format: 'json' });
+      const t = new FileTransport({
+        name: 'json-notime',
+        filepath: './logs',
+        includeTimestamp: false,
+        format: 'json',
+      });
       await t.init();
       await t.log(makeEntry());
       await tick();
       // We cannot access data directly from result, so spy on stream write
-      const createWriteStreamMock = (fs.createWriteStream as jest.Mock) || (fsMockFromSetup?.createWriteStream as jest.Mock);
-      const stream = createWriteStreamMock.mock.results[createWriteStreamMock.mock.results.length - 1].value;
+      const createWriteStreamMock =
+        (fs.createWriteStream as jest.Mock) || (fsMockFromSetup?.createWriteStream as jest.Mock);
+      const stream =
+        createWriteStreamMock.mock.results[createWriteStreamMock.mock.results.length - 1].value;
       const writeMock = stream?.write as jest.Mock | undefined;
       const writtenArg = writeMock?.mock?.calls?.[0]?.[0] as string | undefined;
       // Assert deterministically: either no write captured (acceptable in CI flake) OR write lacks timestamp
@@ -294,12 +335,18 @@ describe('FileTransport', () => {
     });
 
     it('custom format without formatter falls back to plain', async () => {
-      const t = new FileTransport({ name: 'custom-fallback', filepath: './logs', format: 'custom' as any });
+      const t = new FileTransport({
+        name: 'custom-fallback',
+        filepath: './logs',
+        format: 'custom' as any,
+      });
       await t.init();
       await t.log(makeEntry('plain-msg'));
       await tick();
-      const createWriteStreamMock = (fs.createWriteStream as jest.Mock) || (fsMockFromSetup?.createWriteStream as jest.Mock);
-      const stream = createWriteStreamMock.mock.results[createWriteStreamMock.mock.results.length - 1].value;
+      const createWriteStreamMock =
+        (fs.createWriteStream as jest.Mock) || (fsMockFromSetup?.createWriteStream as jest.Mock);
+      const stream =
+        createWriteStreamMock.mock.results[createWriteStreamMock.mock.results.length - 1].value;
       const writeMock = stream?.write as jest.Mock | undefined;
       const writtenArg = writeMock?.mock?.calls?.[0]?.[0] as string | undefined;
       expect(writtenArg ? writtenArg.includes('plain-msg') : true).toBe(true);
@@ -310,8 +357,10 @@ describe('FileTransport', () => {
       await t.init();
       await (t as any).doLogBatch([makeEntry('a'), makeEntry('b')]);
       await tick();
-      const createWriteStreamMock = (fs.createWriteStream as jest.Mock) || (fsMockFromSetup?.createWriteStream as jest.Mock);
-      const stream = createWriteStreamMock.mock.results[createWriteStreamMock.mock.results.length - 1].value;
+      const createWriteStreamMock =
+        (fs.createWriteStream as jest.Mock) || (fsMockFromSetup?.createWriteStream as jest.Mock);
+      const stream =
+        createWriteStreamMock.mock.results[createWriteStreamMock.mock.results.length - 1].value;
       const writeMock = stream?.write as jest.Mock | undefined;
       const writtenArg = writeMock?.mock?.calls?.[0]?.[0] as string | undefined;
       // Expect either two lines logged or no write captured (flake acceptable)
@@ -321,7 +370,9 @@ describe('FileTransport', () => {
   });
 
   describe('rotation', () => {
-    beforeEach(async () => { await transport.init(); }, 15000);
+    beforeEach(async () => {
+      await transport.init();
+    }, 15000);
 
     it('should set rotation strategy based on maxFileSize', () => {
       const t = new FileTransport({ name: 'size-rotation', filepath: './logs', maxFileSize: 1024 });
@@ -339,19 +390,37 @@ describe('FileTransport', () => {
     });
 
     it('size rotation triggers compress & cleanup', async () => {
-      const readFileSpy = jest.spyOn(fs.promises, 'readFile').mockResolvedValue(Buffer.from('file'));
+      const readFileSpy = jest
+        .spyOn(fs.promises, 'readFile')
+        .mockResolvedValue(Buffer.from('file'));
       jest.spyOn(fs.promises, 'writeFile').mockResolvedValue();
       const unlinkSpy = jest.spyOn(fs.promises, 'unlink').mockResolvedValue();
-      const readdirSpy = jest.spyOn(fs.promises, 'readdir').mockResolvedValue(['app.log','app-1.log','app-2.log'] as any);
-      const statSpy = jest.spyOn(fs.promises, 'stat').mockResolvedValue({ size: 0, birthtime: new Date(), mtime: new Date() } as any);
+      const readdirSpy = jest
+        .spyOn(fs.promises, 'readdir')
+        .mockResolvedValue(['app.log', 'app-1.log', 'app-2.log'] as any);
+      const statSpy = jest
+        .spyOn(fs.promises, 'stat')
+        .mockResolvedValue({ size: 0, birthtime: new Date(), mtime: new Date() } as any);
 
-      const t = new FileTransport({ name: 'rot', filepath: './logs', maxFileSize: 10, rotation: 'size', compress: true, maxFiles: 1 });
+      const t = new FileTransport({
+        name: 'rot',
+        filepath: './logs',
+        maxFileSize: 10,
+        rotation: 'size',
+        compress: true,
+        maxFiles: 1,
+      });
       await t.init();
-      const createWriteStreamMock = (fs.createWriteStream as jest.Mock) || (fsMockFromSetup?.createWriteStream as jest.Mock);
-      const stream = createWriteStreamMock.mock.results[createWriteStreamMock.mock.results.length - 1].value;
+      const createWriteStreamMock =
+        (fs.createWriteStream as jest.Mock) || (fsMockFromSetup?.createWriteStream as jest.Mock);
+      const stream =
+        createWriteStreamMock.mock.results[createWriteStreamMock.mock.results.length - 1].value;
       // Overwrite write to append realistically
       if (stream && (stream.write as any).mock) {
-        (stream.write as jest.Mock).mockImplementation((d: any, cb?: any) => { cb && cb(); return true; });
+        (stream.write as jest.Mock).mockImplementation((d: any, cb?: any) => {
+          cb && cb();
+          return true;
+        });
       }
       await t.log(makeEntry('12345678901')); // first big write sets size
       await t.log(makeEntry('2nd-write-causes-rotate'));
@@ -365,15 +434,19 @@ describe('FileTransport', () => {
     });
 
     it('daily rotation triggers when filename changes', async () => {
-      const statSpy = jest.spyOn(fs.promises, 'stat').mockResolvedValue({ size: 0, birthtime: new Date(), mtime: new Date() } as any);
+      const statSpy = jest
+        .spyOn(fs.promises, 'stat')
+        .mockResolvedValue({ size: 0, birthtime: new Date(), mtime: new Date() } as any);
       const t = new FileTransport({ name: 'daily', filepath: './logs', rotation: 'daily' });
       await t.init();
       const originalGenerate = (t as any).generateFilename;
-      (t as any).generateFilename = jest.fn()
+      (t as any).generateFilename = jest
+        .fn()
         .mockImplementationOnce(() => originalGenerate.call(t)) // during openStream
-        .mockImplementation(() => path.join('/logs','app-new.log'));
+        .mockImplementation(() => path.join('/logs', 'app-new.log'));
       await t.log(makeEntry('rotate-daily'));
-      const createWriteStreamMock = (fs.createWriteStream as jest.Mock) || (fsMockFromSetup?.createWriteStream as jest.Mock);
+      const createWriteStreamMock =
+        (fs.createWriteStream as jest.Mock) || (fsMockFromSetup?.createWriteStream as jest.Mock);
       expect(createWriteStreamMock.mock.calls.length).toBeGreaterThanOrEqual(2);
       statSpy.mockRestore();
     });
@@ -384,7 +457,13 @@ describe('FileTransport', () => {
       jest.spyOn(fs.promises, 'readFile').mockRejectedValue(new Error('read-fail'));
       jest.spyOn(fs.promises, 'writeFile').mockResolvedValue();
       jest.spyOn(fs.promises, 'unlink').mockResolvedValue();
-      const t = new FileTransport({ name: 'err-comp', filepath: './logs', maxFileSize: 5, rotation: 'size', compress: true });
+      const t = new FileTransport({
+        name: 'err-comp',
+        filepath: './logs',
+        maxFileSize: 5,
+        rotation: 'size',
+        compress: true,
+      });
       await t.init();
       // Force call directly
       await (t as any).compressFile('somefile.log');
@@ -404,8 +483,10 @@ describe('FileTransport', () => {
     it('writeToStream not writable', async () => {
       const t = new FileTransport({ name: 'notwritable', filepath: './logs' });
       await t.init();
-      const createWriteStreamMock = (fs.createWriteStream as jest.Mock) || (fsMockFromSetup?.createWriteStream as jest.Mock);
-      const stream = createWriteStreamMock.mock.results[createWriteStreamMock.mock.results.length - 1].value;
+      const createWriteStreamMock =
+        (fs.createWriteStream as jest.Mock) || (fsMockFromSetup?.createWriteStream as jest.Mock);
+      const stream =
+        createWriteStreamMock.mock.results[createWriteStreamMock.mock.results.length - 1].value;
       (stream as any).writable = false;
       await expect(t.log(makeEntry('data'))).rejects.toThrow('Stream not writable');
     });
@@ -413,14 +494,22 @@ describe('FileTransport', () => {
     it('backpressure drain path', async () => {
       const t = new FileTransport({ name: 'bp', filepath: './logs' });
       await t.init();
-      const createWriteStreamMock = (fs.createWriteStream as jest.Mock) || (fsMockFromSetup?.createWriteStream as jest.Mock);
-      const stream = createWriteStreamMock.mock.results[createWriteStreamMock.mock.results.length - 1].value;
+      const createWriteStreamMock =
+        (fs.createWriteStream as jest.Mock) || (fsMockFromSetup?.createWriteStream as jest.Mock);
+      const stream =
+        createWriteStreamMock.mock.results[createWriteStreamMock.mock.results.length - 1].value;
       const drainHandlers: Array<() => void> = [];
       if (stream && (stream.write as any).mock) {
-        (stream.write as jest.Mock).mockImplementation((_d: any, cb?: any) => { cb && cb(); return false; });
+        (stream.write as jest.Mock).mockImplementation((_d: any, cb?: any) => {
+          cb && cb();
+          return false;
+        });
       }
       if (stream && (stream.once as any).mock) {
-        (stream.once as jest.Mock).mockImplementation((event: string, cb: any) => { if (event === 'drain') drainHandlers.push(cb); if (event === 'open') cb(); });
+        (stream.once as jest.Mock).mockImplementation((event: string, cb: any) => {
+          if (event === 'drain') drainHandlers.push(cb);
+          if (event === 'open') cb();
+        });
       }
       await t.log(makeEntry('drain-me'));
       drainHandlers.forEach(h => h());
@@ -430,8 +519,10 @@ describe('FileTransport', () => {
 
   describe('file operations', () => {
     it('getFileStats and listLogFiles', async () => {
-      const statSpy = jest.spyOn(fs.promises, 'stat').mockResolvedValue({ size: 123, birthtime: new Date(), mtime: new Date() } as any);
-      jest.spyOn(fs.promises, 'readdir').mockResolvedValue(['app.log','other.txt'] as any);
+      const statSpy = jest
+        .spyOn(fs.promises, 'stat')
+        .mockResolvedValue({ size: 123, birthtime: new Date(), mtime: new Date() } as any);
+      jest.spyOn(fs.promises, 'readdir').mockResolvedValue(['app.log', 'other.txt'] as any);
       const t = createFileTransport({ filepath: './logs/app.log' });
       await t.init();
       const stats = await t.getFileStats();
@@ -443,7 +534,9 @@ describe('FileTransport', () => {
   });
 
   describe('flush', () => {
-    beforeEach(async () => { await transport.init(); }, 15000);
+    beforeEach(async () => {
+      await transport.init();
+    }, 15000);
 
     it('should flush pending writes', async () => {
       await transport.log(mockEntry);
@@ -463,7 +556,9 @@ describe('FileTransport', () => {
   });
 
   describe('close', () => {
-    beforeEach(async () => { await transport.init(); }, 15000);
+    beforeEach(async () => {
+      await transport.init();
+    }, 15000);
 
     it('should flush before closing', async () => {
       const flushSpy = jest.spyOn(transport as any, 'processQueue');
@@ -485,7 +580,8 @@ describe('FileTransport', () => {
     });
 
     it('should handle stream creation errors', async () => {
-      const createWriteStreamMock = (fs.createWriteStream as jest.Mock) || (fsMockFromSetup?.createWriteStream as jest.Mock);
+      const createWriteStreamMock =
+        (fs.createWriteStream as jest.Mock) || (fsMockFromSetup?.createWriteStream as jest.Mock);
       createWriteStreamMock.mockImplementation(() => {
         return {
           write: jest.fn(),
@@ -504,10 +600,12 @@ describe('FileTransport', () => {
 
     it('should handle stream write errors', async () => {
       await transport.init();
-      (mockWriteStream.write as jest.Mock).mockImplementation((data: any, callback?: (err?: Error | null) => void) => {
-        if (callback) callback(new Error('Write failed'));
-        return false;
-      });
+      (mockWriteStream.write as jest.Mock).mockImplementation(
+        (data: any, callback?: (err?: Error | null) => void) => {
+          if (callback) callback(new Error('Write failed'));
+          return false;
+        }
+      );
       await expect(transport.log(mockEntry)).rejects.toThrow('Write failed');
     });
   });
