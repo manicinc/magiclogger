@@ -2,10 +2,10 @@
 
 import { NetworkTransport } from '../NetworkTransport';
 import { createHash } from 'crypto';
-import type { 
-  S3TransportOptions, 
+import type {
+  S3TransportOptions,
   LogEntry,
-  NetworkTransportOptions 
+  NetworkTransportOptions,
 } from '../../../types/transport';
 
 // AWS SDK v3 types (these would come from @aws-sdk/client-s3)
@@ -50,12 +50,16 @@ type DeleteObjectsCommand = unknown;
 type S3ClientConstructor = new (config: Record<string, unknown>) => S3Client;
 type PutObjectCommandConstructor = new (params: PutObjectCommandInput) => PutObjectCommand;
 type HeadBucketCommandConstructor = new (params: { Bucket: string }) => HeadBucketCommand;
-type ListObjectsV2CommandConstructor = new (params: ListObjectsV2CommandInput) => ListObjectsV2Command;
-type DeleteObjectsCommandConstructor = new (params: DeleteObjectsCommandInput) => DeleteObjectsCommand;
+type ListObjectsV2CommandConstructor = new (
+  params: ListObjectsV2CommandInput
+) => ListObjectsV2Command;
+type DeleteObjectsCommandConstructor = new (
+  params: DeleteObjectsCommandInput
+) => DeleteObjectsCommand;
 
 /**
  * S3 transport for archiving logs to Amazon S3.
- * 
+ *
  * Features:
  * - Automatic key generation with multiple strategies
  * - Server-side encryption support
@@ -65,10 +69,10 @@ type DeleteObjectsCommandConstructor = new (params: DeleteObjectsCommandInput) =
  * - S3-compatible storage support (MinIO, etc.)
  * - Batch uploads for efficiency
  * - Automatic retry with exponential backoff
- * 
+ *
  * @class S3Transport
  * @extends {NetworkTransport}
- * 
+ *
  * @example
  * ```typescript
  * const s3Transport = new S3Transport({
@@ -181,7 +185,7 @@ export class S3Transport extends NetworkTransport {
 
   /**
    * Creates a new S3Transport instance.
-   * 
+   *
    * @param {S3TransportOptions} options - Transport configuration
    */
   constructor(options: S3TransportOptions) {
@@ -213,7 +217,7 @@ export class S3Transport extends NetworkTransport {
 
   /**
    * Initialize S3 client.
-   * 
+   *
    * @returns {Promise<void>} Resolves when initialized
    * @protected
    */
@@ -223,7 +227,7 @@ export class S3Transport extends NetworkTransport {
 
   /**
    * Connect to S3 (initialize client).
-   * 
+   *
    * @returns {Promise<void>} Resolves when connected
    * @protected
    */
@@ -235,18 +239,13 @@ export class S3Transport extends NetworkTransport {
         { PutObjectCommand },
         { HeadBucketCommand },
         { ListObjectsV2Command },
-        { DeleteObjectsCommand }
+        { DeleteObjectsCommand },
       ] = await Promise.all([
-        // @ts-expect-error - Optional dependency
         import('@aws-sdk/client-s3').then(m => ({ S3Client: m.S3Client })),
-        // @ts-expect-error - Optional dependency
         import('@aws-sdk/client-s3').then(m => ({ PutObjectCommand: m.PutObjectCommand })),
-        // @ts-expect-error - Optional dependency
         import('@aws-sdk/client-s3').then(m => ({ HeadBucketCommand: m.HeadBucketCommand })),
-        // @ts-expect-error - Optional dependency
         import('@aws-sdk/client-s3').then(m => ({ ListObjectsV2Command: m.ListObjectsV2Command })),
-        // @ts-expect-error - Optional dependency
-        import('@aws-sdk/client-s3').then(m => ({ DeleteObjectsCommand: m.DeleteObjectsCommand }))
+        import('@aws-sdk/client-s3').then(m => ({ DeleteObjectsCommand: m.DeleteObjectsCommand })),
       ]);
 
       this.awsModules = {
@@ -254,7 +253,7 @@ export class S3Transport extends NetworkTransport {
         PutObjectCommand: PutObjectCommand as PutObjectCommandConstructor,
         HeadBucketCommand: HeadBucketCommand as HeadBucketCommandConstructor,
         ListObjectsV2Command: ListObjectsV2Command as ListObjectsV2CommandConstructor,
-        DeleteObjectsCommand: DeleteObjectsCommand as DeleteObjectsCommandConstructor
+        DeleteObjectsCommand: DeleteObjectsCommand as DeleteObjectsCommandConstructor,
       };
 
       // Configure S3 client
@@ -271,14 +270,13 @@ export class S3Transport extends NetworkTransport {
       }
 
       this.s3Client = new this.awsModules.S3Client(config);
-      
+
       // Test connection by checking bucket exists
       const headBucketCommand = new this.awsModules.HeadBucketCommand({ Bucket: this.bucket });
       await this.s3Client.send(headBucketCommand);
-      
+
       this.connectionState = 'connected';
       this.emit('connected', { bucket: this.bucket });
-      
     } catch (error) {
       this.connectionState = 'disconnected';
       throw new Error(`S3 connection failed: ${error}`);
@@ -287,7 +285,7 @@ export class S3Transport extends NetworkTransport {
 
   /**
    * Disconnect from S3 (no-op for S3).
-   * 
+   *
    * @returns {Promise<void>} Resolves immediately
    * @protected
    */
@@ -299,7 +297,7 @@ export class S3Transport extends NetworkTransport {
   /**
    * Send data to S3.
    * This method is not used in S3Transport, see performNetworkRequest instead.
-   * 
+   *
    * @param {unknown} _data - Data to send (unused)
    * @returns {Promise<void>} Resolves when sent
    * @protected
@@ -311,7 +309,7 @@ export class S3Transport extends NetworkTransport {
 
   /**
    * Check S3 connection health.
-   * 
+   *
    * @returns {Promise<void>} Resolves if healthy
    * @protected
    */
@@ -327,7 +325,7 @@ export class S3Transport extends NetworkTransport {
 
   /**
    * Perform the network request to upload logs.
-   * 
+   *
    * @param {LogEntry[]} entries - Log entries to upload
    * @returns {Promise<void>} Resolves when uploaded
    * @protected
@@ -408,7 +406,7 @@ export class S3Transport extends NetworkTransport {
     }
 
     const putObjectCommand = new this.awsModules.PutObjectCommand(params);
-    const result = await this.s3Client.send(putObjectCommand) as Record<string, unknown>;
+    const result = (await this.s3Client.send(putObjectCommand)) as Record<string, unknown>;
 
     this.emit('uploaded', {
       bucket: this.bucket,
@@ -433,8 +431,8 @@ export class S3Transport extends NetworkTransport {
       throw new Error('Custom key strategy requires keyGenerator');
     }
 
-  // Bypass batching layer: send single entry immediately so tests observe one upload per log or per explicit logBatch.
-  await this.performNetworkRequest([entry]);
+    // Bypass batching layer: send single entry immediately so tests observe one upload per log or per explicit logBatch.
+    await this.performNetworkRequest([entry]);
   }
 
   /**
@@ -449,8 +447,8 @@ export class S3Transport extends NetworkTransport {
       throw new Error('Custom key strategy requires keyGenerator');
     }
 
-  // Directly perform one network request with all entries to ensure single PutObject for batch tests.
-  await this.performNetworkRequest(entries);
+    // Directly perform one network request with all entries to ensure single PutObject for batch tests.
+    await this.performNetworkRequest(entries);
   }
 
   /**
@@ -469,7 +467,7 @@ export class S3Transport extends NetworkTransport {
 
   /**
    * Format log entries based on file format.
-   * 
+   *
    * @param {LogEntry[]} entries - Entries to format
    * @returns {Promise<Buffer>} Formatted data as buffer
    * @private
@@ -503,7 +501,7 @@ export class S3Transport extends NetworkTransport {
 
   /**
    * Get content type based on file format.
-   * 
+   *
    * @returns {string} Content type
    * @private
    */
@@ -523,7 +521,7 @@ export class S3Transport extends NetworkTransport {
 
   /**
    * Generate a hash for the entries.
-   * 
+   *
    * @param {LogEntry[]} entries - Entries to hash
    * @returns {string} Short hash
    * @private
@@ -539,18 +537,18 @@ export class S3Transport extends NetworkTransport {
 
   /**
    * Get file extension based on format.
-   * 
+   *
    * @returns {string} File extension
    * @private
    */
   private getFileExtension(): string {
     let extension = this.fileFormat;
-    
+
     // Special case for JSONL
     if (extension === 'jsonl') {
       extension = 'json';
     }
-    
+
     if (this.compress) {
       return `${extension}.gz`;
     }
@@ -559,7 +557,7 @@ export class S3Transport extends NetworkTransport {
 
   /**
    * Generate S3 key based on strategy.
-   * 
+   *
    * @param {LogEntry[]} entries - Log entries
    * @returns {string} S3 object key
    * @private
@@ -580,12 +578,21 @@ export class S3Transport extends NetworkTransport {
           break;
 
         case 'date-hierarchy':
-          key += `year=${date.getFullYear()}/month=${String(date.getMonth() + 1).padStart(2, '0')}/day=${String(date.getDate()).padStart(2, '0')}/`;
+          key += `year=${date.getFullYear()}/month=${String(date.getMonth() + 1).padStart(
+            2,
+            '0'
+          )}/day=${String(date.getDate()).padStart(2, '0')}/`;
           key += `${date.getTime()}-${this.generateHash(entries)}.${this.getFileExtension()}`;
           break;
 
         case 'hourly':
-          key += `year=${date.getFullYear()}/month=${String(date.getMonth() + 1).padStart(2, '0')}/day=${String(date.getDate()).padStart(2, '0')}/hour=${String(date.getHours()).padStart(2, '0')}/`;
+          key += `year=${date.getFullYear()}/month=${String(date.getMonth() + 1).padStart(
+            2,
+            '0'
+          )}/day=${String(date.getDate()).padStart(2, '0')}/hour=${String(date.getHours()).padStart(
+            2,
+            '0'
+          )}/`;
           key += `${date.getTime()}-${this.generateHash(entries)}.${this.getFileExtension()}`;
           break;
 
@@ -603,7 +610,7 @@ export class S3Transport extends NetworkTransport {
 
   /**
    * Format entries as CSV.
-   * 
+   *
    * @param {LogEntry[]} entries - Log entries
    * @returns {Promise<string>} CSV content
    * @private
@@ -612,7 +619,7 @@ export class S3Transport extends NetworkTransport {
     if (entries.length === 0) return '';
 
     // Define the columns we want in our CSV
-  const columns: string[] = [
+    const columns: string[] = [
       'id',
       'timestamp',
       'timestampMs',
@@ -625,7 +632,7 @@ export class S3Transport extends NetworkTransport {
       'error.message',
       'error.stack',
       'context',
-      'metadata'
+      'metadata',
     ];
 
     // Create header row
@@ -633,7 +640,7 @@ export class S3Transport extends NetworkTransport {
 
     // Add data rows
     for (const entry of entries) {
-  const values = columns.map((col: string) => {
+      const values = columns.map((col: string) => {
         if (!col) return '';
         let value: unknown = '';
 
@@ -649,7 +656,10 @@ export class S3Transport extends NetworkTransport {
           value = JSON.stringify(entry[col]);
         } else {
           // Safely access entry properties
-          const entryAsRecord: Record<string, unknown> = entry as unknown as Record<string, unknown>;
+          const entryAsRecord: Record<string, unknown> = entry as unknown as Record<
+            string,
+            unknown
+          >;
           const key = col as keyof typeof entryAsRecord;
           value = key in entryAsRecord ? entryAsRecord[key] : '';
         }
@@ -665,11 +675,11 @@ export class S3Transport extends NetworkTransport {
           // Collapse escaped quotes produced by JSON.stringify (\") into plain quotes before CSV escaping
           strValue = strValue.replace(/\\"/g, '"');
           // Now escape quotes for CSV container
-            strValue = `"${strValue.replace(/"/g, '""')}"`;
+          strValue = `"${strValue.replace(/"/g, '""')}"`;
         }
         return strValue;
       });
-      
+
       rows.push(values.join(','));
     }
 
@@ -678,15 +688,17 @@ export class S3Transport extends NetworkTransport {
 
   /**
    * List objects in bucket with prefix.
-   * 
+   *
    * @param {object} options - List options
    * @returns {Promise<Array<{Key: string, Size: number, LastModified: Date}>>} S3 objects
    */
-  public async listObjects(options: {
-    prefix?: string;
-    maxKeys?: number;
-    continuationToken?: string;
-  } = {}): Promise<Array<{Key: string; Size: number; LastModified: Date}>> {
+  public async listObjects(
+    options: {
+      prefix?: string;
+      maxKeys?: number;
+      continuationToken?: string;
+    } = {}
+  ): Promise<Array<{ Key: string; Size: number; LastModified: Date }>> {
     if (!this.s3Client || !this.awsModules) {
       await this.connect();
     }
@@ -709,8 +721,8 @@ export class S3Transport extends NetworkTransport {
     }
 
     const listCommand = new this.awsModules.ListObjectsV2Command(listParams);
-    const result = await this.s3Client.send(listCommand) as Record<string, unknown>;
-    
+    const result = (await this.s3Client.send(listCommand)) as Record<string, unknown>;
+
     const contents = (result.Contents as Array<Record<string, unknown>>) || [];
     return contents.map((obj: Record<string, unknown>) => ({
       Key: obj.Key as string,
@@ -721,7 +733,7 @@ export class S3Transport extends NetworkTransport {
 
   /**
    * Delete objects from S3.
-   * 
+   *
    * @param {string[]} keys - Object keys to delete
    * @returns {Promise<void>} Resolves when deleted
    */
@@ -749,7 +761,7 @@ export class S3Transport extends NetworkTransport {
 
   /**
    * Close S3 transport.
-   * 
+   *
    * @returns {Promise<void>} Resolves when closed
    * @protected
    */

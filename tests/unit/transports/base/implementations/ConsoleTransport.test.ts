@@ -1,6 +1,9 @@
 // File: tests/unit/transports/base/implementations/ConsoleTransport.test.ts
 
-import { ConsoleTransport, createConsoleTransport } from '../../../../../src/transports/base/implementations/ConsoleTransport';
+import {
+  ConsoleTransport,
+  createConsoleTransport,
+} from '../../../../../src/transports/base/implementations/ConsoleTransport';
 import type { LogEntry } from '../../../../../src/types/transport';
 import type { ConsoleTransportOptions } from '../../../../../src/transports/base/implementations/ConsoleTransport';
 
@@ -29,13 +32,13 @@ describe('ConsoleTransport', () => {
       debug: jest.spyOn(console, 'debug').mockImplementation(),
       info: jest.spyOn(console, 'info').mockImplementation(),
       warn: jest.spyOn(console, 'warn').mockImplementation(),
-      error: jest.spyOn(console, 'error').mockImplementation()
+      error: jest.spyOn(console, 'error').mockImplementation(),
     };
 
     transport = new ConsoleTransport({
       name: 'console',
       enabled: true,
-      format: 'plain'
+      format: 'plain',
     });
 
     mockEntry = {
@@ -48,7 +51,7 @@ describe('ConsoleTransport', () => {
       loggerId: 'test-logger',
       tags: ['test', 'unit'],
       context: { test: true, value: 42 },
-      metadata: { hostname: 'test-host', pid: 1234 }
+      metadata: { hostname: 'test-host', pid: 1234 },
     };
   });
 
@@ -79,9 +82,9 @@ describe('ConsoleTransport', () => {
           info: 'log',
           warn: 'error',
           error: 'error',
-          default: 'info'
+          default: 'info',
         },
-        format: 'plain'
+        format: 'plain',
       };
 
       const t = new ConsoleTransport(options);
@@ -96,12 +99,13 @@ describe('ConsoleTransport', () => {
     });
 
     it('should accept custom console method mapping without validation', async () => {
-      const t = new ConsoleTransport({
+      const invalidOptions = {
         name: 'invalid',
-        // Cast to bypass TS while ensuring runtime fallback works
-        consoleMethods: { debug: 'notAMethod' as unknown as keyof Console },
-        format: 'plain'
-      });
+        // Provide invalid value at runtime; cast whole object to unknown so TS doesn't enforce shape
+        consoleMethods: { debug: 'notAMethod' } as unknown,
+        format: 'plain',
+      } as unknown as ConsoleTransportOptions;
+      const t = new ConsoleTransport(invalidOptions);
       await expect(t.init()).resolves.not.toThrow();
     });
   });
@@ -124,7 +128,11 @@ describe('ConsoleTransport', () => {
     });
 
     it('should skip timestamp when disabled', async () => {
-      transport = new ConsoleTransport({ name: 'no-timestamp', showTimestamp: false, format: 'plain' });
+      transport = new ConsoleTransport({
+        name: 'no-timestamp',
+        showTimestamp: false,
+        format: 'plain',
+      });
       await transport.init();
 
       consoleMocks.info.mockClear();
@@ -146,7 +154,11 @@ describe('ConsoleTransport', () => {
     });
 
     it('should show logger ID when enabled', async () => {
-      transport = new ConsoleTransport({ name: 'with-logger-id', showLoggerId: true, format: 'plain' });
+      transport = new ConsoleTransport({
+        name: 'with-logger-id',
+        showLoggerId: true,
+        format: 'plain',
+      });
       await transport.init();
 
       consoleMocks.info.mockClear();
@@ -200,7 +212,7 @@ describe('ConsoleTransport', () => {
         ['debug', 'debug'],
         ['info', 'info'],
         ['warn', 'warn'],
-        ['error', 'error']
+        ['error', 'error'],
       ];
 
       for (const [lvl, method] of levels) {
@@ -220,7 +232,7 @@ describe('ConsoleTransport', () => {
       transport = new ConsoleTransport({
         name: 'custom-methods',
         consoleMethods: { info: 'warn', error: 'log' },
-        format: 'plain'
+        format: 'plain',
       });
       await transport.init();
 
@@ -249,8 +261,8 @@ describe('ConsoleTransport', () => {
           name: 'TestError',
           message: 'Something went wrong',
           stack: 'Error: Something went wrong\n  at test.js:1:1',
-          code: 'ERR_TEST'
-        }
+          code: 'ERR_TEST',
+        },
       };
 
       consoleMocks.info.mockClear();
@@ -262,7 +274,11 @@ describe('ConsoleTransport', () => {
     });
 
     it('should display context', async () => {
-      transport = new ConsoleTransport({ name: 'with-context', showMetadata: true, format: 'plain' });
+      transport = new ConsoleTransport({
+        name: 'with-context',
+        showMetadata: true,
+        format: 'plain',
+      });
       await transport.init();
       consoleMocks.info.mockClear();
       await transport.log(mockEntry);
@@ -273,7 +289,11 @@ describe('ConsoleTransport', () => {
     });
 
     it('should display metadata when enabled', async () => {
-      transport = new ConsoleTransport({ name: 'with-metadata', showMetadata: true, format: 'plain' });
+      transport = new ConsoleTransport({
+        name: 'with-metadata',
+        showMetadata: true,
+        format: 'plain',
+      });
       await transport.init();
       consoleMocks.info.mockClear();
       await transport.log(mockEntry);
@@ -284,7 +304,11 @@ describe('ConsoleTransport', () => {
     });
 
     it('should skip metadata when disabled', async () => {
-      transport = new ConsoleTransport({ name: 'no-metadata', showMetadata: false, format: 'plain' });
+      transport = new ConsoleTransport({
+        name: 'no-metadata',
+        showMetadata: false,
+        format: 'plain',
+      });
       await transport.init();
       consoleMocks.info.mockClear();
       await transport.log(mockEntry);
@@ -294,7 +318,11 @@ describe('ConsoleTransport', () => {
     });
 
     it('should skip empty context', async () => {
-      transport = new ConsoleTransport({ name: 'empty-context', showMetadata: true, format: 'plain' });
+      transport = new ConsoleTransport({
+        name: 'empty-context',
+        showMetadata: true,
+        format: 'plain',
+      });
       await transport.init();
       consoleMocks.info.mockClear();
       await transport.log({ ...mockEntry, context: {} });
@@ -304,7 +332,10 @@ describe('ConsoleTransport', () => {
     });
 
     it('should handle error without stack', async () => {
-      const entryWithError = { ...mockEntry, error: { name: 'SimpleError', message: 'No stack trace' } };
+      const entryWithError = {
+        ...mockEntry,
+        error: { name: 'SimpleError', message: 'No stack trace' },
+      };
 
       consoleMocks.info.mockClear();
       await transport.log(entryWithError);
@@ -338,12 +369,12 @@ describe('ConsoleTransport', () => {
       transport = new ConsoleTransport({
         name: 'custom',
         format: 'custom',
-        formatter: () => 'CUSTOM-OUTPUT'
+        formatter: () => 'CUSTOM-OUTPUT',
       });
       await transport.init();
 
       await transport.log(mockEntry);
-      const out = (consoleMocks.info.mock.calls[0]?.[0] as string);
+      const out = consoleMocks.info.mock.calls[0]?.[0] as string;
       expect(out).toBe('CUSTOM-OUTPUT');
     });
   });
@@ -383,7 +414,7 @@ describe('ConsoleTransport', () => {
         timestamp: new Date().toISOString(),
         timestampMs: Date.now(),
         level: 'info',
-        message: 'Minimal'
+        message: 'Minimal',
       };
 
       consoleMocks.info.mockClear();
@@ -421,13 +452,17 @@ describe('ConsoleTransport', () => {
     });
 
     it('should handle null/undefined in context', async () => {
-      transport = new ConsoleTransport({ name: 'context-null', showMetadata: true, format: 'plain' });
+      transport = new ConsoleTransport({
+        name: 'context-null',
+        showMetadata: true,
+        format: 'plain',
+      });
       await transport.init();
 
       consoleMocks.info.mockClear();
       await transport.log({
         ...mockEntry,
-        context: { nullValue: null, undefinedValue: undefined, valid: 'data' }
+        context: { nullValue: null, undefinedValue: undefined, valid: 'data' },
       });
 
       const out = consoleMocks.info.mock.calls[0]?.[0] as string;
