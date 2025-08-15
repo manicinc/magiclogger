@@ -292,7 +292,7 @@
     "build:examples": "tsup examples/*.ts --format=cjs --outDir=dist/examples",
     "build:examples:esm": "tsup examples/*.ts --format=esm --outDir=dist/examples --outExtension='.mjs'",
     "test": "jest",
-    "test:coverage": "jest --coverage",
+  "test:coverage": "jest --coverage --runInBand",
     "test:treeshake": "node scripts/test-tree-shaking.js",
     "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\" \"examples/**/*.ts\"",
     "typecheck": "tsc -p tsconfig.json --noEmit",
