@@ -40,11 +40,22 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: Setup pnpm (early)
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.14.0
       - name: Use Node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           # cache disabled here to avoid requiring pnpm before it's installed
+      - name: Ensure pnpm available (fallback)
+        run: |
+          if ! command -v pnpm >/dev/null 2>&1; then
+            echo "pnpm not found; activating via corepack";
+            corepack enable || true
+            corepack prepare pnpm@10.14.0 --activate || npm i -g pnpm@10.14.0
+          fi
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -77,11 +88,22 @@ jobs:
     needs: pre-check
     steps:
       - uses: actions/checkout@v4
+      - name: Setup pnpm (early)
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.14.0
       - name: Use Node.js ${{ matrix.node }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
           # cache disabled here to avoid requiring pnpm before it's installed
+      - name: Ensure pnpm available (fallback)
+        run: |
+          if ! command -v pnpm >/dev/null 2>&1; then
+            echo "pnpm not found; activating via corepack";
+            corepack enable || true
+            corepack prepare pnpm@10.14.0 --activate || npm i -g pnpm@10.14.0
+          fi
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -125,11 +147,22 @@ jobs:
         uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: critical
+      - name: Setup pnpm (early)
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.14.0
       - name: Setup Node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           # cache disabled here to avoid requiring pnpm before it's installed
+      - name: Ensure pnpm available (fallback)
+        run: |
+          if ! command -v pnpm >/dev/null 2>&1; then
+            echo "pnpm not found; activating via corepack";
+            corepack enable || true
+            corepack prepare pnpm@10.14.0 --activate || npm i -g pnpm@10.14.0
+          fi
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -160,11 +193,22 @@ jobs:
     needs: [quality, test]
     steps:
       - uses: actions/checkout@v4
+      - name: Setup pnpm (early)
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.14.0
       - name: Use Node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           # cache disabled here to avoid requiring pnpm before it's installed
+      - name: Ensure pnpm available (fallback)
+        run: |
+          if ! command -v pnpm >/dev/null 2>&1; then
+            echo "pnpm not found; activating via corepack";
+            corepack enable || true
+            corepack prepare pnpm@10.14.0 --activate || npm i -g pnpm@10.14.0
+          fi
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
