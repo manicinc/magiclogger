@@ -5,12 +5,11 @@
 Magiclogger is a fully typed, high-performance logging library built with TypeScript. This guide provides comprehensive instructions for setting up, developing, and contributing to the project.
 
 ## Prerequisites
- Node.js 16+ recommended (project supports >=14, CI tests 16 / 18 / 20)
- pnpm (preferred) or npm / yarn (Corepack can enable pnpm automatically)
- TypeScript 5.x
-- TypeScript 4.5.0 or higher
+- Node.js 18+ recommended (CI uses 18/20; docs deploy uses Node 20)
+- pnpm (preferred). Corepack can enable pnpm automatically.
+- TypeScript 5.x
 
- Clone the repository and install dependencies (pnpm preferred for lockfile fidelity and speed):
+Clone the repository and install dependencies (pnpm preferred for lockfile fidelity and speed):
 
 ### Installation
 ```bash
@@ -20,9 +19,7 @@ cd magiclogger
 corepack enable
 pnpm install
 ```
-cd magiclogger
-npm install
-```
+
 
 ## Development Workflow
 
@@ -41,36 +38,13 @@ npm install
 | `pnpm preflight` | Full validation (format, lint, test, coverage, build, analysis) |
 | `npm run dev` | Start development mode with file watching |
 | `npm test` | Run test suite |
-```bash
-pnpm dev
-```
 | `npm run format` | Format code with Prettier |
 | `npm run preflight` | Run comprehensive pre-release checks |
-```bash
-pnpm test
-```
-```bash
-npm run dev
-View detailed coverage report:
-```bash
-pnpm test:coverage
-```
+View detailed coverage report with:
+`pnpm test:coverage`
 ## Testing
 
-```bash
-pnpm lint
-```
-npm test
-```
-```bash
-pnpm format
-```
-Magiclogger maintains rigorous test coverage standards:
-
-```bash
-pnpm preflight
-```
-- Lines: 95%
+Magiclogger maintains rigorous test coverage standards (see Codecov docs). Target ~95% lines.
 
 ## Branch & Merge Workflow
 
@@ -211,3 +185,16 @@ Recommended TypeScript configuration:
   }
 }
 ```
+
+## Local Security/Secret Scanning (Optional)
+
+We run Trivy secret scanning in CI. You can mirror this locally to catch issues before pushing:
+
+- macOS: `brew install trivy`
+- Windows: `choco install trivy`
+- Docker (no install):
+  ```bash
+  docker run --rm -v "$PWD":/project -w /project aquasec/trivy:latest fs --scanners secret .
+  ```
+
+Exit code 1 means potential secrets detected; rotate credentials and purge from history if confirmed.

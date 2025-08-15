@@ -22,6 +22,7 @@ Magiclogger CI currently does:
 4. Build artifacts (ESM + CJS) and upload dist
 5. Draft release notes maintenance (Release Drafter) when on `master` / `main`
 6. Optional coverage upload to Codecov
+7. Secret scanning with Trivy (free, no license required)
 
 It does **not** auto-publish on merge to `master`; publishing only happens when a semver tag (`vX.Y.Z`) is pushed.
 
@@ -37,6 +38,36 @@ The pipeline is defined in these workflow files:
 | `.github/workflows/release.yml` | Tag-triggered build + npm publish + GitHub Release |
 
 No `.releaserc` / semantic-release is used; versioning is manual + tags.
+
+## Security Scanning (Secrets)
+
+We use Trivy for secret scanning in CI. This replaces the previous gitleaks step that required a paid org license.
+
+- License/keys: None required for our usage.
+- Extra dependencies in repo: None. The GitHub Action downloads Trivy.
+- Network: Not required for secret-only scanning (no vulnerability DB needed).
+
+CI step (excerpt):
+
+```yaml
+- name: Trivy secret scan (repo)
+   uses: aquasecurity/trivy-action@0.20.0
+   continue-on-error: false
+   with:
+      scan-type: 'fs'
+      scan-ref: '.'
+      scanners: 'secret'
+      format: 'table'
+      exit-code: '1'
+      hide-progress: true
+```
+
+Local usage (optional):
+- Windows (Chocolatey): `choco install trivy`
+- macOS (Homebrew): `brew install trivy`
+- Docker: `docker run --rm -v "$PWD":/project -w /project aquasec/trivy:latest fs --scanners secret .`
+
+Exit code 1 indicates secrets found; rotate any exposed credentials and remove them from history as needed.
 
 ## Versioning Strategy
 
@@ -131,6 +162,7 @@ To skip CI for non-critical doc-only commits you can append `[skip ci]` to the c
 |--------|----------|---------|
 | `NPM_TOKEN` | For publishing | Auth token with publish rights to npm registry (automation / granular token recommended) |
 | `CODECOV_TOKEN` | Optional | Reliable Codecov uploads for coverage reporting |
+| (none for Trivy) | — | Trivy secret scan requires no license or API keys |
 
 Add via: Repository → Settings → Secrets and variables → Actions → New repository secret.
 
