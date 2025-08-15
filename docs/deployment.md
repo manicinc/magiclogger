@@ -19,6 +19,7 @@ No publish occurs without a semver tag (`v*`). Draft release notes are maintaine
 |------------|----------|---------|-------|
 | `NPM_TOKEN` | GitHub Repo → Settings → Secrets → Actions | Publish to npm registry | Use automation token with publish scope only |
 | `CODECOV_TOKEN` (optional) | Same | Coverage upload reliability | Not required for release |
+| (none for Trivy) | — | Secret scanning in CI | Trivy requires no API keys or license for this workflow |
 
 ### Creating an npm Automation Token
 1. Log into https://www.npmjs.com/.
@@ -137,6 +138,7 @@ Secrets are environment‑scoped automatically per workflow; no plaintext loggin
 | Tests | All pass on matrix |
 | Coverage | ~95% target (enforced via docs + Codecov threshold if enabled) |
 | Build | Bundle builds (CJS + ESM) |
+| Secret Scan | Trivy reports no hardcoded secrets in the repo |
 
 ## Frequently Asked Questions
 **Q: Can I publish from a feature branch?**  
@@ -165,4 +167,4 @@ A: Ensure Git client supports signed provenance (Node 18+, Actions OIDC) and tha
 - Add CodeQL / OSS scan for security.
 
 ---
-_Last updated: YYYY-MM-DD_
+_Last updated: 2025-08-15_

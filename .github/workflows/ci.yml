@@ -173,12 +173,16 @@ jobs:
         run: pnpm install --frozen-lockfile --prod=false
       - name: Run pnpm audit (non-blocking)
         run: pnpm audit || true
-      - name: Run gitleaks secret scan
-        uses: gitleaks/gitleaks-action@v2
+      - name: Trivy secret scan (repo)
+        uses: aquasecurity/trivy-action@0.20.0
         continue-on-error: false
         with:
-          config: ''
-          args: detect --no-git -v
+          scan-type: 'fs'
+          scan-ref: '.'
+          scanners: 'secret'
+          format: 'table'
+          exit-code: '1'
+          hide-progress: true
       - name: TruffleHog secret scan (diff)
         uses: trufflesecurity/trufflehog@v3.90.5
         continue-on-error: false
