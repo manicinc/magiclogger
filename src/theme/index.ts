@@ -6,7 +6,30 @@ import { DEFAULT_THEME as BUILTIN_DEFAULT_THEME } from '../constants/themes';
 // If themes.json is empty, we'll still expose a sensible default below.
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import themesFromJsonRaw from './themes.json';
-const THEMES_FALLBACK: Record<string, ThemeDefinition> = (themesFromJsonRaw as unknown as Record<string, ThemeDefinition>) || {};
+const THEMES_FALLBACK: Record<string, ThemeDefinition> =
+  (themesFromJsonRaw as unknown as Record<string, ThemeDefinition>) || {};
+
+// Optional warning silencer for CI/clean logs
+const shouldSilenceThemeWarnings = (): boolean => {
+  try {
+    // eslint-disable-next-line no-undef
+    const env = typeof process !== 'undefined' ? process.env : undefined;
+    const val = env?.MAGICLOGGER_SILENCE_THEME_WARNINGS?.toLowerCase?.();
+    return val === '1' || val === 'true' || val === 'yes';
+  } catch {
+    return false;
+  }
+};
+
+// Centralized warning helper so we can easily silence in CI or tests if needed
+// Tests currently assert that a warn occurs; default remains to warn unless env opts out
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const warnTheme = (...args: any[]) => {
+  if (!shouldSilenceThemeWarnings()) {
+    // eslint-disable-next-line no-console
+    console.warn(...args);
+  }
+};
 
 let loadThemes: () => Record<string, ThemeDefinition>;
 let getTheme: (name: string) => ThemeDefinition | undefined;
@@ -15,9 +38,10 @@ let listThemes: () => string[];
 if (isBrowserEnvironment()) {
   // Browser implementation - use bundled JSON fallback or built-in default
   loadThemes = () => {
-    const src = THEMES_FALLBACK && Object.keys(THEMES_FALLBACK).length > 0
-      ? THEMES_FALLBACK
-      : { default: BUILTIN_DEFAULT_THEME };
+    const src =
+      THEMES_FALLBACK && Object.keys(THEMES_FALLBACK).length > 0
+        ? THEMES_FALLBACK
+        : { default: BUILTIN_DEFAULT_THEME };
     return src;
   };
   getTheme = (name: string) => {
@@ -97,14 +121,16 @@ if (isBrowserEnvironment()) {
 
     if (!fs || !path) {
       const fallbackCount = Object.keys(THEMES_FALLBACK || {}).length;
-      console.warn(
-        '[ThemeManager] Theme file not found',
-        `fs/path unavailable; falling back to bundled themes (${fallbackCount}) or built-in default`
+      warnTheme(
+        '[ThemeManager] Theme file not found - fs/path unavailable.',
+        `Using bundled themes (${fallbackCount}) or built-in default. This is expected in ESM/tsx or browser environments. ` +
+          `Set MAGICLOGGER_SILENCE_THEME_WARNINGS=1 to hide this notice.`
       );
       // Use bundled fallback (works under ESM/tsx) or built-in default
-      const fallback = THEMES_FALLBACK && Object.keys(THEMES_FALLBACK).length > 0
-        ? THEMES_FALLBACK
-        : { default: BUILTIN_DEFAULT_THEME };
+      const fallback =
+        THEMES_FALLBACK && Object.keys(THEMES_FALLBACK).length > 0
+          ? THEMES_FALLBACK
+          : { default: BUILTIN_DEFAULT_THEME };
       themesCache = fallback;
       return themesCache;
     }
@@ -124,25 +150,30 @@ if (isBrowserEnvironment()) {
         } catch (error) {
           console.warn('[ThemeManager] Failed to parse themes.json:', error as Error);
           // Fall back to bundled JSON or built-in default
-          themesCache = THEMES_FALLBACK && Object.keys(THEMES_FALLBACK).length > 0
-            ? THEMES_FALLBACK
-            : { default: BUILTIN_DEFAULT_THEME };
+          themesCache =
+            THEMES_FALLBACK && Object.keys(THEMES_FALLBACK).length > 0
+              ? THEMES_FALLBACK
+              : { default: BUILTIN_DEFAULT_THEME };
         }
       } catch (error) {
         console.warn('[ThemeManager] Failed to read themes.json:', error as Error);
-        themesCache = THEMES_FALLBACK && Object.keys(THEMES_FALLBACK).length > 0
-          ? THEMES_FALLBACK
-          : { default: BUILTIN_DEFAULT_THEME };
+        themesCache =
+          THEMES_FALLBACK && Object.keys(THEMES_FALLBACK).length > 0
+            ? THEMES_FALLBACK
+            : { default: BUILTIN_DEFAULT_THEME };
       }
     } else {
       const fallbackCount = Object.keys(THEMES_FALLBACK || {}).length;
-      console.warn(
-        '[ThemeManager] Theme file not found',
-        `themes.json not found; falling back to bundled themes (${fallbackCount}) or built-in default`
+      warnTheme(
+        '[ThemeManager] Theme file not found - themes.json missing on disk.',
+        `Using bundled themes (${fallbackCount}) or built-in default. ` +
+          `To load custom themes from disk, ensure a valid themes.json is available. ` +
+          `Set MAGICLOGGER_SILENCE_THEME_WARNINGS=1 to hide this notice.`
       );
-      themesCache = THEMES_FALLBACK && Object.keys(THEMES_FALLBACK).length > 0
-        ? THEMES_FALLBACK
-        : { default: BUILTIN_DEFAULT_THEME };
+      themesCache =
+        THEMES_FALLBACK && Object.keys(THEMES_FALLBACK).length > 0
+          ? THEMES_FALLBACK
+          : { default: BUILTIN_DEFAULT_THEME };
     }
     // If we resolved a themesPath (file existed) but ended up with an empty object (e.g. parse error or empty file),
     // ensure we still expose a default theme so callers have a usable fallback. Missing-file cases remain empty.

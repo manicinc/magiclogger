@@ -3,9 +3,9 @@
   <img src="https://img.shields.io/badge/typescript-5.0+-blue" alt="TypeScript">
   <img src="https://img.shields.io/badge/node-14+-green" alt="Node.js">
   <img src="https://img.shields.io/badge/license-MIT-blue" alt="License">
-  <img src="https://img.shields.io/badge/core_gzip-36kb-brightgreen.svg" alt="core_gzip">
-  <img src="https://img.shields.io/badge/core_console_gzip-36kb-brightgreen.svg" alt="core_console_gzip">
-  <img src="https://img.shields.io/badge/core_transports_gzip-44kb-brightgreen.svg" alt="core_transports_gzip">
+  <img src="https://img.shields.io/badge/core_gzip-37kb-brightgreen.svg" alt="core_gzip">
+  <img src="https://img.shields.io/badge/core_console_gzip-37kb-brightgreen.svg" alt="core_console_gzip">
+  <img src="https://img.shields.io/badge/core_transports_gzip-45kb-brightgreen.svg" alt="core_transports_gzip">
   <img src="https://img.shields.io/badge/compat_gzip-43kb-brightgreen.svg" alt="compat_gzip">
 </p>
 
@@ -608,6 +608,23 @@ async function deploy() {
 ```
 
 ## 📦 Build Output Sizes
+
+| File | Format | Raw Size | Gzip |
+|------|--------|----------|------|
+| `index.cjs` | CJS | 3.03 kB | 717 B |
+| `index.js` | ESM | 1.36 kB | 517 B |
+| `index.d.ts` | Types | 146 kB | 29.2 kB |
+
+### Reference bundle sizes (gzip)
+
+| Scenario | Size |
+|----------|------|
+| core (esm, gzip) | 37.5 kB |
+| core + console (esm, gzip) | 37.5 kB |
+| core + all core transports (esm, gzip) | 45.9 kB |
+| all compatibility layers (esm, gzip) | 44.3 kB |
+
+*Generated via `scripts/analyze-build.js`.*
 
 | File | Format | Raw Size | Gzip |
 |------|--------|----------|------|

@@ -18,9 +18,9 @@ interface LoggerInstance {
   success: (message: string) => void;
   debug: (message: string) => void;
   custom: (message: string, colors: string[], prefix: string) => void;
-  header: (message: string) => void;
-  separator: (char: string) => void;
-  table: (data: Record<string, unknown>[]) => void;
+  header?: (message: string) => void;
+  separator?: (char: string) => void;
+  table?: (data: Record<string, unknown>[]) => void;
   time?: (label: string) => void;
   timeEnd?: (label: string) => void;
   performance?: (label: string, data: Record<string, unknown>) => void;
@@ -38,24 +38,19 @@ export default function InteractiveDemo() {
   const originalConsole = useRef<Record<string, (...args: unknown[]) => void>>({});
 
   useEffect(() => {
-    // Load MagicLogger using dynamic import from source files
+    // Load MagicLogger via package entry to avoid path issues in website build
     const loadMagicLogger = async () => {
       try {
-        // Import BrowserLogger directly for browser compatibility
-        const { BrowserLogger } = await import('../../../../src/core/BrowserLogger');
-        
-        if (BrowserLogger) {
-          // Create logger instance with browser-compatible settings
-          const loggerInstance = new BrowserLogger({
-            // Browser-specific options
+        const { Logger } = await import('magiclogger');
+        if (Logger) {
+          const loggerInstance = new Logger({
             useColors: true,
             verbose: true,
             storeInBrowser: true,
             maxStoredLogs: 100,
-            // Don't specify theme or other Node.js specific options
           });
-          
-          setLoggerInstance(loggerInstance as LoggerInstance);
+
+          setLoggerInstance(loggerInstance as unknown as LoggerInstance);
           
           // Store original console methods
           originalConsole.current = {
@@ -100,7 +95,7 @@ export default function InteractiveDemo() {
           console.debug = createInterceptor('debug', originalConsole.current.debug);
           
         } else {
-          throw new Error('BrowserLogger class not found in module');
+          throw new Error('Logger class not found in module');
         }
       } catch (error) {
         console.error('Failed to load MagicLogger:', error);
@@ -109,7 +104,7 @@ export default function InteractiveDemo() {
           id: 'error-' + Date.now(),
           timestamp: new Date().toISOString(),
           level: 'error',
-          message: `Failed to load MagicLogger: ${error.message}`,
+          message: `Failed to load MagicLogger: ${error instanceof Error ? error.message : String(error)}`,
         }]);
       }
     };
@@ -143,15 +138,15 @@ export default function InteractiveDemo() {
       action: () => {
         if (!logger) return;
         logger.custom('Custom styled message', ['cyan', 'bold'], 'CUSTOM');
-        logger.header('SECTION HEADER');
-        logger.separator('=');
+  logger.header?.('SECTION HEADER');
+  logger.separator?.('=');
       }
     },
     {
       title: '📊 Data Logging',
       action: () => {
         if (!logger) return;
-        logger.table([
+  logger.table?.([
           { name: 'Alice', age: 30, role: 'Developer' },
           { name: 'Bob', age: 25, role: 'Designer' },
           { name: 'Charlie', age: 35, role: 'Manager' }
