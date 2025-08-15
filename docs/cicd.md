@@ -6,11 +6,11 @@ Magiclogger uses GitHub Actions for continuous integration and (tag‑driven) de
 
 - [CI/CD Overview](#cicd-overview)
 - [Workflow Files](#workflow-files)
-- [Automatic Versioning](#automatic-versioning)
+- [Versioning Strategy](#versioning-strategy)
 - [Commit Message Conventions](#commit-message-conventions)
-- [Optional Integrations](#optional-integrations)
-- [Manual Release Process](#manual-release-process)
-- [Required Secrets](#required-secrets)
+- [Release Procedure](#release-procedure)
+- [Required & Optional Secrets](#required--optional-secrets)
+- [Future Enhancements (Optional)](#future-enhancements-optional)
 
 ## CI/CD Overview
 

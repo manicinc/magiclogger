@@ -8,6 +8,10 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "browser": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/browser/index.js"
+      },
       "import": {
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
@@ -283,7 +287,7 @@
     "clean": "rimraf dist test_logs .tsbuildinfo",
     "check": "npm run format && npm run lint",
     "dev": "tsup --watch",
-    "build": "npm run clean && tsup",
+  "build": "npm run clean && tsup && tsup --platform=browser --entry.src=src/index.browser.ts",
     "build:analyze": "npm run build && npm run analyze:build",
     "build:examples": "tsup examples/*.ts --format=cjs --outDir=dist/examples",
     "build:examples:esm": "tsup examples/*.ts --format=esm --outDir=dist/examples --outExtension='.mjs'",

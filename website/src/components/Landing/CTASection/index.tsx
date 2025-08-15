@@ -24,7 +24,7 @@ export default function CTASection() {
           <div className={styles.ctaActions}>
             <Link
               className={clsx('button', styles.ctaPrimary)}
-              to="/docs/intro">
+              to="/docs/">
               <span>Start Building</span>
               <ArrowIcon />
             </Link>

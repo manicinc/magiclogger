@@ -143,19 +143,46 @@ const config: Config = {
       darkTheme: prismThemes.dracula,
     },
   } satisfies Preset.ThemeConfig,
-  // Ensure website builds can import the local package name 'magiclogger' by aliasing to the root dist
-  // This avoids requiring a published package when building docs locally/CI.
-  webpack: {
-    configure: (webpackConfig, _isServer, _utils) => {
-      const cfg = { ...webpackConfig };
-      cfg.resolve = cfg.resolve || {};
-      cfg.resolve.alias = {
-        ...(cfg.resolve.alias || {}),
-        magiclogger: path.resolve(__dirname, '..', 'dist', 'index.js'),
+  // Plugin to alias 'magiclogger' to the local dist build during docs build/serve
+  // This keeps docs working without requiring a published package.
+  plugins: [
+    function magicloggerLocalAliasPlugin() {
+      return {
+        name: 'magiclogger-local-alias',
+        // Provide aliases for both client and server builds
+        // Use ESM bundle for client and CJS bundle for server (SSR)
+        // so that both compilers can resolve the local package without publishing.
+        // Docusaurus will merge this with its own webpack config.
+        configureWebpack(_config: unknown, isServer: boolean) {
+          const repoRoot = path.resolve(__dirname, '..');
+          const distEsmBrowser = path.join(repoRoot, 'dist', 'browser', 'index.js');
+          const distCjs = path.join(repoRoot, 'dist', 'index.cjs');
+          const target = isServer ? distCjs : distEsmBrowser;
+          return {
+            resolve: {
+              fallback: isServer
+                ? {}
+                : {
+                    fs: false,
+                    path: false,
+                    os: false,
+                    zlib: false,
+                    module: false,
+                    events: false,
+                    'node:fs': false,
+                    'node:path': false,
+                  },
+              alias: {
+                // Exact match and bare import support
+                magiclogger: target,
+                magiclogger$: target,
+              },
+            },
+          };
+        },
       };
-      return cfg;
     },
-  },
+  ],
 };
 
 export default config;

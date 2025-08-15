@@ -61,7 +61,7 @@ export default function HeroSection() {
             <div className={styles.heroActions}>
               <Link
                 className={clsx('button', styles.primaryButton)}
-                to="/docs/intro">
+                to="/docs/">
                 <ServerIcon />
                 <span>Start Logging</span>
                 <span className={styles.buttonGlow} />
