@@ -42,8 +42,6 @@ jobs:
           fetch-depth: 0
       - name: Setup pnpm (early)
         uses: pnpm/action-setup@v4
-        with:
-          version: 10.14.0
       - name: Use Node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v4
         with:
@@ -56,10 +54,7 @@ jobs:
             corepack enable || true
             corepack prepare pnpm@10.14.0 --activate || npm i -g pnpm@10.14.0
           fi
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.14.0
+  # pnpm provided by action above; also see fallback below
       - name: Enable corepack
         run: corepack enable
       - name: Install deps
@@ -90,8 +85,6 @@ jobs:
       - uses: actions/checkout@v4
       - name: Setup pnpm (early)
         uses: pnpm/action-setup@v4
-        with:
-          version: 10.14.0
       - name: Use Node.js ${{ matrix.node }}
         uses: actions/setup-node@v4
         with:
@@ -104,10 +97,7 @@ jobs:
             corepack enable || true
             corepack prepare pnpm@10.14.0 --activate || npm i -g pnpm@10.14.0
           fi
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.14.0
+  # pnpm provided by action above; also see fallback below
       - name: Enable corepack
         run: corepack enable
       - name: Install deps
@@ -149,8 +139,6 @@ jobs:
           fail-on-severity: critical
       - name: Setup pnpm (early)
         uses: pnpm/action-setup@v4
-        with:
-          version: 10.14.0
       - name: Setup Node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v4
         with:
@@ -163,10 +151,7 @@ jobs:
             corepack enable || true
             corepack prepare pnpm@10.14.0 --activate || npm i -g pnpm@10.14.0
           fi
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.14.0
+  # pnpm provided by action above; also see fallback below
       - name: Enable corepack
         run: corepack enable
       - name: Install deps (production only for audit)
@@ -195,8 +180,6 @@ jobs:
       - uses: actions/checkout@v4
       - name: Setup pnpm (early)
         uses: pnpm/action-setup@v4
-        with:
-          version: 10.14.0
       - name: Use Node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v4
         with:
@@ -209,10 +192,7 @@ jobs:
             corepack enable || true
             corepack prepare pnpm@10.14.0 --activate || npm i -g pnpm@10.14.0
           fi
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.14.0
+  # pnpm provided by action above; also see fallback below
       - name: Enable corepack
         run: corepack enable
       - name: Install deps

@@ -29,10 +29,12 @@ jobs:
     needs: validate
     steps:
       - uses: actions/checkout@v4
+      - name: Setup pnpm (early)
+        uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 18
-          cache: 'pnpm'
+          node-version: 20
+          # cache disabled to avoid requiring pnpm before install
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build
@@ -56,7 +58,7 @@ jobs:
           path: dist
       - uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
           registry-url: 'https://registry.npmjs.org'
       - name: Publish to npm (public)
         run: |
