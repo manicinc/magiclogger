@@ -19,7 +19,7 @@ describe('TagManager - Additional Tests', () => {
         toLowerCase: false,
         trim: true,
         replaceSpaces: true,
-        removeSpecialChars: true
+        removeSpecialChars: true,
       });
 
       const normalized = tagManager.normalize(['MiXeD CaSe', 'UPPER case', 'lower case']);
@@ -39,7 +39,7 @@ describe('TagManager - Additional Tests', () => {
     it('should handle custom normalization with length limit override', () => {
       const manager = new TagManager({ maxTagLength: 10 });
       manager.setNormalizationRules({
-        custom: (tag) => tag.toUpperCase() + '_CUSTOM_SUFFIX_VERY_LONG'
+        custom: tag => tag.toUpperCase() + '_CUSTOM_SUFFIX_VERY_LONG',
       });
 
       const normalized = manager.normalize('test');
@@ -70,10 +70,16 @@ describe('TagManager - Additional Tests', () => {
         maxLength: 10,
         pattern: /^[a-z]+$/,
         reserved: ['system'],
-        custom: (tag) => !tag.includes('bad')
+        custom: tag => !tag.includes('bad'),
       });
 
-      const result = tagManager.validate(['ok', 'UPPERCASE', 'toolongtagname', 'system', 'badword']);
+      const result = tagManager.validate([
+        'ok',
+        'UPPERCASE',
+        'toolongtagname',
+        'system',
+        'badword',
+      ]);
 
       expect(result.valid).toBe(false);
       expect(result.invalid).toEqual(['ok', 'UPPERCASE', 'toolongtagname', 'system', 'badword']);
@@ -86,11 +92,11 @@ describe('TagManager - Additional Tests', () => {
 
     it('should handle custom validation throwing different error types', () => {
       tagManager.setValidationRules({
-        custom: (tag) => {
+        custom: tag => {
           if (tag === 'throw') throw new TypeError('Type error');
           if (tag === 'error') throw new Error('Generic error');
           return true;
-        }
+        },
       });
 
       const result = tagManager.validate(['throw', 'error', 'valid']);
@@ -109,7 +115,7 @@ describe('TagManager - Additional Tests', () => {
 
     it('should handle null values in reserved list', () => {
       tagManager.setValidationRules({
-        reserved: ['valid', null as unknown, undefined as unknown, ''].filter(Boolean) as string[]
+        reserved: ['valid', null as unknown, undefined as unknown, ''].filter(Boolean) as string[],
       });
 
       const result = tagManager.validate(['valid', 'test']);
@@ -128,7 +134,7 @@ describe('TagManager - Additional Tests', () => {
     it('should extract with word boundaries', () => {
       const text = 'email@domain.com has #tag but not email#notag';
       const extracted = tagManager.extract(text, {
-        pattern: /(?:^|\s)#(\w+)\b/g  // Match # at start or after whitespace
+        pattern: /(?:^|\s)#(\w+)\b/g, // Match # at start or after whitespace
       });
       expect(extracted).toEqual(['tag']);
     });
@@ -136,35 +142,35 @@ describe('TagManager - Additional Tests', () => {
     it('should handle extraction with capture groups', () => {
       const text = 'Category: [frontend] [backend] [api]';
       const extracted = tagManager.extract(text, {
-        pattern: /\[([^\]]+)\]/g
+        pattern: /\[([^\]]+)\]/g,
       });
       expect(extracted).toEqual(['frontend', 'backend', 'api']);
     });
 
     it('should handle maxExtract edge cases', () => {
       const text = '#a #b #c #d #e';
-      
+
       const extracted0 = tagManager.extract(text, { maxExtract: 0 });
       expect(extracted0).toEqual([]);
-      
+
       const extracted1 = tagManager.extract(text, { maxExtract: 1 });
       expect(extracted1).toEqual(['a']);
     });
 
     it('should handle regex with global flag reset', () => {
       const pattern = /#(\w+)/g;
-      
+
       // Use pattern multiple times
       const result1 = tagManager.extract('#first #second', { pattern });
       expect(result1).toEqual(['first', 'second']);
-      
+
       const result2 = tagManager.extract('#third #fourth', { pattern });
       expect(result2).toEqual(['third', 'fourth']);
     });
 
     it('should handle malformed regex patterns gracefully', () => {
       const text = '#valid #tag';
-      
+
       // Test with pattern that has no capture group
       const extracted = tagManager.extract(text, { pattern: /#\w+/g });
       // When no capture group, TagManager extracts the word part without the #
@@ -175,14 +181,14 @@ describe('TagManager - Additional Tests', () => {
   describe('Advanced filtering scenarios', () => {
     it('should handle filter with all options combined', () => {
       const tags = ['api-v1', 'api-v2', 'user-api', 'admin', 'test-api-long'];
-      
+
       const filtered = tagManager.filter(tags, {
         include: ['api-v1', 'api-v2', 'user-api', 'test-api-long'],
         exclude: ['admin'],
         pattern: /api/,
-        custom: (tag) => tag.length < 10
+        custom: tag => tag.length < 10,
       });
-      
+
       expect(filtered).toEqual(['api-v1', 'api-v2', 'user-api']);
     });
 
@@ -215,42 +221,54 @@ describe('TagManager - Additional Tests', () => {
   describe('Advanced matching scenarios', () => {
     it('should handle case sensitivity with unicode characters', () => {
       const tags = ['Café', 'CAFÉ', 'café'];
-      
-      expect(tagManager.matches(tags, {
-        tags: ['café'],
-        caseSensitive: false
-      })).toBe(true);
-      
-      expect(tagManager.matches(tags, {
-        tags: ['café'],
-        caseSensitive: true
-      })).toBe(true);
+
+      expect(
+        tagManager.matches(tags, {
+          tags: ['café'],
+          caseSensitive: false,
+        })
+      ).toBe(true);
+
+      expect(
+        tagManager.matches(tags, {
+          tags: ['café'],
+          caseSensitive: true,
+        })
+      ).toBe(true);
     });
 
     it('should handle exact mode with different order', () => {
       const tags = ['z', 'y', 'x'];
-      
-      expect(tagManager.matches(tags, {
-        mode: 'exact',
-        tags: ['x', 'y', 'z']
-      })).toBe(true);
+
+      expect(
+        tagManager.matches(tags, {
+          mode: 'exact',
+          tags: ['x', 'y', 'z'],
+        })
+      ).toBe(true);
     });
 
     it('should handle empty arrays in matching', () => {
-      expect(tagManager.matches([], {
-        mode: 'exact',
-        tags: []
-      })).toBe(true);
-      
-      expect(tagManager.matches(['tag'], {
-        mode: 'exact',
-        tags: []
-      })).toBe(false);
-      
-      expect(tagManager.matches([], {
-        mode: 'any',
-        tags: ['tag']
-      })).toBe(false);
+      expect(
+        tagManager.matches([], {
+          mode: 'exact',
+          tags: [],
+        })
+      ).toBe(true);
+
+      expect(
+        tagManager.matches(['tag'], {
+          mode: 'exact',
+          tags: [],
+        })
+      ).toBe(false);
+
+      expect(
+        tagManager.matches([], {
+          mode: 'any',
+          tags: ['tag'],
+        })
+      ).toBe(false);
     });
   });
 
@@ -259,7 +277,7 @@ describe('TagManager - Additional Tests', () => {
       tagManager.addAlias('a', 'b');
       tagManager.addAlias('b', 'c');
       tagManager.addAlias('c', 'a'); // Creates a cycle
-      
+
       const normalized = tagManager.normalize('a');
       // Circular alias resolution stops at the first encountered alias to prevent infinite loops
       expect(normalized).toEqual(['b']); // Should not infinite loop
@@ -268,7 +286,7 @@ describe('TagManager - Additional Tests', () => {
     it('should handle alias chains', () => {
       tagManager.addAlias('js', 'javascript');
       tagManager.addAlias('javascript', 'ecmascript');
-      
+
       const normalized = tagManager.normalize('js');
       // Alias chain resolution may stop at the first level to prevent infinite loops
       expect(normalized).toEqual(['javascript']);
@@ -277,7 +295,7 @@ describe('TagManager - Additional Tests', () => {
     it('should handle removing non-existent alias', () => {
       const removeListener = jest.fn();
       tagManager.on('aliasRemoved', removeListener);
-      
+
       tagManager.removeAlias('nonexistent');
       expect(removeListener).not.toHaveBeenCalled();
     });
@@ -285,10 +303,10 @@ describe('TagManager - Additional Tests', () => {
     it('should handle alias with empty string', () => {
       tagManager.addAlias('', 'empty');
       tagManager.addAlias('null', '');
-      
+
       const normalized1 = tagManager.normalize('');
       const normalized2 = tagManager.normalize('null');
-      
+
       expect(normalized1).toEqual(['empty']);
       expect(normalized2).toEqual(['null']); // Alias resolution may not work with empty string target
     });
@@ -310,15 +328,15 @@ describe('TagManager - Additional Tests', () => {
     it('should handle hierarchy updates with same parent', () => {
       const listener = jest.fn();
       tagManager.on('hierarchyUpdated', listener);
-      
+
       // Update existing hierarchy
       tagManager.setHierarchy('root', ['new1', 'new2']);
-      
+
       expect(listener).toHaveBeenCalledWith({
         parent: 'root',
-        children: ['new1', 'new2']
+        children: ['new1', 'new2'],
       });
-      
+
       expect(tagManager.getChildren('root')).toEqual(['new1', 'new2']);
     });
 
@@ -336,12 +354,12 @@ describe('TagManager - Additional Tests', () => {
   describe('Advanced statistics scenarios', () => {
     it('should handle stats with very large numbers', () => {
       const tags = ['popular'];
-      
+
       // Add many times
       for (let i = 0; i < 1000; i++) {
         tagManager.updateStats(tags);
       }
-      
+
       const stats = tagManager.getStats();
       expect(stats[0]).toEqual(['popular', 1000]);
     });
@@ -349,7 +367,7 @@ describe('TagManager - Additional Tests', () => {
     it('should handle comprehensive stats with edge cases', () => {
       // Add single tag multiple times
       tagManager.updateStats(['single']);
-      
+
       const comprehensive = tagManager.getComprehensiveStats();
       expect(comprehensive.totalTags).toBe(1);
       expect(comprehensive.uniqueTags).toBe(1);
@@ -359,7 +377,7 @@ describe('TagManager - Additional Tests', () => {
 
     it('should handle stats limit larger than available tags', () => {
       tagManager.updateStats(['a', 'b']);
-      
+
       const stats = tagManager.getStats(10);
       expect(stats.length).toBe(2);
     });
@@ -368,9 +386,9 @@ describe('TagManager - Additional Tests', () => {
       tagManager.updateStats(['b', 'a', 'c']);
       tagManager.updateStats(['a', 'b']);
       tagManager.updateStats(['a']);
-      
+
       const stats = tagManager.getStats();
-      
+
       // Should be sorted by count descending
       expect(stats[0][1]).toBeGreaterThanOrEqual(stats[1][1]);
       expect(stats[1][1]).toBeGreaterThanOrEqual(stats[2][1]);
@@ -409,7 +427,7 @@ describe('TagManager - Additional Tests', () => {
       for (let i = 0; i < 20; i++) {
         tagManager.updateStats([`test${i}`]);
       }
-      
+
       const suggestions = tagManager.suggest('test', 5);
       expect(suggestions.length).toBe(5);
     });
@@ -461,7 +479,9 @@ describe('TagManager - Additional Tests', () => {
     });
 
     it('should handle merge with large number of arrays', () => {
-      const arrays = Array(100).fill(['tag']).map((_, i) => [`tag${i}`]);
+      const arrays = Array(100)
+        .fill(['tag'])
+        .map((_, i) => [`tag${i}`]);
       const merged = tagManager.merge(...arrays);
       // TagManager may have a maxTags limit that restricts the result
       expect(merged.length).toBeGreaterThan(0);
@@ -469,11 +489,7 @@ describe('TagManager - Additional Tests', () => {
     });
 
     it('should handle merge maintaining set semantics', () => {
-      const merged = tagManager.merge(
-        ['a', 'b', 'a'],
-        ['b', 'c', 'b'],
-        ['c', 'd', 'c']
-      );
+      const merged = tagManager.merge(['a', 'b', 'a'], ['b', 'c', 'b'], ['c', 'd', 'c']);
       expect(merged.sort()).toEqual(['a', 'b', 'c', 'd']);
     });
   });
@@ -482,7 +498,7 @@ describe('TagManager - Additional Tests', () => {
     it('should handle normalize with mixed string and array input', () => {
       const normalized1 = tagManager.normalize('single');
       const normalized2 = tagManager.normalize(['single']);
-      
+
       expect(normalized1).toEqual(normalized2);
     });
   });
@@ -495,7 +511,7 @@ describe('TagManager - Additional Tests', () => {
 
     it('should handle operations after destroy', () => {
       tagManager.destroy();
-      
+
       // Should not throw, but might not work as expected
       expect(() => {
         tagManager.normalize('test');
@@ -505,8 +521,10 @@ describe('TagManager - Additional Tests', () => {
     });
 
     it('should handle extremely long tag arrays', () => {
-      const longArray = Array(10000).fill(0).map((_, i) => `tag${i}`);
-      
+      const longArray = Array(10000)
+        .fill(0)
+        .map((_, i) => `tag${i}`);
+
       expect(() => {
         const normalized = tagManager.normalize(longArray);
         expect(normalized.length).toBeLessThanOrEqual(tagManager['options'].maxTags);
@@ -515,7 +533,7 @@ describe('TagManager - Additional Tests', () => {
 
     it('should handle null and undefined in tag arrays', () => {
       const mixed = ['valid', null as unknown, undefined as unknown, '', 'another'];
-      
+
       expect(() => {
         const normalized = tagManager.normalize(mixed.filter(Boolean) as string[]);
         expect(normalized).toContain('valid');
@@ -527,15 +545,15 @@ describe('TagManager - Additional Tests', () => {
   describe('Performance and memory tests', () => {
     it('should handle large statistics efficiently', () => {
       const start = Date.now();
-      
+
       // Add many different tags
       for (let i = 0; i < 1000; i++) {
         tagManager.updateStats([`tag${i}`]);
       }
-      
+
       const stats = tagManager.getStats();
       const end = Date.now();
-      
+
       expect(stats.length).toBe(1000);
       expect(end - start).toBeLessThan(1000); // Should complete in reasonable time
     });
@@ -547,9 +565,9 @@ describe('TagManager - Additional Tests', () => {
         tagManager.addAlias(`alias${i}`, `target${i}`);
         tagManager.setHierarchy(`parent${i}`, [`child${i}`]);
       }
-      
+
       tagManager.destroy();
-      
+
       expect(tagManager.getStats()).toEqual([]);
       expect(tagManager.getAliases().size).toBe(0);
       expect(tagManager.getChildren('parent0')).toEqual([]);
@@ -561,23 +579,23 @@ describe('TagManager - Additional Tests', () => {
       const errorListener = jest.fn(() => {
         throw new Error('Listener error');
       });
-      
+
       tagManager.on('normalizationRulesUpdated', errorListener);
-      
+
       // TagManager may not handle listener errors gracefully
       expect(() => {
         tagManager.setNormalizationRules({ toLowerCase: false });
       }).toThrow('Listener error');
-      
+
       expect(errorListener).toHaveBeenCalled();
     });
 
     it('should emit events with correct data types', () => {
       const listener = jest.fn();
       tagManager.on('statsUpdated', listener);
-      
+
       tagManager.updateStats(['test']);
-      
+
       expect(listener).toHaveBeenCalledWith(['test']);
       expect(Array.isArray(listener.mock.calls[0][0])).toBe(true);
     });

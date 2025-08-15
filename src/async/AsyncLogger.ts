@@ -5,7 +5,7 @@ import type { LogEntry, LogLevel } from '../types';
 
 /**
  * Configuration options for AsyncLogger.
- * 
+ *
  * @interface AsyncLoggerOptions
  */
 export interface AsyncLoggerOptions {
@@ -75,11 +75,11 @@ interface TrackedWorker {
 
 /**
  * Async logging interface for high-performance logging.
- * 
+ *
  * This class provides async logging methods that use a lock-free ring buffer
  * for zero-allocation logging. It's designed to work with the main Logger
  * class to provide both sync and async APIs.
- * 
+ *
  * Features:
  * - Zero allocation in the hot path
  * - Lock-free ring buffer for single producer
@@ -87,15 +87,15 @@ interface TrackedWorker {
  * - Automatic batching and flushing
  * - Backpressure handling
  * - Performance metrics
- * 
+ *
  * @class AsyncLogger
- * 
+ *
  * @example
  * ```typescript
  * const asyncLogger = new AsyncLogger({
- *   buffer: { 
+ *   buffer: {
  *     size: 8192,
- *     flushInterval: 100 
+ *     flushInterval: 100
  *   },
  *   useWorkers: true,
  *   workerCount: 4,
@@ -104,10 +104,10 @@ interface TrackedWorker {
  *     await transport.sendBatch(entries);
  *   }
  * }, createLogEntry);
- * 
+ *
  * // Log without blocking - returns immediately
  * asyncLogger.info('High frequency log', { data: 'value' });
- * 
+ *
  * // Get performance stats
  * const stats = asyncLogger.getStats();
  * console.log(`Processed: ${stats.buffer.metrics.totalFlushed} logs`);
@@ -124,7 +124,11 @@ export class AsyncLogger {
    * Function to create log entries.
    * @private
    */
-  private createEntry: (level: LogLevel, message: string, meta?: Record<string, unknown>) => LogEntry;
+  private createEntry: (
+    level: LogLevel,
+    message: string,
+    meta?: Record<string, unknown>
+  ) => LogEntry;
 
   /**
    * Worker threads for processing logs.
@@ -166,7 +170,7 @@ export class AsyncLogger {
 
   /**
    * Creates a new AsyncLogger instance.
-   * 
+   *
    * @param {AsyncLoggerOptions} options - Configuration options
    * @param {Function} createEntry - Function to create log entries
    */
@@ -199,7 +203,7 @@ export class AsyncLogger {
 
   /**
    * Log an info message asynchronously.
-   * 
+   *
    * @param {string} message - The message to log
    * @param {Record<string, unknown>} [meta] - Optional metadata
    */
@@ -210,7 +214,7 @@ export class AsyncLogger {
 
   /**
    * Log a warning message asynchronously.
-   * 
+   *
    * @param {string} message - The message to log
    * @param {Record<string, unknown>} [meta] - Optional metadata
    */
@@ -221,7 +225,7 @@ export class AsyncLogger {
 
   /**
    * Log an error message asynchronously.
-   * 
+   *
    * @param {string} message - The message to log
    * @param {Record<string, unknown>} [meta] - Optional metadata
    */
@@ -232,7 +236,7 @@ export class AsyncLogger {
 
   /**
    * Log a debug message asynchronously.
-   * 
+   *
    * @param {string} message - The message to log
    * @param {Record<string, unknown>} [meta] - Optional metadata
    */
@@ -243,7 +247,7 @@ export class AsyncLogger {
 
   /**
    * Log a success message asynchronously.
-   * 
+   *
    * @param {string} message - The message to log
    * @param {Record<string, unknown>} [meta] - Optional metadata
    */
@@ -254,7 +258,7 @@ export class AsyncLogger {
 
   /**
    * Log a message with custom level asynchronously.
-   * 
+   *
    * @param {string} message - The message to log
    * @param {LogLevel} [level='info'] - The log level
    * @param {Record<string, unknown>} [meta] - Optional metadata
@@ -275,7 +279,7 @@ export class AsyncLogger {
   /**
    * Flush and wait for completion.
    * Useful during shutdown to ensure all logs are processed.
-   * 
+   *
    * @returns {Promise<void>} Resolves when flush is complete
    */
   public async flushAndWait(): Promise<void> {
@@ -284,7 +288,7 @@ export class AsyncLogger {
 
   /**
    * Get async logger statistics.
-   * 
+   *
    * @returns {object} Statistics including buffer stats and worker info
    */
   public getStats(): {
@@ -309,18 +313,16 @@ export class AsyncLogger {
 
   /**
    * Close the async logger and clean up resources.
-   * 
+   *
    * @returns {Promise<void>} Resolves when logger is closed
    */
   public async close(): Promise<void> {
     // Close buffer first
     await this.buffer.close();
-    
+
     // Terminate workers
     if (this.workers.length > 0) {
-      await Promise.all(
-        this.workers.map(({ worker }) => this.terminateWorker(worker))
-      );
+      await Promise.all(this.workers.map(({ worker }) => this.terminateWorker(worker)));
       this.workers = [];
     }
   }
@@ -334,13 +336,13 @@ export class AsyncLogger {
       // Create worker threads
       for (let i = 0; i < this.workerCount; i++) {
         const worker = new Worker(this.workerPath);
-        
+
         // Set up worker event handlers
-        worker.addEventListener('message', (event) => {
+        worker.addEventListener('message', event => {
           this.handleWorkerMessage(worker, event);
         });
 
-        worker.addEventListener('error', (error) => {
+        worker.addEventListener('error', error => {
           this.handleWorkerError(worker, error);
         });
 
@@ -355,7 +357,7 @@ export class AsyncLogger {
     } catch (error) {
       console.error('[AsyncLogger] Failed to initialize workers:', error);
       console.log('[AsyncLogger] Falling back to main thread processing');
-      
+
       // Recreate buffer with direct flush handler
       this.buffer = new AsyncBuffer({
         size: this.buffer.getStats().capacity,
@@ -370,7 +372,7 @@ export class AsyncLogger {
 
   /**
    * Send log entries to worker thread.
-   * 
+   *
    * @param {LogEntry[]} entries - Log entries to process
    * @private
    */
@@ -403,7 +405,9 @@ export class AsyncLogger {
       // Should not happen due to earlier length check, but guard for TS
       const direct = this.originalFlushHandler(entries);
       if (direct && typeof (direct as Promise<void>).then === 'function') {
-        (direct as Promise<void>).catch(err => console.error('[AsyncLogger] Flush handler error:', err));
+        (direct as Promise<void>).catch(err =>
+          console.error('[AsyncLogger] Flush handler error:', err)
+        );
       }
       return;
     }
@@ -414,7 +418,7 @@ export class AsyncLogger {
     } catch (error) {
       selectedWorker.processing--;
       console.error('[AsyncLogger] Failed to send to worker:', error);
-      
+
       // Fallback to direct processing
       const result = this.originalFlushHandler(entries);
       if (result && typeof result.then === 'function') {
@@ -427,7 +431,7 @@ export class AsyncLogger {
 
   /**
    * Handle message from worker thread.
-   * 
+   *
    * @param {Worker} worker - The worker that sent the message
    * @param {MessageEvent} event - The message event
    * @private
@@ -465,7 +469,7 @@ export class AsyncLogger {
 
   /**
    * Handle worker thread error.
-   * 
+   *
    * @param {Worker} worker - The worker that errored
    * @param {ErrorEvent} error - The error event
    * @private
@@ -495,16 +499,16 @@ export class AsyncLogger {
 
   /**
    * Terminate a worker thread gracefully.
-   * 
+   *
    * @param {Worker} worker - The worker to terminate
    * @returns {Promise<void>} Resolves when worker is terminated
    * @private
    */
   private async terminateWorker(worker: Worker): Promise<void> {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       // Send shutdown message
       worker.postMessage({ type: 'shutdown' });
-      
+
       // Give worker time to cleanup
       setTimeout(() => {
         worker.terminate();
@@ -515,7 +519,7 @@ export class AsyncLogger {
 
   /**
    * Check if the async logger is ready.
-   * 
+   *
    * @returns {boolean} True if logger is ready
    */
   public isReady(): boolean {
@@ -531,7 +535,7 @@ export class AsyncLogger {
 
   /**
    * Get buffer utilization percentage.
-   * 
+   *
    * @returns {number} Utilization from 0 to 100
    */
   public getUtilization(): number {

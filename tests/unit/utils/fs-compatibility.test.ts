@@ -1,4 +1,8 @@
-import { getModuleDirname, readFileCompat, resolvePathCompat } from '../../../src/utils/fs-compatibility';
+import {
+  getModuleDirname,
+  readFileCompat,
+  resolvePathCompat,
+} from '../../../src/utils/fs-compatibility';
 import path from 'path';
 import { pathToFileURL } from 'url';
 

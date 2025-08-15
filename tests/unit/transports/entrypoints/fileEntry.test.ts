@@ -1,5 +1,7 @@
 describe('file transport entrypoint', () => {
-  beforeEach(() => { jest.resetModules(); });
+  beforeEach(() => {
+    jest.resetModules();
+  });
 
   it('registers factory and supports createFileTransport helper + error branch', async () => {
     // Import entrypoint (may already be registered from previous tests; that's fine)
@@ -20,7 +22,9 @@ describe('file transport entrypoint', () => {
     if (!factory) return; // abort further checks
 
     // Error branch: missing filepath
-    expect(() => factory({ type: 'file', name: 'x' })).toThrow('FileTransport requires filepath option');
+    expect(() => factory({ type: 'file', name: 'x' })).toThrow(
+      'FileTransport requires filepath option'
+    );
 
     // Success branch: custom name preserved
     const t2 = factory({ type: 'file', name: 'customFile', filepath: './out/app.log' });

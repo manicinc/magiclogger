@@ -68,14 +68,14 @@ export interface JSONFormatterOptions {
 
 /**
  * Formats log entries as JSON with various options.
- * 
+ *
  * The JSONFormatter provides flexible JSON output with:
  * - Field filtering and exclusion
  * - Object flattening for easier parsing
  * - Custom replacer functions
  * - Pretty printing for readability
  * - Schema versioning
- * 
+ *
  * @example
  * ```typescript
  * const formatter = new JSONFormatter({
@@ -83,7 +83,7 @@ export interface JSONFormatterOptions {
  *   excludeFields: ['metadata'],
  *   flatten: true
  * });
- * 
+ *
  * const output = formatter.format(logEntry);
  * console.log(output);
  * ```
@@ -108,7 +108,7 @@ export class JSONFormatter {
 
   /**
    * Creates a new JSONFormatter instance.
-   * 
+   *
    * @param {JSONFormatterOptions} [options={}] - Formatter options
    */
   constructor(options: JSONFormatterOptions = {}) {
@@ -128,7 +128,7 @@ export class JSONFormatter {
 
   /**
    * Format a log entry as JSON.
-   * 
+   *
    * @param {LogEntry} entry - The log entry to format
    * @returns {string} JSON formatted string
    */
@@ -142,9 +142,7 @@ export class JSONFormatter {
       : filtered;
 
     // Flatten if configured
-    const processed = this.options.flatten
-      ? this.flattenObject(output)
-      : output;
+    const processed = this.options.flatten ? this.flattenObject(output) : output;
 
     // Convert to JSON
     return JSON.stringify(
@@ -156,18 +154,18 @@ export class JSONFormatter {
 
   /**
    * Format multiple log entries as a JSON array.
-   * 
+   *
    * @param {LogEntry[]} entries - Array of log entries
    * @returns {string} JSON array string
    */
   public formatBatch(entries: LogEntry[]): string {
     const formatted = entries.map(entry => {
       const filtered = this.filterFields(entry);
-      
+
       if (this.options.includeSchema) {
         return { _schema: this.options.schemaVersion, ...filtered };
       }
-      
+
       return filtered;
     });
 
@@ -184,19 +182,17 @@ export class JSONFormatter {
 
   /**
    * Format entries as newline-delimited JSON (NDJSON).
-   * 
+   *
    * @param {LogEntry[]} entries - Array of log entries
    * @returns {string} NDJSON string
    */
   public formatNDJSON(entries: LogEntry[]): string {
-    return entries
-      .map(entry => this.format(entry))
-      .join('\n') + '\n';
+    return entries.map(entry => this.format(entry)).join('\n') + '\n';
   }
 
   /**
    * Filter fields based on include/exclude configuration.
-   * 
+   *
    * @param {LogEntry} entry - Entry to filter
    * @returns {Partial<LogEntry>} Filtered entry
    * @private
@@ -208,13 +204,13 @@ export class JSONFormatter {
     // Apply include filter if specified
     if (this.options.includeFields) {
       const included: Record<string, unknown> = {};
-      
+
       for (const field of this.options.includeFields) {
         if (field in entry) {
           included[field] = entry[field];
         }
       }
-      
+
       result = included;
     }
 
@@ -230,7 +226,7 @@ export class JSONFormatter {
 
   /**
    * Flatten a nested object.
-   * 
+   *
    * @param {any} obj - Object to flatten
    * @param {string} [prefix=''] - Key prefix
    * @param {number} [depth=0] - Current depth
@@ -242,19 +238,17 @@ export class JSONFormatter {
     prefix = '',
     depth = 0
   ): Record<string, unknown> {
-  // Stop flattening only when current depth exceeds the configured max.
-  // Using '>' (not '>=') allows keys at the max depth to still be expanded,
-  // matching test expectation for a key like 'context.a.b' when maxFlattenDepth=2.
-  if (depth > this.options.maxFlattenDepth) {
+    // Stop flattening only when current depth exceeds the configured max.
+    // Using '>' (not '>=') allows keys at the max depth to still be expanded,
+    // matching test expectation for a key like 'context.a.b' when maxFlattenDepth=2.
+    if (depth > this.options.maxFlattenDepth) {
       return prefix ? { [prefix]: obj } : obj;
     }
 
     const flattened: Record<string, unknown> = {};
 
     for (const [key, value] of Object.entries(obj)) {
-      const newKey = prefix
-        ? `${prefix}${this.options.flattenSeparator}${key}`
-        : key;
+      const newKey = prefix ? `${prefix}${this.options.flattenSeparator}${key}` : key;
 
       if (value === null || value === undefined) {
         flattened[newKey] = value;
@@ -277,11 +271,13 @@ export class JSONFormatter {
 
   /**
    * Create a custom replacer function that combines with user replacer.
-   * 
+   *
    * @param {Function} [userReplacer] - User-provided replacer
    * @returns {Function} Combined replacer function
    */
-  public createReplacer(userReplacer?: (key: string, value: unknown) => unknown): (key: string, value: unknown) => unknown {
+  public createReplacer(
+    userReplacer?: (key: string, value: unknown) => unknown
+  ): (key: string, value: unknown) => unknown {
     return (key: string, value: unknown) => {
       // Handle special types
       if (value instanceof Error) {
@@ -309,7 +305,7 @@ export class JSONFormatter {
 
   /**
    * Get a streaming formatter function for use with streams.
-   * 
+   *
    * @returns {Function} Formatter function
    */
   public getStreamFormatter(): (entry: LogEntry) => string {
@@ -324,40 +320,45 @@ export const JSONFormatters = {
   /**
    * Compact single-line JSON for production.
    */
-  compact: () => new JSONFormatter({
-    pretty: false,
-    includeSchema: false,
-  }),
+  compact: () =>
+    new JSONFormatter({
+      pretty: false,
+      includeSchema: false,
+    }),
 
   /**
    * Pretty-printed JSON for development.
    */
-  pretty: () => new JSONFormatter({
-    pretty: true,
-    indent: 2,
-  }),
+  pretty: () =>
+    new JSONFormatter({
+      pretty: true,
+      indent: 2,
+    }),
 
   /**
    * Flattened JSON for easier parsing.
    */
-  flat: () => new JSONFormatter({
-    flatten: true,
-    includeSchema: false,
-  }),
+  flat: () =>
+    new JSONFormatter({
+      flatten: true,
+      includeSchema: false,
+    }),
 
   /**
    * Minimal JSON with only essential fields.
    */
-  minimal: () => new JSONFormatter({
-    includeFields: ['timestamp', 'level', 'message', 'error'],
-    includeSchema: false,
-  }),
+  minimal: () =>
+    new JSONFormatter({
+      includeFields: ['timestamp', 'level', 'message', 'error'],
+      includeSchema: false,
+    }),
 
   /**
    * Extended JSON with all fields.
    */
-  extended: () => new JSONFormatter({
-    pretty: true,
-    includeSchema: true,
-  }),
+  extended: () =>
+    new JSONFormatter({
+      pretty: true,
+      includeSchema: true,
+    }),
 };

@@ -1,13 +1,14 @@
 describe('transports index createDefaultTransportManager', () => {
-  beforeEach(() => { jest.resetModules(); });
+  beforeEach(() => {
+    jest.resetModules();
+  });
 
   it('creates manager with external registry and registers transports dynamically', async () => {
     // Import registry & manager factory
     const mod = await import('../../../../src/transports');
     const { TransportRegistry } = mod;
-    const createDefaultTransportManager = (mod as unknown as Record<string, unknown>).createDefaultTransportManager as
-      | (() => unknown)
-      | undefined;
+    const createDefaultTransportManager = (mod as unknown as Record<string, unknown>)
+      .createDefaultTransportManager as (() => unknown) | undefined;
     if (typeof createDefaultTransportManager !== 'function') return; // skip if stripped
 
     TransportRegistry.clear();
@@ -26,7 +27,7 @@ describe('transports index createDefaultTransportManager', () => {
     }
     expect(FreshRegistry.getTypes()).toEqual(expect.arrayContaining(['console']));
 
-  FreshRegistry.clear();
-  expect(FreshRegistry.getTypes()).toHaveLength(0);
+    FreshRegistry.clear();
+    expect(FreshRegistry.getTypes()).toHaveLength(0);
   });
 });

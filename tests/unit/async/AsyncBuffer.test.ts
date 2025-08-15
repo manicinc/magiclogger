@@ -20,7 +20,7 @@ describe('AsyncBuffer', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
-    
+
     // Default to resolved promise to prevent hanging
     mockFlushHandler = jest.fn().mockResolvedValue(undefined);
   });
@@ -35,7 +35,7 @@ describe('AsyncBuffer', () => {
   describe('constructor', () => {
     it('should create buffer with default options', () => {
       buffer = new AsyncBuffer({ onFlush: mockFlushHandler });
-      
+
       const stats = buffer.getStats();
       expect(stats.capacity).toBe(10000);
       expect(stats.size).toBe(0);
@@ -51,7 +51,7 @@ describe('AsyncBuffer', () => {
         overflowStrategy: 'drop-newest',
         enableMetrics: true,
       });
-      
+
       const stats = buffer.getStats();
       expect(stats.capacity).toBe(100);
       expect(stats.metrics).toBeDefined();
@@ -63,7 +63,7 @@ describe('AsyncBuffer', () => {
         onFlush: mockFlushHandler,
         flushInterval: 200,
       });
-      
+
       expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 200);
     });
 
@@ -72,7 +72,7 @@ describe('AsyncBuffer', () => {
       const setIntervalSpy = jest.spyOn(global, 'setInterval').mockImplementation(() => {
         throw new Error('setInterval should not be called');
       });
-      
+
       // This should not throw an error if timer is not started
       expect(() => {
         buffer = new AsyncBuffer({
@@ -80,7 +80,7 @@ describe('AsyncBuffer', () => {
           flushInterval: 0,
         });
       }).not.toThrow();
-      
+
       setIntervalSpy.mockRestore();
     });
   });
@@ -98,10 +98,10 @@ describe('AsyncBuffer', () => {
     it('should add entries to buffer', () => {
       const entry1 = createLogEntry('1');
       const entry2 = createLogEntry('2');
-      
+
       expect(buffer.add(entry1)).toBe(true);
       expect(buffer.add(entry2)).toBe(true);
-      
+
       expect(buffer.getSize()).toBe(2);
       expect(buffer.isEmpty()).toBe(false);
       expect(buffer.isFull()).toBe(false);
@@ -109,9 +109,9 @@ describe('AsyncBuffer', () => {
 
     it('should trigger flush when flushSize is reached', () => {
       const entries = Array.from({ length: 3 }, (_, i) => createLogEntry(String(i)));
-      
+
       entries.forEach(entry => buffer.add(entry));
-      
+
       expect(mockFlushHandler).toHaveBeenCalledTimes(1);
       expect(mockFlushHandler).toHaveBeenCalledWith(entries);
       expect(buffer.getSize()).toBe(0);
@@ -125,20 +125,16 @@ describe('AsyncBuffer', () => {
         overflowStrategy: 'drop-oldest',
         enableMetrics: true,
       });
-      
+
       // Fill buffer
       const entries = Array.from({ length: 4 }, (_, i) => createLogEntry(String(i)));
       entries.forEach(entry => buffer.add(entry));
-      
+
       // Buffer should contain entries 1, 2, 3 (entry 0 dropped)
       buffer.flush();
-      
-      expect(mockFlushHandler).toHaveBeenCalledWith([
-        entries[1],
-        entries[2],
-        entries[3],
-      ]);
-      
+
+      expect(mockFlushHandler).toHaveBeenCalledWith([entries[1], entries[2], entries[3]]);
+
       const stats = buffer.getStats();
       expect(stats.metrics?.totalDropped).toBe(1);
     });
@@ -151,28 +147,20 @@ describe('AsyncBuffer', () => {
         overflowStrategy: 'drop-newest',
         enableMetrics: true,
       });
-      
+
       // Fill buffer
       const entries = Array.from({ length: 4 }, (_, i) => createLogEntry(String(i)));
-      const addResults = [
-        buffer.add(entries[0]),
-        buffer.add(entries[1]),
-        buffer.add(entries[2]),
-      ];
+      const addResults = [buffer.add(entries[0]), buffer.add(entries[1]), buffer.add(entries[2])];
       const added = buffer.add(entries[3]);
-      
+
       expect(addResults[0]).toBe(true);
       expect(addResults[1]).toBe(true);
       expect(addResults[2]).toBe(true);
       expect(added).toBe(false); // Fourth entry dropped
-      
+
       buffer.flush();
-      expect(mockFlushHandler).toHaveBeenCalledWith([
-        entries[0],
-        entries[1],
-        entries[2],
-      ]);
-      
+      expect(mockFlushHandler).toHaveBeenCalledWith([entries[0], entries[1], entries[2]]);
+
       const stats = buffer.getStats();
       expect(stats.metrics?.totalDropped).toBe(1);
     });
@@ -185,28 +173,28 @@ describe('AsyncBuffer', () => {
         overflowStrategy: 'block',
         enableMetrics: true,
       });
-      
+
       // Fill buffer
       const entries = Array.from({ length: 4 }, (_, i) => createLogEntry(String(i)));
       entries.slice(0, 3).forEach(entry => buffer.add(entry));
-      
+
       // Fourth entry should be dropped (block not fully implemented)
       const added = buffer.add(entries[3]);
       expect(added).toBe(false);
-      
+
       const stats = buffer.getStats();
       expect(stats.metrics?.totalDropped).toBe(1);
     });
 
     it('should reject entries when closing', async () => {
       const entry = createLogEntry('1');
-      
+
       // Start closing
       const closePromise = buffer.close();
-      
+
       // Try to add
       expect(buffer.add(entry)).toBe(false);
-      
+
       await closePromise;
     });
   });
@@ -224,9 +212,9 @@ describe('AsyncBuffer', () => {
     it('should flush all entries', () => {
       const entries = Array.from({ length: 5 }, (_, i) => createLogEntry(String(i)));
       entries.forEach(entry => buffer.add(entry));
-      
+
       buffer.flush();
-      
+
       expect(mockFlushHandler).toHaveBeenCalledWith(entries);
       expect(buffer.getSize()).toBe(0);
       expect(buffer.isEmpty()).toBe(true);
@@ -240,11 +228,11 @@ describe('AsyncBuffer', () => {
     it('should prevent concurrent flushes', () => {
       const entries = Array.from({ length: 3 }, (_, i) => createLogEntry(String(i)));
       entries.forEach(entry => buffer.add(entry));
-      
+
       // First flush
       buffer.flush();
       expect(mockFlushHandler).toHaveBeenCalledTimes(1);
-      
+
       // Second flush should be ignored
       buffer.flush();
       expect(mockFlushHandler).toHaveBeenCalledTimes(1);
@@ -253,9 +241,9 @@ describe('AsyncBuffer', () => {
     it('should update metrics on flush', () => {
       const entries = Array.from({ length: 3 }, (_, i) => createLogEntry(String(i)));
       entries.forEach(entry => buffer.add(entry));
-      
+
       buffer.flush();
-      
+
       const stats = buffer.getStats();
       expect(stats.metrics?.totalAdded).toBe(3);
       expect(stats.metrics?.totalFlushed).toBe(3);
@@ -267,51 +255,51 @@ describe('AsyncBuffer', () => {
       const errorHandler = jest.fn(() => {
         throw new Error('Flush failed');
       });
-      
+
       buffer = new AsyncBuffer({
         onFlush: errorHandler,
         flushInterval: 0,
       });
-      
+
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-      
+
       buffer.add(createLogEntry('1'));
       buffer.flush();
-      
+
       expect(consoleSpy).toHaveBeenCalledWith(
         '[AsyncBuffer] Flush handler error:',
         expect.any(Error)
       );
-      
+
       consoleSpy.mockRestore();
     });
 
     it('should handle async flush handler errors', async () => {
       // Use real timers for this test to avoid setTimeout issues
       jest.useRealTimers();
-      
+
       const errorHandler = jest.fn().mockRejectedValue(new Error('Async flush failed'));
-      
+
       buffer = new AsyncBuffer({
         onFlush: errorHandler,
         flushInterval: 0,
       });
-      
+
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-      
+
       buffer.add(createLogEntry('1'));
       buffer.flush();
-      
+
       // Wait for promise rejection to be handled
       await new Promise(resolve => setTimeout(resolve, 10));
-      
+
       expect(consoleSpy).toHaveBeenCalledWith(
         '[AsyncBuffer] Flush handler error:',
         expect.any(Error)
       );
-      
+
       consoleSpy.mockRestore();
-      
+
       // Restore fake timers for other tests
       jest.useFakeTimers();
     }, 15000);
@@ -323,12 +311,12 @@ describe('AsyncBuffer', () => {
         onFlush: mockFlushHandler,
         flushInterval: 0,
       });
-      
+
       const entries = Array.from({ length: 3 }, (_, i) => createLogEntry(String(i)));
       entries.forEach(entry => buffer.add(entry));
-      
+
       await buffer.flushAndWait();
-      
+
       expect(mockFlushHandler).toHaveBeenCalledWith(entries);
       expect(buffer.isEmpty()).toBe(true);
     });
@@ -338,39 +326,39 @@ describe('AsyncBuffer', () => {
         onFlush: mockFlushHandler,
         flushInterval: 0,
       });
-      
+
       await buffer.flushAndWait();
-      
+
       expect(mockFlushHandler).not.toHaveBeenCalled();
     });
 
     it('should handle sync flush handler', async () => {
       const syncHandler = jest.fn();
-      
+
       buffer = new AsyncBuffer({
         onFlush: syncHandler,
         flushInterval: 0,
       });
-      
+
       buffer.add(createLogEntry('1'));
       await buffer.flushAndWait();
-      
+
       expect(syncHandler).toHaveBeenCalled();
     });
 
     it('should handle rejected promises', async () => {
       const errorHandler = jest.fn().mockRejectedValue(new Error('Failed'));
-      
+
       buffer = new AsyncBuffer({
         onFlush: errorHandler,
         flushInterval: 0,
       });
-      
+
       buffer.add(createLogEntry('1'));
-      
+
       // Should not throw
       await buffer.flushAndWait();
-      
+
       expect(errorHandler).toHaveBeenCalled();
     });
   });
@@ -381,37 +369,37 @@ describe('AsyncBuffer', () => {
         onFlush: mockFlushHandler,
         flushInterval: 100,
       });
-      
+
       const entries = Array.from({ length: 3 }, (_, i) => createLogEntry(String(i)));
       entries.forEach(entry => buffer.add(entry));
-      
+
       expect(mockFlushHandler).not.toHaveBeenCalled();
-      
+
       jest.advanceTimersByTime(100);
-      
+
       expect(mockFlushHandler).toHaveBeenCalledWith(entries);
     });
 
     it('should not auto-flush when closing', async () => {
       // Use real timers for close operation
       jest.useRealTimers();
-      
+
       // Use a synchronous flush handler for this test
       const syncFlushHandler = jest.fn();
-      
+
       buffer = new AsyncBuffer({
         onFlush: syncFlushHandler,
         flushInterval: 100,
       });
-      
+
       buffer.add(createLogEntry('1'));
-      
+
       // Start closing
       await buffer.close();
-      
+
       // Should flush once during close
       expect(syncFlushHandler).toHaveBeenCalledTimes(1);
-      
+
       // Restore fake timers for other tests
       jest.useFakeTimers();
     }, 10000);
@@ -421,29 +409,29 @@ describe('AsyncBuffer', () => {
     it('should clear buffer and stop timer on close', async () => {
       // Use real timers for close operation
       jest.useRealTimers();
-      
+
       // Use a synchronous flush handler for this test
       const syncFlushHandler = jest.fn();
-      
+
       buffer = new AsyncBuffer({
         onFlush: syncFlushHandler,
         flushInterval: 100,
       });
-      
+
       const entries = Array.from({ length: 3 }, (_, i) => createLogEntry(String(i)));
       entries.forEach(entry => buffer.add(entry));
-      
+
       // Verify entries are in buffer before close
       expect(buffer.getSize()).toBe(3);
-      
+
       await buffer.close();
-      
+
       // Check that buffer is cleared (this should happen regardless)
       expect(buffer.getSize()).toBe(0);
-      
-      // Note: Not all implementations may flush during close, 
+
+      // Note: Not all implementations may flush during close,
       // so we just verify the buffer is properly cleared
-      
+
       // Restore fake timers for other tests
       jest.useFakeTimers();
     }, 10000);
@@ -451,23 +439,23 @@ describe('AsyncBuffer', () => {
     it('should clear buffer references', async () => {
       // Use real timers for close operation
       jest.useRealTimers();
-      
+
       // Use a synchronous flush handler for this test
       const syncFlushHandler = jest.fn();
-      
+
       buffer = new AsyncBuffer({
         size: 5,
         onFlush: syncFlushHandler,
       });
-      
+
       buffer.add(createLogEntry('1'));
-      
+
       await buffer.close();
-      
+
       // Buffer should be cleared
       const stats = buffer.getStats();
       expect(stats.size).toBe(0);
-      
+
       // Restore fake timers for other tests
       jest.useFakeTimers();
     }, 10000);
@@ -482,14 +470,15 @@ describe('AsyncBuffer', () => {
         overflowStrategy: 'drop-oldest',
         size: 3,
       });
-      
+
       // Add entries
-      Array.from({ length: 5 }, (_, i) => createLogEntry(String(i)))
-        .forEach(entry => buffer.add(entry));
-      
+      Array.from({ length: 5 }, (_, i) => createLogEntry(String(i))).forEach(entry =>
+        buffer.add(entry)
+      );
+
       // Flush
       buffer.flush();
-      
+
       const stats = buffer.getStats();
       expect(stats.metrics).toEqual({
         totalAdded: 5,
@@ -506,7 +495,7 @@ describe('AsyncBuffer', () => {
         onFlush: mockFlushHandler,
         enableMetrics: false,
       });
-      
+
       const stats = buffer.getStats();
       expect(stats.metrics).toBeUndefined();
     });
@@ -517,14 +506,14 @@ describe('AsyncBuffer', () => {
         enableMetrics: true,
         flushInterval: 0,
       });
-      
+
       // Add and flush
       buffer.add(createLogEntry('1'));
       buffer.flush();
-      
+
       // Reset
       buffer.resetMetrics();
-      
+
       const stats = buffer.getStats();
       expect(stats.metrics).toEqual({
         totalAdded: 0,
@@ -544,16 +533,16 @@ describe('AsyncBuffer', () => {
         onFlush: mockFlushHandler,
         flushInterval: 0,
       });
-      
+
       const entry1 = createLogEntry('1');
       const entry2 = createLogEntry('2');
-      
+
       expect(buffer.add(entry1)).toBe(true);
       expect(buffer.isFull()).toBe(true);
-      
+
       // Should drop oldest
       expect(buffer.add(entry2)).toBe(true);
-      
+
       buffer.flush();
       expect(mockFlushHandler).toHaveBeenCalledWith([entry2]);
     });
@@ -565,15 +554,13 @@ describe('AsyncBuffer', () => {
         onFlush: mockFlushHandler,
         flushInterval: 0,
       });
-      
+
       // Rapid cycles
       for (let cycle = 0; cycle < 10; cycle++) {
-        const entries = Array.from({ length: 10 }, (_, i) => 
-          createLogEntry(`${cycle}-${i}`)
-        );
+        const entries = Array.from({ length: 10 }, (_, i) => createLogEntry(`${cycle}-${i}`));
         entries.forEach(entry => buffer.add(entry));
       }
-      
+
       expect(mockFlushHandler).toHaveBeenCalledTimes(10);
     });
 
@@ -583,20 +570,18 @@ describe('AsyncBuffer', () => {
         onFlush: mockFlushHandler,
         flushInterval: 0,
       });
-      
+
       // Add some entries
       buffer.add(createLogEntry('1'));
       buffer.add(createLogEntry('2'));
-      
+
       // Manually corrupt buffer (simulating edge case)
       (buffer as unknown as { buffer: (LogEntry | null)[] }).buffer[1] = null;
-      
+
       // Flush should handle null gracefully
       buffer.flush();
-      
-      expect(mockFlushHandler).toHaveBeenCalledWith([
-        createLogEntry('1'),
-      ]);
+
+      expect(mockFlushHandler).toHaveBeenCalledWith([createLogEntry('1')]);
     });
   });
 });

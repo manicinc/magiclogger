@@ -1,5 +1,8 @@
 // File: tests/unit/transports/formatters/PlainTextFormatter.test.ts
-import { PlainTextFormatter, PlainTextFormatters } from '../../../../src/transports/formatters/PlainTextFormatter';
+import {
+  PlainTextFormatter,
+  PlainTextFormatters,
+} from '../../../../src/transports/formatters/PlainTextFormatter';
 import type { LogEntry } from '../../../../src/types/transport';
 
 type Entry = LogEntry;
@@ -25,13 +28,22 @@ describe('PlainTextFormatter', () => {
   });
 
   it('template formatting works', () => {
-    const f = new PlainTextFormatter({ template: '[{timestamp}] {level} {message}', includeStack: false });
+    const f = new PlainTextFormatter({
+      template: '[{timestamp}] {level} {message}',
+      includeStack: false,
+    });
     const line = f.format(mkEntry());
     expect(line).toMatch(/\[.*\] INFO Test msg/);
   });
 
   it('respects maxLineLength (applies to main line only)', () => {
-    const f = new PlainTextFormatter({ maxLineLength: 10, truncationIndicator: '...', includeContext: false, includeMetadata: false, includeStack: false });
+    const f = new PlainTextFormatter({
+      maxLineLength: 10,
+      truncationIndicator: '...',
+      includeContext: false,
+      includeMetadata: false,
+      includeStack: false,
+    });
     const line = f.format(mkEntry({ message: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', context: undefined }));
     expect(line.endsWith('...')).toBe(true);
     expect(line.length).toBe(10); // truncated length
@@ -45,9 +57,13 @@ describe('PlainTextFormatter', () => {
       message: err.message,
       stack: err.stack,
       code: 'EFAIL',
-      extra: 'data'
+      extra: 'data',
     };
-    const f = new PlainTextFormatter({ includeStack: true, includeContext: false, includeMetadata: false });
+    const f = new PlainTextFormatter({
+      includeStack: true,
+      includeContext: false,
+      includeMetadata: false,
+    });
     const out = f.format(mkEntry({ error: errorShape, context: undefined }));
     expect(out).toContain('Error: boom');
     expect(out).toContain('Stack:');
@@ -55,10 +71,14 @@ describe('PlainTextFormatter', () => {
   });
 
   it('batch formatting joins lines (single-line entries)', () => {
-    const f = new PlainTextFormatter({ includeStack: false, includeContext: false, includeMetadata: false });
+    const f = new PlainTextFormatter({
+      includeStack: false,
+      includeContext: false,
+      includeMetadata: false,
+    });
     const out = f.formatBatch([
       mkEntry({ context: undefined, metadata: undefined }),
-      mkEntry({ context: undefined, metadata: undefined })
+      mkEntry({ context: undefined, metadata: undefined }),
     ]);
     const lines = out.trim().split('\n');
     expect(lines).toHaveLength(2);

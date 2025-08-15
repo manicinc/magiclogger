@@ -2,33 +2,31 @@
 
 /**
  * Pino Compatibility Module Entry Point
- * 
+ *
  * This module provides a Pino-compatible API for MagicLogger.
  * Import this module directly for optimal tree-shaking:
- * 
+ *
  * @example
  * ```typescript
  * // ✅ Optimal - Only imports Pino compatibility
  * import { createPinoCompatible } from 'magiclogger/compatibility/pino';
- * 
+ *
  * // ❌ Avoid - Imports all compatibility modules
  * import { createPinoCompatible } from 'magiclogger/compatibility';
  * ```
- * 
+ *
  * @module compatibility/pino
  */
 
 // Re-export everything from the Pino implementation
-export { 
+export {
   PinoCompatibleLogger,
   createPinoCompatible,
-  type PinoCompatibleOptions 
+  type PinoCompatibleOptions,
 } from './loggers/PinoCompatibleLogger';
 
 // Re-export base types that Pino compatibility might need
-export type { 
-  LogCompatibilityOptions 
-} from './loggers/BaseCompatibleLogger';
+export type { LogCompatibilityOptions } from './loggers/BaseCompatibleLogger';
 
 // Re-export static properties for Pino compatibility
 export const levels = {

@@ -21,7 +21,7 @@ export class CSVFormatter extends CustomFormatter {
     'error.name',
     'error.message',
     'context',
-    'metadata'
+    'metadata',
   ];
   private readonly includeHeaders: boolean;
   private readonly delimiter = ',';
@@ -45,7 +45,11 @@ export class CSVFormatter extends CustomFormatter {
       } else if (col === 'context' || col === 'metadata') {
         const container = (entry as unknown as Record<string, unknown>)[col];
         if (container && typeof container === 'object') {
-          try { value = JSON.stringify(container); } catch { value = ''; }
+          try {
+            value = JSON.stringify(container);
+          } catch {
+            value = '';
+          }
         } else {
           value = '';
         }
@@ -67,10 +71,22 @@ export class CSVFormatter extends CustomFormatter {
 
   private escapeValue(value: unknown): string {
     if (value === null || value === undefined) return '';
-    const strValue = typeof value === 'string' ? value : (() => {
-      try { return JSON.stringify(value); } catch { return String(value); }
-    })();
-    if (strValue.includes(this.delimiter) || strValue.includes('"') || strValue.includes('\n') || strValue.includes('\r')) {
+    const strValue =
+      typeof value === 'string'
+        ? value
+        : (() => {
+            try {
+              return JSON.stringify(value);
+            } catch {
+              return String(value);
+            }
+          })();
+    if (
+      strValue.includes(this.delimiter) ||
+      strValue.includes('"') ||
+      strValue.includes('\n') ||
+      strValue.includes('\r')
+    ) {
       return `"${strValue.replace(/"/g, '""')}"`;
     }
     return strValue;

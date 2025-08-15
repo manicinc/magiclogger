@@ -306,7 +306,9 @@ describe('Transport', () => {
       });
 
       // Attach error listener to avoid unhandled 'error' event during timeout
-      transport.on('error', () => { /* expected in test */ });
+      transport.on('error', () => {
+        /* expected in test */
+      });
 
       transport.testDoLogOverride = jest
         .fn()
@@ -373,12 +375,12 @@ describe('Transport', () => {
     it('should handle partial failures in individual mode', async () => {
       // Create a transport without batch method
       const noBatchTransport = new TestTransport({ name: 'no-batch-fail' });
-      
+
       // Add error event handler to prevent unhandled error warnings
       noBatchTransport.on('error', () => {
         // Ignore errors in tests - they're expected
       });
-      
+
       noBatchTransport.testDoLogBatchOverride = jest
         .fn()
         .mockRejectedValue(new Error('Batch not supported'));

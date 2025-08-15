@@ -2,20 +2,20 @@
 
 /**
  * Core Module Exports - TREE-SHAKING WARNING
- * 
+ *
  * ⚠️ This file exports all core components which may prevent tree-shaking.
  * For optimal bundle size, import core modules directly:
- * 
+ *
  * @example
  * ```typescript
  * // ❌ AVOID - Imports all core modules
  * import { Colorizer, ContextManager } from 'magiclogger/core';
- * 
+ *
  * // ✅ RECOMMENDED - Import specific modules
  * import { Colorizer } from 'magiclogger/core/colorizer';
  * import { ContextManager } from 'magiclogger/core/context-manager';
  * ```
- * 
+ *
  * @module core
  */
 
@@ -43,7 +43,7 @@ export type {
   ContextSnapshot,
 } from './ContextManager';
 
-// Export types from TagManager  
+// Export types from TagManager
 export type {
   TagManagerOptions,
   TagNormalizationRules,

@@ -8,7 +8,7 @@ import path from 'path';
 
 /**
  * Comprehensive test suite for ThemeManager class.
- * 
+ *
  * Tests theme loading, application, CSS generation, and error handling.
  */
 describe('ThemeManager', () => {
@@ -17,33 +17,35 @@ describe('ThemeManager', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     // Save original __dirname if it exists
     originalDirname = (globalThis as Record<string, unknown>).__dirname as string | undefined;
-    
+
     // Mock __dirname for consistent theme path
     (globalThis as Record<string, unknown>).__dirname = '/test/theme';
-    
+
     // Default mock for theme file
     fsMocks.existsSync.mockReturnValue(true);
-    fsMocks.readFileSync.mockReturnValue(JSON.stringify({
-      default: {
-        info: ['cyan'],
-        error: ['red', 'bold'],
-        success: ['green']
-      },
-      custom: {
-        info: ['blue', 'italic'],
-        error: ['brightRed', 'underline'],
-        success: ['brightGreen', 'bold']
-      },
-      minimal: {
-        info: ['white'],
-        error: ['red'],
-        success: ['white']
-      }
-    }));
-    
+    fsMocks.readFileSync.mockReturnValue(
+      JSON.stringify({
+        default: {
+          info: ['cyan'],
+          error: ['red', 'bold'],
+          success: ['green'],
+        },
+        custom: {
+          info: ['blue', 'italic'],
+          error: ['brightRed', 'underline'],
+          success: ['brightGreen', 'bold'],
+        },
+        minimal: {
+          info: ['white'],
+          error: ['red'],
+          success: ['white'],
+        },
+      })
+    );
+
     themeManager = new ThemeManager();
   });
 
@@ -58,14 +60,12 @@ describe('ThemeManager', () => {
 
   describe('constructor and theme loading', () => {
     it('should load themes from themes.json', () => {
-      expect(fsMocks.existsSync).toHaveBeenCalledWith(
-        expect.stringContaining('themes.json')
-      );
+      expect(fsMocks.existsSync).toHaveBeenCalledWith(expect.stringContaining('themes.json'));
       expect(fsMocks.readFileSync).toHaveBeenCalledWith(
         expect.stringContaining('themes.json'),
         'utf-8'
       );
-      
+
       expect(themeManager.themes).toHaveProperty('default');
       expect(themeManager.themes).toHaveProperty('custom');
       expect(themeManager.themes).toHaveProperty('minimal');
@@ -74,26 +74,26 @@ describe('ThemeManager', () => {
     it('should handle missing theme file', () => {
       fsMocks.existsSync.mockReturnValue(false);
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-      
+
       const tm = new ThemeManager();
-      
+
       expect(consoleSpy).toHaveBeenCalledWith(
         expect.stringContaining('[ThemeManager] Theme file not found'),
         expect.any(String)
       );
-  // Implementation may fall back to bundled/default theme; accept empty or default-present
-  const countMissing = Object.keys(tm.themes).length;
-  expect(countMissing === 0 || !!tm.themes.default).toBe(true);
-      
+      // Implementation may fall back to bundled/default theme; accept empty or default-present
+      const countMissing = Object.keys(tm.themes).length;
+      expect(countMissing === 0 || !!tm.themes.default).toBe(true);
+
       consoleSpy.mockRestore();
     });
 
     it('should handle invalid JSON in theme file', () => {
       fsMocks.readFileSync.mockReturnValue('{ invalid json');
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-      
+
       const tm = new ThemeManager();
-      
+
       expect(consoleSpy).toHaveBeenCalledWith(
         '[ThemeManager] Failed to parse themes.json:',
         expect.any(Error)
@@ -101,7 +101,7 @@ describe('ThemeManager', () => {
       // Implementation may return empty or insert a fallback default/bundled themes
       const themeCount = Object.keys(tm.themes).length;
       expect(themeCount === 0 || !!tm.themes.default).toBe(true);
-      
+
       consoleSpy.mockRestore();
     });
 
@@ -110,22 +110,22 @@ describe('ThemeManager', () => {
         throw new Error('Permission denied');
       });
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-      
+
       const tm = new ThemeManager();
-      
-  expect(consoleSpy).toHaveBeenCalled();
-  const themeCount2 = Object.keys(tm.themes).length;
-  expect(themeCount2 === 0 || !!tm.themes.default).toBe(true);
-      
+
+      expect(consoleSpy).toHaveBeenCalled();
+      const themeCount2 = Object.keys(tm.themes).length;
+      expect(themeCount2 === 0 || !!tm.themes.default).toBe(true);
+
       consoleSpy.mockRestore();
     });
 
     it('should handle ESM environment without __dirname', () => {
       delete (globalThis as Record<string, unknown>).__dirname;
-      
+
       // Should use fallback path resolution
       const tm = new ThemeManager();
-      
+
       expect(fsMocks.existsSync).toHaveBeenCalled();
       // Path should be resolved relative to cwd
       const expectedPath = path.resolve(process.cwd(), 'src', 'theme', 'themes.json');
@@ -137,39 +137,39 @@ describe('ThemeManager', () => {
   describe('getTheme', () => {
     it('should return theme by name', () => {
       const theme = themeManager.getTheme('custom');
-      
+
       expect(theme).toEqual({
         info: ['blue', 'italic'],
         error: ['brightRed', 'underline'],
-        success: ['brightGreen', 'bold']
+        success: ['brightGreen', 'bold'],
       });
     });
 
     it('should return default theme for unknown name', () => {
       const theme = themeManager.getTheme('nonexistent');
-      
+
       expect(theme).toEqual({
         info: ['cyan'],
         error: ['red', 'bold'],
-        success: ['green']
+        success: ['green'],
       });
     });
 
     it('should return empty object when no themes loaded', () => {
       themeManager.themes = {};
-      
+
       const theme = themeManager.getTheme('any');
-      
+
       expect(theme).toEqual({});
     });
 
     it('should return empty object when default theme missing', () => {
       themeManager.themes = {
-        custom: { info: ['blue'] }
+        custom: { info: ['blue'] },
       };
-      
+
       const theme = themeManager.getTheme('unknown');
-      
+
       expect(theme).toEqual({});
     });
   });
@@ -178,7 +178,7 @@ describe('ThemeManager', () => {
     it('should apply styles to message', () => {
       const styles: ColorName[] = ['red', 'bold', 'underline'];
       const result = themeManager.applyStyles(styles, 'Test message');
-      
+
       expect(result).toBe(
         `${COLORS.red}${COLORS.bold}${COLORS.underline}Test message${COLORS.reset}`
       );
@@ -186,20 +186,20 @@ describe('ThemeManager', () => {
 
     it('should handle empty styles array', () => {
       const result = themeManager.applyStyles([], 'Message');
-      
+
       expect(result).toBe(`Message${COLORS.reset}`);
     });
 
     it('should handle single style', () => {
       const result = themeManager.applyStyles(['green'], 'Success');
-      
+
       expect(result).toBe(`${COLORS.green}Success${COLORS.reset}`);
     });
 
     it('should filter out invalid styles', () => {
       const styles = ['red', 'invalid' as ColorName, 'bold'];
       const result = themeManager.applyStyles(styles, 'Text');
-      
+
       expect(result).toContain(COLORS.red);
       expect(result).toContain(COLORS.bold);
       expect(result).toContain('Text');
@@ -208,13 +208,13 @@ describe('ThemeManager', () => {
 
     it('should handle background colors', () => {
       const result = themeManager.applyStyles(['bgRed', 'white'], 'Error');
-      
+
       expect(result).toBe(`${COLORS.bgRed}${COLORS.white}Error${COLORS.reset}`);
     });
 
     it('should handle bright colors', () => {
       const result = themeManager.applyStyles(['brightCyan', 'brightYellow'], 'Bright');
-      
+
       expect(result).toContain(COLORS.brightCyan);
       expect(result).toContain(COLORS.brightYellow);
     });
@@ -222,7 +222,7 @@ describe('ThemeManager', () => {
     it('should handle special characters in message', () => {
       const message = 'Line 1\nLine 2\tTabbed';
       const result = themeManager.applyStyles(['blue'], message);
-      
+
       expect(result).toBe(`${COLORS.blue}${message}${COLORS.reset}`);
     });
   });
@@ -230,7 +230,7 @@ describe('ThemeManager', () => {
   describe('getCssStyles', () => {
     it('should return CSS styles for level', () => {
       const css = themeManager.getCssStyles('error');
-      
+
       expect(css).toContain('color: red');
       expect(css).toContain('font-weight: bold');
     });
@@ -238,11 +238,11 @@ describe('ThemeManager', () => {
     it('should handle multiple styles', () => {
       // Add a theme with multiple CSS-mappable styles
       themeManager.themes.test = {
-        special: ['red', 'bold', 'italic', 'underline'] as ColorName[]
+        special: ['red', 'bold', 'italic', 'underline'] as ColorName[],
       };
-      
+
       const css = themeManager.getCssStyles('special');
-      
+
       expect(css).toContain('color: red');
       expect(css).toContain('font-weight: bold');
       expect(css).toContain('font-style: italic');
@@ -251,32 +251,32 @@ describe('ThemeManager', () => {
 
     it('should return empty string for unknown level', () => {
       const css = themeManager.getCssStyles('unknown');
-      
+
       expect(css).toBe('');
     });
 
     it('should handle levels with no CSS-mappable styles', () => {
       themeManager.themes.default.custom = ['blink', 'reverse'] as ColorName[];
-      
+
       const css = themeManager.getCssStyles('custom');
-      
+
       // These styles don't have CSS mappings
       expect(css).toBe('; ');
     });
 
     it('should use default theme when available', () => {
       const css = themeManager.getCssStyles('info');
-      
+
       expect(css).toContain('cyan'); // Default theme info color
     });
 
     it('should handle missing default theme', () => {
       themeManager.themes = {
-        custom: { info: ['blue'] }
+        custom: { info: ['blue'] },
       } as Record<string, { [k: string]: ColorName[] }>;
-      
+
       const css = themeManager.getCssStyles('info');
-      
+
       expect(css).toBe('');
     });
   });
@@ -285,11 +285,21 @@ describe('ThemeManager', () => {
     it('should map color styles to CSS', () => {
       // Testing through getCssStyles
       themeManager.themes.test = {
-        colors: ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white', 'gray'] as ColorName[]
+        colors: [
+          'black',
+          'red',
+          'green',
+          'yellow',
+          'blue',
+          'magenta',
+          'cyan',
+          'white',
+          'gray',
+        ] as ColorName[],
       };
-      
+
       const css = themeManager.getCssStyles('colors');
-      
+
       expect(css).toContain('color: black');
       expect(css).toContain('color: red');
       // Note: some colors in the implementation are missing 'color:' prefix
@@ -304,11 +314,11 @@ describe('ThemeManager', () => {
 
     it('should map text styles to CSS', () => {
       themeManager.themes.test = {
-        textStyles: ['bold', 'dim', 'italic', 'underline'] as ColorName[]
+        textStyles: ['bold', 'dim', 'italic', 'underline'] as ColorName[],
       };
-      
+
       const css = themeManager.getCssStyles('textStyles');
-      
+
       expect(css).toContain('font-weight: bold');
       expect(css).toContain('opacity: 0.7');
       expect(css).toContain('font-style: italic');
@@ -317,11 +327,18 @@ describe('ThemeManager', () => {
 
     it('should handle unmapped styles', () => {
       themeManager.themes.test = {
-        unmapped: ['blink', 'reverse', 'hidden', 'strikethrough', 'brightRed', 'bgBlue'] as ColorName[]
+        unmapped: [
+          'blink',
+          'reverse',
+          'hidden',
+          'strikethrough',
+          'brightRed',
+          'bgBlue',
+        ] as ColorName[],
       };
-      
+
       const css = themeManager.getCssStyles('unmapped');
-      
+
       // These styles don't have CSS mappings, so should be empty strings
       expect(css).toBe('; ; ; ; ; ');
     });
@@ -329,53 +346,59 @@ describe('ThemeManager', () => {
 
   describe('theme structure', () => {
     it('should support nested theme structure', () => {
-      fsMocks.readFileSync.mockReturnValue(JSON.stringify({
-        light: {
-          info: ['blue'],
-          warn: ['orange'],
-          error: ['red'],
-          success: ['green'],
-          debug: ['gray']
-        },
-        dark: {
-          info: ['brightBlue'],
-          warn: ['yellow'],
-          error: ['brightRed'],
-          success: ['brightGreen'],
-          debug: ['gray']
-        }
-      }));
-      
+      fsMocks.readFileSync.mockReturnValue(
+        JSON.stringify({
+          light: {
+            info: ['blue'],
+            warn: ['orange'],
+            error: ['red'],
+            success: ['green'],
+            debug: ['gray'],
+          },
+          dark: {
+            info: ['brightBlue'],
+            warn: ['yellow'],
+            error: ['brightRed'],
+            success: ['brightGreen'],
+            debug: ['gray'],
+          },
+        })
+      );
+
       const tm = new ThemeManager();
-      
+
       expect(tm.getTheme('light')).toHaveProperty('info');
       expect(tm.getTheme('dark')).toHaveProperty('info');
     });
 
     it('should handle empty theme definitions', () => {
-      fsMocks.readFileSync.mockReturnValue(JSON.stringify({
-        empty: {}
-      }));
-      
+      fsMocks.readFileSync.mockReturnValue(
+        JSON.stringify({
+          empty: {},
+        })
+      );
+
       const tm = new ThemeManager();
       const theme = tm.getTheme('empty');
-      
+
       expect(theme).toEqual({});
     });
 
     it('should handle themes with extra properties', () => {
-      fsMocks.readFileSync.mockReturnValue(JSON.stringify({
-        extended: {
-          info: ['cyan'],
-          error: ['red'],
-          custom1: ['magenta'],
-          custom2: ['yellow', 'bgBlue']
-        }
-      }));
-      
+      fsMocks.readFileSync.mockReturnValue(
+        JSON.stringify({
+          extended: {
+            info: ['cyan'],
+            error: ['red'],
+            custom1: ['magenta'],
+            custom2: ['yellow', 'bgBlue'],
+          },
+        })
+      );
+
       const tm = new ThemeManager();
       const theme = tm.getTheme('extended');
-      
+
       expect(theme).toBeDefined();
       const extendedTheme = theme as Record<string, ColorName[]>;
       expect(extendedTheme).toHaveProperty('custom1');
@@ -389,7 +412,7 @@ describe('ThemeManager', () => {
     it('should handle very long style arrays', () => {
       const longStyles: ColorName[] = new Array(20).fill('red');
       const result = themeManager.applyStyles(longStyles, 'Test');
-      
+
       // Should apply red 20 times (though redundant)
       // Escape special regex characters, including backslashes, in COLORS.red
       const escapeRegExp = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -400,7 +423,7 @@ describe('ThemeManager', () => {
 
     it('should handle unicode in messages', () => {
       const result = themeManager.applyStyles(['cyan'], '🌈 Unicode 世界 Test 🎨');
-      
+
       expect(result).toContain('🌈');
       expect(result).toContain('世界');
       expect(result).toContain('🎨');
@@ -410,7 +433,7 @@ describe('ThemeManager', () => {
     it('should handle null/undefined safely', () => {
       // This might not be intended usage but should not crash
       const result = themeManager.applyStyles(['red'], null as unknown as string);
-      
+
       expect(result).toContain(COLORS.reset);
     });
   });

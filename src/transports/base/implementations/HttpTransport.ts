@@ -1,9 +1,9 @@
 /**
  * HTTP transport implementation for MagicLogger.
- * 
+ *
  * Sends log entries to HTTP endpoints with support for various authentication
  * methods, request formats, batching, and retry logic.
- * 
+ *
  * @module transports/implementations
  */
 
@@ -12,10 +12,10 @@ import * as https from 'https';
 import * as http from 'http';
 import { URL } from 'url';
 import * as zlib from 'zlib';
-import type { 
-  HTTPTransportOptions, 
+import type {
+  HTTPTransportOptions,
   LogEntry,
-  NetworkTransportOptions 
+  NetworkTransportOptions,
 } from '../../../types/transport';
 
 /**
@@ -24,7 +24,7 @@ import type {
 enum CircuitState {
   CLOSED = 'closed',
   OPEN = 'open',
-  HALF_OPEN = 'half-open'
+  HALF_OPEN = 'half-open',
 }
 
 /**
@@ -51,7 +51,7 @@ class CircuitBreaker {
 
   recordSuccess(): void {
     this.failures = 0;
-    
+
     if (this.state === CircuitState.HALF_OPEN) {
       this.successCount++;
       if (this.successCount >= this.successThreshold) {
@@ -94,7 +94,7 @@ class CircuitBreaker {
 
 /**
  * HTTP transport for sending logs to HTTP endpoints.
- * 
+ *
  * Features:
  * - Multiple authentication methods (Basic, Bearer, API Key, Custom)
  * - Request transformation and batching
@@ -105,10 +105,10 @@ class CircuitBreaker {
  * - Circuit breaker for failing endpoints
  * - Compression support (gzip, deflate)
  * - Proxy support
- * 
+ *
  * @class HTTPTransport
  * @extends {NetworkTransport}
- * 
+ *
  * @example
  * ```typescript
  * const httpTransport = new HTTPTransport({
@@ -220,7 +220,7 @@ export class HTTPTransport extends NetworkTransport {
 
   /**
    * Creates a new HTTPTransport instance.
-   * 
+   *
    * @param {HTTPTransportOptions} options - Transport configuration
    */
   constructor(options: HTTPTransportOptions) {
@@ -245,7 +245,7 @@ export class HTTPTransport extends NetworkTransport {
     } catch (error) {
       throw new Error(`Invalid URL: ${options.url}`);
     }
-    
+
     this.method = options.method?.toUpperCase() || 'POST';
     this.auth = options.auth;
     this.bodyFormat = options.bodyFormat || 'json';
@@ -266,7 +266,7 @@ export class HTTPTransport extends NetworkTransport {
     // Create appropriate agent
     const isHttps = this.targetUrl.protocol === 'https:';
     const AgentClass = isHttps ? https.Agent : http.Agent;
-    
+
     const agentOptions: http.AgentOptions | https.AgentOptions = {
       keepAlive: true,
       keepAliveMsecs: 1000,
@@ -290,7 +290,7 @@ export class HTTPTransport extends NetworkTransport {
 
   /**
    * Initialize HTTP transport.
-   * 
+   *
    * @returns {Promise<void>} Resolves when initialized
    * @protected
    */
@@ -306,7 +306,7 @@ export class HTTPTransport extends NetworkTransport {
 
   /**
    * Establish connection (HTTP doesn't maintain persistent connections).
-   * 
+   *
    * @returns {Promise<void>} Resolves immediately
    * @protected
    */
@@ -318,7 +318,7 @@ export class HTTPTransport extends NetworkTransport {
 
   /**
    * Disconnect (HTTP doesn't maintain persistent connections).
-   * 
+   *
    * @returns {Promise<void>} Resolves immediately
    * @protected
    */
@@ -330,7 +330,7 @@ export class HTTPTransport extends NetworkTransport {
 
   /**
    * Send data over HTTP.
-   * 
+   *
    * @param {unknown} data - Data to send
    * @returns {Promise<void>} Resolves when sent
    * @protected
@@ -344,9 +344,9 @@ export class HTTPTransport extends NetworkTransport {
     try {
       const body = this.prepareRequestBody(data);
       const headers = await this.buildRequestHeaders(body);
-      
+
       await this.makeHttpRequest(this.method, this.targetUrl, headers, body);
-      
+
       // Record success
       this.internalCircuitBreaker.recordSuccess();
     } catch (error) {
@@ -358,7 +358,7 @@ export class HTTPTransport extends NetworkTransport {
 
   /**
    * Prepare request body from data.
-   * 
+   *
    * @param {unknown} data - Data to convert
    * @returns {string | Buffer} Request body
    * @private
@@ -372,7 +372,7 @@ export class HTTPTransport extends NetworkTransport {
 
   /**
    * Check connection health.
-   * 
+   *
    * @returns {Promise<void>} Resolves if healthy
    * @protected
    */
@@ -385,7 +385,7 @@ export class HTTPTransport extends NetworkTransport {
     // Make a lightweight health check request
     const healthUrl = new URL(this.targetUrl.toString());
     const healthPath = this.getHealthCheckPath();
-    
+
     if (healthPath) {
       healthUrl.pathname = healthPath;
     }
@@ -400,14 +400,16 @@ export class HTTPTransport extends NetworkTransport {
         this.internalCircuitBreaker.recordSuccess();
       } catch (headError) {
         this.internalCircuitBreaker.recordFailure();
-        throw new Error(`Health check failed: ${error instanceof Error ? error.message : String(error)}`);
+        throw new Error(
+          `Health check failed: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
     }
   }
 
   /**
    * Get health check path.
-   * 
+   *
    * @returns {string | null} Health check path
    * @private
    */
@@ -422,7 +424,7 @@ export class HTTPTransport extends NetworkTransport {
 
   /**
    * Test endpoint connectivity.
-   * 
+   *
    * @returns {Promise<void>} Resolves if endpoint is reachable
    * @private
    */
@@ -438,7 +440,7 @@ export class HTTPTransport extends NetworkTransport {
 
   /**
    * Refresh authentication headers.
-   * 
+   *
    * @returns {Promise<void>} Resolves when headers are refreshed
    * @private
    */
@@ -450,7 +452,9 @@ export class HTTPTransport extends NetworkTransport {
     switch (this.auth.type) {
       case 'basic':
         if (this.auth.username && this.auth.password) {
-          const credentials = Buffer.from(`${this.auth.username}:${this.auth.password}`).toString('base64');
+          const credentials = Buffer.from(`${this.auth.username}:${this.auth.password}`).toString(
+            'base64'
+          );
           headers.Authorization = `Basic ${credentials}`;
         }
         break;
@@ -474,7 +478,11 @@ export class HTTPTransport extends NetworkTransport {
             const customHeaders = await this.auth.customAuth();
             Object.assign(headers, customHeaders);
           } catch (error) {
-            throw new Error(`Failed to get custom auth headers: ${error instanceof Error ? error.message : String(error)}`);
+            throw new Error(
+              `Failed to get custom auth headers: ${
+                error instanceof Error ? error.message : String(error)
+              }`
+            );
           }
         }
         break;
@@ -489,7 +497,7 @@ export class HTTPTransport extends NetworkTransport {
 
   /**
    * Perform the network request to send logs.
-   * 
+   *
    * @param {unknown} data - Data to send
    * @param {unknown} [batch] - Optional batch metadata
    * @returns {Promise<void>} Resolves when sent
@@ -512,7 +520,7 @@ export class HTTPTransport extends NetworkTransport {
     }
 
     // Transform data if transformer provided
-    let body: string | Buffer = this.transformRequest 
+    let body: string | Buffer = this.transformRequest
       ? this.ensureBodyType(await this.transformRequest(entries))
       : this.formatBody(entries);
 
@@ -544,7 +552,9 @@ export class HTTPTransport extends NetworkTransport {
         const parsed = JSON.parse(response.body);
         await this.transformResponse(parsed);
       } catch (error) {
-        console.warn(`Failed to parse response: ${error instanceof Error ? error.message : String(error)}`);
+        console.warn(
+          `Failed to parse response: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
     }
 
@@ -558,7 +568,7 @@ export class HTTPTransport extends NetworkTransport {
 
   /**
    * Format request body based on bodyFormat.
-   * 
+   *
    * @param {LogEntry[]} entries - Log entries
    * @returns {string | Buffer} Formatted body
    * @private
@@ -594,7 +604,7 @@ export class HTTPTransport extends NetworkTransport {
 
   /**
    * Ensure the transformed body is of the correct type.
-   * 
+   *
    * @param {unknown} body - Body from transform function
    * @returns {string | Buffer} Properly typed body
    * @private
@@ -612,7 +622,7 @@ export class HTTPTransport extends NetworkTransport {
 
   /**
    * Compress body data.
-   * 
+   *
    * @param {string | Buffer} body - Body to compress
    * @returns {Promise<Buffer>} Compressed body
    * @private
@@ -620,7 +630,7 @@ export class HTTPTransport extends NetworkTransport {
   private async compressBody(body: string | Buffer): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       const input = typeof body === 'string' ? Buffer.from(body) : body;
-      
+
       zlib.gzip(input, (error, compressed) => {
         if (error) reject(error);
         else resolve(compressed);
@@ -630,7 +640,7 @@ export class HTTPTransport extends NetworkTransport {
 
   /**
    * Build request headers.
-   * 
+   *
    * @param {string | Buffer} body - Request body
    * @returns {Promise<Record<string, string>>} Headers
    * @private
@@ -640,8 +650,8 @@ export class HTTPTransport extends NetworkTransport {
       ...this.getDefaultHeaders(),
       'Content-Length': String(Buffer.byteLength(body)),
       'Content-Type': this.getContentType(),
-      'Accept': 'application/json',
-      'Connection': 'keep-alive',
+      Accept: 'application/json',
+      Connection: 'keep-alive',
       'User-Agent': 'MagicLogger-HTTP/1.0',
     };
 
@@ -667,7 +677,7 @@ export class HTTPTransport extends NetworkTransport {
 
   /**
    * Get default headers.
-   * 
+   *
    * @returns {Record<string, string>} Default headers
    * @private
    */
@@ -677,7 +687,7 @@ export class HTTPTransport extends NetworkTransport {
 
   /**
    * Get custom headers from options.
-   * 
+   *
    * @returns {Record<string, string> | undefined} Custom headers
    * @private
    */
@@ -687,7 +697,7 @@ export class HTTPTransport extends NetworkTransport {
 
   /**
    * Get content type for request.
-   * 
+   *
    * @returns {string} Content type
    * @private
    */
@@ -706,7 +716,7 @@ export class HTTPTransport extends NetworkTransport {
 
   /**
    * Make HTTP/HTTPS request with redirect handling.
-   * 
+   *
    * @param {string} method - HTTP method
    * @param {URL} url - Request URL
    * @param {Record<string, string>} headers - Request headers
@@ -749,14 +759,15 @@ export class HTTPTransport extends NetworkTransport {
         this.configureProxy(options, url);
       }
 
-      const req = lib.request(options, (res) => {
+      const req = lib.request(options, res => {
         // Handle redirects
-        if (this.followRedirects && 
-            res.statusCode && 
-            res.statusCode >= 300 && 
-            res.statusCode < 400 &&
-            res.headers.location) {
-          
+        if (
+          this.followRedirects &&
+          res.statusCode &&
+          res.statusCode >= 300 &&
+          res.statusCode < 400 &&
+          res.headers.location
+        ) {
           if (redirectCount >= this.maxRedirects) {
             reject(new Error(`Too many redirects (${redirectCount})`));
             return;
@@ -764,7 +775,14 @@ export class HTTPTransport extends NetworkTransport {
 
           try {
             const redirectUrl = new URL(res.headers.location, url);
-            this.makeHttpRequest(method, redirectUrl, headers, body, redirectCount + 1, isHealthCheck)
+            this.makeHttpRequest(
+              method,
+              redirectUrl,
+              headers,
+              body,
+              redirectCount + 1,
+              isHealthCheck
+            )
               .then(resolve)
               .catch(reject);
             return;
@@ -775,18 +793,18 @@ export class HTTPTransport extends NetworkTransport {
         }
 
         let data = '';
-        
+
         // Handle compression
         let stream: NodeJS.ReadableStream = res;
         const encoding = res.headers['content-encoding'];
-        
+
         if (encoding === 'gzip') {
           stream = res.pipe(zlib.createGunzip());
         } else if (encoding === 'deflate') {
           stream = res.pipe(zlib.createInflate());
         }
 
-        stream.on('data', (chunk) => {
+        stream.on('data', chunk => {
           data += chunk.toString();
         });
 
@@ -801,8 +819,8 @@ export class HTTPTransport extends NetworkTransport {
           if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
             resolve(response);
           } else {
-            const error = new Error(`HTTP ${res.statusCode}: ${res.statusMessage}`) as Error & { 
-              statusCode?: number; 
+            const error = new Error(`HTTP ${res.statusCode}: ${res.statusMessage}`) as Error & {
+              statusCode?: number;
               response?: typeof response;
             };
             error.statusCode = res.statusCode;
@@ -811,12 +829,12 @@ export class HTTPTransport extends NetworkTransport {
           }
         });
 
-        stream.on('error', (error) => {
+        stream.on('error', error => {
           reject(new Error(`Response stream error: ${error.message}`));
         });
       });
 
-      req.on('error', (error) => {
+      req.on('error', error => {
         reject(new Error(`Request error: ${error.message}`));
       });
 
@@ -835,7 +853,7 @@ export class HTTPTransport extends NetworkTransport {
 
   /**
    * Configure proxy settings for request.
-   * 
+   *
    * @param {http.RequestOptions | https.RequestOptions} options - Request options
    * @param {URL} targetUrl - Target URL
    * @private
@@ -858,7 +876,7 @@ export class HTTPTransport extends NetworkTransport {
       options.port = this.proxy.port;
       options.path = targetUrl.toString();
     }
-    
+
     if (this.proxy.auth) {
       const proxyAuth = Buffer.from(
         `${this.proxy.auth.username}:${this.proxy.auth.password}`
@@ -872,7 +890,7 @@ export class HTTPTransport extends NetworkTransport {
 
   /**
    * Close the HTTP transport.
-   * 
+   *
    * @returns {Promise<void>} Resolves when closed
    * @protected
    */
@@ -882,7 +900,7 @@ export class HTTPTransport extends NetworkTransport {
 
   /**
    * Override retry condition for HTTP-specific errors.
-   * 
+   *
    * @param {Error} error - The error to check
    * @param {number} retryCount - Current retry count
    * @returns {boolean} Whether to retry
@@ -900,7 +918,7 @@ export class HTTPTransport extends NetworkTransport {
       'econnreset',
       'econnrefused',
       'enotfound',
-      'timeout'
+      'timeout',
     ];
     if (transientPatterns.some(p => message.includes(p))) {
       return true;
@@ -928,7 +946,7 @@ export class HTTPTransport extends NetworkTransport {
 
   /**
    * Get circuit breaker state.
-   * 
+   *
    * @returns {string} Circuit breaker state
    * @public
    */
@@ -938,7 +956,7 @@ export class HTTPTransport extends NetworkTransport {
 
   /**
    * Reset circuit breaker.
-   * 
+   *
    * @public
    */
   public resetCircuitBreaker(): void {
@@ -954,11 +972,11 @@ export class HTTPTransport extends NetworkTransport {
 
 /**
  * Factory function to create an HTTP transport instance.
- * 
+ *
  * @param {HTTPTransportOptions} options - Transport configuration options
  * @returns {HTTPTransport} New HTTP transport instance
  * @throws {Error} If required options are missing
- * 
+ *
  * @example
  * ```typescript
  * const transport = createHTTPTransport({

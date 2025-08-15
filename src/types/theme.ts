@@ -35,13 +35,13 @@ export type ThemeDefinition = Partial<Record<StylePreset | string, ColorName[]>>
  *
  * @example
  * {
- *   default: { 
- *     info: ['blue'], 
+ *   default: {
+ *     info: ['blue'],
  *     success: ['green', 'bold'],
  *     tags: { api: ['cyan'], error: ['red', 'bold'] }
  *   },
- *   dark: { 
- *     info: ['cyan'], 
+ *   dark: {
+ *     info: ['cyan'],
  *     error: ['brightRed'],
  *     tags: { warning: ['yellow'], debug: ['gray'] }
  *   }
@@ -69,17 +69,17 @@ export interface ThemeConfig {
    * Base theme to extend from.
    */
   base?: string | ThemeDefinition;
-  
+
   /**
    * Override specific styles.
    */
   overrides?: Partial<Record<StylePreset | string, ColorName[]>>;
-  
+
   /**
    * Tag-specific style overrides.
    */
   tagOverrides?: Record<string, ColorName[]>;
-  
+
   /**
    * Whether to merge with base theme or replace.
    * @default true

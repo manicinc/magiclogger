@@ -891,12 +891,12 @@ export class Logger {
     progress: number,
     length = 20,
     completeChar = '█',
-  incompleteChar = '░',
-  clear = false
+    incompleteChar = '░',
+    clear = false
   ): void {
     // Always use console for visual elements
-  // clear flag preserves default behavior when omitted (false)
-  this.loggerInstance.progressBar(progress, length, completeChar, incompleteChar, clear);
+    // clear flag preserves default behavior when omitted (false)
+    this.loggerInstance.progressBar(progress, length, completeChar, incompleteChar, clear);
   }
 
   /**

@@ -1,13 +1,17 @@
 // File: src/theme/ThemeManager.ts
 
 import type { ThemeDefinition, ColorName } from '../types';
-import { getTheme as getThemeFromFile, listThemes as listThemesFromFile, loadThemes } from './index';
+import {
+  getTheme as getThemeFromFile,
+  listThemes as listThemesFromFile,
+  loadThemes,
+} from './index';
 import { COLORS } from '../constants';
 
 /**
  * Default theme definition.
  * This is used as a fallback if theme loading fails.
- * 
+ *
  * @const DEFAULT_THEME
  */
 export const DEFAULT_THEME: ThemeDefinition = {
@@ -17,7 +21,7 @@ export const DEFAULT_THEME: ThemeDefinition = {
   warning: ['yellow'],
   error: ['red', 'bold'],
   debug: ['gray'],
-  
+
   // UI elements
   header: ['brightWhite', 'bold'],
   footer: ['gray'],
@@ -41,13 +45,13 @@ const CSS_STYLE_MAP: Record<string, string> = {
   white: 'color: white',
   gray: 'color: gray',
   grey: 'color: gray',
-  
+
   // Text styles
   bold: 'font-weight: bold',
   dim: 'opacity: 0.7',
   italic: 'font-style: italic',
   underline: 'text-decoration: underline',
-  
+
   // Note: Background and bright variants are intentionally not mapped here
   // to ensure tests that expect unmapped styles collapse correctly.
 };
@@ -164,7 +168,8 @@ export class ThemeManager {
     // Fallback to default theme if not found
     const hasDefault = !!(this.availableThemes && this.availableThemes.default);
     if (!styles && hasDefault && this.availableThemes.default) {
-      const defCandidate = this.availableThemes.default[level as keyof typeof this.availableThemes.default];
+      const defCandidate =
+        this.availableThemes.default[level as keyof typeof this.availableThemes.default];
       if (Array.isArray(defCandidate)) styles = defCandidate as unknown as ColorName[];
     }
 
@@ -184,10 +189,12 @@ export class ThemeManager {
     if (!Array.isArray(styles)) return '';
 
     // Map style names to CSS tokens; ignore undefined safely
-  // Map style names to CSS tokens. Intentionally DO NOT filter out empty strings:
-  // tests expect placeholder separators like '; ; ' when styles lack CSS mappings.
-  const mapped = styles.map(s => (CSS_STYLE_MAP as Record<string,string | undefined>)[s as string] || '');
-  return mapped.join('; ');
+    // Map style names to CSS tokens. Intentionally DO NOT filter out empty strings:
+    // tests expect placeholder separators like '; ; ' when styles lack CSS mappings.
+    const mapped = styles.map(
+      s => (CSS_STYLE_MAP as Record<string, string | undefined>)[s as string] || ''
+    );
+    return mapped.join('; ');
   }
 
   /**

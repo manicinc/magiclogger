@@ -334,12 +334,12 @@ export class WinstonCompatibleLogger extends BaseCompatibleLogger {
   public isLevelEnabled(level: string): boolean {
     const currentLevelValue = this.levels[this.level] ?? Infinity;
     const targetLevelValue = this.levels[level];
-    
+
     // Return false for unknown levels
     if (targetLevelValue === undefined) {
       return false;
     }
-    
+
     return targetLevelValue <= currentLevelValue;
   }
 
@@ -370,7 +370,12 @@ export class WinstonCompatibleLogger extends BaseCompatibleLogger {
     // Special handling for verbose level - check verboseEnabled flag
     if (level === 'verbose' && !this.verboseEnabled && !this.isLevelEnabled(level)) {
       return;
-    } else if (level !== 'verbose' && level !== 'silly' && this.levels[level] !== undefined && !this.isLevelEnabled(level)) {
+    } else if (
+      level !== 'verbose' &&
+      level !== 'silly' &&
+      this.levels[level] !== undefined &&
+      !this.isLevelEnabled(level)
+    ) {
       // Only filter out known levels that are disabled (except verbose and silly which have special handling)
       return;
     }

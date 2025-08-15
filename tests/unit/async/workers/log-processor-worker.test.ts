@@ -23,9 +23,11 @@ class MockWorker {
     // Simulate worker initialization
     setTimeout(() => {
       if (!this.closed) {
-        this.dispatchEvent(new MessageEvent('message', {
-          data: { type: 'ready' }
-        }));
+        this.dispatchEvent(
+          new MessageEvent('message', {
+            data: { type: 'ready' },
+          })
+        );
       }
     }, 0);
   }
@@ -131,42 +133,48 @@ class MockWorker {
       const destination = this.currentConfig.destination as string | undefined;
       if (destination === 'file') {
         // Simulate preparing file destination
-        this.dispatchEvent(new MessageEvent('message', {
-          data: {
-            type: 'file-ready',
+        this.dispatchEvent(
+          new MessageEvent('message', {
             data: {
-              prepared: true,
-              // include a mock file reference or metadata
-              file: 'mock-log-file.log'
-            }
-          }
-        }));
+              type: 'file-ready',
+              data: {
+                prepared: true,
+                // include a mock file reference or metadata
+                file: 'mock-log-file.log',
+              },
+            },
+          })
+        );
       } else if (destination === 'network') {
         // Simulate network batch being ready
-        this.dispatchEvent(new MessageEvent('message', {
-          data: {
-            type: 'network-ready',
-            batch: {
-              endpoint: this.currentConfig.endpoint,
-              count: entries.length,
-            }
-          }
-        }));
+        this.dispatchEvent(
+          new MessageEvent('message', {
+            data: {
+              type: 'network-ready',
+              batch: {
+                endpoint: this.currentConfig.endpoint,
+                count: entries.length,
+              },
+            },
+          })
+        );
       }
 
       // Finally, emit processed message
-      this.dispatchEvent(new MessageEvent('message', {
-        data: {
-          type: 'processed',
-          count: entries.length,
-          metrics: {
-            processed: entries.length,
-            errors: 0,
-            avgProcessingTime: processingTime,
-            lastBatchSize: entries.length,
-          }
-        }
-      }));
+      this.dispatchEvent(
+        new MessageEvent('message', {
+          data: {
+            type: 'processed',
+            count: entries.length,
+            metrics: {
+              processed: entries.length,
+              errors: 0,
+              avgProcessingTime: processingTime,
+              lastBatchSize: entries.length,
+            },
+          },
+        })
+      );
     }, processingTime);
   }
 
@@ -176,24 +184,28 @@ class MockWorker {
   private updateConfig(config: Record<string, unknown>): void {
     // Merge with existing config and notify
     this.currentConfig = { ...this.currentConfig, ...config };
-    this.dispatchEvent(new MessageEvent('message', {
-      data: {
-        type: 'config-updated',
-        config: { ...this.currentConfig }
-      }
-    }));
+    this.dispatchEvent(
+      new MessageEvent('message', {
+        data: {
+          type: 'config-updated',
+          config: { ...this.currentConfig },
+        },
+      })
+    );
   }
 
   /**
    * Send error message.
    */
   private sendError(message: string): void {
-    this.dispatchEvent(new MessageEvent('message', {
-      data: {
-        type: 'error',
-        error: message
-      }
-    }));
+    this.dispatchEvent(
+      new MessageEvent('message', {
+        data: {
+          type: 'error',
+          error: message,
+        },
+      })
+    );
   }
 }
 
@@ -220,7 +232,7 @@ describe('LogProcessorWorker', () => {
 
   describe('Worker Initialization', () => {
     it('should send ready message on initialization', async () => {
-      await new Promise<void>((resolve) => {
+      await new Promise<void>(resolve => {
         const handleMessage = (event: MessageEvent) => {
           expect(event.data).toEqual({ type: 'ready' });
           resolve();
@@ -249,7 +261,7 @@ describe('LogProcessorWorker', () => {
           plainMessage: 'Test message 1',
           tags: ['test'],
           context: { type: 'test-context' },
-          metadata: { test: true }
+          metadata: { test: true },
         },
         {
           id: 'log-2',
@@ -260,11 +272,11 @@ describe('LogProcessorWorker', () => {
           plainMessage: 'Test message 2',
           tags: ['error'],
           context: { type: 'test-context' },
-          metadata: { error: true }
-        }
+          metadata: { error: true },
+        },
       ];
 
-      const processedPromise = new Promise<void>((resolve) => {
+      const processedPromise = new Promise<void>(resolve => {
         const handler = (event: MessageEvent) => {
           if (event.data.type === 'processed') {
             worker.removeEventListener('message', handler);
@@ -276,27 +288,25 @@ describe('LogProcessorWorker', () => {
 
       worker.postMessage({
         type: 'logs',
-        entries
+        entries,
       });
 
       await processedPromise;
 
       // Verify the result by checking the mock calls
-      const lastMessage = onMessage.mock.calls.find(
-        call => call[0].data.type === 'processed'
-      );
+      const lastMessage = onMessage.mock.calls.find(call => call[0].data.type === 'processed');
       expect(lastMessage).toBeDefined();
       expect(lastMessage[0].data.count).toBe(2);
       expect(lastMessage[0].data.metrics).toEqual({
         processed: 2,
         errors: 0,
         avgProcessingTime: expect.any(Number),
-        lastBatchSize: 2
+        lastBatchSize: 2,
       });
     });
 
     it('should handle empty entries array', async () => {
-      const processedPromise = new Promise<void>((resolve) => {
+      const processedPromise = new Promise<void>(resolve => {
         const handler = (event: MessageEvent) => {
           if (event.data.type === 'processed') {
             worker.removeEventListener('message', handler);
@@ -308,14 +318,12 @@ describe('LogProcessorWorker', () => {
 
       worker.postMessage({
         type: 'logs',
-        entries: []
+        entries: [],
       });
 
       await processedPromise;
 
-      const lastMessage = onMessage.mock.calls.find(
-        call => call[0].data.type === 'processed'
-      );
+      const lastMessage = onMessage.mock.calls.find(call => call[0].data.type === 'processed');
       expect(lastMessage).toBeDefined();
       expect(lastMessage[0].data.count).toBe(0);
       expect(lastMessage[0].data.metrics.processed).toBe(0);
@@ -331,10 +339,10 @@ describe('LogProcessorWorker', () => {
         plainMessage: `Message ${i}`,
         tags: ['bulk'],
         context: { type: 'bulk-test' },
-        metadata: { index: i }
+        metadata: { index: i },
       }));
 
-      const processedPromise = new Promise<void>((resolve) => {
+      const processedPromise = new Promise<void>(resolve => {
         const handler = (event: MessageEvent) => {
           if (event.data.type === 'processed') {
             worker.removeEventListener('message', handler);
@@ -346,14 +354,12 @@ describe('LogProcessorWorker', () => {
 
       worker.postMessage({
         type: 'logs',
-        entries: largeEntries
+        entries: largeEntries,
       });
 
       await processedPromise;
 
-      const lastMessage = onMessage.mock.calls.find(
-        call => call[0].data.type === 'processed'
-      );
+      const lastMessage = onMessage.mock.calls.find(call => call[0].data.type === 'processed');
       expect(lastMessage).toBeDefined();
       expect(lastMessage[0].data.count).toBe(1000);
       expect(lastMessage[0].data.metrics.lastBatchSize).toBe(1000);
@@ -366,10 +372,10 @@ describe('LogProcessorWorker', () => {
         formatType: 'json' as const,
         batchSize: 200,
         destination: 'network' as const,
-        endpoint: 'https://logs.example.com'
+        endpoint: 'https://logs.example.com',
       };
 
-      const configPromise = new Promise<void>((resolve) => {
+      const configPromise = new Promise<void>(resolve => {
         const handler = (event: MessageEvent) => {
           if (event.data.type === 'config-updated') {
             worker.removeEventListener('message', handler);
@@ -381,24 +387,22 @@ describe('LogProcessorWorker', () => {
 
       worker.postMessage({
         type: 'config',
-        config
+        config,
       });
 
       await configPromise;
 
-      const lastMessage = onMessage.mock.calls.find(
-        call => call[0].data.type === 'config-updated'
-      );
+      const lastMessage = onMessage.mock.calls.find(call => call[0].data.type === 'config-updated');
       expect(lastMessage).toBeDefined();
       expect(lastMessage[0].data.config).toEqual(config);
     });
 
     it('should handle partial config updates', async () => {
       const partialConfig = {
-        batchSize: 500
+        batchSize: 500,
       };
 
-      const configPromise = new Promise<void>((resolve) => {
+      const configPromise = new Promise<void>(resolve => {
         const handler = (event: MessageEvent) => {
           if (event.data.type === 'config-updated') {
             worker.removeEventListener('message', handler);
@@ -410,14 +414,12 @@ describe('LogProcessorWorker', () => {
 
       worker.postMessage({
         type: 'config',
-        config: partialConfig
+        config: partialConfig,
       });
 
       await configPromise;
 
-      const lastMessage = onMessage.mock.calls.find(
-        call => call[0].data.type === 'config-updated'
-      );
+      const lastMessage = onMessage.mock.calls.find(call => call[0].data.type === 'config-updated');
       expect(lastMessage).toBeDefined();
       expect(lastMessage[0].data.config.batchSize).toBe(500);
     });
@@ -425,7 +427,7 @@ describe('LogProcessorWorker', () => {
 
   describe('Error Handling', () => {
     it('should handle unknown message types', async () => {
-      const errorPromise = new Promise<void>((resolve) => {
+      const errorPromise = new Promise<void>(resolve => {
         const handler = (event: MessageEvent) => {
           if (event.data.type === 'error') {
             worker.removeEventListener('message', handler);
@@ -437,20 +439,18 @@ describe('LogProcessorWorker', () => {
 
       worker.postMessage({
         type: 'invalid',
-        data: 'test'
+        data: 'test',
       });
 
       await errorPromise;
 
-      const lastMessage = onMessage.mock.calls.find(
-        call => call[0].data.type === 'error'
-      );
+      const lastMessage = onMessage.mock.calls.find(call => call[0].data.type === 'error');
       expect(lastMessage).toBeDefined();
       expect(lastMessage[0].data.error).toBe('Unknown message type: invalid');
     });
 
     it('should handle malformed messages gracefully', async () => {
-      const errorPromise = new Promise<void>((resolve) => {
+      const errorPromise = new Promise<void>(resolve => {
         const handler = (event: MessageEvent) => {
           if (event.data.type === 'error') {
             worker.removeEventListener('message', handler);
@@ -461,14 +461,12 @@ describe('LogProcessorWorker', () => {
       });
 
       worker.postMessage({
-        type: null
+        type: null,
       });
 
       await errorPromise;
 
-      const lastMessage = onMessage.mock.calls.find(
-        call => call[0].data.type === 'error'
-      );
+      const lastMessage = onMessage.mock.calls.find(call => call[0].data.type === 'error');
       expect(lastMessage).toBeDefined();
       expect(lastMessage[0].data.error).toContain('Unknown message type');
     });
@@ -477,14 +475,14 @@ describe('LogProcessorWorker', () => {
   describe('Worker Lifecycle', () => {
     it('should handle shutdown message', async () => {
       const terminateSpy = jest.spyOn(worker, 'terminate');
-      
+
       worker.postMessage({
-        type: 'shutdown'
+        type: 'shutdown',
       });
 
       // Give time for async processing
       await new Promise(resolve => setTimeout(resolve, 20));
-      
+
       expect(terminateSpy).toHaveBeenCalled();
     });
 
@@ -494,7 +492,7 @@ describe('LogProcessorWorker', () => {
       expect(() => {
         worker.postMessage({
           type: 'logs',
-          entries: []
+          entries: [],
         });
       }).toThrow('Worker has been closed');
     });
@@ -502,9 +500,9 @@ describe('LogProcessorWorker', () => {
     it('should clean up event listeners on termination', () => {
       const listener = jest.fn();
       worker.addEventListener('message', listener);
-      
+
       worker.terminate();
-      
+
       // Attempt to trigger event after termination
       expect(() => {
         worker.postMessage({ type: 'test' });
@@ -523,10 +521,10 @@ describe('LogProcessorWorker', () => {
         plainMessage: `Message ${i}`,
         tags: ['perf-test'],
         context: { type: 'performance' },
-        metadata: { index: i }
+        metadata: { index: i },
       }));
 
-      const metricsPromise = new Promise<void>((resolve) => {
+      const metricsPromise = new Promise<void>(resolve => {
         const handler = (event: MessageEvent) => {
           if (event.data.type === 'processed') {
             worker.removeEventListener('message', handler);
@@ -538,14 +536,12 @@ describe('LogProcessorWorker', () => {
 
       worker.postMessage({
         type: 'logs',
-        entries
+        entries,
       });
 
       await metricsPromise;
 
-      const lastMessage = onMessage.mock.calls.find(
-        call => call[0].data.type === 'processed'
-      );
+      const lastMessage = onMessage.mock.calls.find(call => call[0].data.type === 'processed');
       expect(lastMessage).toBeDefined();
       const { metrics } = lastMessage[0].data;
       expect(metrics.avgProcessingTime).toBeGreaterThan(0);
@@ -556,7 +552,7 @@ describe('LogProcessorWorker', () => {
   describe('Format Processing', () => {
     beforeEach(async () => {
       // Configure worker for different format types
-      await new Promise<void>((resolve) => {
+      await new Promise<void>(resolve => {
         const handler = (event: MessageEvent) => {
           if (event.data.type === 'config-updated') {
             worker.removeEventListener('message', handler);
@@ -569,24 +565,26 @@ describe('LogProcessorWorker', () => {
           type: 'config',
           config: {
             formatType: 'json',
-            destination: 'console'
-          }
+            destination: 'console',
+          },
         });
       });
     });
 
     it('should process logs with JSON format', async () => {
-      const entries: LogEntry[] = [{
-        id: 'test-1',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
-        level: 'info',
-        message: 'JSON format test',
-        plainMessage: 'JSON format test',
-        metadata: { format: 'json' }
-      }];
+      const entries: LogEntry[] = [
+        {
+          id: 'test-1',
+          timestamp: new Date().toISOString(),
+          timestampMs: Date.now(),
+          level: 'info',
+          message: 'JSON format test',
+          plainMessage: 'JSON format test',
+          metadata: { format: 'json' },
+        },
+      ];
 
-      const processedPromise = new Promise<void>((resolve) => {
+      const processedPromise = new Promise<void>(resolve => {
         const handler = (event: MessageEvent) => {
           if (event.data.type === 'processed') {
             worker.removeEventListener('message', handler);
@@ -598,21 +596,19 @@ describe('LogProcessorWorker', () => {
 
       worker.postMessage({
         type: 'logs',
-        entries
+        entries,
       });
 
       await processedPromise;
 
-      const lastMessage = onMessage.mock.calls.find(
-        call => call[0].data.type === 'processed'
-      );
+      const lastMessage = onMessage.mock.calls.find(call => call[0].data.type === 'processed');
       expect(lastMessage).toBeDefined();
       expect(lastMessage[0].data.count).toBe(1);
     });
 
     it('should handle file destination preparation', async () => {
       // First update config for file destination
-      await new Promise<void>((resolve) => {
+      await new Promise<void>(resolve => {
         const handler = (event: MessageEvent) => {
           if (event.data.type === 'config-updated') {
             worker.removeEventListener('message', handler);
@@ -625,22 +621,24 @@ describe('LogProcessorWorker', () => {
           type: 'config',
           config: {
             formatType: 'text',
-            destination: 'file'
-          }
+            destination: 'file',
+          },
         });
       });
 
       // Then send logs
-      const entries: LogEntry[] = [{
-        id: 'file-1',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
-        level: 'info',
-        message: 'File destination test',
-        plainMessage: 'File destination test'
-      }];
+      const entries: LogEntry[] = [
+        {
+          id: 'file-1',
+          timestamp: new Date().toISOString(),
+          timestampMs: Date.now(),
+          level: 'info',
+          message: 'File destination test',
+          plainMessage: 'File destination test',
+        },
+      ];
 
-      const fileReadyPromise = new Promise<void>((resolve) => {
+      const fileReadyPromise = new Promise<void>(resolve => {
         const handler = (event: MessageEvent) => {
           if (event.data.type === 'file-ready') {
             worker.removeEventListener('message', handler);
@@ -652,21 +650,19 @@ describe('LogProcessorWorker', () => {
 
       worker.postMessage({
         type: 'logs',
-        entries
+        entries,
       });
 
       await fileReadyPromise;
 
-      const lastMessage = onMessage.mock.calls.find(
-        call => call[0].data.type === 'file-ready'
-      );
+      const lastMessage = onMessage.mock.calls.find(call => call[0].data.type === 'file-ready');
       expect(lastMessage).toBeDefined();
       expect(lastMessage[0].data.data).toBeTruthy();
     });
 
     it('should handle network destination batching', async () => {
       // Configure for network destination
-      await new Promise<void>((resolve) => {
+      await new Promise<void>(resolve => {
         const handler = (event: MessageEvent) => {
           if (event.data.type === 'config-updated') {
             worker.removeEventListener('message', handler);
@@ -681,8 +677,8 @@ describe('LogProcessorWorker', () => {
             formatType: 'json',
             destination: 'network',
             endpoint: 'https://logs.example.com',
-            batchSize: 10
-          }
+            batchSize: 10,
+          },
         });
       });
 
@@ -692,10 +688,10 @@ describe('LogProcessorWorker', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: `Network message ${i}`,
-        plainMessage: `Network message ${i}`
+        plainMessage: `Network message ${i}`,
       }));
 
-      const networkReadyPromise = new Promise<void>((resolve) => {
+      const networkReadyPromise = new Promise<void>(resolve => {
         const handler = (event: MessageEvent) => {
           if (event.data.type === 'network-ready') {
             worker.removeEventListener('message', handler);
@@ -707,14 +703,12 @@ describe('LogProcessorWorker', () => {
 
       worker.postMessage({
         type: 'logs',
-        entries
+        entries,
       });
 
       await networkReadyPromise;
 
-      const lastMessage = onMessage.mock.calls.find(
-        call => call[0].data.type === 'network-ready'
-      );
+      const lastMessage = onMessage.mock.calls.find(call => call[0].data.type === 'network-ready');
       expect(lastMessage).toBeDefined();
       expect(lastMessage[0].data.batch).toBeTruthy();
       expect(lastMessage[0].data.batch.endpoint).toBe('https://logs.example.com');
@@ -741,7 +735,7 @@ describe('LogProcessorWorker Integration', () => {
     let processedCount = 0;
     const expectedBatches = 10;
 
-    await new Promise<void>((resolve) => {
+    await new Promise<void>(resolve => {
       worker.addEventListener('message', (event: MessageEvent) => {
         if (event.data.type === 'processed') {
           processedCount++;
@@ -755,14 +749,16 @@ describe('LogProcessorWorker Integration', () => {
       for (let i = 0; i < expectedBatches; i++) {
         worker.postMessage({
           type: 'logs',
-          entries: [{
-            id: `rapid-${i}`,
-            timestamp: new Date().toISOString(),
-            timestampMs: Date.now(),
-            level: 'info',
-            message: `Rapid message ${i}`,
-            plainMessage: `Rapid message ${i}`
-          }]
+          entries: [
+            {
+              id: `rapid-${i}`,
+              timestamp: new Date().toISOString(),
+              timestampMs: Date.now(),
+              level: 'info',
+              message: `Rapid message ${i}`,
+              plainMessage: `Rapid message ${i}`,
+            },
+          ],
         });
       }
     });
@@ -774,14 +770,14 @@ describe('LogProcessorWorker Integration', () => {
     let configUpdates = 0;
     let logsProcessed = 0;
 
-    await new Promise<void>((resolve) => {
+    await new Promise<void>(resolve => {
       worker.addEventListener('message', (event: MessageEvent) => {
         if (event.data.type === 'config-updated') {
           configUpdates++;
         } else if (event.data.type === 'processed') {
           logsProcessed++;
         }
-        
+
         if (configUpdates >= 2 && logsProcessed >= 2) {
           resolve();
         }
@@ -790,36 +786,40 @@ describe('LogProcessorWorker Integration', () => {
       // Interleave config updates and log processing
       worker.postMessage({
         type: 'config',
-        config: { batchSize: 50 }
+        config: { batchSize: 50 },
       });
 
       worker.postMessage({
         type: 'logs',
-        entries: [{ 
-          id: 'log-1',
-          timestamp: new Date().toISOString(),
-          timestampMs: Date.now(),
-          level: 'info',
-          message: 'First log',
-          plainMessage: 'First log'
-        }]
+        entries: [
+          {
+            id: 'log-1',
+            timestamp: new Date().toISOString(),
+            timestampMs: Date.now(),
+            level: 'info',
+            message: 'First log',
+            plainMessage: 'First log',
+          },
+        ],
       });
 
       worker.postMessage({
         type: 'config',
-        config: { batchSize: 100 }
+        config: { batchSize: 100 },
       });
 
       worker.postMessage({
         type: 'logs',
-        entries: [{
-          id: 'log-2',
-          timestamp: new Date().toISOString(),
-          timestampMs: Date.now(),
-          level: 'info',
-          message: 'Second log',
-          plainMessage: 'Second log'
-        }]
+        entries: [
+          {
+            id: 'log-2',
+            timestamp: new Date().toISOString(),
+            timestampMs: Date.now(),
+            level: 'info',
+            message: 'Second log',
+            plainMessage: 'Second log',
+          },
+        ],
       });
     });
 

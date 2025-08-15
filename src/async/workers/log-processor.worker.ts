@@ -1,6 +1,11 @@
 // Wrapper worker: delegates heavy logic to logProcessorCore so core can be unit tested directly.
 import type { LogEntry } from '../../types/transport';
-import { createInitialState, processLogs as coreProcessLogs, updateConfig as coreUpdateConfig, type WorkerConfig } from './log-processor-core';
+import {
+  createInitialState,
+  processLogs as coreProcessLogs,
+  updateConfig as coreUpdateConfig,
+  type WorkerConfig,
+} from './log-processor-core';
 
 interface SelfLike {
   postMessage?: (data: unknown) => void;
@@ -9,7 +14,7 @@ interface SelfLike {
 }
 
 // Narrowed accessor so we cast once here only
-const safeSelf: SelfLike = (typeof self !== 'undefined' ? (self as unknown as SelfLike) : {});
+const safeSelf: SelfLike = typeof self !== 'undefined' ? (self as unknown as SelfLike) : {};
 
 /**
  * Web Worker for processing log entries in the background.
@@ -33,7 +38,14 @@ interface WorkerMessage {
 // WorkerConfig imported from core
 
 interface WorkerResponse {
-  type: 'processed' | 'error' | 'metrics' | 'ready' | 'file-ready' | 'network-ready' | 'config-updated';
+  type:
+    | 'processed'
+    | 'error'
+    | 'metrics'
+    | 'ready'
+    | 'file-ready'
+    | 'network-ready'
+    | 'config-updated';
   count?: number;
   error?: string;
   metrics?: WorkerMetrics;
@@ -42,9 +54,19 @@ interface WorkerResponse {
   config?: WorkerConfig;
 }
 
-interface NetworkBatch { endpoint: string; data: string | object[]; timestamp: string; count: number }
+interface NetworkBatch {
+  endpoint: string;
+  data: string | object[];
+  timestamp: string;
+  count: number;
+}
 
-interface WorkerMetrics { processed: number; errors: number; avgProcessingTime: number; lastBatchSize: number }
+interface WorkerMetrics {
+  processed: number;
+  errors: number;
+  avgProcessingTime: number;
+  lastBatchSize: number;
+}
 
 // Core state encapsulated in core module
 const state = createInitialState();
@@ -140,7 +162,11 @@ safeSelf.addEventListener?.('unhandledrejection', (event: PromiseRejectionEvent)
   sendError(`Unhandled rejection: ${event.reason}`);
 });
 
-export function handleWorkerMessage(msg: { type: string; entries?: LogEntry[]; config?: WorkerConfig }) {
+export function handleWorkerMessage(msg: {
+  type: string;
+  entries?: LogEntry[];
+  config?: WorkerConfig;
+}) {
   const { type, entries, config } = msg;
   switch (type) {
     case 'logs':

@@ -45,8 +45,8 @@ describe('TemplateParser', () => {
     it('should parse multiple styles with dots', () => {
       const result = parser.parseString('@red.bold.underline{Error}');
       expect(result).toContain('\x1b[31m'); // red
-      expect(result).toContain('\x1b[1m');  // bold
-      expect(result).toContain('\x1b[4m');  // underline
+      expect(result).toContain('\x1b[1m'); // bold
+      expect(result).toContain('\x1b[4m'); // underline
       expect(result).toContain('Error');
     });
 
@@ -93,7 +93,9 @@ describe('TemplateParser', () => {
     });
 
     it('should parse multiple segments', () => {
-      const result = parser.parseAngleBrackets('<red>Error</> <yellow>Warning</> <green>Success</>');
+      const result = parser.parseAngleBrackets(
+        '<red>Error</> <yellow>Warning</> <green>Success</>'
+      );
       expect(result).toContain('Error');
       expect(result).toContain('Warning');
       expect(result).toContain('Success');
@@ -189,7 +191,9 @@ describe('TemplateParser', () => {
     });
 
     it('should handle complex mixed syntax', () => {
-      const result = parser.parseMixed('<green>Success</> @yellow.bold{Warning} <red.underline>Error</>');
+      const result = parser.parseMixed(
+        '<green>Success</> @yellow.bold{Warning} <red.underline>Error</>'
+      );
       expect(result).toContain('Success');
       expect(result).toContain('Warning');
       expect(result).toContain('Error');
@@ -214,9 +218,9 @@ describe('TemplateParser', () => {
     it('should clear cache', () => {
       const template = '@red{test}';
       parser.parseString(template);
-      
+
       TemplateParser.clearCache();
-      
+
       const parser2 = new TemplateParser();
       const result = parser2.parseString(template);
       expect(result).toContain('test');
@@ -232,7 +236,7 @@ describe('TemplateParser', () => {
     it('should handle mixed valid and invalid styles', () => {
       const result = parser.parseString('@red.invalidStyle.bold{text}');
       expect(result).toContain('\x1b[31m'); // red
-      expect(result).toContain('\x1b[1m');  // bold
+      expect(result).toContain('\x1b[1m'); // bold
       expect(result).toContain('text');
     });
 
@@ -299,7 +303,9 @@ describe('TemplateParser', () => {
       });
 
       it('should validate complex templates', () => {
-        const result = TemplateParser.validate('@red.bold{Error:} <yellow>Warning</> @green{Success}');
+        const result = TemplateParser.validate(
+          '@red.bold{Error:} <yellow>Warning</> @green{Success}'
+        );
         expect(result.valid).toBe(true);
         expect(result.errors).toHaveLength(0);
       });
@@ -307,11 +313,7 @@ describe('TemplateParser', () => {
 
     describe('convertSyntax', () => {
       it('should convert @ syntax to angle brackets', () => {
-        const result = TemplateParser.convertSyntax(
-          '@red{Error:} @yellow{Warning}',
-          'at',
-          'angle'
-        );
+        const result = TemplateParser.convertSyntax('@red{Error:} @yellow{Warning}', 'at', 'angle');
         expect(result).toBe('<red>Error:</> <yellow>Warning</>');
       });
 
@@ -325,11 +327,7 @@ describe('TemplateParser', () => {
       });
 
       it('should handle complex styles in conversion', () => {
-        const result = TemplateParser.convertSyntax(
-          '@red.bold.underline{Error}',
-          'at',
-          'angle'
-        );
+        const result = TemplateParser.convertSyntax('@red.bold.underline{Error}', 'at', 'angle');
         expect(result).toBe('<red.bold.underline>Error</>');
       });
 
@@ -417,30 +415,30 @@ describe('TemplateParser', () => {
   describe('Performance', () => {
     it('should handle rapid parsing efficiently', () => {
       const start = Date.now();
-      
+
       for (let i = 0; i < 1000; i++) {
         parser.parseString(`@red{test${i}}`);
       }
-      
+
       const duration = Date.now() - start;
       expect(duration).toBeLessThan(100);
     });
 
     it('should benefit from caching', () => {
       const template = '@red.bold.underline{Complex styled text}';
-      
+
       const start1 = Date.now();
       for (let i = 0; i < 100; i++) {
         parser.parseString(template);
       }
       const duration1 = Date.now() - start1;
-      
+
       const start2 = Date.now();
       for (let i = 0; i < 100; i++) {
         parser.parseString(template);
       }
       const duration2 = Date.now() - start2;
-      
+
       // Cached parsing should be faster or equal
       expect(duration2).toBeLessThanOrEqual(duration1 + 5);
     });
@@ -449,38 +447,74 @@ describe('TemplateParser', () => {
   describe('Integration with Colorizer', () => {
     it('should use Colorizer.applyColors internally', () => {
       const spy = jest.spyOn(Colorizer, 'applyColors');
-      
+
       parser.parseString('@red.bold{test}');
-      
+
       expect(spy).toHaveBeenCalledWith('test', ['red', 'bold'], true);
-      
+
       spy.mockRestore();
     });
 
     it('should pass useColors setting to Colorizer', () => {
       const spy = jest.spyOn(Colorizer, 'applyColors');
-      
+
       const noColorParser = new TemplateParser(false);
       noColorParser.parseAngleBrackets('<red>test</>');
-      
+
       // When colors are disabled, it shouldn't call Colorizer at all
       expect(spy).not.toHaveBeenCalled();
-      
+
       spy.mockRestore();
     });
   });
 
   describe('All Color Support', () => {
     const allColors = [
-      'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white', 'gray', 'grey',
-      'brightBlack', 'brightRed', 'brightGreen', 'brightYellow',
-      'brightBlue', 'brightMagenta', 'brightCyan', 'brightWhite',
-      'bgBlack', 'bgRed', 'bgGreen', 'bgYellow', 'bgBlue', 'bgMagenta', 'bgCyan', 'bgWhite',
-      'bgGray', 'bgGrey',
-      'bgBrightBlack', 'bgBrightRed', 'bgBrightGreen', 'bgBrightYellow',
-      'bgBrightBlue', 'bgBrightMagenta', 'bgBrightCyan', 'bgBrightWhite',
-      'bold', 'dim', 'italic', 'underline', 'blink',
-      'reverse', 'inverse', 'hidden', 'strikethrough'
+      'black',
+      'red',
+      'green',
+      'yellow',
+      'blue',
+      'magenta',
+      'cyan',
+      'white',
+      'gray',
+      'grey',
+      'brightBlack',
+      'brightRed',
+      'brightGreen',
+      'brightYellow',
+      'brightBlue',
+      'brightMagenta',
+      'brightCyan',
+      'brightWhite',
+      'bgBlack',
+      'bgRed',
+      'bgGreen',
+      'bgYellow',
+      'bgBlue',
+      'bgMagenta',
+      'bgCyan',
+      'bgWhite',
+      'bgGray',
+      'bgGrey',
+      'bgBrightBlack',
+      'bgBrightRed',
+      'bgBrightGreen',
+      'bgBrightYellow',
+      'bgBrightBlue',
+      'bgBrightMagenta',
+      'bgBrightCyan',
+      'bgBrightWhite',
+      'bold',
+      'dim',
+      'italic',
+      'underline',
+      'blink',
+      'reverse',
+      'inverse',
+      'hidden',
+      'strikethrough',
     ];
 
     it('should support all colors in @ syntax', () => {

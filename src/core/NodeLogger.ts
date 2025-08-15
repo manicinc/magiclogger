@@ -680,7 +680,7 @@ export class NodeLogger extends LoggerBase {
     // Tests expect no surrounding brackets in the raw output
     const bar = `${coloredComplete}${coloredIncomplete}`;
     const percentStr = `${percent.toFixed(1)}%`;
-  Printer.printProgress(bar, percentStr);
+    Printer.printProgress(bar, percentStr);
 
     // Some tests spy on console.log only
     try {
@@ -693,7 +693,9 @@ export class NodeLogger extends LoggerBase {
     if (percent >= 100) {
       // End progress according to clear flag (default false => finalize and keep on screen)
       try {
-        (Printer as unknown as { endProgress: (o?: { clear?: boolean }) => void }).endProgress?.({ clear });
+        (Printer as unknown as { endProgress: (o?: { clear?: boolean }) => void }).endProgress?.({
+          clear,
+        });
       } catch {
         /* ignore */
       }

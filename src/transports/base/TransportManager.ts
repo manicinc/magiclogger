@@ -643,7 +643,7 @@ export class TransportManager extends EventEmitter {
     // Add to aggregation buffer if enabled
     if (this.aggregationManager?.enabled) {
       this.aggregationManager.logBuffer.push(transformedEntry);
-      
+
       // Limit buffer size to prevent memory issues
       const maxBufferSize = 10000; // Configurable limit
       if (this.aggregationManager.logBuffer.length > maxBufferSize) {
@@ -704,7 +704,7 @@ export class TransportManager extends EventEmitter {
 
     // Process results
     const successfulTransports: string[] = [];
-    const failedTransports: Array<{ transport: string, error: Error }> = [];
+    const failedTransports: Array<{ transport: string; error: Error }> = [];
 
     results.forEach((result, index) => {
       const transport = availableTransports[index];
@@ -712,7 +712,7 @@ export class TransportManager extends EventEmitter {
         // Skip if transport is undefined (shouldn't happen but handle gracefully)
         return;
       }
-      
+
       if (result.status === 'fulfilled') {
         successfulTransports.push(transport.name);
       } else {
@@ -746,16 +746,22 @@ export class TransportManager extends EventEmitter {
    * @private
    */
   private async logToTransport(transport: Transport, entry: LogEntry): Promise<void> {
-    const startTime = isBrowserEnvironment() 
+    const startTime = isBrowserEnvironment()
       ? BigInt(Math.floor(performance.now() * 1000000))
-      : (typeof process !== 'undefined' && process.hrtime?.bigint) ? process.hrtime.bigint() : BigInt(Date.now() * 1000000);
+      : typeof process !== 'undefined' && process.hrtime?.bigint
+      ? process.hrtime.bigint()
+      : BigInt(Date.now() * 1000000);
     const perfData = this.performanceData.get(transport.name);
 
     let emittedError: Error | null = null;
     let emittedLogged = false;
 
-    const onError = (err: Error) => { emittedError = err; };
-    const onLogged = () => { emittedLogged = true; };
+    const onError = (err: Error) => {
+      emittedError = err;
+    };
+    const onLogged = () => {
+      emittedLogged = true;
+    };
 
     transport.once('error', onError);
     transport.once('logged', onLogged);
@@ -774,9 +780,11 @@ export class TransportManager extends EventEmitter {
       }
 
       if (perfData) {
-        const endTime = isBrowserEnvironment() 
+        const endTime = isBrowserEnvironment()
           ? BigInt(Math.floor(performance.now() * 1000000))
-          : (typeof process !== 'undefined' && process.hrtime?.bigint) ? process.hrtime.bigint() : BigInt(Date.now() * 1000000);
+          : typeof process !== 'undefined' && process.hrtime?.bigint
+          ? process.hrtime.bigint()
+          : BigInt(Date.now() * 1000000);
         const duration = Number(endTime - startTime) / 1000000;
         perfData.count++;
         perfData.totalTime += duration;
@@ -795,7 +803,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Apply timeout to a promise.
-   * 
+   *
    * @param {Promise<T>} promise - Promise to timeout
    * @param {number} ms - Timeout in milliseconds
    * @returns {Promise<T>} Promise with timeout
@@ -888,7 +896,11 @@ export class TransportManager extends EventEmitter {
       const error = args[0] as Error;
       const entry = args[1] as LogEntry | undefined;
       if (this.errorHandler) {
-        try { this.errorHandler(error, transport, entry); } catch (handlerError) { console.error('Error in error handler:', handlerError); }
+        try {
+          this.errorHandler(error, transport, entry);
+        } catch (handlerError) {
+          console.error('Error in error handler:', handlerError);
+        }
       }
       // Emit name, error, entry to match test expectations
       this.emit('transportError', transport.name, error, entry);
@@ -1197,7 +1209,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Generate a unique ID for tracking purposes.
-   * 
+   *
    * @returns {string} A unique identifier
    * @private
    */
@@ -1207,7 +1219,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Get the current aggregation buffer size (for testing).
-   * 
+   *
    * @returns {number} Buffer size
    */
   public getAggregationBufferSize(): number {
@@ -1288,7 +1300,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Handle errors from transports.
-   * 
+   *
    * @param {Error} error - The error that occurred
    * @param {Transport} [transport] - The transport that failed
    * @param {LogEntry} [entry] - The log entry being processed
@@ -1297,8 +1309,14 @@ export class TransportManager extends EventEmitter {
   private handleError(error: Error, transport?: Transport, entry?: LogEntry): void {
     // Emit name, error, entry for consistency
     this.emit('transportError', transport?.name || 'unknown', error, entry);
-    if (this.transports.size === 0 || (transport && this.transports.size === 1 && this.transports.has(transport.name))) {
-      console.error(`[TransportManager] ${transport?.name || 'Unknown'} transport error:`, error.message);
+    if (
+      this.transports.size === 0 ||
+      (transport && this.transports.size === 1 && this.transports.has(transport.name))
+    ) {
+      console.error(
+        `[TransportManager] ${transport?.name || 'Unknown'} transport error:`,
+        error.message
+      );
     }
   }
 }

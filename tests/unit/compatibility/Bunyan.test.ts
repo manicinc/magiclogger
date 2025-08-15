@@ -1,4 +1,7 @@
-import { createBunyanCompatible, BunyanCompatibleLogger } from '../../../src/compatibility/loggers/BunyanCompatibleLogger';
+import {
+  createBunyanCompatible,
+  BunyanCompatibleLogger,
+} from '../../../src/compatibility/loggers/BunyanCompatibleLogger';
 import { Logger } from '../../../src/Logger';
 
 describe('BunyanCompatibleLogger', () => {
@@ -12,7 +15,7 @@ describe('BunyanCompatibleLogger', () => {
     infoSpy = jest.spyOn(Logger.prototype, 'info').mockImplementation(() => undefined);
     errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
     warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
-    
+
     logger = createBunyanCompatible({ name: 'test-app' });
   });
 

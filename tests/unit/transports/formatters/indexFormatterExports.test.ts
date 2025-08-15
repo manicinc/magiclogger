@@ -16,7 +16,11 @@ const entry: LogEntry = {
   tags: ['a'],
 };
 
-class PassFormatter extends CustomFormatter { format(e: LogEntry): string { return e.message; } }
+class PassFormatter extends CustomFormatter {
+  format(e: LogEntry): string {
+    return e.message;
+  }
+}
 
 describe('formatters index exports', () => {
   it('XMLFormatter via index formats single and batch', () => {

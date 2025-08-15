@@ -2,11 +2,11 @@
 
 /**
  * Abstract base class for all MagicLogger transports.
- * 
+ *
  * This module provides the foundational functionality that all transports share,
  * including event emission, filtering logic, statistics tracking, error handling,
  * and lifecycle management.
- * 
+ *
  * @module transports/base
  */
 
@@ -22,33 +22,33 @@ import type {
 
 /**
  * Abstract base class for all MagicLogger transports.
- * 
+ *
  * This class provides the foundational functionality that all transports share:
  * - Event emission for lifecycle management
  * - Filtering logic based on levels, tags, and custom filters
  * - Statistics tracking for monitoring
  * - Error handling and silent mode support
  * - Lifecycle methods for initialization and cleanup
- * 
+ *
  * Concrete transport implementations should extend this class and implement
  * the abstract methods for their specific transport mechanism.
- * 
+ *
  * @abstract
  * @class Transport
  * @extends {EventEmitter}
  * @implements {ITransport}
- * 
+ *
  * @example
  * ```typescript
  * class ConsoleTransport extends Transport {
  *   protected async doInit(): Promise<void> {
  *     // Initialize console-specific resources
  *   }
- *   
+ *
  *   protected async doLog(entry: LogEntry): Promise<void> {
  *     console.log(this.formatEntry(entry));
  *   }
- *   
+ *
  *   protected async doClose(): Promise<void> {
  *     // Clean up console-specific resources
  *   }
@@ -156,13 +156,13 @@ export abstract class Transport extends EventEmitter implements ITransport {
 
   /**
    * Creates a new Transport instance.
-   * 
+   *
    * @param {TransportOptions} options - Configuration options for the transport
    * @throws {Error} If required options are missing or invalid
    */
   constructor(options: TransportOptions) {
     super();
-    
+
     // Validate required options
     if (!options.name) {
       throw new Error('Transport name is required');
@@ -176,8 +176,8 @@ export abstract class Transport extends EventEmitter implements ITransport {
     this.tags = options.tags;
     this.excludeTags = options.excludeTags;
     this.filter = options.filter;
-  // Default to silent true only if explicitly requested; tests expect console silent by default
-  this.silent = options.silent === true;
+    // Default to silent true only if explicitly requested; tests expect console silent by default
+    this.silent = options.silent === true;
     this.timeout = options.timeout || 30000;
     this.format = options.format || 'json';
     this.formatter = options.formatter;
@@ -188,7 +188,7 @@ export abstract class Transport extends EventEmitter implements ITransport {
 
   /**
    * Initialize the transport.
-   * 
+   *
    * @returns {Promise<void>} Resolves when initialization is complete
    * @throws {Error} If initialization fails
    */
@@ -209,7 +209,7 @@ export abstract class Transport extends EventEmitter implements ITransport {
 
   /**
    * Log a single entry.
-   * 
+   *
    * @param {LogEntry} entry - The log entry to process
    * @returns {Promise<void>} Resolves when the log has been processed
    */
@@ -249,7 +249,7 @@ export abstract class Transport extends EventEmitter implements ITransport {
 
   /**
    * Log multiple entries at once.
-   * 
+   *
    * @param {LogEntry[]} entries - Array of log entries to process
    * @returns {Promise<void>} Resolves when all logs have been processed
    */
@@ -260,7 +260,7 @@ export abstract class Transport extends EventEmitter implements ITransport {
 
     // Filter entries that this transport should handle
     const validEntries = entries.filter(entry => this.shouldLog(entry));
-    
+
     if (validEntries.length === 0) {
       return;
     }
@@ -279,9 +279,7 @@ export abstract class Transport extends EventEmitter implements ITransport {
           }
         } catch (batchError) {
           // Fall back to individual logging on batch failure
-          const results = await Promise.allSettled(
-            validEntries.map(entry => this.doLog(entry))
-          );
+          const results = await Promise.allSettled(validEntries.map(entry => this.doLog(entry)));
 
           results.forEach((result, index) => {
             if (result.status === 'fulfilled') {
@@ -294,10 +292,8 @@ export abstract class Transport extends EventEmitter implements ITransport {
         }
       } else {
         // Fall back to individual logging
-        const results = await Promise.allSettled(
-          validEntries.map(entry => this.doLog(entry))
-        );
-        
+        const results = await Promise.allSettled(validEntries.map(entry => this.doLog(entry)));
+
         // Count successes and failures
         results.forEach((result, index) => {
           if (result.status === 'fulfilled') {
@@ -325,7 +321,7 @@ export abstract class Transport extends EventEmitter implements ITransport {
 
   /**
    * Check if this transport should handle a given log entry.
-   * 
+   *
    * @param {LogEntry} entry - The log entry to check
    * @returns {boolean} True if the entry should be logged by this transport
    */
@@ -373,7 +369,7 @@ export abstract class Transport extends EventEmitter implements ITransport {
 
   /**
    * Close the transport and clean up resources.
-   * 
+   *
    * @returns {Promise<void>} Resolves when the transport is fully closed
    * @throws {Error} If cleanup fails
    */
@@ -394,7 +390,7 @@ export abstract class Transport extends EventEmitter implements ITransport {
 
       // Perform transport-specific cleanup
       await this.doClose();
-      
+
       this.emit('closed');
     } catch (error) {
       this.handleError(error as Error);
@@ -407,7 +403,7 @@ export abstract class Transport extends EventEmitter implements ITransport {
 
   /**
    * Flush any buffered logs immediately.
-   * 
+   *
    * @returns {Promise<void>} Resolves when flush is complete
    */
   public async flush(): Promise<void> {
@@ -417,7 +413,7 @@ export abstract class Transport extends EventEmitter implements ITransport {
 
   /**
    * Get current transport statistics.
-   * 
+   *
    * @returns {TransportStats} Current statistics for this transport
    */
   public getStats(): TransportStats {
@@ -442,7 +438,7 @@ export abstract class Transport extends EventEmitter implements ITransport {
 
   /**
    * Format a log entry according to the configured format.
-   * 
+   *
    * @param {LogEntry} entry - The log entry to format
    * @returns {string | Buffer} Formatted log entry
    * @protected
@@ -451,16 +447,16 @@ export abstract class Transport extends EventEmitter implements ITransport {
     switch (this.format) {
       case 'json':
         return JSON.stringify(entry);
-      
+
       case 'plain':
         return this.formatPlain(entry);
-      
+
       case 'custom':
         if (!this.formatter) {
           throw new Error('Custom formatter not provided');
         }
         return this.formatter(entry);
-      
+
       default:
         return JSON.stringify(entry);
     }
@@ -468,16 +464,13 @@ export abstract class Transport extends EventEmitter implements ITransport {
 
   /**
    * Format a log entry as plain text.
-   * 
+   *
    * @param {LogEntry} entry - The log entry to format
    * @returns {string} Plain text formatted log entry
    * @protected
    */
   protected formatPlain(entry: LogEntry): string {
-    const parts: string[] = [
-      entry.timestamp,
-      `[${entry.level.toUpperCase()}]`,
-    ];
+    const parts: string[] = [entry.timestamp, `[${entry.level.toUpperCase()}]`];
 
     if (entry.loggerId) {
       parts.push(`[${entry.loggerId}]`);
@@ -505,7 +498,7 @@ export abstract class Transport extends EventEmitter implements ITransport {
 
   /**
    * Handle errors according to the transport's configuration.
-   * 
+   *
    * @param {Error} error - The error that occurred
    * @param {LogEntry} [entry] - The log entry that caused the error (if applicable)
    * @protected
@@ -547,7 +540,7 @@ export abstract class Transport extends EventEmitter implements ITransport {
 
   /**
    * Apply a timeout to an async operation.
-   * 
+   *
    * @param {Promise<T>} promise - The promise to apply timeout to
    * @param {number} ms - Timeout in milliseconds
    * @returns {Promise<T>} The original promise with timeout applied
@@ -569,7 +562,7 @@ export abstract class Transport extends EventEmitter implements ITransport {
 
   /**
    * Check if a log level is enabled based on minimum level.
-   * 
+   *
    * @param {LogLevel} level - The level to check
    * @returns {boolean} True if the level is enabled
    * @protected
@@ -589,7 +582,7 @@ export abstract class Transport extends EventEmitter implements ITransport {
 
   /**
    * Generate a unique ID for tracking purposes.
-   * 
+   *
    * @returns {string} A unique identifier
    * @protected
    */
@@ -604,13 +597,15 @@ export abstract class Transport extends EventEmitter implements ITransport {
    * @protected
    */
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  protected shouldPropagateErrors(): boolean { return false; }
+  protected shouldPropagateErrors(): boolean {
+    return false;
+  }
   // NOTE: Some tests rely on certain transports (e.g. StreamTransport, NetworkTransport) overriding this to force rejection
   // while others (simple transports) should swallow errors to continue operation.
 
   /**
    * Check if transport is healthy.
-   * 
+   *
    * @returns {Promise<boolean>} True if transport is healthy
    */
   public async isHealthy(): Promise<boolean> {
@@ -635,7 +630,7 @@ export abstract class Transport extends EventEmitter implements ITransport {
 
   /**
    * Check if the transport is currently enabled.
-   * 
+   *
    * @returns {boolean} True if transport is enabled
    */
   public isEnabled(): boolean {
@@ -644,13 +639,13 @@ export abstract class Transport extends EventEmitter implements ITransport {
 
   /**
    * Check if transport supports batching.
-   * 
+   *
    * @returns {boolean} True if batching is supported
    */
   public supportsBatching(): boolean {
-  // Only explicit batching transports (subclasses) should return true.
-  // Presence of a doLogBatch method in a test double shouldn't flip behavior.
-  return false;
+    // Only explicit batching transports (subclasses) should return true.
+    // Presence of a doLogBatch method in a test double shouldn't flip behavior.
+    return false;
   }
 
   /**
@@ -671,7 +666,7 @@ export abstract class Transport extends EventEmitter implements ITransport {
   /**
    * Abstract method for transport-specific initialization.
    * Subclasses must implement this method.
-   * 
+   *
    * @returns {Promise<void>} Resolves when initialization is complete
    * @protected
    * @abstract
@@ -681,7 +676,7 @@ export abstract class Transport extends EventEmitter implements ITransport {
   /**
    * Abstract method for transport-specific logging.
    * Subclasses must implement this method.
-   * 
+   *
    * @param {LogEntry} entry - The log entry to process
    * @returns {Promise<void>} Resolves when the log has been processed
    * @protected
@@ -692,7 +687,7 @@ export abstract class Transport extends EventEmitter implements ITransport {
   /**
    * Optional method for transport-specific batch logging.
    * Subclasses can implement this for efficient batch processing.
-   * 
+   *
    * @param {LogEntry[]} entries - Array of log entries to process
    * @returns {Promise<void>} Resolves when all logs have been processed
    * @protected
@@ -702,7 +697,7 @@ export abstract class Transport extends EventEmitter implements ITransport {
   /**
    * Abstract method for transport-specific cleanup.
    * Subclasses must implement this method.
-   * 
+   *
    * @returns {Promise<void>} Resolves when cleanup is complete
    * @protected
    * @abstract
@@ -727,7 +722,7 @@ export abstract class Transport extends EventEmitter implements ITransport {
 
 /**
  * Type guard for checking if an object is an async transport.
- * 
+ *
  * @param {unknown} transport - Object to check
  * @returns {transport is Transport} True if object is a Transport
  */
@@ -742,11 +737,13 @@ export function isAsyncTransport(transport: unknown): transport is Transport {
 
 /**
  * Type guard for checking if transport supports batching.
- * 
+ *
  * @param {unknown} transport - Object to check
  * @returns {transport is Transport & { logBatch: (entries: LogEntry[]) => Promise<void> }} True if transport supports batching
  */
-export function isBatchingTransport(transport: unknown): transport is Transport & { logBatch: (entries: LogEntry[]) => Promise<void> } {
+export function isBatchingTransport(
+  transport: unknown
+): transport is Transport & { logBatch: (entries: LogEntry[]) => Promise<void> } {
   return (
     isAsyncTransport(transport) &&
     'logBatch' in transport &&
@@ -756,11 +753,13 @@ export function isBatchingTransport(transport: unknown): transport is Transport 
 
 /**
  * Type guard for checking if transport has stats.
- * 
+ *
  * @param {unknown} transport - Object to check
  * @returns {transport is Transport & { getStats: () => TransportStats }} True if transport has stats
  */
-export function hasStats(transport: unknown): transport is Transport & { getStats: () => TransportStats } {
+export function hasStats(
+  transport: unknown
+): transport is Transport & { getStats: () => TransportStats } {
   return (
     isAsyncTransport(transport) &&
     'getStats' in transport &&

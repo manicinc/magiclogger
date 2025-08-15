@@ -6,7 +6,7 @@ import { BaseCompatibleLogger, LogCompatibilityOptions } from './BaseCompatibleL
 
 /**
  * Bunyan log record interface.
- * 
+ *
  * @interface BunyanRecord
  */
 interface BunyanRecord {
@@ -33,7 +33,7 @@ interface BunyanRecord {
 
 /**
  * Bunyan serializer functions.
- * 
+ *
  * @interface BunyanSerializers
  */
 interface BunyanSerializers {
@@ -42,7 +42,7 @@ interface BunyanSerializers {
 
 /**
  * Bunyan stream configuration.
- * 
+ *
  * @interface BunyanStream
  */
 interface BunyanStream {
@@ -56,7 +56,7 @@ interface BunyanStream {
 
 /**
  * Configuration options for Bunyan-compatible logger.
- * 
+ *
  * @interface BunyanCompatibleOptions
  * @extends {LogCompatibilityOptions}
  */
@@ -131,7 +131,7 @@ interface ExtendedError extends NodeJS.ErrnoException {
 
 /**
  * Bunyan-compatible logger implementation.
- * 
+ *
  * Provides a Bunyan-style API with:
  * - Bunyan log record format
  * - Level numbers (10-60)
@@ -139,10 +139,10 @@ interface ExtendedError extends NodeJS.ErrnoException {
  * - Child logger support
  * - Source location tracking
  * - Multiple output streams
- * 
+ *
  * @class BunyanCompatibleLogger
  * @extends {BaseCompatibleLogger}
- * 
+ *
  * @example
  * ```typescript
  * const logger = createBunyanCompatible({
@@ -153,12 +153,12 @@ interface ExtendedError extends NodeJS.ErrnoException {
  *     req: bunyan.stdSerializers.req
  *   }
  * });
- * 
+ *
  * // Bunyan-style logging
  * logger.info('User login');
  * logger.info({ user: 'john' }, 'User login');
  * logger.error(err, 'Database connection failed');
- * 
+ *
  * // Child loggers
  * const child = logger.child({ component: 'auth' });
  * child.info('Authentication started');
@@ -223,7 +223,7 @@ export class BunyanCompatibleLogger extends BaseCompatibleLogger {
         signal: extErr.signal,
       };
     },
-    
+
     req: (req: unknown): unknown => {
       const request = req as Record<string, unknown>;
       if (!request || !request.method) {
@@ -252,11 +252,11 @@ export class BunyanCompatibleLogger extends BaseCompatibleLogger {
 
   /**
    * Creates a new Bunyan-compatible logger.
-   * 
+   *
    * @param {BunyanCompatibleOptions} options - Logger options
    */
   constructor(options: BunyanCompatibleOptions) {
-    const opts = { ...options, name: options?.name === '' ? '' : (options?.name || 'app') };
+    const opts = { ...options, name: options?.name === '' ? '' : options?.name || 'app' };
     super(opts);
 
     this.showName = opts.showName !== false;
@@ -310,7 +310,7 @@ export class BunyanCompatibleLogger extends BaseCompatibleLogger {
 
   /**
    * Create a Bunyan log record.
-   * 
+   *
    * @param {number} level - Log level number
    * @param {any} msgOrFields - Message or fields object
    * @param {string} [msg] - Optional message
@@ -332,7 +332,7 @@ export class BunyanCompatibleLogger extends BaseCompatibleLogger {
 
     // Handle different argument patterns
     let fields: Record<string, unknown> = {};
-    
+
     if (typeof msgOrFields === 'string') {
       record.msg = msgOrFields;
     } else if (msgOrFields instanceof Error) {
@@ -379,13 +379,13 @@ export class BunyanCompatibleLogger extends BaseCompatibleLogger {
 
   /**
    * Get hostname with caching.
-   * 
+   *
    * @returns {string} Hostname
    * @private
    */
   private getHostname(): string {
     if (!this.showHostname) return 'localhost';
-    
+
     try {
       return this.os?.hostname?.() || 'unknown';
     } catch {
@@ -395,19 +395,19 @@ export class BunyanCompatibleLogger extends BaseCompatibleLogger {
 
   /**
    * Get source location of log call.
-   * 
+   *
    * @returns {object} Source info
    * @private
    */
   private getCaller(): BunyanRecord['src'] {
     const err = new Error();
     const stack = err.stack?.split('\n') || [];
-    
+
     // Find the first stack frame outside this file
     for (let i = 3; i < stack.length; i++) {
       const line = stack[i];
       if (!line || line.includes('BunyanCompatibleLogger')) continue;
-      
+
       const match = line.match(/at\s+(?:(.+?)\s+)?\((.+?):(\d+):(\d+)\)/);
       if (match) {
         const result: BunyanRecord['src'] = {
@@ -426,7 +426,7 @@ export class BunyanCompatibleLogger extends BaseCompatibleLogger {
 
   /**
    * Format and output a Bunyan record.
-   * 
+   *
    * @param {BunyanRecord} record - Record to output
    * @private
    */
@@ -436,17 +436,17 @@ export class BunyanCompatibleLogger extends BaseCompatibleLogger {
 
     // Format output
     let output: string;
-    
+
     if (this.format === 'json') {
       output = JSON.stringify(record);
     } else {
       // Bunyan-style formatted output
       const levelName = BunyanCompatibleLogger.nameFromLevel[record.level] || 'unknown';
       const parts: string[] = [record.time];
-      
+
       if (this.showName) parts.push(`[${record.name}]`);
       if (this.showPid) parts.push(`[${record.pid}]`);
-      
+
       parts.push(levelName.toUpperCase());
       parts.push(record.msg);
 
@@ -457,25 +457,27 @@ export class BunyanCompatibleLogger extends BaseCompatibleLogger {
           displayFields[key] = value;
         }
       }
-      
+
       if (Object.keys(displayFields).length > 0) {
         // Safe JSON stringification that handles BigInt and other special values
         try {
-          parts.push(JSON.stringify(displayFields, (_key, value) => {
-            if (typeof value === 'bigint') {
-              return value.toString() + 'n';
-            }
-            if (typeof value === 'function') {
-              return '[Function]';
-            }
-            if (typeof value === 'symbol') {
-              return value.toString();
-            }
-            if (value instanceof Date) {
-              return value.toISOString();
-            }
-            return value;
-          }));
+          parts.push(
+            JSON.stringify(displayFields, (_key, value) => {
+              if (typeof value === 'bigint') {
+                return value.toString() + 'n';
+              }
+              if (typeof value === 'function') {
+                return '[Function]';
+              }
+              if (typeof value === 'symbol') {
+                return value.toString();
+              }
+              if (value instanceof Date) {
+                return value.toISOString();
+              }
+              return value;
+            })
+          );
         } catch (error) {
           // Fallback for any other serialization issues
           parts.push('[Object: could not serialize]');
@@ -505,7 +507,7 @@ export class BunyanCompatibleLogger extends BaseCompatibleLogger {
 
   /**
    * Resolve level string/number to number.
-   * 
+   *
    * @param {string | number} level - Level to resolve
    * @returns {number} Level number
    * @private
@@ -517,7 +519,7 @@ export class BunyanCompatibleLogger extends BaseCompatibleLogger {
 
   /**
    * Log to underlying logger.
-   * 
+   *
    * @param {string} level - Level name
    * @param {string} message - Message to log
    * @private
@@ -549,7 +551,7 @@ export class BunyanCompatibleLogger extends BaseCompatibleLogger {
 
   /**
    * Generic log method implementation.
-   * 
+   *
    * @param {string} level - Log level
    * @param {...any} args - Log arguments
    */
@@ -633,7 +635,7 @@ export class BunyanCompatibleLogger extends BaseCompatibleLogger {
 
   /**
    * Create a child logger with additional fields.
-   * 
+   *
    * @param {object} fields - Additional fields
    * @returns {BunyanCompatibleLogger} Child logger
    */
@@ -658,7 +660,7 @@ export class BunyanCompatibleLogger extends BaseCompatibleLogger {
 
   /**
    * Add a stream to the logger.
-   * 
+   *
    * @param {BunyanStream} stream - Stream configuration
    * @returns {void}
    */
@@ -668,7 +670,7 @@ export class BunyanCompatibleLogger extends BaseCompatibleLogger {
 
   /**
    * Add serializers to the logger.
-   * 
+   *
    * @param {BunyanSerializers} serializers - Serializers to add
    * @returns {void}
    */
@@ -686,12 +688,13 @@ export class BunyanCompatibleLogger extends BaseCompatibleLogger {
 
   /**
    * Check if a given level is enabled.
-   * 
+   *
    * @param {number | string} level - Level to check
    * @returns {boolean} Whether level is enabled
    */
   public isLevelEnabled(level: number | string): boolean {
-    const levelNum = typeof level === 'number' ? level : BunyanCompatibleLogger.levelFromName[level] || 30;
+    const levelNum =
+      typeof level === 'number' ? level : BunyanCompatibleLogger.levelFromName[level] || 30;
     return levelNum >= this._level;
   }
 
@@ -719,12 +722,10 @@ export class BunyanCompatibleLogger extends BaseCompatibleLogger {
 
 /**
  * Factory to create a Bunyan-compatible logger instance.
- * 
+ *
  * @param {BunyanCompatibleOptions} options - Logger options
  * @returns {BunyanCompatibleLogger} Bunyan-compatible logger
  */
-export function createBunyanCompatible(
-  options: BunyanCompatibleOptions
-): BunyanCompatibleLogger {
+export function createBunyanCompatible(options: BunyanCompatibleOptions): BunyanCompatibleLogger {
   return new BunyanCompatibleLogger(options);
 }

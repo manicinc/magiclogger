@@ -94,10 +94,10 @@ export class Colorizer {
    * @returns Text with all styles applied
    */
   public static applyColors(text: string, colors: ColorName[], useColors = true): string {
-  if (!useColors || !text || !colors || colors.length === 0) return text;
+    if (!useColors || !text || !colors || colors.length === 0) return text;
 
-  const cacheKey = colors.join(',');
-  let cachedCodes = this.codeCache.get(cacheKey);
+    const cacheKey = colors.join(',');
+    let cachedCodes = this.codeCache.get(cacheKey);
 
     if (!cachedCodes) {
       let result = '';
@@ -111,9 +111,12 @@ export class Colorizer {
         // Normalize common aliases so fallbacks like 'gray' are honored
         const normalized = ((): string => {
           switch (color) {
-            case 'grey': return 'gray';
-            case 'inverse': return 'reverse';
-            default: return color as string;
+            case 'grey':
+              return 'gray';
+            case 'inverse':
+              return 'reverse';
+            default:
+              return color as string;
           }
         })();
 
@@ -372,13 +375,18 @@ export class Colorizer {
     }
 
     // True color support
-    if (typeof process !== 'undefined' && process.env && 
-        (process.env.COLORTERM === 'truecolor' || process.env.TERM_PROGRAM === 'iTerm.app')) {
+    if (
+      typeof process !== 'undefined' &&
+      process.env &&
+      (process.env.COLORTERM === 'truecolor' || process.env.TERM_PROGRAM === 'iTerm.app')
+    ) {
       return 3;
     }
 
     // 256 color support
-    if (typeof process !== 'undefined' && process.env &&
+    if (
+      typeof process !== 'undefined' &&
+      process.env &&
       /^screen|^xterm|^vt100|^vt220|^rxvt|color|ansi|cygwin|linux/i.test(process.env.TERM || '')
     ) {
       return 2;
@@ -598,7 +606,7 @@ export class Colorizer {
    * @static
    */
   private static getFallbackStyleInternal(style: string): string {
-  // Ask terminal utils for fallback; jest can override this via spy
-  return terminalUtils.getFallbackStyle(style);
+    // Ask terminal utils for fallback; jest can override this via spy
+    return terminalUtils.getFallbackStyle(style);
   }
 }

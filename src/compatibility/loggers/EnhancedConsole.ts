@@ -216,7 +216,7 @@ export class EnhancedConsole {
   }
 
   progress(value: number, length?: number, completeChar?: string, incompleteChar?: string): void {
-  this.logger.progressBar(value, length, completeChar, incompleteChar);
+    this.logger.progressBar(value, length, completeChar, incompleteChar);
   }
 
   table(data: Record<string, unknown>[]): void {
@@ -269,7 +269,7 @@ export class EnhancedConsole {
     for (const key in original) {
       target[key] = original[key];
     }
-    
+
     // Remove the exit event listener if it exists
     if (this.exitHandler && typeof process !== 'undefined') {
       process.off('exit', this.exitHandler);
@@ -365,7 +365,7 @@ export function enhanceConsole(options: EnhanceConsoleOptions = {}): {
 
       // Remove the recursion guard symbol properly
       Reflect.deleteProperty(console, recursionGuard);
-      
+
       // Clean up the enhanced instance (including process event listeners)
       enhanced.restoreOriginalConsole();
     },

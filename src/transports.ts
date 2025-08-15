@@ -105,13 +105,13 @@ export function createHTTP(url: string, options?: Record<string, unknown>) {
 export { TransportRegistry } from './transports/index';
 
 // Types
-export type { 
-  TransportOptions, 
+export type {
+  TransportOptions,
   TransportEvents,
   LogEntry,
   ConsoleTransportOptions,
   FileTransportOptions,
   HTTPTransportOptions,
-  StreamTransportOptions
+  StreamTransportOptions,
 } from './types/transport';
 export type { OTLPTransportOptions } from './transports/otlp';

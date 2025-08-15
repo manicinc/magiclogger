@@ -14,12 +14,12 @@ export const DEFAULT_THEME: Record<string, ColorName[]> = {
   warn: ['yellow', 'bold'],
   error: ['brightRed', 'bold'],
   debug: ['gray', 'italic'],
-  
+
   // UI elements
   header: ['brightWhite', 'bgBlue', 'bold'],
   link: ['brightCyan', 'underline'],
   separator: ['gray'],
-  
+
   // Data display
   key: ['cyan'],
   value: ['white'],
@@ -27,14 +27,14 @@ export const DEFAULT_THEME: Record<string, ColorName[]> = {
   string: ['green'],
   boolean: ['magenta'],
   null: ['gray', 'italic'],
-  
+
   // Status
   active: ['green', 'bold'],
   inactive: ['gray', 'dim'],
   pending: ['yellow'],
   complete: ['green'],
   failed: ['red'],
-  
+
   // Special
   important: ['magenta', 'bold', 'underline'],
   highlight: ['brightYellow', 'bold'],

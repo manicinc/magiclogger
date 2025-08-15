@@ -1,7 +1,9 @@
 /* Theme loader browser shim tests */
 
 describe('theme/loader.browser', () => {
-  beforeEach(() => { jest.resetModules(); });
+  beforeEach(() => {
+    jest.resetModules();
+  });
 
   it('returns empty themes object and listThemes default', async () => {
     const mod = await import('../../../src/theme/loader.browser');

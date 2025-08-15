@@ -37,8 +37,7 @@ jobs:
       # Build the library first so the website can depend on local dist files
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 10
+  # Use version from packageManager in root package.json
 
       - name: Install repo dependencies (no scripts)
         run: pnpm install --frozen-lockfile --ignore-scripts

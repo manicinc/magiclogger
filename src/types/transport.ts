@@ -8,7 +8,12 @@ export type { LogLevel };
 /**
  * Connection state for network transports.
  */
-export type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'closing' | 'reconnecting';
+export type ConnectionState =
+  | 'disconnected'
+  | 'connecting'
+  | 'connected'
+  | 'closing'
+  | 'reconnecting';
 
 /**
  * Core log entry structure that flows through the transport system.
@@ -71,13 +76,15 @@ export interface LogEntry {
    * Error object if this log entry represents an error.
    * Includes stack trace and error details.
    */
-  error?: Error | {
-    name: string;
-    message: string;
-    stack?: string;
-    code?: string;
-    [key: string]: unknown;
-  };
+  error?:
+    | Error
+    | {
+        name: string;
+        message: string;
+        stack?: string;
+        code?: string;
+        [key: string]: unknown;
+      };
 
   /**
    * Environment metadata captured at log time.
@@ -235,13 +242,13 @@ export interface BatchingTransportOptions extends TransportOptions, BatchingOpti
  * Transport type enumeration.
  * Defines all supported transport types for the logger.
  */
-export type TransportType = 
-  | 'console' 
-  | 'file' 
-  | 'http' 
-  | 'stream' 
-  | 's3' 
-  | 'mongodb' 
+export type TransportType =
+  | 'console'
+  | 'file'
+  | 'http'
+  | 'stream'
+  | 's3'
+  | 'mongodb'
   | 'websocket'
   | 'otlp'
   | 'syslog'
@@ -255,37 +262,37 @@ export type TransportType =
 export interface TransportConfig extends Record<string, unknown> {
   /** Transport type identifier */
   type: TransportType;
-  
+
   /** Optional transport name (auto-generated if not provided) */
   name?: string;
-  
+
   /** Whether the transport is enabled */
   enabled?: boolean;
-  
+
   /** Minimum log level to handle */
   level?: LogLevel;
-  
+
   /** Specific levels to handle (overrides level if provided) */
   levels?: LogLevel[];
-  
+
   /** Tags to filter on */
   tags?: string[];
-  
+
   /** Tags to exclude */
   excludeTags?: string[];
-  
+
   /** Custom filter function */
   filter?: (entry: LogEntry) => boolean;
-  
+
   /** Output format */
   format?: 'json' | 'plain' | 'custom';
-  
+
   /** Custom formatter */
   formatter?: (entry: LogEntry) => string | Buffer;
-  
+
   /** Silent mode */
   silent?: boolean;
-  
+
   /** Operation timeout */
   timeout?: number;
 }
@@ -549,7 +556,13 @@ export interface S3TransportOptions extends NetworkTransportOptions {
    * S3 storage class.
    * @default 'STANDARD'
    */
-  storageClass?: 'STANDARD' | 'STANDARD_IA' | 'ONEZONE_IA' | 'INTELLIGENT_TIERING' | 'GLACIER' | 'DEEP_ARCHIVE';
+  storageClass?:
+    | 'STANDARD'
+    | 'STANDARD_IA'
+    | 'ONEZONE_IA'
+    | 'INTELLIGENT_TIERING'
+    | 'GLACIER'
+    | 'DEEP_ARCHIVE';
 
   /**
    * Server-side encryption settings.
@@ -892,7 +905,13 @@ export interface TransportEvents {
   /**
    * Emitted on retry attempt.
    */
-  retry?: (info: { transport: string; batch: string; attempt: number; delay: number; error: string }) => void;
+  retry?: (info: {
+    transport: string;
+    batch: string;
+    attempt: number;
+    delay: number;
+    error: string;
+  }) => void;
 
   /**
    * Emitted when circuit breaker opens.

@@ -1,11 +1,11 @@
 // File: src/transports/base/implementations/WebSocketTransport.ts
 
 import { NetworkTransport } from '../NetworkTransport';
-import type { 
-  WebSocketTransportOptions, 
+import type {
+  WebSocketTransportOptions,
   LogEntry,
   NetworkTransportOptions,
-  TransportStats
+  TransportStats,
 } from '../../../types/transport';
 
 // Internal structural WebSocket-like type used for environments and tests where the
@@ -25,11 +25,13 @@ type InternalWebSocketLike = {
   [key: string]: unknown; // Allow test-specific augmentation (e.g., symbol subscriber sets)
 };
 
-interface SubscriberHolder { [key: symbol]: Set<(e: CloseEvent) => void>; }
+interface SubscriberHolder {
+  [key: symbol]: Set<(e: CloseEvent) => void>;
+}
 
 /**
  * WebSocket transport for real-time log streaming.
- * 
+ *
  * Features:
  * - Automatic reconnection with exponential backoff
  * - Message queuing during disconnections
@@ -38,10 +40,10 @@ interface SubscriberHolder { [key: symbol]: Set<(e: CloseEvent) => void>; }
  * - Authentication support
  * - Compression support
  * - Real-time bidirectional communication
- * 
+ *
  * @class WebSocketTransport
  * @extends {NetworkTransport}
- * 
+ *
  * @example
  * ```typescript
  * const wsTransport = new WebSocketTransport({
@@ -123,22 +125,28 @@ export class WebSocketTransport extends NetworkTransport {
 
   /**
    * Expose lastHeartbeat via accessor so tests mutating the property directly
-  * Tests may coerce the instance to unknown and set lastHeartbeat directly to simulate inactivity
+   * Tests may coerce the instance to unknown and set lastHeartbeat directly to simulate inactivity
    * without needing the interval to fire (their fake timers start AFTER init).
    */
-  public get lastHeartbeat(): number { return this._lastHeartbeat; }
+  public get lastHeartbeat(): number {
+    return this._lastHeartbeat;
+  }
   public set lastHeartbeat(value: number) {
     this._lastHeartbeat = value;
     // If tests artificially age the heartbeat beyond the half-timeout threshold,
     // close the socket immediately so expectation passes without waiting on interval conversion.
     try {
       if (Date.now() - this._lastHeartbeat >= this.heartbeatTimeout / 2) {
-  const ws = (this.ws || WebSocketTransport.lastSocket) as unknown as { close?: () => void } | undefined;
+        const ws = (this.ws || WebSocketTransport.lastSocket) as unknown as
+          | { close?: () => void }
+          | undefined;
         if (ws?.close) {
           ws.close();
         }
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   /**
@@ -164,7 +172,7 @@ export class WebSocketTransport extends NetworkTransport {
 
   /**
    * Creates a new WebSocketTransport instance.
-   * 
+   *
    * @param {WebSocketTransportOptions} options - Transport configuration
    */
   constructor(options: WebSocketTransportOptions) {
@@ -176,12 +184,12 @@ export class WebSocketTransport extends NetworkTransport {
 
     super(networkOptions);
 
-  this._reconnectConfig = {
+    this._reconnectConfig = {
       enabled: options.reconnect?.enabled !== false,
       maxAttempts: options.reconnect?.maxAttempts || 10,
       delay: options.reconnect?.delay || 1000,
     };
-  this._auth = options.auth;
+    this._auth = options.auth;
     this.protocol = options.protocol;
     this.encoding = options.encoding || 'json';
     // Touch private fields so TS doesn't mark them as unused (they influence runtime behavior / future features)
@@ -192,7 +200,7 @@ export class WebSocketTransport extends NetworkTransport {
 
   /**
    * Initialize message codec based on encoding.
-   * 
+   *
    * @returns {Promise<void>} Resolves when codec is ready
    * @private
    */
@@ -243,7 +251,7 @@ export class WebSocketTransport extends NetworkTransport {
 
   /**
    * Connect to WebSocket server.
-   * 
+   *
    * @returns {Promise<void>} Resolves when connected
    * @protected
    */
@@ -267,7 +275,11 @@ export class WebSocketTransport extends NetworkTransport {
       if (WebSocketTransport.socketCache[this.url]) {
         const cached = WebSocketTransport.socketCache[this.url];
         // If the cached socket is CLOSED, "revive" it by simulating a reconnect on the SAME instance
-        const ctor = cached && (cached.constructor as { OPEN?: number; CLOSED?: number; CONNECTING?: number } | undefined);
+        const ctor =
+          cached &&
+          (cached.constructor as
+            | { OPEN?: number; CLOSED?: number; CONNECTING?: number }
+            | undefined);
         const OPEN = ctor?.OPEN ?? 1;
         const CLOSED = ctor?.CLOSED ?? 3;
         const CONNECTING = ctor?.CONNECTING ?? 0;
@@ -276,7 +288,11 @@ export class WebSocketTransport extends NetworkTransport {
           (cached as unknown as { readyState: number }).readyState = CONNECTING;
           setTimeout(() => {
             (cached as unknown as { readyState: number }).readyState = OPEN;
-            try { (cached as unknown as { onopen?: (e: Event) => void }).onopen?.(new Event('open')); } catch { /* ignore */ }
+            try {
+              (cached as unknown as { onopen?: (e: Event) => void }).onopen?.(new Event('open'));
+            } catch {
+              /* ignore */
+            }
           }, 10);
         }
         this.ws = cached;
@@ -295,22 +311,25 @@ export class WebSocketTransport extends NetworkTransport {
 
       // Determine environment and create WebSocket
       // Prefer any available global implementation (tests provide a global mock)
-      const GlobalWSCtorCandidate = (typeof window !== 'undefined' && (window as { WebSocket?: unknown }).WebSocket)
-        || (globalThis as { WebSocket?: unknown }).WebSocket
-        || (global as { WebSocket?: unknown }).WebSocket;
+      const GlobalWSCtorCandidate =
+        (typeof window !== 'undefined' && (window as { WebSocket?: unknown }).WebSocket) ||
+        (globalThis as { WebSocket?: unknown }).WebSocket ||
+        (global as { WebSocket?: unknown }).WebSocket;
 
       if (!GlobalWSCtorCandidate || typeof GlobalWSCtorCandidate !== 'function') {
         throw new Error('WebSocket not available in this environment');
       }
 
-      const GlobalWSCtor = GlobalWSCtorCandidate as { new (url: string, protocol?: string | string[]): InternalWebSocketLike };
-      this.ws = (this.protocol
-        ? new GlobalWSCtor(this.url, this.protocol)
-        : new GlobalWSCtor(this.url)) as InternalWebSocketLike;
+      const GlobalWSCtor = GlobalWSCtorCandidate as {
+        new (url: string, protocol?: string | string[]): InternalWebSocketLike;
+      };
+      this.ws = (
+        this.protocol ? new GlobalWSCtor(this.url, this.protocol) : new GlobalWSCtor(this.url)
+      ) as InternalWebSocketLike;
       // Cache newly created socket and remember last
       WebSocketTransport.socketCache[this.url] = this.ws as InternalWebSocketLike;
       WebSocketTransport.lastSocket = this.ws as InternalWebSocketLike;
-  // If tests already grabbed a reference before connection completes, ensure onopen will update same object.
+      // If tests already grabbed a reference before connection completes, ensure onopen will update same object.
 
       // Set up event handlers
       this.setupEventHandlers();
@@ -319,13 +338,12 @@ export class WebSocketTransport extends NetworkTransport {
       await this.waitForConnection();
 
       this.connectionState = 'connected';
-  this._lastHeartbeat = Date.now();
+      this._lastHeartbeat = Date.now();
 
       // Start heartbeat
       this.startHeartbeat();
 
       this.emit('connected', { url: this.url });
-
     } catch (error) {
       this.connectionState = 'disconnected';
       throw error;
@@ -333,7 +351,7 @@ export class WebSocketTransport extends NetworkTransport {
   }
 
   private getWsStates(ws: unknown): { OPEN: number; CLOSED: number } {
-  const anyWs = ws as InternalWebSocketLike;
+    const anyWs = ws as InternalWebSocketLike;
     const OPEN = anyWs.OPEN ?? anyWs.constructor?.OPEN ?? 1;
     const CLOSED = anyWs.CLOSED ?? anyWs.constructor?.CLOSED ?? 3;
     return { OPEN, CLOSED };
@@ -341,7 +359,7 @@ export class WebSocketTransport extends NetworkTransport {
 
   /**
    * Send data via WebSocket.
-   * 
+   *
    * @param {unknown} data - Data to send
    * @returns {Promise<void>} Resolves when sent
    * @protected
@@ -353,14 +371,14 @@ export class WebSocketTransport extends NetworkTransport {
 
     const ws = this.ws as unknown as { readyState: number; send: (d: unknown) => void };
     const { OPEN } = this.getWsStates(this.ws);
-    
+
     // Check WebSocket readyState
     if (ws.readyState !== OPEN) {
       throw new Error('WebSocket not connected');
     }
 
     const encoded = this.encoder.encode(data);
-    
+
     return new Promise((resolve, reject) => {
       try {
         ws.send(encoded);
@@ -373,7 +391,7 @@ export class WebSocketTransport extends NetworkTransport {
 
   /**
    * Set up WebSocket event handlers.
-   * 
+   *
    * @private
    */
   private setupEventHandlers(): void {
@@ -395,16 +413,24 @@ export class WebSocketTransport extends NetworkTransport {
     const SUB_KEY = Symbol.for('magiclogger.ws.closeSubscribers');
     const holder = ws as SubscriberHolder;
     if (!holder[SUB_KEY]) {
-      holder[SUB_KEY] = new Set<((e: CloseEvent) => void)>();
+      holder[SUB_KEY] = new Set<(e: CloseEvent) => void>();
       const originalOnClose = ws.onclose;
       ws.onclose = (event: CloseEvent) => {
         try {
           for (const fn of holder[SUB_KEY] as Set<(e: CloseEvent) => void>) {
-            try { fn(event); } catch { /* ignore */ }
+            try {
+              fn(event);
+            } catch {
+              /* ignore */
+            }
           }
         } finally {
           if (typeof originalOnClose === 'function') {
-            try { (originalOnClose as unknown as (e: CloseEvent) => void).call(ws, event); } catch { /* ignore */ }
+            try {
+              (originalOnClose as unknown as (e: CloseEvent) => void).call(ws, event);
+            } catch {
+              /* ignore */
+            }
           }
         }
       };
@@ -419,26 +445,40 @@ export class WebSocketTransport extends NetworkTransport {
         wasClean: event.wasClean,
       });
       // Detach this handler after being called once
-  try { (holder[SUB_KEY] as Set<(e: CloseEvent) => void>).delete(handler); } catch { /* ignore */ }
+      try {
+        (holder[SUB_KEY] as Set<(e: CloseEvent) => void>).delete(handler);
+      } catch {
+        /* ignore */
+      }
     };
-  (holder[SUB_KEY] as Set<(e: CloseEvent) => void>).add(handler);
+    (holder[SUB_KEY] as Set<(e: CloseEvent) => void>).add(handler);
     this.wsCloseHandler = handler;
 
     // Also subscribe to last cached socket if different; tests may close a stale reference
-    const last = WebSocketTransport.lastSocket as (InternalWebSocketLike & SubscriberHolder) | undefined;
+    const last = WebSocketTransport.lastSocket as
+      | (InternalWebSocketLike & SubscriberHolder)
+      | undefined;
     if (last && last !== ws) {
       const lastHolder = last as SubscriberHolder;
       if (!lastHolder[SUB_KEY]) {
-        lastHolder[SUB_KEY] = new Set<((e: CloseEvent) => void)>();
+        lastHolder[SUB_KEY] = new Set<(e: CloseEvent) => void>();
         const originalOnClose = last.onclose;
         last.onclose = (event: CloseEvent) => {
           try {
             for (const fn of lastHolder[SUB_KEY] as Set<(e: CloseEvent) => void>) {
-              try { fn(event); } catch { /* ignore */ }
+              try {
+                fn(event);
+              } catch {
+                /* ignore */
+              }
             }
           } finally {
             if (typeof originalOnClose === 'function') {
-              try { (originalOnClose as unknown as (e: CloseEvent) => void).call(last, event); } catch { /* ignore */ }
+              try {
+                (originalOnClose as unknown as (e: CloseEvent) => void).call(last, event);
+              } catch {
+                /* ignore */
+              }
             }
           }
         };
@@ -451,7 +491,11 @@ export class WebSocketTransport extends NetworkTransport {
           reason: event.reason,
           wasClean: event.wasClean,
         });
-        try { (lastHolder[SUB_KEY] as Set<(e: CloseEvent) => void>).delete(alt); } catch { /* ignore */ }
+        try {
+          (lastHolder[SUB_KEY] as Set<(e: CloseEvent) => void>).delete(alt);
+        } catch {
+          /* ignore */
+        }
       };
       (lastHolder[SUB_KEY] as Set<(e: CloseEvent) => void>).add(alt);
       this.wsCloseHandlerAlt = alt;
@@ -468,7 +512,7 @@ export class WebSocketTransport extends NetworkTransport {
 
   /**
    * Disconnect from WebSocket server.
-   * 
+   *
    * @returns {Promise<void>} Resolves when disconnected
    * @protected
    */
@@ -476,12 +520,15 @@ export class WebSocketTransport extends NetworkTransport {
     this.stopHeartbeat();
 
     if (this.ws) {
-      const ws = this.ws as InternalWebSocketLike & { readyState: number; close: (code?: number, reason?: string) => void };
+      const ws = this.ws as InternalWebSocketLike & {
+        readyState: number;
+        close: (code?: number, reason?: string) => void;
+      };
       const { OPEN } = this.getWsStates(this.ws);
       if (ws.readyState === OPEN) {
         ws.close(1000, 'Transport closing');
       }
-  // Do not evict cache (see rationale above in onclose handler)
+      // Do not evict cache (see rationale above in onclose handler)
       // Detach our close handler if present
       try {
         const SUB_KEY = Symbol.for('magiclogger.ws.closeSubscribers');
@@ -491,12 +538,18 @@ export class WebSocketTransport extends NetworkTransport {
         }
         // Also detach alt handler
         if (this.wsCloseHandlerAlt) {
-          const last = WebSocketTransport.lastSocket as (InternalWebSocketLike & SubscriberHolder) | undefined;
+          const last = WebSocketTransport.lastSocket as
+            | (InternalWebSocketLike & SubscriberHolder)
+            | undefined;
           if (last && (last as SubscriberHolder)[SUB_KEY]) {
-            ((last as SubscriberHolder)[SUB_KEY] as Set<(e: CloseEvent) => void>).delete(this.wsCloseHandlerAlt);
+            ((last as SubscriberHolder)[SUB_KEY] as Set<(e: CloseEvent) => void>).delete(
+              this.wsCloseHandlerAlt
+            );
           }
         }
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
       this.ws = undefined;
     }
 
@@ -506,19 +559,25 @@ export class WebSocketTransport extends NetworkTransport {
         const lastSocket = WebSocketTransport.lastSocket as InternalWebSocketLike; // non-undefined due to guard
         if (lastSocket !== this.ws) {
           const { OPEN } = this.getWsStates(lastSocket);
-          if (typeof lastSocket.readyState === 'number' && lastSocket.readyState === OPEN && typeof lastSocket.close === 'function') {
+          if (
+            typeof lastSocket.readyState === 'number' &&
+            lastSocket.readyState === OPEN &&
+            typeof lastSocket.close === 'function'
+          ) {
             lastSocket.close(1000, 'Transport closing');
           }
         }
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
     this.connectionState = 'disconnected';
   }
 
   /**
    * Check WebSocket connection health.
-   * 
+   *
    * @returns {Promise<void>} Resolves if healthy
    * @protected
    */
@@ -544,7 +603,7 @@ export class WebSocketTransport extends NetworkTransport {
 
   /**
    * Wait for WebSocket connection to open.
-   * 
+   *
    * @returns {Promise<void>} Resolves when connected
    * @private
    */
@@ -579,14 +638,14 @@ export class WebSocketTransport extends NetworkTransport {
 
   /**
    * Handle incoming WebSocket message.
-   * 
+   *
    * @param {unknown} data - Raw message data
    * @private
    */
   private handleMessage(data: unknown): void {
     try {
       if (!this.decoder) return;
-      
+
       const message = this.decoder.decode(data) as Record<string, unknown>;
 
       // Handle different message types
@@ -620,7 +679,7 @@ export class WebSocketTransport extends NetworkTransport {
 
   /**
    * Perform the network request to send logs.
-   * 
+   *
    * @param {LogEntry[]} entries - Log entries to send
    * @returns {Promise<void>} Resolves when sent
    * @protected
@@ -656,7 +715,7 @@ export class WebSocketTransport extends NetworkTransport {
       throw new Error('WebSocket not connected');
     }
     // Perform direct network request with a single-entry batch so encoding matches batch shape tests use.
-  await this.performNetworkRequest([entry]);
+    await this.performNetworkRequest([entry]);
   }
 
   /**
@@ -714,7 +773,9 @@ export class WebSocketTransport extends NetworkTransport {
     try {
       const op = this.doLogBatch
         ? this.doLogBatch(validEntries)
-        : (async () => { await Promise.all(validEntries.map(e => this.doLog(e))); })();
+        : (async () => {
+            await Promise.all(validEntries.map(e => this.doLog(e)));
+          })();
       await this.withTimeout(op, this.timeout);
       this.stats.succeeded += validEntries.length;
       this.stats.lastSuccess = new Date();
@@ -727,7 +788,7 @@ export class WebSocketTransport extends NetworkTransport {
 
   /**
    * Start heartbeat mechanism.
-   * 
+   *
    * @private
    */
   private startHeartbeat(): void {
@@ -742,7 +803,11 @@ export class WebSocketTransport extends NetworkTransport {
       if (elapsed >= this.heartbeatTimeout / 2) {
         const ws = this.ws as unknown as { close?: () => void } | undefined;
         if (ws?.close) {
-          try { (ws as unknown as { close: () => void }).close(); } catch { /* ignore */ }
+          try {
+            (ws as unknown as { close: () => void }).close();
+          } catch {
+            /* ignore */
+          }
         }
         return;
       }
@@ -756,7 +821,7 @@ export class WebSocketTransport extends NetworkTransport {
 
   /**
    * Stop heartbeat mechanism.
-   * 
+   *
    * @private
    */
   private stopHeartbeat(): void {
@@ -768,16 +833,16 @@ export class WebSocketTransport extends NetworkTransport {
 
   /**
    * Get transport statistics.
-   * 
+   *
    * @returns {TransportStats} Transport statistics
    */
   public getStats(): TransportStats {
-  const baseStats = super.getStats();
-  const ws = this.ws as unknown as { readyState?: number } | undefined;
+    const baseStats = super.getStats();
+    const ws = this.ws as unknown as { readyState?: number } | undefined;
     if (ws && !this._lastHeartbeat) {
       this._lastHeartbeat = Date.now();
     }
-    
+
     return {
       ...baseStats,
       custom: {
@@ -791,7 +856,7 @@ export class WebSocketTransport extends NetworkTransport {
 
   /**
    * Initialize network (WebSocket-specific).
-   * 
+   *
    * @returns {Promise<void>} Resolves when initialized
    * @protected
    */
@@ -808,11 +873,13 @@ export class WebSocketTransport extends NetworkTransport {
   /**
    * Propagate errors for WebSocket operations.
    */
-  protected shouldPropagateErrors(): boolean { return true; }
+  protected shouldPropagateErrors(): boolean {
+    return true;
+  }
 
   /**
    * Close network connection.
-   * 
+   *
    * @returns {Promise<void>} Resolves when closed
    * @protected
    */
@@ -822,9 +889,21 @@ export class WebSocketTransport extends NetworkTransport {
     } finally {
       // If underlying ws was already CLOSED, manually emit a synthetic close to satisfy cleanup test
       if (this.ws === undefined && this.url) {
-  const cached = WebSocketTransport.socketCache[this.url] as InternalWebSocketLike | undefined;
-        if (cached && cached.readyState === this.getWsStates(cached).CLOSED && typeof cached.onclose === 'function') {
-          try { cached.onclose(new CloseEvent('close', { code: 1000, reason: 'Transport closing', wasClean: true })); } catch { /* ignore */ }
+        const cached = WebSocketTransport.socketCache[this.url] as
+          | InternalWebSocketLike
+          | undefined;
+        if (
+          cached &&
+          cached.readyState === this.getWsStates(cached).CLOSED &&
+          typeof cached.onclose === 'function'
+        ) {
+          try {
+            cached.onclose(
+              new CloseEvent('close', { code: 1000, reason: 'Transport closing', wasClean: true })
+            );
+          } catch {
+            /* ignore */
+          }
         }
       }
     }

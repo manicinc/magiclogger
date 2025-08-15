@@ -3,25 +3,21 @@
 import { LoggerBase } from './LoggerBase';
 import { BrowserStorageManager } from './BrowserStorageManager';
 import { Printer } from './Printer';
-import type { 
-  LoggerOptions, 
-  ColorName, 
-  StylePreset 
-} from '../types';
+import type { LoggerOptions, ColorName, StylePreset } from '../types';
 
 /**
  * Browser implementation of the Logger.
- * 
+ *
  * This class provides optimized logging for browser environments:
  * - Console styling with CSS
  * - LocalStorage/SessionStorage support
  * - Browser DevTools integration
  * - Performance optimizations for browsers
  * - Angle bracket syntax parsing for inline styles
- * 
+ *
  * @class BrowserLogger
  * @extends {LoggerBase}
- * 
+ *
  * @example
  * ```typescript
  * const logger = new BrowserLogger({
@@ -29,7 +25,7 @@ import type {
  *   storageName: 'app-logs',
  *   maxStoredLogs: 1000
  * });
- * 
+ *
  * // Automatic angle bracket parsing
  * logger.info('<green.bold>SUCCESS:</> Page loaded in <yellow>250ms</>');
  * logger.error('<red>Error:</> Failed to fetch <cyan>user data</>');
@@ -102,7 +98,7 @@ export class BrowserLogger extends LoggerBase {
 
   /**
    * Creates a new BrowserLogger instance.
-   * 
+   *
    * @param {LoggerOptions} options - Logger configuration
    */
   constructor(options: LoggerOptions = {}) {
@@ -113,7 +109,7 @@ export class BrowserLogger extends LoggerBase {
     this.storageEnabled = this.storeInBrowser || !!options.storageName;
     this.storageKey = options.storageName || 'logger-logs';
     this.maxStoredLogs = options.maxStoredLogs || 1000;
-  this.useLocalStorage = options.useLocalStorage !== false;
+    this.useLocalStorage = options.useLocalStorage !== false;
     this.groupLogs = false; // Default value since not in LoggerOptions
 
     // Check for console styling support
@@ -140,7 +136,7 @@ export class BrowserLogger extends LoggerBase {
     // Most modern browsers support console styling
     // Check for specific browsers that don't
     const userAgent = navigator.userAgent.toLowerCase();
-    
+
     // IE doesn't support console styling
     if (userAgent.includes('trident') || userAgent.includes('msie')) {
       return false;
@@ -164,7 +160,7 @@ export class BrowserLogger extends LoggerBase {
       this.storageManager = new BrowserStorageManager({
         storageName: this.storageKey,
         maxEntries: this.maxStoredLogs,
-  useLocalStorage: this.useLocalStorage,
+        useLocalStorage: this.useLocalStorage,
       });
     } catch (error) {
       console.warn('[BrowserLogger] Failed to initialize storage:', error);
@@ -196,7 +192,11 @@ export class BrowserLogger extends LoggerBase {
         this.storeInBrowser = false;
       };
       openReq.onsuccess = () => {
-        try { openReq.result?.close?.(); } catch { /* noop */ }
+        try {
+          openReq.result?.close?.();
+        } catch {
+          /* noop */
+        }
       };
     } catch {
       this.storageEnabled = false;
@@ -219,7 +219,7 @@ export class BrowserLogger extends LoggerBase {
   /**
    * Parses angle bracket syntax in a message.
    * Converts <style>text</> to styled text for console.
-   * 
+   *
    * @param {string} msg - Message with potential angle bracket syntax
    * @returns {object} Parsed message with styles
    * @private
@@ -247,10 +247,10 @@ export class BrowserLogger extends LoggerBase {
     }
 
     // Build format string and styles array for console.log
-    matches.forEach((match) => {
+    matches.forEach(match => {
       const [fullMatch, styleStr, content] = match;
       const cssStyle = this.convertToCSSStyle(styleStr);
-      
+
       // Replace with %c marker for console styling
       formattedText = formattedText.replace(fullMatch, `%c${content}%c`);
       styles.push(cssStyle);
@@ -262,7 +262,7 @@ export class BrowserLogger extends LoggerBase {
 
   /**
    * Converts style names to CSS styles.
-   * 
+   *
    * @param {string} styleStr - Dot-separated style string
    * @returns {string} CSS style string
    * @private
@@ -280,61 +280,123 @@ export class BrowserLogger extends LoggerBase {
     for (const style of styles) {
       switch (style.toLowerCase()) {
         // Colors
-        case 'black': cssProps.push('color: black'); break;
-        case 'red': cssProps.push('color: red'); break;
-        case 'green': cssProps.push('color: green'); break;
-        case 'yellow': cssProps.push('color: gold'); break;
-        case 'blue': cssProps.push('color: blue'); break;
-        case 'magenta': cssProps.push('color: magenta'); break;
-        case 'cyan': cssProps.push('color: cyan'); break;
-        case 'white': cssProps.push('color: white'); break;
-        case 'gray':
-        case 'grey': cssProps.push('color: gray'); break;
-        
-        // Bright colors
-        case 'brightred': cssProps.push('color: #ff6b6b'); break;
-        case 'brightgreen': cssProps.push('color: #51cf66'); break;
-        case 'brightyellow': cssProps.push('color: #ffd43b'); break;
-        case 'brightblue': cssProps.push('color: #339af0'); break;
-        case 'brightmagenta': cssProps.push('color: #f06595'); break;
-        case 'brightcyan': cssProps.push('color: #22b8cf'); break;
-        case 'brightwhite': cssProps.push('color: #ffffff'); break;
-        
-        // Backgrounds
-        case 'bgblack': cssProps.push('background-color: black'); break;
-        case 'bgred': cssProps.push('background-color: red'); break;
-        case 'bggreen': cssProps.push('background-color: green'); break;
-        case 'bgyellow': cssProps.push('background-color: gold'); break;
-        case 'bgblue': cssProps.push('background-color: blue'); break;
-        case 'bgmagenta': cssProps.push('background-color: magenta'); break;
-        case 'bgcyan': cssProps.push('background-color: cyan'); break;
-        case 'bgwhite': cssProps.push('background-color: white'); break;
-        
-        // Text styles
-        case 'bold': cssProps.push('font-weight: bold'); break;
-        case 'dim': cssProps.push('opacity: 0.7'); break;
-        case 'italic': cssProps.push('font-style: italic'); break;
-        case 'underline': cssProps.push('text-decoration: underline'); break;
-        case 'blink': cssProps.push('animation: blink 1s infinite'); break;
-        case 'reverse': 
-          cssProps.push('filter: invert(1)'); 
+        case 'black':
+          cssProps.push('color: black');
           break;
-        case 'hidden': cssProps.push('visibility: hidden'); break;
-        case 'strikethrough': cssProps.push('text-decoration: line-through'); break;
+        case 'red':
+          cssProps.push('color: red');
+          break;
+        case 'green':
+          cssProps.push('color: green');
+          break;
+        case 'yellow':
+          cssProps.push('color: gold');
+          break;
+        case 'blue':
+          cssProps.push('color: blue');
+          break;
+        case 'magenta':
+          cssProps.push('color: magenta');
+          break;
+        case 'cyan':
+          cssProps.push('color: cyan');
+          break;
+        case 'white':
+          cssProps.push('color: white');
+          break;
+        case 'gray':
+        case 'grey':
+          cssProps.push('color: gray');
+          break;
+
+        // Bright colors
+        case 'brightred':
+          cssProps.push('color: #ff6b6b');
+          break;
+        case 'brightgreen':
+          cssProps.push('color: #51cf66');
+          break;
+        case 'brightyellow':
+          cssProps.push('color: #ffd43b');
+          break;
+        case 'brightblue':
+          cssProps.push('color: #339af0');
+          break;
+        case 'brightmagenta':
+          cssProps.push('color: #f06595');
+          break;
+        case 'brightcyan':
+          cssProps.push('color: #22b8cf');
+          break;
+        case 'brightwhite':
+          cssProps.push('color: #ffffff');
+          break;
+
+        // Backgrounds
+        case 'bgblack':
+          cssProps.push('background-color: black');
+          break;
+        case 'bgred':
+          cssProps.push('background-color: red');
+          break;
+        case 'bggreen':
+          cssProps.push('background-color: green');
+          break;
+        case 'bgyellow':
+          cssProps.push('background-color: gold');
+          break;
+        case 'bgblue':
+          cssProps.push('background-color: blue');
+          break;
+        case 'bgmagenta':
+          cssProps.push('background-color: magenta');
+          break;
+        case 'bgcyan':
+          cssProps.push('background-color: cyan');
+          break;
+        case 'bgwhite':
+          cssProps.push('background-color: white');
+          break;
+
+        // Text styles
+        case 'bold':
+          cssProps.push('font-weight: bold');
+          break;
+        case 'dim':
+          cssProps.push('opacity: 0.7');
+          break;
+        case 'italic':
+          cssProps.push('font-style: italic');
+          break;
+        case 'underline':
+          cssProps.push('text-decoration: underline');
+          break;
+        case 'blink':
+          cssProps.push('animation: blink 1s infinite');
+          break;
+        case 'reverse':
+          cssProps.push('filter: invert(1)');
+          break;
+        case 'hidden':
+          cssProps.push('visibility: hidden');
+          break;
+        case 'strikethrough':
+          cssProps.push('text-decoration: line-through');
+          break;
       }
     }
 
     const cssString = cssProps.join('; ');
-    
+
     // Cache the result
     this.styleCache.set(styleStr, cssString);
-    
+
     return cssString;
   }
 
   /**
    * Core print method for console output.
-   * 
+   *
    * @param {string} level - Log level
    * @param {string} msg - Message to print
    * @param {StylePreset} preset - Style preset
@@ -342,29 +404,29 @@ export class BrowserLogger extends LoggerBase {
    * @protected
    */
   protected print(
-    level: string, 
-    msg: string, 
+    level: string,
+    msg: string,
     preset: StylePreset,
-  _consoleMethod: 'log' | 'info' | 'warn' | 'error' | 'debug' = 'log'
+    _consoleMethod: 'log' | 'info' | 'warn' | 'error' | 'debug' = 'log'
   ): void {
     // Parse angle brackets for console styling
     const { text, styles } = this.parseAngleBracketsForConsole(msg);
-    
+
     // Add level prefix if needed
     const levelPrefix = level !== 'info' ? `[${level.toUpperCase()}]` : '';
     const fullText = levelPrefix ? `${levelPrefix} ${text}` : text;
-    
+
     // Apply preset styles if no angle bracket styles
     let finalText = fullText;
     let finalStyles = styles;
-    
+
     if (styles.length === 0 && this.useColors && this.supportsConsoleStyles) {
       const presetColors = this.getPresetColors(preset);
       const cssStyle = this.convertColorsToCSSStyle(presetColors);
       finalText = `%c${fullText}`;
       finalStyles = [cssStyle];
     }
-    
+
     // Store log if enabled, queue if manager missing
     if (this.storageEnabled) {
       const logMessage = `[${new Date().toISOString()}] [${level.toUpperCase()}] ${msg}`;
@@ -374,7 +436,7 @@ export class BrowserLogger extends LoggerBase {
         this.enqueueForStorage(logMessage);
       }
     }
-    
+
     // Output to console (tests spy console.log only)
     if (finalStyles.length > 0) {
       console.log(finalText, ...finalStyles);
@@ -411,7 +473,8 @@ export class BrowserLogger extends LoggerBase {
         const existingRaw = localStorage.getItem(this.storageKey);
         const existing: string[] = existingRaw ? JSON.parse(existingRaw) : [];
         const merged = [...existing, ...lines];
-        const trimmed = merged.length > this.maxStoredLogs ? merged.slice(-this.maxStoredLogs) : merged;
+        const trimmed =
+          merged.length > this.maxStoredLogs ? merged.slice(-this.maxStoredLogs) : merged;
         localStorage.setItem(this.storageKey, JSON.stringify(trimmed));
       } catch (e: unknown) {
         if (!this.reportedStorageError) {
@@ -441,12 +504,34 @@ export class BrowserLogger extends LoggerBase {
             const tx = db.transaction(['logs'], 'readwrite');
             const store = tx.objectStore('logs');
             for (const line of lines) {
-              try { (store as IDBObjectStore).add(line); } catch { /* ignore add errors */ }
+              try {
+                (store as IDBObjectStore).add(line);
+              } catch {
+                /* ignore add errors */
+              }
             }
-            tx.oncomplete = () => { try { db.close(); } catch { /* noop */ } resolve(); };
-            tx.onerror = () => { try { db.close(); } catch { /* noop */ } resolve(); };
+            tx.oncomplete = () => {
+              try {
+                db.close();
+              } catch {
+                /* noop */
+              }
+              resolve();
+            };
+            tx.onerror = () => {
+              try {
+                db.close();
+              } catch {
+                /* noop */
+              }
+              resolve();
+            };
           } catch {
-            try { db.close(); } catch { /* noop */ }
+            try {
+              db.close();
+            } catch {
+              /* noop */
+            }
             resolve();
           }
         };
@@ -461,7 +546,7 @@ export class BrowserLogger extends LoggerBase {
 
   /**
    * Converts color names to CSS style string.
-   * 
+   *
    * @param {ColorName[]} colors - Array of color names
    * @returns {string} CSS style string
    * @private
@@ -474,54 +559,54 @@ export class BrowserLogger extends LoggerBase {
   /**
    * Logs an info message.
    * Automatically parses angle bracket syntax.
-   * 
+   *
    * @param {string} msg - Message to log (supports <style> syntax)
-   * 
+   *
    * @example
    * ```typescript
    * logger.info('<green>Success:</> User <cyan>logged in</>');
    * ```
    */
   public info(msg: string): void {
-  this.print('info', msg, 'info', 'log');
+    this.print('info', msg, 'info', 'log');
   }
 
   /**
    * Logs a warning message.
    * Automatically parses angle bracket syntax.
-   * 
+   *
    * @param {string} msg - Message to log (supports <style> syntax)
-   * 
+   *
    * @example
    * ```typescript
    * logger.warn('<yellow.bold>Warning:</> <red>High</> memory usage');
    * ```
    */
   public warn(msg: string): void {
-  this.print('warn', msg, 'warning', 'log');
+    this.print('warn', msg, 'warning', 'log');
   }
 
   /**
    * Logs an error message.
    * Automatically parses angle bracket syntax.
-   * 
+   *
    * @param {string} msg - Message to log (supports <style> syntax)
-   * 
+   *
    * @example
    * ```typescript
    * logger.error('<red>Error:</> Failed to load <cyan>module</>');
    * ```
    */
   public error(msg: string): void {
-  this.print('error', msg, 'error', 'log');
+    this.print('error', msg, 'error', 'log');
   }
 
   /**
    * Logs a debug message (only if verbose mode is enabled).
    * Automatically parses angle bracket syntax.
-   * 
+   *
    * @param {string} msg - Message to log (supports <style> syntax)
-   * 
+   *
    * @example
    * ```typescript
    * logger.debug('<dim>Debug:</> Cache size: <yellow>1.2MB</>');
@@ -529,16 +614,16 @@ export class BrowserLogger extends LoggerBase {
    */
   public debug(msg: string): void {
     if (this.verbose) {
-  this.print('debug', msg, 'debug', 'log');
+      this.print('debug', msg, 'debug', 'log');
     }
   }
 
   /**
    * Logs a success message.
    * Automatically parses angle bracket syntax.
-   * 
+   *
    * @param {string} msg - Message to log (supports <style> syntax)
-   * 
+   *
    * @example
    * ```typescript
    * logger.success('<green.bold>✓</> All tests <green>passed</>');
@@ -551,11 +636,11 @@ export class BrowserLogger extends LoggerBase {
   /**
    * Logs a custom message with custom colors.
    * Automatically parses angle bracket syntax.
-   * 
+   *
    * @param {string} msg - Message to log (supports <style> syntax)
    * @param {ColorName[]} colors - Colors to apply
    * @param {string} [prefix='LOG'] - Prefix for the message
-   * 
+   *
    * @example
    * ```typescript
    * logger.custom('<magenta>Special:</> Custom event', ['magenta'], 'EVENT');
@@ -564,18 +649,18 @@ export class BrowserLogger extends LoggerBase {
   public custom(msg: string, colors: ColorName[] = ['white'], prefix = 'LOG'): void {
     // Parse angle brackets
     const { text, styles } = this.parseAngleBracketsForConsole(msg);
-    
+
     const prefixStr = `[${prefix}]`;
     let finalText = `${prefixStr} ${text}`;
     let finalStyles = styles;
-    
+
     // Apply custom colors to prefix if no angle bracket styles
     if (styles.length === 0 && this.useColors && this.supportsConsoleStyles) {
       const cssStyle = this.convertColorsToCSSStyle(colors);
       finalText = `%c${prefixStr}%c ${text}`;
       finalStyles = [cssStyle, ''];
     }
-    
+
     if (finalStyles.length > 0) {
       console.log(finalText, ...finalStyles);
     } else {
@@ -583,17 +668,18 @@ export class BrowserLogger extends LoggerBase {
     }
     if (this.storageEnabled) {
       const line = `[${new Date().toISOString()}] [${prefix.toUpperCase()}] ${msg}`;
-      if (this.storageManager) this.storageManager.addLog(line); else this.enqueueForStorage(line);
+      if (this.storageManager) this.storageManager.addLog(line);
+      else this.enqueueForStorage(line);
     }
   }
 
   /**
    * Logs a message with a specific style preset.
    * Automatically parses angle bracket syntax.
-   * 
+   *
    * @param {string} msg - Message to log (supports <style> syntax)
    * @param {StylePreset} preset - Style preset to use
-   * 
+   *
    * @example
    * ```typescript
    * logger.styled('<cyan>Info:</> System ready', 'highlight');
@@ -605,10 +691,10 @@ export class BrowserLogger extends LoggerBase {
 
   /**
    * Creates a collapsible group in the console.
-   * 
+   *
    * @param {string} label - Group label
    * @param {boolean} [collapsed=false] - Whether to start collapsed
-   * 
+   *
    * @example
    * ```typescript
    * logger.group('API Calls');
@@ -620,7 +706,7 @@ export class BrowserLogger extends LoggerBase {
   public group(label: string, collapsed = false): void {
     // Parse angle brackets in label
     const { text, styles } = this.parseAngleBracketsForConsole(label);
-    
+
     if (styles.length > 0) {
       if (collapsed) {
         console.groupCollapsed(text, ...styles);
@@ -634,7 +720,7 @@ export class BrowserLogger extends LoggerBase {
         console.group(text);
       }
     }
-    
+
     this.groupDepth++;
   }
 
@@ -650,10 +736,10 @@ export class BrowserLogger extends LoggerBase {
 
   /**
    * Prints a section header.
-   * 
+   *
    * @param {string} title - Header title
    * @param {ColorName[]} [colors=['brightWhite', 'bold']] - Colors for the header
-   * 
+   *
    * @example
    * ```typescript
    * logger.header('🚀 Application Started');
@@ -662,7 +748,7 @@ export class BrowserLogger extends LoggerBase {
   public header(title: string, colors: ColorName[] = ['brightWhite', 'bold']): void {
     const line = '='.repeat(50);
     const cssStyle = this.convertColorsToCSSStyle(colors);
-    
+
     if (this.useColors && this.supportsConsoleStyles) {
       console.log(`%c${line}`, cssStyle);
       console.log(`%c  ${title}  `, cssStyle);
@@ -676,10 +762,10 @@ export class BrowserLogger extends LoggerBase {
 
   /**
    * Prints a separator line.
-   * 
+   *
    * @param {string} [char='-'] - Character to use
    * @param {number} [length=50] - Length of separator
-   * 
+   *
    * @example
    * ```typescript
    * logger.separator('=', 30);
@@ -691,10 +777,10 @@ export class BrowserLogger extends LoggerBase {
 
   /**
    * Prints a table from an array of objects.
-   * 
+   *
    * @param {Record<string, unknown>[]} data - Data to display
    * @param {ColorName[]} [_headerColor] - Header colors (unused in browser)
-   * 
+   *
    * @example
    * ```typescript
    * logger.table([
@@ -713,19 +799,20 @@ export class BrowserLogger extends LoggerBase {
       }
       if (this.storageEnabled) {
         const marker = `[${new Date().toISOString()}] [INFO] [TABLE] ${data.length} rows`;
-        if (this.storageManager) this.storageManager.addLog(marker); else this.enqueueForStorage(marker);
+        if (this.storageManager) this.storageManager.addLog(marker);
+        else this.enqueueForStorage(marker);
       }
     }
   }
 
   /**
    * Prints a progress bar (uses console.log).
-   * 
+   *
    * @param {number} progress - Progress percentage (0-100)
    * @param {number} [length=20] - Length of progress bar
    * @param {string} [completeChar='█'] - Complete character
    * @param {string} [incompleteChar='░'] - Incomplete character
-   * 
+   *
    * @example
    * ```typescript
    * logger.progressBar(75);
@@ -739,14 +826,14 @@ export class BrowserLogger extends LoggerBase {
     _clear = false
   ): void {
     const percent = Math.min(100, Math.max(0, progress));
-    const filled = Math.floor(length * percent / 100);
+    const filled = Math.floor((length * percent) / 100);
     const empty = length - filled;
-    
+
     const bar = completeChar.repeat(filled) + incompleteChar.repeat(empty);
     const percentStr = `${percent.toFixed(0)}%`.padStart(4);
-    
+
     const message = `[${bar}] ${percentStr}`;
-    
+
     try {
       Printer.print(message);
     } catch {
@@ -760,16 +847,17 @@ export class BrowserLogger extends LoggerBase {
     }
     if (this.storageEnabled) {
       const marker = `[${new Date().toISOString()}] [INFO] [PROGRESS] ${percent.toFixed(0)}%`;
-      if (this.storageManager) this.storageManager.addLog(marker); else this.enqueueForStorage(marker);
+      if (this.storageManager) this.storageManager.addLog(marker);
+      else this.enqueueForStorage(marker);
     }
   }
 
   /**
    * Logs a clickable link (browser automatically makes URLs clickable).
-   * 
+   *
    * @param {string} url - URL to link
    * @param {string} [description] - Link description
-   * 
+   *
    * @example
    * ```typescript
    * logger.link('https://example.com', 'Visit our site');
@@ -784,16 +872,17 @@ export class BrowserLogger extends LoggerBase {
     }
     if (this.storageEnabled) {
       const marker = `[${new Date().toISOString()}] [INFO] [LINK] ${text}`;
-      if (this.storageManager) this.storageManager.addLog(marker); else this.enqueueForStorage(marker);
+      if (this.storageManager) this.storageManager.addLog(marker);
+      else this.enqueueForStorage(marker);
     }
   }
 
   /**
    * Creates a reusable color function.
-   * 
+   *
    * @param {...ColorName[]} colors - Colors to apply
    * @returns {Function} Function that applies colors
-   * 
+   *
    * @example
    * ```typescript
    * const error = logger.color('red', 'bold');
@@ -806,11 +895,11 @@ export class BrowserLogger extends LoggerBase {
 
   /**
    * Applies different colors to specific parts of a message.
-   * 
+   *
    * @param {string} message - Message to color
    * @param {Record<string, ColorName[]>} colorMap - Map of text to colors
    * @returns {string} Colored message
-   * 
+   *
    * @example
    * ```typescript
    * const msg = logger.colorParts('Status: OK', {
@@ -825,7 +914,7 @@ export class BrowserLogger extends LoggerBase {
 
   /**
    * Gets all stored logs.
-   * 
+   *
    * @returns {string[] | null} Array of log messages or null
    */
   public getLogs(): string[] | null {
@@ -848,7 +937,11 @@ export class BrowserLogger extends LoggerBase {
   public clearLogs(): void {
     if (!this.storageEnabled) return;
     if (this.useLocalStorage) {
-      try { localStorage.removeItem(this.storageKey); } catch { /* ignore */ }
+      try {
+        localStorage.removeItem(this.storageKey);
+      } catch {
+        /* ignore */
+      }
       return;
     }
     try {
@@ -866,17 +959,41 @@ export class BrowserLogger extends LoggerBase {
         try {
           const tx = db.transaction(['logs'], 'readwrite');
           const store = tx.objectStore('logs');
-          try { (store as IDBObjectStore).clear(); } catch { /* ignore */ }
-          tx.oncomplete = () => { try { db.close(); } catch { /* noop */ } };
-          tx.onerror = () => { try { db.close(); } catch { /* noop */ } };
-        } catch { try { db.close(); } catch { /* noop */ } }
+          try {
+            (store as IDBObjectStore).clear();
+          } catch {
+            /* ignore */
+          }
+          tx.oncomplete = () => {
+            try {
+              db.close();
+            } catch {
+              /* noop */
+            }
+          };
+          tx.onerror = () => {
+            try {
+              db.close();
+            } catch {
+              /* noop */
+            }
+          };
+        } catch {
+          try {
+            db.close();
+          } catch {
+            /* noop */
+          }
+        }
       };
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   /**
    * Downloads logs as a text file.
-   * 
+   *
    * @param {string} [filename='logs.txt'] - Filename for download
    */
   public downloadLogs(filename = 'logs.txt'): void {
@@ -890,7 +1007,11 @@ export class BrowserLogger extends LoggerBase {
     let url: string | undefined;
     let createdObjectUrl = false;
     try {
-      if (typeof URL !== 'undefined' && typeof (URL as unknown as { createObjectURL?: (b: Blob) => string }).createObjectURL === 'function') {
+      if (
+        typeof URL !== 'undefined' &&
+        typeof (URL as unknown as { createObjectURL?: (b: Blob) => string }).createObjectURL ===
+          'function'
+      ) {
         const blob = new Blob([content], { type: 'text/plain' });
         url = URL.createObjectURL(blob);
         createdObjectUrl = true;
@@ -902,7 +1023,7 @@ export class BrowserLogger extends LoggerBase {
       // Fallback for environments without createObjectURL (e.g., jsdom)
       url = `data:text/plain;charset=utf-8,${encodeURIComponent(content)}`;
     }
-    
+
     const link = document.createElement('a');
     link.href = url;
     link.download = filename;
@@ -910,7 +1031,12 @@ export class BrowserLogger extends LoggerBase {
 
     // Revoke only if an object URL was created
     try {
-      if (createdObjectUrl && typeof URL !== 'undefined' && typeof (URL as unknown as { revokeObjectURL?: (u: string) => void }).revokeObjectURL === 'function') {
+      if (
+        createdObjectUrl &&
+        typeof URL !== 'undefined' &&
+        typeof (URL as unknown as { revokeObjectURL?: (u: string) => void }).revokeObjectURL ===
+          'function'
+      ) {
         URL.revokeObjectURL(url);
       }
     } catch {
@@ -920,7 +1046,7 @@ export class BrowserLogger extends LoggerBase {
 
   /**
    * Enables or disables storage.
-   * 
+   *
    * @param {boolean} enabled - Whether to enable storage
    */
   public setStorageEnabled(enabled: boolean): void {
@@ -949,7 +1075,7 @@ export class BrowserLogger extends LoggerBase {
     }
     try {
       await this.processStorageQueue();
-      return await new Promise<string[]>((resolve) => {
+      return await new Promise<string[]>(resolve => {
         const idb = (globalThis as unknown as { indexedDB?: IDBFactory }).indexedDB;
         const openReq = idb?.open(this.storageKey, 1);
         if (!openReq) return resolve([]);
@@ -971,25 +1097,46 @@ export class BrowserLogger extends LoggerBase {
               const req = s.getAll();
               req.onsuccess = () => {
                 const items = Array.isArray(req.result) ? req.result : [];
-                const out: string[] = items.map((r: unknown) => {
-                  if (typeof r === 'string') return r;
-                  if (r && typeof r === 'object') {
-                    const obj = r as Record<string, unknown>;
-                    if (typeof obj.log === 'string') return obj.log;
-                  }
-                  return '';
-                }).filter((v: string) => v.length > 0);
-                try { db.close(); } catch { /* noop */ }
+                const out: string[] = items
+                  .map((r: unknown) => {
+                    if (typeof r === 'string') return r;
+                    if (r && typeof r === 'object') {
+                      const obj = r as Record<string, unknown>;
+                      if (typeof obj.log === 'string') return obj.log;
+                    }
+                    return '';
+                  })
+                  .filter((v: string) => v.length > 0);
+                try {
+                  db.close();
+                } catch {
+                  /* noop */
+                }
                 resolve(out);
               };
-              req.onerror = () => { try { db.close(); } catch { /* noop */ } resolve([]); };
+              req.onerror = () => {
+                try {
+                  db.close();
+                } catch {
+                  /* noop */
+                }
+                resolve([]);
+              };
             } else {
               // Fallback: simply resolve empty if getAll not supported
-              try { db.close(); } catch { /* noop */ }
+              try {
+                db.close();
+              } catch {
+                /* noop */
+              }
               resolve([]);
             }
           } catch {
-            try { db.close(); } catch { /* noop */ }
+            try {
+              db.close();
+            } catch {
+              /* noop */
+            }
             resolve([]);
           }
         };
@@ -1023,7 +1170,10 @@ export class BrowserLogger extends LoggerBase {
   /**
    * Simple search over stored logs.
    */
-  public async searchLogs(query: string, opts?: { regex?: boolean; limit?: number }): Promise<string[]> {
+  public async searchLogs(
+    query: string,
+    opts?: { regex?: boolean; limit?: number }
+  ): Promise<string[]> {
     const logs = await this.getLogsAsync();
     const limit = opts?.limit && opts.limit > 0 ? opts.limit : Infinity;
     const out: string[] = [];
@@ -1049,12 +1199,24 @@ export class BrowserLogger extends LoggerBase {
   }
 
   // Node-compat no-ops for browser
-  public getLogFilePath(): string | null { return null; }
-  public getLogDirectory(): string { return 'browser'; }
-  public getLogRetentionDays(): number { return 0; }
-  public setFileLogging(enabled: boolean): void { this.setStorageEnabled(enabled); }
-  public setLogDirectory(_dir: string): void { /* no-op in browser */ }
-  public setLogRetentionDays(_days: number): void { /* no-op in browser */ }
+  public getLogFilePath(): string | null {
+    return null;
+  }
+  public getLogDirectory(): string {
+    return 'browser';
+  }
+  public getLogRetentionDays(): number {
+    return 0;
+  }
+  public setFileLogging(enabled: boolean): void {
+    this.setStorageEnabled(enabled);
+  }
+  public setLogDirectory(_dir: string): void {
+    /* no-op in browser */
+  }
+  public setLogRetentionDays(_days: number): void {
+    /* no-op in browser */
+  }
 
   /**
    * Flushes any pending operations.
@@ -1064,7 +1226,7 @@ export class BrowserLogger extends LoggerBase {
     while (this.groupDepth > 0) {
       this.groupEnd();
     }
-    
+
     // Ensure storage is synced
     if (this.storageManager) {
       // Storage manager handles its own persistence
@@ -1073,7 +1235,7 @@ export class BrowserLogger extends LoggerBase {
 
   /**
    * Creates a child logger with merged configuration.
-   * 
+   *
    * @param {Partial<LoggerOptions>} options - Child logger options
    * @returns {BrowserLogger} Child logger instance
    */
@@ -1084,7 +1246,7 @@ export class BrowserLogger extends LoggerBase {
       tags: [...(this.tags || []), ...(options.tags || [])],
       context: { ...this.context, ...options.context },
     };
-    
+
     return new BrowserLogger(childOptions);
   }
 

@@ -564,7 +564,7 @@ export class PinoCompatibleLogger extends BaseCompatibleLogger {
       delete objContent[this.timestampKey];
       delete objContent[this.levelKey];
       delete objContent[this.messageKey];
-      
+
       if (Object.keys(objContent).length > 0) {
         try {
           parts.push(JSON.stringify(objContent));

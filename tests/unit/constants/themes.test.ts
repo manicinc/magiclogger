@@ -4,7 +4,7 @@ import {
   DEFAULT_THEME,
   DARK_THEME,
   LIGHT_THEME,
-  MINIMAL_THEME
+  MINIMAL_THEME,
 } from 'magiclogger/constants/themes';
 import type { ColorName } from 'magiclogger/types';
 
@@ -59,12 +59,40 @@ describe('Theme Constants', () => {
 
     it('should only contain valid color names', () => {
       const validColors = new Set<ColorName>([
-        'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white',
-        'gray', 'brightBlack', 'brightRed', 'brightGreen', 'brightYellow',
-        'brightBlue', 'brightMagenta', 'brightCyan', 'brightWhite',
-        'bgBlack', 'bgRed', 'bgGreen', 'bgYellow', 'bgBlue', 'bgMagenta',
-        'bgCyan', 'bgWhite', 'bold', 'dim', 'italic', 'underline', 'blink',
-        'reverse', 'hidden', 'strikethrough', 'inverse'
+        'black',
+        'red',
+        'green',
+        'yellow',
+        'blue',
+        'magenta',
+        'cyan',
+        'white',
+        'gray',
+        'brightBlack',
+        'brightRed',
+        'brightGreen',
+        'brightYellow',
+        'brightBlue',
+        'brightMagenta',
+        'brightCyan',
+        'brightWhite',
+        'bgBlack',
+        'bgRed',
+        'bgGreen',
+        'bgYellow',
+        'bgBlue',
+        'bgMagenta',
+        'bgCyan',
+        'bgWhite',
+        'bold',
+        'dim',
+        'italic',
+        'underline',
+        'blink',
+        'reverse',
+        'hidden',
+        'strikethrough',
+        'inverse',
       ]);
 
       const styleArrays = Object.values(DEFAULT_THEME).filter(Array.isArray) as string[][];
@@ -121,13 +149,14 @@ describe('Theme Constants', () => {
         LIGHT_THEME.warn,
         LIGHT_THEME.error,
         LIGHT_THEME.debug,
-        LIGHT_THEME.success
+        LIGHT_THEME.success,
       ];
 
       logLevelStyles.forEach(styles => {
         styles.forEach(style => {
           // Skip style attributes, only validate color tokens
-          if (typeof style === 'string' && (style.includes('bold') || style.includes('italic'))) return;
+          if (typeof style === 'string' && (style.includes('bold') || style.includes('italic')))
+            return;
           expect((style as string).startsWith('bright')).toBe(false);
         });
       });
@@ -205,7 +234,7 @@ describe('Theme Constants', () => {
 
     it('should be JSON serializable', () => {
       const themes = [DEFAULT_THEME, DARK_THEME, LIGHT_THEME, MINIMAL_THEME];
-      
+
       themes.forEach(theme => {
         const json = JSON.stringify(theme);
         const parsed = JSON.parse(json);
@@ -214,10 +243,10 @@ describe('Theme Constants', () => {
     });
 
     it('should be mergeable for customization', () => {
-  const customTheme: Record<string, ColorName[]> = {
+      const customTheme: Record<string, ColorName[]> = {
         ...DEFAULT_THEME,
         info: ['magenta', 'bold'],
-        custom: ['cyan', 'underline']
+        custom: ['cyan', 'underline'],
       };
 
       expect(customTheme.info).toEqual(['magenta', 'bold']);

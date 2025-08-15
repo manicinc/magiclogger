@@ -10,10 +10,14 @@ const entry: LogEntry = {
   message: 'Index test',
   metadata: { foo: 'bar' },
   context: { nested: { a: 1 } },
-  tags: ['a','b'],
+  tags: ['a', 'b'],
 };
 
-class LowerFormatter extends CustomFormatter { format(e: LogEntry) { return e.message.toLowerCase(); } }
+class LowerFormatter extends CustomFormatter {
+  format(e: LogEntry) {
+    return e.message.toLowerCase();
+  }
+}
 
 describe('formatters/index exports', () => {
   it('XMLFormatter formats batch with declaration', () => {

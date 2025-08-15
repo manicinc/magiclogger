@@ -33,10 +33,10 @@ describe('BrowserStorageManager', () => {
 
   it('adds logs to storage', () => {
     const storage = new BrowserStorageManager();
-    
+
     // Clear previous calls from constructor
     mockLocalStorage.setItem.mockClear();
-    
+
     storage.addLog('Test log entry');
 
     // Verify entry was stored in localStorage
@@ -73,7 +73,7 @@ describe('BrowserStorageManager', () => {
     // Mock localStorage.getItem to throw an error
     const originalGetItem = mockLocalStorage.getItem;
     const originalSetItem = mockLocalStorage.setItem;
-    
+
     mockLocalStorage.getItem.mockImplementation(() => {
       throw new Error('Storage unavailable');
     });
@@ -129,8 +129,18 @@ describe('BrowserStorageManager', () => {
     const originalCreate = URLCtor.createObjectURL;
     const originalRevoke = URLCtor.revokeObjectURL;
 
-    const createObjectURLMock = jest.fn<ReturnType<NonNullable<URLWithObjectURL['createObjectURL']>>, Parameters<NonNullable<URLWithObjectURL['createObjectURL']>>>().mockReturnValue('blob:url');
-    const revokeObjectURLMock = jest.fn<ReturnType<NonNullable<URLWithObjectURL['revokeObjectURL']>>, Parameters<NonNullable<URLWithObjectURL['revokeObjectURL']>>>().mockImplementation(() => undefined);
+    const createObjectURLMock = jest
+      .fn<
+        ReturnType<NonNullable<URLWithObjectURL['createObjectURL']>>,
+        Parameters<NonNullable<URLWithObjectURL['createObjectURL']>>
+      >()
+      .mockReturnValue('blob:url');
+    const revokeObjectURLMock = jest
+      .fn<
+        ReturnType<NonNullable<URLWithObjectURL['revokeObjectURL']>>,
+        Parameters<NonNullable<URLWithObjectURL['revokeObjectURL']>>
+      >()
+      .mockImplementation(() => undefined);
 
     Object.defineProperty(URLCtor, 'createObjectURL', {
       value: createObjectURLMock,

@@ -1,5 +1,7 @@
 describe('otlp transport entrypoint', () => {
-  beforeEach(() => { jest.resetModules(); });
+  beforeEach(() => {
+    jest.resetModules();
+  });
 
   it('registers factory, exports helpers, and enforces required options', async () => {
     // Import entrypoint (registration happens on import)
@@ -14,7 +16,10 @@ describe('otlp transport entrypoint', () => {
     // Registry integration
     expect(TransportRegistry.has('otlp')).toBe(true);
 
-    type MinimalConfig = { type: string; name?: string; serviceName?: string } & Record<string, unknown>;
+    type MinimalConfig = { type: string; name?: string; serviceName?: string } & Record<
+      string,
+      unknown
+    >;
     type FactoryFn = (cfg: MinimalConfig) => { name: string };
 
     const factory = TransportRegistry.get('otlp') as FactoryFn | undefined;
@@ -22,14 +27,19 @@ describe('otlp transport entrypoint', () => {
     if (!factory) return;
 
     // Missing serviceName should throw
-    expect(() => factory({ type: 'otlp', name: 'missing' })).toThrow('OTLPTransport requires serviceName');
+    expect(() => factory({ type: 'otlp', name: 'missing' })).toThrow(
+      'OTLPTransport requires serviceName'
+    );
 
     // Valid creation via factory
     const t1 = factory({ type: 'otlp', serviceName: 'svc-a' });
     expect(t1.name).toBe('otlp');
 
     // Helper should set name if provided
-    const t2 = otlpMod.createOTLPTransport('svc-b', { name: 'custom-otlp', endpoint: 'http://localhost:4318' });
+    const t2 = otlpMod.createOTLPTransport('svc-b', {
+      name: 'custom-otlp',
+      endpoint: 'http://localhost:4318',
+    });
     expect(t2.name).toBe('custom-otlp');
   });
 });
