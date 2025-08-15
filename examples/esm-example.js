@@ -2,7 +2,7 @@
 // Usage: node --experimental-modules scripts/esm-example.js
 // Or with Node.js 14+: node scripts/esm-example.js
 
-import { Logger } from 'magiclogger';
+import { Logger } from '../dist/index.js';
 
 // Create a new logger instance with configuration
 const logger = new Logger({
