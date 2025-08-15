@@ -36,8 +36,14 @@ export class XMLFormatter extends CustomFormatter {
   format(entry: LogEntry): string {
     const lines: string[] = [];
 
-    lines.push(`<log level="${this.escapeXml(entry.level)}" timestamp="${this.escapeXml(entry.timestamp)}">`);
-    lines.push(`  <id>${this.escapeXml(entry.id)}</id>`);
+    lines.push(
+      `<log level="${this.escapeXml(entry.level)}" timestamp="${this.escapeXml(
+        String(entry.timestamp)
+      )}">`
+    );
+    if (entry.id) {
+      lines.push(`  <id>${this.escapeXml(String(entry.id))}</id>`);
+    }
 
     if (entry.loggerId) {
       lines.push(`  <loggerId>${this.escapeXml(entry.loggerId)}</loggerId>`);
@@ -58,8 +64,9 @@ export class XMLFormatter extends CustomFormatter {
       if (entry.error.stack) {
         lines.push(`    <stack><![CDATA[${entry.error.stack}]]></stack>`);
       }
-      if (entry.error.code) {
-        lines.push(`    <code>${this.escapeXml(entry.error.code)}</code>`);
+      const maybeCode = (entry.error as { code?: unknown }).code;
+      if (typeof maybeCode === 'string') {
+        lines.push(`    <code>${this.escapeXml(maybeCode)}</code>`);
       }
       lines.push('  </error>');
     }
@@ -83,7 +90,9 @@ export class XMLFormatter extends CustomFormatter {
   formatBatch(entries: LogEntry[]): string {
     const lines: string[] = [this.xmlDeclaration, '<logs>'];
     entries.forEach(entry => {
-      this.format(entry).split('\n').forEach(l => lines.push('  ' + l));
+      this.format(entry)
+        .split('\n')
+        .forEach(l => lines.push('  ' + l));
     });
     lines.push('</logs>');
     return lines.join('\n');
@@ -100,7 +109,9 @@ export class XMLFormatter extends CustomFormatter {
         lines.push(`${indent}</${safeKey}>`);
       } else if (Array.isArray(value)) {
         lines.push(`${indent}<${safeKey}>`);
-        (value as unknown[]).forEach(item => lines.push(`${indent}  <item>${this.escapeXml(this.stringify(item))}</item>`));
+        (value as unknown[]).forEach(item =>
+          lines.push(`${indent}  <item>${this.escapeXml(this.stringify(item))}</item>`)
+        );
         lines.push(`${indent}</${safeKey}>`);
       } else {
         lines.push(`${indent}<${safeKey}>${this.escapeXml(this.stringify(value))}</${safeKey}>`);

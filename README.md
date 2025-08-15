@@ -66,6 +66,15 @@ logger.table([
 
 ## Quick Start
 
+### Module formats and types
+
+MagicLogger publishes ESM and CJS builds with first-class TypeScript types. Use import in ESM/TypeScript and require in CJS:
+
+- ESM/TS: `import { Logger } from 'magiclogger'`
+- CJS: `const { Logger } = require('magiclogger')`
+
+All subpath exports work in both ESM and CJS (for example, `magiclogger/transports/http`).
+
 ### Installation
 
 ```bash

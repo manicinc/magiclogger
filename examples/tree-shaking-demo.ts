@@ -2,7 +2,7 @@
 
 /**
  * MagicLogger Tree-Shaking Demo
- * 
+ *
  * This example demonstrates how to use MagicLogger with optimal tree-shaking.
  * Each import is separate to ensure only needed code is bundled.
  */
@@ -28,9 +28,9 @@ const consoleLogger = new Logger({
     new ConsoleTransport({
       name: 'console',
       level: 'debug',
-      useColors: true
-    })
-  ]
+      useColors: true,
+    }),
+  ],
 });
 
 consoleLogger.info('This appears in the console with colors');
@@ -53,9 +53,9 @@ const fileLogger = new Logger({
       filepath: './logs/app.log',
       level: 'info',
       maxFileSize: 10485760, // 10MB
-      maxFiles: 5
-    })
-  ]
+      maxFiles: 5,
+    }),
+  ],
 });
 
 fileLogger.info('This goes to both console and file');
@@ -70,7 +70,7 @@ import { createWinstonCompatible } from 'magiclogger/compatibility/winston';
 const winstonLogger = createWinstonCompatible({
   level: 'info',
   defaultMeta: { service: 'user-service' },
-  timestamp: true
+  timestamp: true,
 });
 
 // Winston-style API
@@ -88,7 +88,7 @@ requestLogger.info('Processing request');
 async function setupProductionLogging() {
   const logger = new Logger({
     id: 'production-app',
-    context: { environment: 'production' }
+    context: { environment: 'production' },
   });
 
   // Always use console in development
@@ -100,34 +100,38 @@ async function setupProductionLogging() {
   if (process.env.USE_S3_LOGS === 'true') {
     // This import only happens if needed (tree-shaking!)
     const { S3Transport } = await import('magiclogger/transports/s3');
-    
+
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const bucket = process.env.LOG_BUCKET!;
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const region = process.env.AWS_REGION!;
-    
-    logger.addTransport(new S3Transport({
-      name: 's3',
-      bucket,
-      region,
-      prefix: 'logs/',
-      level: 'warn' // Only log warnings/errors to S3
-    }));
+
+    logger.addTransport(
+      new S3Transport({
+        name: 's3',
+        bucket,
+        region,
+        prefix: 'logs/',
+        level: 'warn', // Only log warnings/errors to S3
+      })
+    );
   }
 
   if (process.env.USE_MONGODB_LOGS === 'true') {
     // MongoDB transport only loaded when needed
     const { MongoDBTransport } = await import('magiclogger/transports/mongodb');
-    
+
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const uri = process.env.MONGODB_URI!;
-    
-    logger.addTransport(new MongoDBTransport({
-      name: 'mongodb',
-      uri,
-      collection: 'logs',
-      database: 'myapp'
-    }));
+
+    logger.addTransport(
+      new MongoDBTransport({
+        name: 'mongodb',
+        uri,
+        collection: 'logs',
+        database: 'myapp',
+      })
+    );
   }
 
   return logger;
@@ -145,7 +149,7 @@ import { enhanceConsole } from 'magiclogger/compatibility/console';
 // Bunyan-style logger
 const bunyanLogger = createBunyanCompatible({
   name: 'myapp',
-  level: 'debug'
+  level: 'debug',
 });
 
 bunyanLogger.info({ user: 'john' }, 'User action');
@@ -153,7 +157,7 @@ bunyanLogger.info({ user: 'john' }, 'User action');
 // Pino-style logger
 const pinoLogger = createPinoCompatible({
   level: 'info',
-  prettyPrint: true
+  prettyPrint: true,
 });
 
 pinoLogger.info('Fast logging with Pino API');
@@ -189,9 +193,7 @@ class CustomTransport extends Transport {
 }
 
 const customLogger = new Logger({
-  transports: [
-    new CustomTransport({ name: 'custom' })
-  ]
+  transports: [new CustomTransport({ name: 'custom' })],
 });
 
 customLogger.info('This uses our custom transport');
@@ -202,13 +204,13 @@ customLogger.info('This uses our custom transport');
 
 /*
  * Bundle sizes with different configurations:
- * 
+ *
  * 1. Just Logger:                    ~12KB
  * 2. Logger + ConsoleTransport:      ~15KB
  * 3. Logger + Console + File:        ~18KB
  * 4. Winston compatibility only:     ~25KB
  * 5. All compatibility (bad):        ~50KB
- * 
+ *
  * Compare to traditional loggers:
  * - Winston full:                    ~180KB
  * - Bunyan full:                     ~45KB
@@ -219,29 +221,25 @@ customLogger.info('This uses our custom transport');
 // EXAMPLE 9: TypeScript Types
 // ============================================
 
-import type { 
-  LoggerOptions, 
-  // LogLevel, // Commented out - not used in demo
-  // TransportOptions, // Commented out - not used in demo
-  ConsoleTransportOptions 
-} from 'magiclogger';
+import type { LoggerOptions } from 'magiclogger';
+import type { ConsoleTransportOptions } from 'magiclogger/transports/console';
 
 // Type-safe configuration
 const config: LoggerOptions = {
   id: 'typed-logger',
   tags: ['typescript'],
-  verbose: true
+  verbose: true,
 };
 
 const transportConfig: ConsoleTransportOptions = {
   name: 'typed-console',
   level: 'debug',
-  colorize: true
+  useColors: true,
 };
 
 const typedLogger = new Logger({
   ...config,
-  transports: [new ConsoleTransport(transportConfig)]
+  transports: [new ConsoleTransport(transportConfig)],
 });
 
 // ============================================

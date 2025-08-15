@@ -6,6 +6,12 @@ on:
       - main
       - master
 
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  id-token: write
+
 jobs:
   release:
     name: Release
@@ -14,16 +20,21 @@ jobs:
     
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false
       
-      - name: Setup pnpm (early)
+      - name: Setup pnpm
         uses: pnpm/action-setup@v4
+        with:
+          version: 9
+          
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20.x'
+          cache: 'pnpm'
       
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -38,7 +49,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-  run: npx semantic-release
+        run: npx semantic-release
       
       - name: Commit updated coverage badge
         run: |
@@ -47,5 +58,5 @@ jobs:
             git config --local user.name "GitHub Action"
             git add README.md docs/test-coverage.md
             git commit -m "docs: update coverage badge [skip ci]"
-            git push
+            git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:${{ github.ref }}
           fi
