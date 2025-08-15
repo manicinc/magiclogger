@@ -41,7 +41,19 @@ export default function InteractiveDemo() {
     // Load MagicLogger via package entry to avoid path issues in website build
     const loadMagicLogger = async () => {
       try {
-        const { Logger } = await import('magiclogger');
+        // Try resolving via package name first
+  // Minimal module shape to avoid 'any'
+  type MagicLoggerModule = { Logger?: new (...args: unknown[]) => unknown } | undefined;
+  let LoggerMod: MagicLoggerModule;
+        try {
+          LoggerMod = await import('magiclogger');
+        } catch (e) {
+          // Fallback to local dist build when the package isn't published yet or not resolvable in CI
+          // Path from this file to repo root dist: website/src/components/Landing/InteractiveDemo -> ../../../../../
+          LoggerMod = await import('../../../../../dist/browser/index.js');
+        }
+
+        const { Logger } = LoggerMod ?? {};
         if (Logger) {
           const loggerInstance = new Logger({
             useColors: true,
@@ -94,7 +106,7 @@ export default function InteractiveDemo() {
           console.error = createInterceptor('error', originalConsole.current.error);
           console.debug = createInterceptor('debug', originalConsole.current.debug);
           
-        } else {
+  } else {
           throw new Error('Logger class not found in module');
         }
       } catch (error) {
