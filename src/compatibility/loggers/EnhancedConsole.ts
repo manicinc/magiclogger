@@ -216,7 +216,7 @@ export class EnhancedConsole {
   }
 
   progress(value: number, length?: number, completeChar?: string, incompleteChar?: string): void {
-    this.logger.progressBar(value, length, completeChar, incompleteChar);
+  this.logger.progressBar(value, length, completeChar, incompleteChar);
   }
 
   table(data: Record<string, unknown>[]): void {

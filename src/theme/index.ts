@@ -1,18 +1,30 @@
 import { isBrowserEnvironment } from '../utils/environment';
 import type { ThemeDefinition } from '../types';
 import { DEFAULT_THEME as BUILTIN_DEFAULT_THEME } from '../constants/themes';
+// Bundled fallback: enables themes in browsers and ESM/tsx where fs/path aren't available
+// resolveJsonModule is enabled in tsconfig, so this will be inlined by the bundler.
+// If themes.json is empty, we'll still expose a sensible default below.
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import themesFromJsonRaw from './themes.json';
+const THEMES_FALLBACK: Record<string, ThemeDefinition> = (themesFromJsonRaw as unknown as Record<string, ThemeDefinition>) || {};
 
 let loadThemes: () => Record<string, ThemeDefinition>;
 let getTheme: (name: string) => ThemeDefinition | undefined;
 let listThemes: () => string[];
 
 if (isBrowserEnvironment()) {
-  // Browser implementation - no file system access
-  loadThemes = () => ({ default: BUILTIN_DEFAULT_THEME });
-  getTheme = (_name: string) => {
-    return undefined;
+  // Browser implementation - use bundled JSON fallback or built-in default
+  loadThemes = () => {
+    const src = THEMES_FALLBACK && Object.keys(THEMES_FALLBACK).length > 0
+      ? THEMES_FALLBACK
+      : { default: BUILTIN_DEFAULT_THEME };
+    return src;
   };
-  listThemes = () => ['default'];
+  getTheme = (name: string) => {
+    const themes = loadThemes();
+    return themes[name];
+  };
+  listThemes = () => Object.keys(loadThemes());
 } else {
   // Node.js implementation - use conditional imports
   let fs: typeof import('fs') | undefined;
@@ -84,8 +96,16 @@ if (isBrowserEnvironment()) {
     }
 
     if (!fs || !path) {
-      console.warn('[ThemeManager] Theme file not found', 'fs/path unavailable');
-      themesCache = {};
+      const fallbackCount = Object.keys(THEMES_FALLBACK || {}).length;
+      console.warn(
+        '[ThemeManager] Theme file not found',
+        `fs/path unavailable; falling back to bundled themes (${fallbackCount}) or built-in default`
+      );
+      // Use bundled fallback (works under ESM/tsx) or built-in default
+      const fallback = THEMES_FALLBACK && Object.keys(THEMES_FALLBACK).length > 0
+        ? THEMES_FALLBACK
+        : { default: BUILTIN_DEFAULT_THEME };
+      themesCache = fallback;
       return themesCache;
     }
 
@@ -103,15 +123,26 @@ if (isBrowserEnvironment()) {
           }
         } catch (error) {
           console.warn('[ThemeManager] Failed to parse themes.json:', error as Error);
-          themesCache = {};
+          // Fall back to bundled JSON or built-in default
+          themesCache = THEMES_FALLBACK && Object.keys(THEMES_FALLBACK).length > 0
+            ? THEMES_FALLBACK
+            : { default: BUILTIN_DEFAULT_THEME };
         }
       } catch (error) {
         console.warn('[ThemeManager] Failed to read themes.json:', error as Error);
-        themesCache = {};
+        themesCache = THEMES_FALLBACK && Object.keys(THEMES_FALLBACK).length > 0
+          ? THEMES_FALLBACK
+          : { default: BUILTIN_DEFAULT_THEME };
       }
     } else {
-      console.warn('[ThemeManager] Theme file not found', 'themes.json');
-      themesCache = {};
+      const fallbackCount = Object.keys(THEMES_FALLBACK || {}).length;
+      console.warn(
+        '[ThemeManager] Theme file not found',
+        `themes.json not found; falling back to bundled themes (${fallbackCount}) or built-in default`
+      );
+      themesCache = THEMES_FALLBACK && Object.keys(THEMES_FALLBACK).length > 0
+        ? THEMES_FALLBACK
+        : { default: BUILTIN_DEFAULT_THEME };
     }
     // If we resolved a themesPath (file existed) but ended up with an empty object (e.g. parse error or empty file),
     // ensure we still expose a default theme so callers have a usable fallback. Missing-file cases remain empty.

@@ -143,19 +143,24 @@ describe('Logger Output Methods', () => {
     expect(secondCallArg.replace(/\[|\]/g, '')).toContain('##########----------');
   });
 
-  it('prints newline when progress reaches 100%', () => {
-    // Test with progress < 100%
+  it('finalizes progress only when explicitly requested', () => {
+    // Render progress < 100% shouldn't add newline automatically
     logger.progressBar(99);
+    const outputs = stdoutWriteSpy.mock.calls.map(c => String(c[0]));
+    expect(outputs.join('')).not.toContain('\n');
 
-    // Should not print newline
-    expect(stdoutWriteSpy).toHaveBeenCalledWith(expect.not.stringContaining('\n'));
-
-    // Test with progress = 100%
+    // 100% without clear still finalizes (default behavior keeps line then newline)
     stdoutWriteSpy.mockClear();
     logger.progressBar(100);
-
-    // Should print newline
+    // NodeLogger calls endProgress on 100%, which writes a newline (finalize)
     expect(stdoutWriteSpy).toHaveBeenCalledWith(expect.stringContaining('\n'));
+
+    // With clear=true, it should erase the line (simulate by writing spaces+\r) then allow next prints
+    stdoutWriteSpy.mockClear();
+    logger.progressBar(0);
+    logger.progressBar(100, 20, '█', '░', true);
+    const joined = stdoutWriteSpy.mock.calls.map(c => String(c[0])).join('');
+    expect(joined).toContain('\r');
   });
 
   it('logs 100% progress to file', () => {

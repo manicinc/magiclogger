@@ -263,9 +263,9 @@ export class Printer {
       return;
     }
 
-    // Clear progress bar if active
+    // Finalize active progress bar (preserve last rendered state)
     if (this.progressState.active && !isBrowserEnvironment()) {
-      this.clearProgress();
+      this.finalizeProgress();
     }
 
     if (isBrowserEnvironment()) {
@@ -304,6 +304,11 @@ export class Printer {
     if (this.buffering) {
       this.buffer.push(...lines);
       return;
+    }
+
+  // If a progress bar is active, finalize it (preserve the last rendered state)
+    if (!isBrowserEnvironment() && this.progressState.active && typeof process !== 'undefined' && process.stdout) {
+      this.finalizeProgress();
     }
 
     const output = lines.join('\n');
@@ -421,17 +426,11 @@ export class Printer {
       if (typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'test') {
         if (process.stdout && typeof process.stdout.write === 'function') {
           process.stdout.write(line);
-          if (parseFloat(percent) >= 100) {
-            process.stdout.write('\n');
-            this.progressState.active = false;
-          }
+          // Do not finalize here; allow caller to decide via endProgress
           return;
         }
         // Fallback to console.log if no stdout
         console.log(line);
-        if (parseFloat(percent) >= 100) {
-          this.progressState.active = false;
-        }
         return;
       }
 
@@ -439,13 +438,14 @@ export class Printer {
       if (typeof process !== 'undefined' && process.stdout) {
         process.stdout.write(`\r${' '.repeat(process.stdout.columns || 80)}`);
         process.stdout.write(`\r${line}`);
-        
+        // If we've reached 100%, finalize with a newline so the bar remains visible
         if (parseFloat(percent) >= 100) {
           process.stdout.write('\n');
           this.progressState.active = false;
         }
       } else {
         this.getConsole().log(line);
+        // console.log already appends a newline; mark progress as inactive if complete
         if (parseFloat(percent) >= 100) {
           this.progressState.active = false;
         }
@@ -462,6 +462,31 @@ export class Printer {
     if (!isBrowserEnvironment() && this.progressState.active && typeof process !== 'undefined' && process.stdout) {
       process.stdout.write(`\r${' '.repeat(process.stdout.columns || 80)}\r`);
       this.progressState.active = false;
+    }
+  }
+
+  /**
+   * Finalize the current progress line by moving to the next line without erasing it.
+   * @private
+   * @static
+   */
+  private static finalizeProgress(): void {
+    if (!isBrowserEnvironment() && this.progressState.active && typeof process !== 'undefined' && process.stdout) {
+      process.stdout.write('\n');
+      this.progressState.active = false;
+    }
+  }
+
+  /**
+   * Public API to end a progress line.
+   * When clear is true, erase the progress line; otherwise, finalize by moving to next line.
+   */
+  public static endProgress(options: { clear?: boolean } = {}): void {
+    const { clear = false } = options;
+    if (clear) {
+      this.clearProgress();
+    } else {
+      this.finalizeProgress();
     }
   }
 
@@ -484,6 +509,10 @@ export class Printer {
       compact?: boolean;
     } = {}
   ): void {
+  // Ensure any active progress bar is finalized and preserved before the table
+    if (!isBrowserEnvironment() && this.progressState.active && typeof process !== 'undefined' && process.stdout) {
+      this.finalizeProgress();
+    }
     if (isBrowserEnvironment()) {
       // Browser: Use console.table for better formatting
       this.getConsole().table(data);

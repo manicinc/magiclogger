@@ -41,6 +41,7 @@ import { getTerminalWidth } from '../utils/terminal';
 export class NodeLogger extends LoggerBase {
   /**
    * File manager for disk operations.
+    clear = false
    * @private
    */
   private fileManager?: FileManager;
@@ -656,7 +657,8 @@ export class NodeLogger extends LoggerBase {
     progress: number,
     length = 20,
     completeChar = '█',
-    incompleteChar = '░'
+    incompleteChar = '░',
+    clear = false
   ): void {
     const percent = Math.min(100, Math.max(0, progress));
     const filled = Math.floor((length * percent) / 100);
@@ -678,7 +680,7 @@ export class NodeLogger extends LoggerBase {
     // Tests expect no surrounding brackets in the raw output
     const bar = `${coloredComplete}${coloredIncomplete}`;
     const percentStr = `${percent.toFixed(1)}%`;
-    Printer.printProgress(bar, percentStr);
+  Printer.printProgress(bar, percentStr);
 
     // Some tests spy on console.log only
     try {
@@ -689,6 +691,12 @@ export class NodeLogger extends LoggerBase {
     }
 
     if (percent >= 100) {
+      // End progress according to clear flag (default false => finalize and keep on screen)
+      try {
+        (Printer as unknown as { endProgress: (o?: { clear?: boolean }) => void }).endProgress?.({ clear });
+      } catch {
+        /* ignore */
+      }
       this.writeToFile('[PROGRESS] 100% complete');
     }
   }

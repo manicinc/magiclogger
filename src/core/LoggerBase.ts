@@ -262,7 +262,7 @@ export abstract class LoggerBase extends EventEmitter {
    * Abstract method for progress bars.
    * @abstract
    */
-  public abstract progressBar(progress: number, length: number, completeChar: string, incompleteChar: string): void;
+  public abstract progressBar(progress: number, length: number, completeChar: string, incompleteChar: string, clear?: boolean): void;
 
   /**
    * Abstract method for links.
