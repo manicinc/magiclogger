@@ -96,9 +96,8 @@ export class Colorizer {
   public static applyColors(text: string, colors: ColorName[], useColors = true): string {
   if (!useColors || !text || !colors || colors.length === 0) return text;
 
-    const isTestEnv = typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'test';
-    const cacheKey = colors.join(',');
-    let cachedCodes = isTestEnv ? undefined : this.codeCache.get(cacheKey);
+  const cacheKey = colors.join(',');
+  let cachedCodes = this.codeCache.get(cacheKey);
 
     if (!cachedCodes) {
       let result = '';
@@ -144,9 +143,7 @@ export class Colorizer {
       }
 
       cachedCodes = result;
-      if (!isTestEnv) {
-        this.addToCache(cacheKey, cachedCodes);
-      }
+      this.addToCache(cacheKey, cachedCodes);
     }
 
     // If no codes resolved (unsupported styles mapping to 'normal' etc.), return text unchanged
@@ -593,16 +590,6 @@ export class Colorizer {
    */
   public static createColorFunction(...colors: ColorName[]): (text: string) => string {
     return (text: string) => this.applyColors(text, colors);
-  }
-
-  /**
-   * Internal method to check style support with test environment override.
-   * @private
-   * @static
-   */
-  private static isStyleSupportedInternal(style: string): boolean {
-  // Defer to utils/terminal (namespace import ensures spies are respected)
-  return terminalUtils.isStyleSupported(style);
   }
 
   /**

@@ -256,14 +256,14 @@ export class OTLPTransport extends BatchingTransport {
     });
 
     this.endpoint = options.endpoint || 'http://localhost:4318';
-  this.protocol = options.protocol || 'http/json';
+    this.protocol = options.protocol || 'http/json';
     this.serviceName = options.serviceName;
     this.serviceVersion = options.serviceVersion || '1.0.0';
     this.resource = options.resource || {};
     this.headers = options.headers || {};
     this.includeTraceContext = options.includeTraceContext !== false;
     this.exportPath = options.exportPath || '/v1/logs';
-  this.compression = options.compression || 'none';
+    this.compression = options.compression || 'none';
     this.exportTimeout = options.exportTimeout || 10000;
 
     // Set appropriate content type based on protocol

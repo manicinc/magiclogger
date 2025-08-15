@@ -308,7 +308,7 @@
     "deps:graph:json": "dependency-cruiser -T json src > dependency-graph.json",
     "size:check": "node scripts/analyze-build.js --check",
     "size:update": "node scripts/analyze-build.js",
-    "clean:deep": "rimraf dist build lib coverage *.tsbuildinfo **/*.tsbuildinfo node_modules/.cache && pnpm exec jest --clearCache || true",
+    "clean:deep": "rimraf dist build lib coverage tsconfig.tsbuildinfo tsconfig.build.tsbuildinfo \"node_modules/.cache\" && pnpm exec jest --clearCache || true",
     "rebuild": "npm run clean:deep && pnpm install && npm run build"
   },
   "keywords": [

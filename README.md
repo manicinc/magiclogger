@@ -1,31 +1,14 @@
 # MagicLogger 🪄
 
 <p align="center">
-  <img src="./website/static/img/magiclogger-primary-no-subtitle-transparent-4x.png" alt="MagicLogger" width="400">
-</p>
-
-<p align="center">
-  <strong>Zero-overhead, structured logging for modern JavaScript</strong><br>
-  <em>Beautiful Colors • Rich Styling • Simple API • Tree-Shakeable • Type-Safe</em>
-</p>
-
-<p align="center">
-  <a href="#quick-start">Quick Start</a> •
-  <a href="#styling-showcase">Styling</a> •
-  <a href="#api-reference">API</a> •
-  <a href="#examples">Examples</a> •
-  <a href="#performance">Performance</a>
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/core_gzip-1kb-brightgreen" alt="core_gzip">
-  <img src="https://img.shields.io/badge/core_console_gzip-1kb-brightgreen" alt="core_console_gzip">
-  <img src="https://img.shields.io/badge/core_transports_gzip-1kb-brightgreen" alt="core_transports_gzip">
-  <img src="https://img.shields.io/badge/compat_gzip-1kb-brightgreen" alt="compat_gzip">
   <img src="https://img.shields.io/badge/zero_dependencies-✓-blue" alt="Zero Dependencies">
   <img src="https://img.shields.io/badge/typescript-5.0+-blue" alt="TypeScript">
   <img src="https://img.shields.io/badge/node-14+-green" alt="Node.js">
   <img src="https://img.shields.io/badge/license-MIT-blue" alt="License">
+  <img src="https://img.shields.io/badge/core_gzip-36kb-brightgreen" alt="core_gzip">
+  <img src="https://img.shields.io/badge/core_console_gzip-36kb-brightgreen" alt="core_console_gzip">
+  <img src="https://img.shields.io/badge/core_transports_gzip-44kb-brightgreen" alt="core_transports_gzip">
+  <img src="https://img.shields.io/badge/compat_gzip-43kb-brightgreen" alt="compat_gzip">
 </p>
 
 ## Why MagicLogger?
@@ -578,3 +561,22 @@ apiLogger.error('DB connection failed', { tags: ['db'] });
 const paymentsLogger = createServiceLogger('payments');
 paymentsLogger.warn('High latency to gateway', { tags: ['grpc'] });
 ```
+
+## 📦 Build Output Sizes
+
+| File | Format | Raw Size | Gzip |
+|------|--------|----------|------|
+| `index.cjs` | CJS | 3.03 kB | 718 B |
+| `index.js` | ESM | 1.36 kB | 518 B |
+| `index.d.ts` | Types | 145 kB | 29 kB |
+
+### Reference bundle sizes (gzip)
+
+| Scenario | Size |
+|----------|------|
+| core (esm, gzip) | 37 kB |
+| core + console (esm, gzip) | 37 kB |
+| core + all core transports (esm, gzip) | 45.4 kB |
+| all compatibility layers (esm, gzip) | 43.8 kB |
+
+*Generated via `scripts/analyze-build.js`.*
