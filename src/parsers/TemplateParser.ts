@@ -30,23 +30,23 @@ interface Token {
 /**
  * TemplateParser handles parsing and formatting of template strings with style syntax.
  * Supports both @style{text} syntax and <style>text</> angle bracket syntax.
- * 
+ *
  * @class TemplateParser
- * 
+ *
  * @example
  * ```typescript
  * const parser = new TemplateParser();
- * 
+ *
  * // Parse template with @ syntax
  * const result = parser.parse`@red.bold{Error:} Message failed`;
- * 
+ *
  * // Parse with variables
  * const user = 'john';
  * const result = parser.parse`@green{User ${user}} logged in`;
- * 
+ *
  * // Parse with angle bracket syntax
  * const result = parser.parseString('<red.bold>Error:</> Connection failed');
- * 
+ *
  * // Parse complex nested styles
  * const result = parser.parse`
  *   @white.bgBlue.bold{ HEADER }
@@ -58,18 +58,81 @@ export class TemplateParser {
   // Fast lookup of valid styles (intentionally excludes certain aliases like 'grey', 'bgGrey', 'inverse')
   private static readonly VALID_STYLES: Set<string> = new Set<string>([
     // Foreground colors
-    'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white', 'gray',
+    'black',
+    'red',
+    'green',
+    'yellow',
+    'blue',
+    'magenta',
+    'cyan',
+    'white',
+    'gray',
     // Bright foreground colors
-    'brightBlack', 'brightRed', 'brightGreen', 'brightYellow',
-    'brightBlue', 'brightMagenta', 'brightCyan', 'brightWhite',
+    'brightBlack',
+    'brightRed',
+    'brightGreen',
+    'brightYellow',
+    'brightBlue',
+    'brightMagenta',
+    'brightCyan',
+    'brightWhite',
     // Background colors
-    'bgBlack', 'bgRed', 'bgGreen', 'bgYellow',
-    'bgBlue', 'bgMagenta', 'bgCyan', 'bgWhite', 'bgGray',
+    'bgBlack',
+    'bgRed',
+    'bgGreen',
+    'bgYellow',
+    'bgBlue',
+    'bgMagenta',
+    'bgCyan',
+    'bgWhite',
+    'bgGray',
     // Bright background colors
-    'bgBrightBlack', 'bgBrightRed', 'bgBrightGreen', 'bgBrightYellow',
-    'bgBrightBlue', 'bgBrightMagenta', 'bgBrightCyan', 'bgBrightWhite',
+    'bgBrightBlack',
+    'bgBrightRed',
+    'bgBrightGreen',
+    'bgBrightYellow',
+    'bgBrightBlue',
+    'bgBrightMagenta',
+    'bgBrightCyan',
+    'bgBrightWhite',
+    // Extra popular colors (aliases and 256-color picks)
+    'purple',
+    'brightPurple',
+    'bgPurple',
+    'bgBrightPurple',
+    'teal',
+    'brightTeal',
+    'bgTeal',
+    'bgBrightTeal',
+    'lime',
+    'brightLime',
+    'bgLime',
+    'bgBrightLime',
+    'orange',
+    'brightOrange',
+    'bgOrange',
+    'bgBrightOrange',
+    'pink',
+    'brightPink',
+    'bgPink',
+    'bgBrightPink',
+    'brown',
+    'brightBrown',
+    'bgBrown',
+    'bgBrightBrown',
+    'indigo',
+    'brightIndigo',
+    'bgIndigo',
+    'bgBrightIndigo',
     // Text styles
-    'bold', 'dim', 'italic', 'underline', 'blink', 'reverse', 'hidden', 'strikethrough',
+    'bold',
+    'dim',
+    'italic',
+    'underline',
+    'blink',
+    'reverse',
+    'hidden',
+    'strikethrough',
   ]);
   /**
    * Whether to apply colors to output.
@@ -119,7 +182,7 @@ export class TemplateParser {
 
   /**
    * Creates a new TemplateParser instance.
-   * 
+   *
    * @param {boolean} [useColors=true] - Whether to apply colors to output
    */
   constructor(useColors = true) {
@@ -129,11 +192,11 @@ export class TemplateParser {
   /**
    * Parses a template literal with @style{} syntax.
    * This is the main entry point for template literal parsing.
-   * 
+   *
    * @param {TemplateStringsArray} strings - Template literal strings
    * @param {...unknown[]} values - Interpolated values
    * @returns {string} Formatted string with styles applied
-   * 
+   *
    * @example
    * ```typescript
    * const result = parser.parse`
@@ -179,36 +242,42 @@ export class TemplateParser {
   /**
    * Parses a string with style syntax (not a template literal).
    * Supports both @style{text} and <style>text</> syntax.
-   * 
+   *
    * @param {string} text - Text with style syntax
    * @returns {string} Formatted string with styles applied
-   * 
+   *
    * @example
    * ```typescript
    * // @ syntax
    * const result = parser.parseString('@red.bold{Error:} Connection failed');
-   * 
+   *
    * // Angle bracket syntax
    * const result = parser.parseString('<red.bold>Error:</> Connection failed');
    * ```
    */
   public parseString(text: string): string {
-  // Fast path: no markers
-  if (text.indexOf('@') === -1 && text.indexOf('<') === -1) return text;
+    // Fast path: no markers
+    if (text.indexOf('@') === -1 && text.indexOf('<') === -1) return text;
 
-  // Result cache check
-  const existing = TemplateParser.resultCache.get(text);
-  if (existing !== undefined) return existing;
+    // Result cache check
+    const existing = TemplateParser.resultCache.get(text);
+    if (existing !== undefined) return existing;
 
-  // If angle brackets present, delegate to angle parser first
-  const result = text.indexOf('<') !== -1 ? this.parseAngleBrackets(text) : text;
+    // If angle brackets present, delegate to angle parser first
+    const result = text.indexOf('<') !== -1 ? this.parseAngleBrackets(text) : text;
 
     // Hot-path optimization for simple single-tag patterns like "@red{content}"
     // Avoid regex/tokenization when there is exactly one tag and no nested braces.
     if (!result.includes('<') && this.useColors && result.startsWith('@')) {
       const open = result.indexOf('{');
       const close = result.lastIndexOf('}');
-      if (open > 1 && close > open && close === result.length - 1 && result.indexOf('@', 1) === -1 && result.indexOf('{', open + 1) === -1) {
+      if (
+        open > 1 &&
+        close > open &&
+        close === result.length - 1 &&
+        result.indexOf('@', 1) === -1 &&
+        result.indexOf('{', open + 1) === -1
+      ) {
         const styleString = result.slice(1, open);
         const styles = this.parseStyleString(styleString);
         const content = result.slice(open + 1, close);
@@ -225,31 +294,31 @@ export class TemplateParser {
         return content;
       }
     }
-    
-  // Cache tokenization for performance on repeated inputs
-  const cacheKey = result;
-  let tokens = TemplateParser.templateCache.get(cacheKey);
+
+    // Cache tokenization for performance on repeated inputs
+    const cacheKey = result;
+    let tokens = TemplateParser.templateCache.get(cacheKey);
     if (!tokens) {
       tokens = this.tokenize(result);
       TemplateParser.addToCache(cacheKey, tokens);
     }
-    
-  const out = this.format(tokens, []);
-  // Store to result cache with small bound (under original input key)
+
+    const out = this.format(tokens, []);
+    // Store to result cache with small bound (under original input key)
     if (TemplateParser.resultCache.size > 500) {
       const first = TemplateParser.resultCache.keys().next().value;
       if (first !== undefined) TemplateParser.resultCache.delete(first);
     }
-  TemplateParser.resultCache.set(text, out);
+    TemplateParser.resultCache.set(text, out);
     return out;
   }
 
   /**
    * Parses a string with angle bracket syntax <style>text</>.
-   * 
+   *
    * @param {string} text - Text with angle bracket syntax
    * @returns {string} Formatted string with styles applied
-   * 
+   *
    * @example
    * ```typescript
    * const result = parser.parseAngleBrackets('<red.bold>Error:</> <yellow>Warning</> detected');
@@ -274,9 +343,9 @@ export class TemplateParser {
   /**
    * Creates a bracket parser function bound to this parser.
    * Returns a function that parses angle bracket syntax.
-   * 
+   *
    * @returns {Function} Angle bracket parser function
-   * 
+   *
    * @example
    * ```typescript
    * const parseBrackets = parser.createBracketParser();
@@ -292,7 +361,7 @@ export class TemplateParser {
   /**
    * Tokenizes a template string into parseable tokens.
    * Processes @style{content} syntax.
-   * 
+   *
    * @param {string} template - Template string to tokenize
    * @returns {Token[]} Array of tokens
    * @private
@@ -308,7 +377,11 @@ export class TemplateParser {
     while ((match = this.styleRegex.exec(template)) !== null) {
       const idx = match.index;
       if (idx > lastIndex) {
-        tokens.push({ type: TokenType.TEXT, value: template.slice(lastIndex, idx), position: lastIndex });
+        tokens.push({
+          type: TokenType.TEXT,
+          value: template.slice(lastIndex, idx),
+          position: lastIndex,
+        });
       }
 
       const styleString = match[1] ?? '';
@@ -333,7 +406,7 @@ export class TemplateParser {
 
   /**
    * Formats tokens with interpolated values.
-   * 
+   *
    * @param {Token[]} tokens - Array of tokens to format
    * @param {unknown[]} values - Values to interpolate
    * @returns {string} Formatted string
@@ -370,11 +443,11 @@ export class TemplateParser {
   /**
    * Parses a style string into an array of color names.
    * Handles dot-separated styles like "red.bold.underline".
-   * 
+   *
    * @param {string} styleString - Style string to parse
    * @returns {ColorName[]} Array of color names
    * @private
-   * 
+   *
    * @example
    * ```typescript
    * const styles = parser.parseStyleString('red.bold.underline');
@@ -413,21 +486,21 @@ export class TemplateParser {
 
   /**
    * Checks if a style name is valid.
-   * 
+   *
    * @param {string} style - Style name to check
    * @returns {boolean} True if valid
    * @private
    */
   private isValidStyle(style: string): boolean {
-  return TemplateParser.VALID_STYLES.has(style);
+    return TemplateParser.VALID_STYLES.has(style);
   }
 
   /**
    * Creates a formatter function bound to this parser.
    * Returns a tagged template literal function.
-   * 
+   *
    * @returns {Function} Template literal tag function
-   * 
+   *
    * @example
    * ```typescript
    * const fmt = parser.createFormatter();
@@ -442,7 +515,7 @@ export class TemplateParser {
 
   /**
    * Adds tokens to cache with size management.
-   * 
+   *
    * @param {string} key - Cache key
    * @param {Token[]} tokens - Tokens to cache
    * @private
@@ -463,9 +536,9 @@ export class TemplateParser {
   /**
    * Clears the template cache.
    * Useful for testing or when color support changes.
-   * 
+   *
    * @static
-   * 
+   *
    * @example
    * ```typescript
    * TemplateParser.clearCache();
@@ -473,18 +546,18 @@ export class TemplateParser {
    */
   public static clearCache(): void {
     TemplateParser.templateCache.clear();
-  TemplateParser.styleParseCache.clear();
-  TemplateParser.resultCache.clear();
+    TemplateParser.styleParseCache.clear();
+    TemplateParser.resultCache.clear();
   }
 
   /**
    * Escapes special characters in template syntax.
    * Use this when you want to display literal @{}, <>, or </> in output.
-   * 
+   *
    * @param {string} text - Text to escape
    * @returns {string} Escaped text
    * @static
-   * 
+   *
    * @example
    * ```typescript
    * const escaped = TemplateParser.escape('Use @{} or <> for styling');
@@ -492,19 +565,16 @@ export class TemplateParser {
    * ```
    */
   public static escape(text: string): string {
-    return text
-      .replace(/@/g, '\\@')
-      .replace(/</g, '\\<')
-      .replace(/>/g, '\\>');
+    return text.replace(/@/g, '\\@').replace(/</g, '\\<').replace(/>/g, '\\>');
   }
 
   /**
    * Unescapes special characters in template syntax.
-   * 
+   *
    * @param {string} text - Text to unescape
    * @returns {string} Unescaped text
    * @static
-   * 
+   *
    * @example
    * ```typescript
    * const unescaped = TemplateParser.unescape('Use \\@{} or \\<\\> for styling');
@@ -512,21 +582,18 @@ export class TemplateParser {
    * ```
    */
   public static unescape(text: string): string {
-    return text
-      .replace(/\\@/g, '@')
-      .replace(/\\</g, '<')
-      .replace(/\\>/g, '>');
+    return text.replace(/\\@/g, '@').replace(/\\</g, '<').replace(/\\>/g, '>');
   }
 
   /**
    * Validates template syntax without applying styles.
    * Useful for checking if a template is valid before use.
    * Supports both @{} and <> syntax.
-   * 
+   *
    * @param {string} template - Template to validate
    * @returns {object} Validation result with any errors
    * @static
-   * 
+   *
    * @example
    * ```typescript
    * const result = TemplateParser.validate('@red{text} <blue>other</>');
@@ -569,8 +636,8 @@ export class TemplateParser {
       errors.push(`Unclosed angle bracket(s) in template`);
     }
 
-  // Check for invalid @ style syntax (including empty styles like '@{')
-  const styleRegex = /@([\w.]*)\{/g;
+    // Check for invalid @ style syntax (including empty styles like '@{')
+    const styleRegex = /@([\w.]*)\{/g;
     let match;
     while ((match = styleRegex.exec(template)) !== null) {
       const styles = match[1].split('.');
@@ -586,7 +653,7 @@ export class TemplateParser {
     while ((match = angleRegex.exec(template)) !== null) {
       // Skip closing tags
       if (match[1] === '/') continue;
-      
+
       const styles = match[1].split('.');
       for (const style of styles) {
         if (!style) {
@@ -603,13 +670,13 @@ export class TemplateParser {
 
   /**
    * Converts between different style syntaxes.
-   * 
+   *
    * @param {string} text - Text to convert
    * @param {string} from - Source syntax ('at' for @{}, 'angle' for <>)
    * @param {string} to - Target syntax ('at' for @{}, 'angle' for <>)
    * @returns {string} Converted text
    * @static
-   * 
+   *
    * @example
    * ```typescript
    * // Convert @ syntax to angle brackets
@@ -619,7 +686,7 @@ export class TemplateParser {
    *   'angle'
    * );
    * // Returns: '<red>Error:</> <yellow>Warning</>'
-   * 
+   *
    * // Convert angle brackets to @ syntax
    * const result = TemplateParser.convertSyntax(
    *   '<red>Error:</> <yellow>Warning</>',
@@ -646,10 +713,10 @@ export class TemplateParser {
   /**
    * Combines multiple style syntaxes in a single text.
    * Processes both @{} and <> syntax.
-   * 
+   *
    * @param {string} text - Text with mixed syntax
    * @returns {string} Formatted text with styles applied
-   * 
+   *
    * @example
    * ```typescript
    * const result = parser.parseMixed(
@@ -659,8 +726,8 @@ export class TemplateParser {
    */
   public parseMixed(text: string): string {
     // First parse angle brackets, then @ syntax
-  const result = this.parseAngleBrackets(text);
-    
+    const result = this.parseAngleBrackets(text);
+
     // Then parse @ syntax
     const tokens = this.tokenize(result);
     return this.format(tokens, []);

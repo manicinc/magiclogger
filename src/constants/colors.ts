@@ -25,7 +25,7 @@ const BASE_ANSI = {
   white: ANSI.FG_WHITE,
   gray: ANSI.FG_BRIGHT_BLACK,
   grey: ANSI.FG_BRIGHT_BLACK, // Alias
-  
+
   // Bright background colors
   bgBrightBlack: ANSI.BG_BRIGHT_BLACK,
   bgBrightRed: ANSI.BG_BRIGHT_RED,
@@ -59,6 +59,46 @@ const BASE_ANSI = {
   bgGray: ANSI.BG_BRIGHT_BLACK,
   bgGrey: ANSI.BG_BRIGHT_BLACK, // Alias
 
+  // Common aliases mapped to existing 16-color codes
+  purple: ANSI.FG_MAGENTA,
+  brightPurple: ANSI.FG_BRIGHT_MAGENTA,
+  bgPurple: ANSI.BG_MAGENTA,
+  bgBrightPurple: ANSI.BG_BRIGHT_MAGENTA,
+
+  teal: ANSI.FG_CYAN,
+  brightTeal: ANSI.FG_BRIGHT_CYAN,
+  bgTeal: ANSI.BG_CYAN,
+  bgBrightTeal: ANSI.BG_BRIGHT_CYAN,
+
+  lime: ANSI.FG_BRIGHT_GREEN,
+  brightLime: ANSI.FG_BRIGHT_GREEN,
+  bgLime: ANSI.BG_BRIGHT_GREEN,
+  bgBrightLime: ANSI.BG_BRIGHT_GREEN,
+
+  // 256-color additions for popular colors
+  // Orange family
+  orange: ANSI.FG_COLOR_256(208),
+  brightOrange: ANSI.FG_COLOR_256(214),
+  bgOrange: ANSI.BG_COLOR_256(208),
+  bgBrightOrange: ANSI.BG_COLOR_256(214),
+
+  // Pink family
+  pink: ANSI.FG_COLOR_256(205),
+  brightPink: ANSI.FG_COLOR_256(213),
+  bgPink: ANSI.BG_COLOR_256(205),
+  bgBrightPink: ANSI.BG_COLOR_256(213),
+
+  // Brown family
+  brown: ANSI.FG_COLOR_256(130),
+  brightBrown: ANSI.FG_COLOR_256(166),
+  bgBrown: ANSI.BG_COLOR_256(130),
+  bgBrightBrown: ANSI.BG_COLOR_256(166),
+
+  // Indigo family
+  indigo: ANSI.FG_COLOR_256(54),
+  brightIndigo: ANSI.FG_COLOR_256(63),
+  bgIndigo: ANSI.BG_COLOR_256(54),
+  bgBrightIndigo: ANSI.BG_COLOR_256(63),
 } as const;
 
 // Conditional styles (depend on terminal support). We define them separately and
@@ -112,7 +152,8 @@ function getIsStyleSupportedFn(): (s: string) => boolean {
   const g = globalThis as unknown as MagicLoggerGlobal;
   const current = terminalUtils.isStyleSupported as (s: string) => boolean & JestMockFn;
   const isJestMock = (fn: unknown): fn is JestMockFn =>
-    typeof fn === 'function' && !!((fn as JestMockFn)._isMockFunction || (fn as JestMockFn)._isJestMockFunction);
+    typeof fn === 'function' &&
+    !!((fn as JestMockFn)._isMockFunction || (fn as JestMockFn)._isJestMockFunction);
   // Re-use stored mock if present
   if (g.__MAGICLOGGER_IS_STYLE_SUPPORTED && isJestMock(g.__MAGICLOGGER_IS_STYLE_SUPPORTED)) {
     return g.__MAGICLOGGER_IS_STYLE_SUPPORTED as (s: string) => boolean;
@@ -130,7 +171,12 @@ export const COLORS = new Proxy(COLORS_BASE, {
   has(target, prop) {
     if (typeof prop === 'string' && CONDITIONAL_STYLE_NAMES.has(prop)) {
       // Force evaluation so spy records the call even for existence checks.
-  try { const fn = getIsStyleSupportedFn(); fn(prop); } catch { /* ignore */ }
+      try {
+        const fn = getIsStyleSupportedFn();
+        fn(prop);
+      } catch {
+        /* ignore */
+      }
       return true; // Style is always considered present; its value may be '' if unsupported.
     }
     return Reflect.has(target, prop);
@@ -141,25 +187,42 @@ export const COLORS = new Proxy(COLORS_BASE, {
         try {
           const fn = getIsStyleSupportedFn();
           const supported = fn(prop);
-          const raw = supported ? (CONDITIONAL_STYLES as Record<string,string>)[prop] : '';
+          const raw = supported ? (CONDITIONAL_STYLES as Record<string, string>)[prop] : '';
           const val: string = typeof raw === 'string' ? raw : '';
           // Special case for testing behavior
           if (process.env.MAGICLOGGER_DEBUG_STYLES === '1') {
             // eslint-disable-next-line no-console
-            console.log('[COLORS:get]', prop, 'supported=', supported, 'type=', typeof val, 'repr=', JSON.stringify(val));
+            console.log(
+              '[COLORS:get]',
+              prop,
+              'supported=',
+              supported,
+              'type=',
+              typeof val,
+              'repr=',
+              JSON.stringify(val)
+            );
           }
           return val;
-        } catch { return ''; }
+        } catch {
+          return '';
+        }
       }
     }
-  const fallback = Reflect.get(target, prop, receiver);
-  return typeof fallback === 'string' ? fallback : '';
+    const fallback = Reflect.get(target, prop, receiver);
+    return typeof fallback === 'string' ? fallback : '';
   },
   getOwnPropertyDescriptor(target, prop) {
     if (typeof prop === 'string' && CONDITIONAL_STYLE_NAMES.has(prop)) {
       // Evaluate support (spy capture) and expose as data property descriptor.
       let value = '';
-  try { const fn = getIsStyleSupportedFn(); const raw = fn(prop) ? (CONDITIONAL_STYLES as Record<string,string>)[prop] : ''; value = typeof raw === 'string' ? raw : ''; } catch { value = ''; }
+      try {
+        const fn = getIsStyleSupportedFn();
+        const raw = fn(prop) ? (CONDITIONAL_STYLES as Record<string, string>)[prop] : '';
+        value = typeof raw === 'string' ? raw : '';
+      } catch {
+        value = '';
+      }
       return { configurable: true, enumerable: true, value, writable: false };
     }
     return Reflect.getOwnPropertyDescriptor(target, prop);
@@ -167,7 +230,12 @@ export const COLORS = new Proxy(COLORS_BASE, {
   ownKeys(target) {
     // Ensure conditional style evaluation (spy calls) once per enumeration.
     for (const name of CONDITIONAL_STYLE_NAMES) {
-      try { const fn = getIsStyleSupportedFn(); fn(name); } catch { /* ignore */ }
+      try {
+        const fn = getIsStyleSupportedFn();
+        fn(name);
+      } catch {
+        /* ignore */
+      }
     }
     return Reflect.ownKeys(target).concat([...CONDITIONAL_STYLE_NAMES]);
   },
@@ -175,23 +243,28 @@ export const COLORS = new Proxy(COLORS_BASE, {
 
 // Build a static snapshot lazily when first accessed; accessing a style invokes
 // its getter which in turn calls resolveIsStyleSupported so spies still record.
-export const STATIC_COLORS: Record<string, string> = new Proxy({} as Record<string,string>, {
-  get(_t: Record<string,string>, prop: string | symbol): string {
+export const STATIC_COLORS: Record<string, string> = new Proxy({} as Record<string, string>, {
+  get(_t: Record<string, string>, prop: string | symbol): string {
     if (typeof prop !== 'string') return '';
-	const v = (COLORS as Record<string,string>)[prop];
-	return typeof v === 'string' ? v : '';
+    const v = (COLORS as Record<string, string>)[prop];
+    return typeof v === 'string' ? v : '';
   },
   ownKeys() {
     return Reflect.ownKeys(BASE_ANSI).concat([...CONDITIONAL_STYLE_NAMES]);
   },
   getOwnPropertyDescriptor(_t, prop: string | symbol) {
     if (typeof prop === 'string') {
-      return { configurable: true, enumerable: true, value: (COLORS as Record<string,string>)[prop], writable: false };
+      return {
+        configurable: true,
+        enumerable: true,
+        value: (COLORS as Record<string, string>)[prop],
+        writable: false,
+      };
     }
     return undefined;
   },
 }) as Record<string, string>;
-export const ANSI_CODES: Record<string,string> = COLORS;
+export const ANSI_CODES: Record<string, string> = COLORS;
 
 // (Intentionally removed microtask enumeration; tests will explicitly access properties.)
 

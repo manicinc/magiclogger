@@ -1,10 +1,6 @@
 <p align="center">
   <a href="https://github.com/manicinc/magiclogger">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="website/static/img/magiclogger-primary-white-4x.png">
-      <source media="(prefers-color-scheme: light)" srcset="website/static/img/magiclogger-primary-no-subtitle-dark-4x.png">
-      <img src="website/static/img/magiclogger-primary-no-subtitle-dark-4x.png" alt="MagicLogger" width="420">
-    </picture>
+    <img src="website/static/img/magiclogger-primary-no-subtitle-dark-4x.png" alt="MagicLogger" width="420">
   </a>
 </p>
 
@@ -278,9 +274,14 @@ logger.success('<green.bold>✓</> Deployment to <blue>production</> complete');
 ### Style Reference
 
 #### Colors
-- **Foreground**: `black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`, `gray`
+- **Foreground**: `black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`, `gray`, `brightBlack`
 - **Bright**: `brightRed`, `brightGreen`, `brightYellow`, `brightBlue`, `brightMagenta`, `brightCyan`, `brightWhite`
-- **Background**: `bgBlack`, `bgRed`, `bgGreen`, `bgYellow`, `bgBlue`, `bgMagenta`, `bgCyan`, `bgWhite`
+- **Background**: `bgBlack`, `bgRed`, `bgGreen`, `bgYellow`, `bgBlue`, `bgMagenta`, `bgCyan`, `bgWhite`, `bgGray`
+- **Bright Backgrounds**: `bgBrightBlack`, `bgBrightRed`, `bgBrightGreen`, `bgBrightYellow`, `bgBrightBlue`, `bgBrightMagenta`, `bgBrightCyan`, `bgBrightWhite`
+
+Extra popular colors (aliases or ANSI-256 picks with graceful fallbacks):
+- `orange` (`brightOrange`), `purple` (`brightPurple`), `teal` (`brightTeal`), `pink` (`brightPink`), `brown` (`brightBrown`), `indigo` (`brightIndigo`), `lime` (`brightLime`)
+- Background variants: `bgOrange`, `bgPurple`, `bgTeal`, `bgPink`, `bgBrown`, `bgIndigo`, `bgLime` and corresponding `bgBright*` variants.
 
 #### Modifiers
 - **Styles**: `bold`, `dim`, `italic`, `underline`, `blink`, `reverse`, `hidden`, `strikethrough`
