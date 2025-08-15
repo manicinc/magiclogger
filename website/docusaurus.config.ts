@@ -2,6 +2,7 @@ import { themes as prismThemes } from 'prism-react-renderer';
 import type { Config } from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 import path from 'path';
+import fs from 'fs';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
@@ -157,7 +158,8 @@ const config: Config = {
           const repoRoot = path.resolve(__dirname, '..');
           const distEsmBrowser = path.join(repoRoot, 'dist', 'browser', 'index.js');
           const distCjs = path.join(repoRoot, 'dist', 'index.cjs');
-          const target = isServer ? distCjs : distEsmBrowser;
+          const targetCandidate = isServer ? distCjs : distEsmBrowser;
+          const target = fs.existsSync(targetCandidate) ? targetCandidate : undefined;
           return {
             resolve: {
               fallback: isServer
@@ -172,11 +174,13 @@ const config: Config = {
                     'node:fs': false,
                     'node:path': false,
                   },
-              alias: {
-                // Exact match and bare import support
-                magiclogger: target,
-                magiclogger$: target,
-              },
+              alias: target
+                ? {
+                    // Exact match and bare import support
+                    magiclogger: target,
+                    magiclogger$: target,
+                  }
+                : {},
             },
           };
         },
