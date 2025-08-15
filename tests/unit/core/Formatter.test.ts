@@ -16,16 +16,16 @@ describe('Formatter', () => {
 
   describe('colorize', () => {
     it('applies multiple codes and caches result', () => {
-      const out1 = formatter.colorize('hello', ['red','bold']);
-      const out2 = formatter.colorize('hello', ['red','bold']); // cached
+      const out1 = formatter.colorize('hello', ['red', 'bold']);
+      const out2 = formatter.colorize('hello', ['red', 'bold']); // cached
       expect(out1).toBe(out2);
       expect(out1).toContain('hello');
     });
     it('returns text unchanged when disabled or empty', () => {
       formatter.setUseColors(false);
-      expect(formatter.colorize('x',['red'])).toBe('x');
+      expect(formatter.colorize('x', ['red'])).toBe('x');
       formatter.setUseColors(true);
-      expect(formatter.colorize('y',[])).toBe('y');
+      expect(formatter.colorize('y', [])).toBe('y');
     });
     it('uses fallback when style unsupported', () => {
       (terminalUtils.isStyleSupported as jest.Mock).mockReturnValueOnce(false);
@@ -45,33 +45,39 @@ describe('Formatter', () => {
       const text = 'See [Site](https://example.com) and https://example.com/page';
       const out = formatter.preserveLinks(text);
       expect(out).toContain('https://example.com');
-      expect(out.match(/https:\/\/example\.com/g)?.length).toBeGreaterThan(0);
+      expect((out as string).match(/https:\/\/example\.com/g)?.length).toBeGreaterThan(0);
     });
     it('formats file paths when no URLs present', () => {
       const out = formatter.preserveLinks('./src/index.ts');
-      expect(out).toContain('./src/index.ts');
+      expect(out as string).toContain('./src/index.ts');
     });
     it('returns plain text when colors disabled', () => {
       formatter.setUseColors(false);
       expect(formatter.preserveLinks('https://a.com')).toBe('https://a.com');
     });
-  it('uses OSC 8 hyperlink for supported terminals (non-support falls back)', () => {
+    it('uses OSC 8 hyperlink for supported terminals (non-support falls back)', () => {
       const orig = process.env.TERM_PROGRAM;
       process.env.TERM_PROGRAM = 'iTerm.app';
       try {
-    const out = formatter.preserveLinks('README.md');
-    const esc = '\u001b';
-    const hasSeq = out.includes(`${esc}]8;;`);
-    // Assert: either we have proper sequence with file:// or we fell back exactly to plain text
-    const passes = (hasSeq && new RegExp(`${esc}]8;;file://`).test(out)) || (!hasSeq && out === 'README.md');
-    expect(passes).toBe(true);
-      } finally { process.env.TERM_PROGRAM = orig; }
+        const out = formatter.preserveLinks('README.md') as string;
+        const esc = '\u001b';
+        const hasSeq = (out as string).includes(`${esc}]8;;`);
+        // Assert: either we have proper sequence with file:// or we fell back exactly to plain text
+        const passes =
+          (hasSeq && new RegExp(`${esc}]8;;file://`).test(out as string)) ||
+          (!hasSeq && out === 'README.md');
+        expect(passes).toBe(true);
+      } finally {
+        process.env.TERM_PROGRAM = orig;
+      }
     });
   });
 
   describe('template format', () => {
     it('replaces variables including nested', () => {
-      const out = formatter.format('User {user.name} logged in {missing}', { user: { name: 'Alice' } });
+      const out = formatter.format('User {user.name} logged in {missing}', {
+        user: { name: 'Alice' },
+      });
       expect(out).toContain('Alice');
       expect(out).toContain('{missing}');
     });
@@ -79,21 +85,21 @@ describe('Formatter', () => {
 
   describe('pad', () => {
     it('pads left/right/center and respects visible length with ansi', () => {
-      const colored = formatter.colorize('X',['red']);
+      const colored = formatter.colorize('X', ['red']);
       expect(formatter.pad(colored, 5).length).toBeGreaterThanOrEqual(colored.length);
-      expect(formatter.pad('x',5,'_','left')).toBe('____x');
-      const centered = formatter.pad('x',5,' ','center');
+      expect(formatter.pad('x', 5, '_', 'left')).toBe('____x');
+      const centered = formatter.pad('x', 5, ' ', 'center');
       expect(centered.startsWith('  ') || centered.startsWith(' x')).toBe(true);
     });
   });
 
   describe('truncate', () => {
     it('truncates plain and colored text preserving ansi', () => {
-      const plain = formatter.truncate('abcdef',4,'..');
+      const plain = formatter.truncate('abcdef', 4, '..');
       expect(plain).toBe('ab..');
-      const colored = formatter.colorize('abcdef',['red']);
-      const truncated = formatter.truncate(colored,4,'..');
-      expect(formatter.stripAnsi(truncated).length).toBeLessThanOrEqual(4+2); // includes suffix
+      const colored = formatter.colorize('abcdef', ['red']);
+      const truncated = formatter.truncate(colored, 4, '..');
+      expect(formatter.stripAnsi(truncated).length).toBeLessThanOrEqual(4 + 2); // includes suffix
     });
   });
 
@@ -124,40 +130,43 @@ describe('Formatter', () => {
     it('evicts oldest when exceeding max size', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const max = (formatter as unknown as { maxCacheSize: number }).maxCacheSize;
-      for (let i=0;i<max+5;i++) {
-        formatter.colorize('t'+i,['red']);
+      for (let i = 0; i < max + 5; i++) {
+        formatter.colorize('t' + i, ['red']);
       }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const cache: Map<string,string> = (formatter as unknown as { cache: Map<string,string> }).cache;
+      const cache: Map<string, string> = (formatter as unknown as { cache: Map<string, string> })
+        .cache;
       expect(cache.size).toBeLessThanOrEqual(max);
     });
     it('clearCache empties cache & setUseColors clears', () => {
-      formatter.colorize('a',['red']);
+      formatter.colorize('a', ['red']);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      expect((formatter as unknown as { cache: Map<string,string> }).cache.size).toBeGreaterThan(0);
+      expect((formatter as unknown as { cache: Map<string, string> }).cache.size).toBeGreaterThan(
+        0
+      );
       formatter.clearCache();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      expect((formatter as unknown as { cache: Map<string,string> }).cache.size).toBe(0);
-      formatter.colorize('b',['red']);
+      expect((formatter as unknown as { cache: Map<string, string> }).cache.size).toBe(0);
+      formatter.colorize('b', ['red']);
       formatter.setUseColors(false);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      expect((formatter as unknown as { cache: Map<string,string> }).cache.size).toBe(0);
+      expect((formatter as unknown as { cache: Map<string, string> }).cache.size).toBe(0);
     });
   });
 
   describe('gradient & rainbow', () => {
     it('applies gradient or falls back when disabled', () => {
-      const g = formatter.gradient('abcd',['red'],['blue']);
+      const g = formatter.gradient('abcd', ['red'], ['blue']);
       expect(g).toContain('ab');
       formatter.setUseColors(false);
-      expect(formatter.gradient('abc',['red'],['blue'])).toBe('abc');
+      expect(formatter.gradient('abc', ['red'], ['blue'])).toBe('abc');
     });
     it('rainbow colors & respects disabled flag', () => {
       formatter.setUseColors(true);
-    const rb = formatter.rainbow('hello world');
-    // Rainbow should at least contain original characters in order (possibly with ANSI codes)
-    const stripped = formatter.stripAnsi(rb);
-    expect(stripped.replace(/\s+/g,'')).toContain('helloworld');
+      const rb = formatter.rainbow('hello world');
+      // Rainbow should at least contain original characters in order (possibly with ANSI codes)
+      const stripped = formatter.stripAnsi(rb);
+      expect(stripped.replace(/\s+/g, '')).toContain('helloworld');
       formatter.setUseColors(false);
       expect(formatter.rainbow('xyz')).toBe('xyz');
     });

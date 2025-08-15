@@ -67,16 +67,39 @@ export class Logger {
     this.impl.table(data, headerColor);
   }
   public time(label: string): void {
-    this.impl.time(label);
+    // Browser-safe timer
+    try {
+      console.time(label);
+    } catch {
+      /* noop */
+    }
   }
   public timeEnd(label: string): void {
-    this.impl.timeEnd(label);
+    try {
+      console.timeEnd(label);
+    } catch {
+      /* noop */
+    }
   }
   public performance(label: string, data: Record<string, unknown>): void {
-    this.impl.performance(label, data);
+    // Minimal browser-friendly performance view
+    try {
+      console.group?.(label);
+      console.table?.(data as unknown as Record<string, unknown>);
+    } finally {
+      try {
+        console.groupEnd?.();
+      } catch {
+        /* noop */
+      }
+    }
   }
   public progress(percent: number, message?: string): void {
-    this.impl.progress(percent, message ?? '');
+    // Use BrowserLogger progress bar; message is ignored in browser demo
+    this.impl.progressBar(percent);
+    if (message) {
+      this.impl.log(message, 'info');
+    }
   }
 
   // Theme passthroughs for compatibility if needed in future
