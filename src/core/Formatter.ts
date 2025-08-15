@@ -6,26 +6,26 @@ import type { ColorName } from '../types';
 
 /**
  * Formatter class for handling text formatting and styling.
- * 
+ *
  * This class provides:
  * - ANSI color code application
  * - Link detection and preservation
  * - Text sanitization
  * - Format stripping
  * - Template formatting
- * 
+ *
  * @class Formatter
- * 
+ *
  * @example
  * ```typescript
  * const formatter = new Formatter(true);
- * 
+ *
  * // Apply colors
  * const colored = formatter.colorize('Hello', ['red', 'bold']);
- * 
+ *
  * // Format template
  * const formatted = formatter.format('User {name} logged in', { name: 'John' });
- * 
+ *
  * // Strip ANSI codes
  * const plain = formatter.stripAnsi(colored);
  * ```
@@ -41,13 +41,15 @@ export class Formatter {
    * Regex for detecting URLs.
    * @private
    */
-  private readonly urlRegex = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/gi;
+  private readonly urlRegex =
+    /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/gi;
 
   /**
    * Regex for detecting file paths.
    * @private
    */
-  private readonly pathRegex = /(?:^|[\s(])((?:\/|\\|\.\/|\.\.\/)[^\s)]+|[A-Za-z]:\\[^\s)]+)(?=[\s).]|$)/g;
+  private readonly pathRegex =
+    /(?:^|[\s(])((?:\/|\\|\.\/|\.\.\/)[^\s)]+|[A-Za-z]:\\[^\s)]+)(?=[\s).]|$)/g;
 
   /**
    * Regex for stripping ANSI codes.
@@ -76,7 +78,7 @@ export class Formatter {
 
   /**
    * Creates a new Formatter instance.
-   * 
+   *
    * @param {boolean} useColors - Whether to apply colors
    */
   constructor(useColors = true) {
@@ -85,7 +87,7 @@ export class Formatter {
 
   /**
    * Apply colors to text using ANSI codes.
-   * 
+   *
    * @param {string} text - Text to colorize
    * @param {ColorName[]} colors - Colors to apply
    * @returns {string} Colorized text
@@ -107,7 +109,7 @@ export class Formatter {
 
     for (const color of colors) {
       let ansiCode: string | undefined;
-      
+
       // First check if the style is supported in the current terminal
       if (isStyleSupported(color)) {
         ansiCode = ANSI_CODES[color];
@@ -118,7 +120,7 @@ export class Formatter {
           ansiCode = ANSI_CODES[fallback as ColorName];
         }
       }
-      
+
       if (ansiCode) {
         codes.push(ansiCode);
       }
@@ -137,25 +139,26 @@ export class Formatter {
 
   /**
    * Preserve links in text by making them clickable in terminals.
-   * 
+   *
    * @param {string} text - Text possibly containing links
    * @returns {string} Text with preserved links
    */
-  public preserveLinks(text: string): string {
-    // Handle null/undefined inputs
-    if (text === null) return null as unknown as string;
-    if (text === undefined) return undefined as unknown as string;
-    
-    // Type guard to ensure text is a string
+  public preserveLinks(text: unknown): string | null | undefined {
+    // Preserve null/undefined exactly as-is for callers/tests expecting pass-through
+    if (text === null || text === undefined) {
+      return text as null | undefined;
+    }
+
+    // Normalize non-string inputs to strings
     if (typeof text !== 'string') {
       text = String(text);
     }
-    
+
     if (!this.useColors) {
-      return text;
+      return text as string;
     }
 
-    let result = text;
+    let result = text as string;
 
     // First, handle markdown links: [text](url) -> extract URL and colorize it
     const markdownLinkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
@@ -164,7 +167,7 @@ export class Formatter {
     });
 
     // Then, detect and format standalone URLs (do this after markdown to avoid conflicts)
-    result = result.replace(this.urlRegex, (url) => {
+    result = result.replace(this.urlRegex, url => {
       // Only format if it's not already formatted (i.e., doesn't contain ANSI codes)
       if (url.includes('\x1b[')) {
         return url;
@@ -174,7 +177,7 @@ export class Formatter {
 
     // Finally, detect and format file paths, but skip if already part of a URL or already colored
     if (!result.includes('\x1b[')) {
-      result = result.replace(this.pathRegex, (path) => {
+      result = result.replace(this.pathRegex, path => {
         // Only format if it looks like a real path
         if (path.includes('/') || path.includes('\\')) {
           return this.formatPath(path);
@@ -188,7 +191,7 @@ export class Formatter {
 
   /**
    * Format a URL for terminal display.
-   * 
+   *
    * @param {string} url - URL to format
    * @returns {string} Formatted URL
    * @private
@@ -201,19 +204,22 @@ export class Formatter {
 
   /**
    * Format a file path for terminal display.
-   * 
+   *
    * @param {string} path - Path to format
    * @returns {string} Formatted path
    * @private
    */
   private formatPath(path: string): string {
     // Make paths clickable in supported terminals
-    const fullPath = path.startsWith('/') ? path : 
-      `${typeof process !== 'undefined' && process.cwd ? process.cwd() : '/'}/${path}`;
-    
-    if (typeof process !== 'undefined' && process.env && 
-        (process.env.TERM_PROGRAM === 'iTerm.app' || 
-         process.env.TERM === 'xterm-256color')) {
+    const fullPath = path.startsWith('/')
+      ? path
+      : `${typeof process !== 'undefined' && process.cwd ? process.cwd() : '/'}/${path}`;
+
+    if (
+      typeof process !== 'undefined' &&
+      process.env &&
+      (process.env.TERM_PROGRAM === 'iTerm.app' || process.env.TERM === 'xterm-256color')
+    ) {
       return `\x1b]8;;file://${fullPath}\x1b\\${path}\x1b]8;;\x1b\\`;
     }
 
@@ -223,7 +229,7 @@ export class Formatter {
 
   /**
    * Strip ANSI codes from text.
-   * 
+   *
    * @param {string} text - Text with ANSI codes
    * @returns {string} Plain text
    */
@@ -233,7 +239,7 @@ export class Formatter {
 
   /**
    * Format a template string with variables.
-   * 
+   *
    * @param {string} template - Template string with {variables}
    * @param {Record<string, unknown>} variables - Variable values
    * @returns {string} Formatted string
@@ -247,7 +253,7 @@ export class Formatter {
 
   /**
    * Get nested value from object using dot notation.
-   * 
+   *
    * @param {object} obj - Object to search
    * @param {string} path - Dot-separated path
    * @returns {unknown} Value at path
@@ -270,7 +276,7 @@ export class Formatter {
 
   /**
    * Pad text to a specific length.
-   * 
+   *
    * @param {string} text - Text to pad
    * @param {number} length - Desired length
    * @param {string} char - Padding character
@@ -284,7 +290,7 @@ export class Formatter {
     direction: 'left' | 'right' | 'center' = 'right'
   ): string {
     const textLength = this.stripAnsi(text).length;
-    
+
     if (textLength >= length) {
       return text;
     }
@@ -294,13 +300,13 @@ export class Formatter {
     switch (direction) {
       case 'left':
         return char.repeat(padLength) + text;
-      
+
       case 'center': {
         const leftPad = Math.floor(padLength / 2);
         const rightPad = padLength - leftPad;
         return char.repeat(leftPad) + text + char.repeat(rightPad);
       }
-      
+
       case 'right':
       default:
         return text + char.repeat(padLength);
@@ -309,7 +315,7 @@ export class Formatter {
 
   /**
    * Truncate text to a specific length.
-   * 
+   *
    * @param {string} text - Text to truncate
    * @param {number} length - Maximum length
    * @param {string} suffix - Suffix to add
@@ -317,14 +323,14 @@ export class Formatter {
    */
   public truncate(text: string, length: number, suffix = '...'): string {
     const plainText = this.stripAnsi(text);
-    
+
     if (plainText.length <= length) {
       return text;
     }
 
     // Calculate how much we need to remove
     const targetLength = length - suffix.length;
-    
+
     // If text has ANSI codes, we need to be careful
     if (text !== plainText) {
       // Complex case - preserve ANSI codes
@@ -357,7 +363,7 @@ export class Formatter {
 
   /**
    * Wrap text to a specific width.
-   * 
+   *
    * @param {string} text - Text to wrap
    * @param {number} width - Maximum line width
    * @param {string} indent - Indentation for wrapped lines
@@ -387,14 +393,16 @@ export class Formatter {
     }
 
     // Apply indentation to wrapped lines
-    return lines.map((line, index) => {
-      return index === 0 ? line : indent + line;
-    }).join('\n');
+    return lines
+      .map((line, index) => {
+        return index === 0 ? line : indent + line;
+      })
+      .join('\n');
   }
 
   /**
    * Create a box around text.
-   * 
+   *
    * @param {string} text - Text to box
    * @param {object} options - Box options
    * @returns {string} Boxed text
@@ -448,7 +456,7 @@ export class Formatter {
     const border = borders[borderStyle];
     const lines = text.split('\n');
     const maxLength = Math.max(...lines.map(line => this.stripAnsi(line).length));
-    const innerWidth = maxLength + (padding * 2);
+    const innerWidth = maxLength + padding * 2;
 
     // Apply colors to borders
     const colorBorder = (char: string) => this.colorize(char, borderColor);
@@ -462,32 +470,32 @@ export class Formatter {
     // Top border
     result.push(
       marginSpace +
-      colorBorder(border.topLeft) +
-      colorBorder(border.horizontal.repeat(innerWidth)) +
-      colorBorder(border.topRight)
+        colorBorder(border.topLeft) +
+        colorBorder(border.horizontal.repeat(innerWidth)) +
+        colorBorder(border.topRight)
     );
 
     // Padding lines
     for (let i = 0; i < padding; i++) {
       result.push(
         marginSpace +
-        colorBorder(border.vertical) +
-        ' '.repeat(innerWidth) +
-        colorBorder(border.vertical)
+          colorBorder(border.vertical) +
+          ' '.repeat(innerWidth) +
+          colorBorder(border.vertical)
       );
     }
 
     // Content lines
     for (const line of lines) {
       const paddedLine = this.pad(line, maxLength, ' ', align);
-      
+
       result.push(
         marginSpace +
-        colorBorder(border.vertical) +
-        ' '.repeat(padding) +
-        paddedLine +
-        ' '.repeat(padding) +
-        colorBorder(border.vertical)
+          colorBorder(border.vertical) +
+          ' '.repeat(padding) +
+          paddedLine +
+          ' '.repeat(padding) +
+          colorBorder(border.vertical)
       );
     }
 
@@ -495,18 +503,18 @@ export class Formatter {
     for (let i = 0; i < padding; i++) {
       result.push(
         marginSpace +
-        colorBorder(border.vertical) +
-        ' '.repeat(innerWidth) +
-        colorBorder(border.vertical)
+          colorBorder(border.vertical) +
+          ' '.repeat(innerWidth) +
+          colorBorder(border.vertical)
       );
     }
 
     // Bottom border
     result.push(
       marginSpace +
-      colorBorder(border.bottomLeft) +
-      colorBorder(border.horizontal.repeat(innerWidth)) +
-      colorBorder(border.bottomRight)
+        colorBorder(border.bottomLeft) +
+        colorBorder(border.horizontal.repeat(innerWidth)) +
+        colorBorder(border.bottomRight)
     );
 
     return result.join('\n');
@@ -514,7 +522,7 @@ export class Formatter {
 
   /**
    * Add to cache with size limit.
-   * 
+   *
    * @param {string} key - Cache key
    * @param {string} value - Cache value
    * @private
@@ -540,7 +548,7 @@ export class Formatter {
 
   /**
    * Set whether to use colors.
-   * 
+   *
    * @param {boolean} useColors - Whether to use colors
    */
   public setUseColors(useColors: boolean): void {
@@ -550,17 +558,13 @@ export class Formatter {
 
   /**
    * Create a gradient effect (for terminals that support it).
-   * 
+   *
    * @param {string} text - Text to gradient
    * @param {ColorName[]} startColors - Starting colors
    * @param {ColorName[]} endColors - Ending colors
    * @returns {string} Gradient text
    */
-  public gradient(
-    text: string,
-    startColors: ColorName[],
-    endColors: ColorName[]
-  ): string {
+  public gradient(text: string, startColors: ColorName[], endColors: ColorName[]): string {
     if (!this.useColors) {
       return text;
     }
@@ -569,13 +573,13 @@ export class Formatter {
     const midpoint = Math.floor(text.length / 2);
     const firstHalf = this.colorize(text.substring(0, midpoint), startColors);
     const secondHalf = this.colorize(text.substring(midpoint), endColors);
-    
+
     return firstHalf + secondHalf;
   }
 
   /**
    * Apply rainbow colors to text.
-   * 
+   *
    * @param {string} text - Text to rainbow
    * @returns {string} Rainbow text
    */
@@ -586,26 +590,25 @@ export class Formatter {
 
     const colors: ColorName[] = ['red', 'yellow', 'green', 'cyan', 'blue', 'magenta'];
     const chars = text.split('');
-    
-    return chars.map((char, index) => {
-      if (char === ' ') return char;
-      const color = colors[index % colors.length];
-      return this.colorize(char, [color]);
-    }).join('');
+
+    return chars
+      .map((char, index) => {
+        if (char === ' ') return char;
+        const color = colors[index % colors.length];
+        return this.colorize(char, [color]);
+      })
+      .join('');
   }
 
   /**
    * Format a timestamp.
-   * 
+   *
    * @param {Date} date - Date to format
    * @param {string} format - Format string
    * @returns {string} Formatted timestamp
    */
   // Simplified single signature; always returns formatted timestamp.
-  public formatTimestamp(
-    date: Date = new Date(),
-    format?: string
-  ): string {
+  public formatTimestamp(date: Date = new Date(), format?: string): string {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
@@ -613,8 +616,8 @@ export class Formatter {
     const minutes = String(date.getMinutes()).padStart(2, '0');
     const seconds = String(date.getSeconds()).padStart(2, '0');
     const milliseconds = String(date.getMilliseconds()).padStart(3, '0');
-  const fmt: string = format ?? 'YYYY-MM-DD HH:mm:ss.SSS';
-  return fmt
+    const fmt: string = format ?? 'YYYY-MM-DD HH:mm:ss.SSS';
+    return fmt
       .replace('YYYY', String(year))
       .replace('MM', month)
       .replace('DD', day)
@@ -626,7 +629,7 @@ export class Formatter {
 
   /**
    * Format bytes to human readable.
-   * 
+   *
    * @param {number} bytes - Number of bytes
    * @param {number} decimals - Decimal places
    * @returns {string} Formatted size
@@ -645,7 +648,7 @@ export class Formatter {
 
   /**
    * Format duration to human readable.
-   * 
+   *
    * @param {number} ms - Duration in milliseconds
    * @returns {string} Formatted duration
    */

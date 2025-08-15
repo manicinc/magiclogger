@@ -1,17 +1,8 @@
 <p align="center">
-  <a href="https://github.com/manicinc/magiclogger">
-    <img src="website/static/img/magiclogger-primary-no-subtitle-dark-4x.png" alt="MagicLogger" width="420">
-  </a>
-</p>
-
-# MagicLogger 🪄
-
-<p align="center">
   <img src="https://img.shields.io/badge/zero_dependencies-✓-blue" alt="Zero Dependencies">
   <img src="https://img.shields.io/badge/typescript-5.0+-blue" alt="TypeScript">
   <img src="https://img.shields.io/badge/node-14+-green" alt="Node.js">
   <img src="https://img.shields.io/badge/license-MIT-blue" alt="License">
-  <a href="https://codecov.io/gh/manicinc/magiclogger"><img src="https://codecov.io/gh/manicinc/magiclogger/branch/master/graph/badge.svg" alt="codecov"></a>
   <img src="https://img.shields.io/badge/core_gzip-36kb-brightgreen.svg" alt="core_gzip">
   <img src="https://img.shields.io/badge/core_console_gzip-36kb-brightgreen.svg" alt="core_console_gzip">
   <img src="https://img.shields.io/badge/core_transports_gzip-44kb-brightgreen.svg" alt="core_transports_gzip">
@@ -617,6 +608,23 @@ async function deploy() {
 ```
 
 ## 📦 Build Output Sizes
+
+| File | Format | Raw Size | Gzip |
+|------|--------|----------|------|
+| `index.cjs` | CJS | 3.03 kB | 718 B |
+| `index.js` | ESM | 1.36 kB | 521 B |
+| `index.d.ts` | Types | 146 kB | 29.2 kB |
+
+### Reference bundle sizes (gzip)
+
+| Scenario | Size |
+|----------|------|
+| core (esm, gzip) | 37.1 kB |
+| core + console (esm, gzip) | 37.1 kB |
+| core + all core transports (esm, gzip) | 45.5 kB |
+| all compatibility layers (esm, gzip) | 43.9 kB |
+
+*Generated via `scripts/analyze-build.js`.*
 
 | File | Format | Raw Size | Gzip |
 |------|--------|----------|------|

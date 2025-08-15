@@ -8,27 +8,22 @@ import { Formatter } from './Formatter';
 import { TextStyler } from '../utils/TextStyler';
 import { TagManager } from './TagManager';
 import { ContextManager } from './ContextManager';
-import type { 
-  LoggerOptions, 
-  LogLevel, 
-  ColorName, 
-  StylePreset 
-} from '../types';
+import type { LoggerOptions, LogLevel, ColorName, StylePreset } from '../types';
 import { getTerminalWidth } from '../utils/terminal';
 
 /**
  * Node.js implementation of the Logger.
- * 
+ *
  * This class provides full-featured logging for Node.js environments:
  * - Terminal color support with automatic detection
  * - File logging with rotation and retention
  * - Rich formatting (tables, progress bars, headers)
  * - Performance optimizations for Node.js
  * - Angle bracket syntax parsing for inline styles
- * 
+ *
  * @class NodeLogger
  * @extends {LoggerBase}
- * 
+ *
  * @example
  * ```typescript
  * const logger = new NodeLogger({
@@ -37,7 +32,7 @@ import { getTerminalWidth } from '../utils/terminal';
  *   logDir: './logs',
  *   verbose: false
  * });
- * 
+ *
  * // Automatic angle bracket parsing
  * logger.info('<green.bold>SUCCESS:</> Server started on <cyan>port 3000</>');
  * logger.error('<red>Error:</> Connection to <yellow>database</> failed');
@@ -49,6 +44,7 @@ export class NodeLogger extends LoggerBase {
    * @private
    */
   private fileManager?: FileManager;
+  private fileBuffer: string[] = [];
 
   /**
    * Formatter for text processing.
@@ -101,7 +97,7 @@ export class NodeLogger extends LoggerBase {
 
   /**
    * Creates a new NodeLogger instance.
-   * 
+   *
    * @param {LoggerOptions} options - Logger configuration
    */
   constructor(options: LoggerOptions = {}) {
@@ -140,10 +136,52 @@ export class NodeLogger extends LoggerBase {
    * @private
    */
   private initializeFileManager(): void {
+    // Detect whether synchronous Node fs/path access is available.
+    const canUseFs = (() => {
+      try {
+        // In CommonJS or environments with require
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const rq: any = typeof require === 'function' ? require : null;
+        if (rq) {
+          rq('fs');
+          rq('path');
+          return true;
+        }
+      } catch {
+        // ignore
+      }
+      return false;
+    })();
+
+    if (!canUseFs) {
+      // Try ESM-friendly async initialization without crashing.
+      this.fileManager = new FileManager(this.logDir, this.logRetentionDays, false);
+      void this.fileManager.initializeModulesAsync().then(async () => {
+        try {
+          const fm = this.fileManager;
+          if (!fm) return;
+          await fm.initLogFile();
+          // Flush any buffered writes
+          for (const line of this.fileBuffer) {
+            fm.appendToFile(line);
+          }
+          this.fileBuffer.length = 0;
+        } catch (err) {
+          try {
+            console.error('[NodeLogger] Async file logging init failed:', err);
+          } catch {
+            /*noop*/
+          }
+          this.writeToDisk = false;
+        }
+      });
+      return;
+    }
+
     try {
       this.fileManager = new FileManager(this.logDir, this.logRetentionDays);
-  // Synchronously initialize the log file to avoid race conditions in tests
-  this.fileManager.initLogFileSync();
+      // Synchronously initialize the log file to avoid race conditions in tests
+      this.fileManager.initLogFileSync();
     } catch (error) {
       console.error('[NodeLogger] Failed to initialize log file:', error);
       this.writeToDisk = false;
@@ -153,7 +191,7 @@ export class NodeLogger extends LoggerBase {
   /**
    * Parses angle bracket syntax in a message.
    * Converts <style>text</> to styled text.
-   * 
+   *
    * @param {string} msg - Message with potential angle bracket syntax
    * @returns {string} Styled message
    * @private
@@ -176,7 +214,7 @@ export class NodeLogger extends LoggerBase {
 
   /**
    * Formats a log message with metadata.
-   * 
+   *
    * @param {string} msg - Message to format
    * @param {LogLevel} level - Log level
    * @returns {string} Formatted message
@@ -202,12 +240,14 @@ export class NodeLogger extends LoggerBase {
       // Add tags if present
       if (this.tags && this.tags.length > 0) {
         const tagStr = `[${this.tags.join(',')}]`;
-        
+
         // Apply tag-based styling if defined in theme
         let tagColors: ColorName[] = ['cyan'];
-        
+
         // Check if theme has tags property and if any tag has a defined style
-        const themeTags = (this.theme as Record<string, ColorName[]> & { tags?: Record<string, ColorName[]> }).tags;
+        const themeTags = (
+          this.theme as Record<string, ColorName[]> & { tags?: Record<string, ColorName[]> }
+        ).tags;
         if (themeTags && typeof themeTags === 'object') {
           for (const tag of this.tags) {
             if (themeTags[tag]) {
@@ -216,12 +256,13 @@ export class NodeLogger extends LoggerBase {
             }
           }
         }
-        
+
         parts.push(this.useColors ? this.formatter.colorize(tagStr, tagColors) : tagStr);
       }
 
       // Add the message (already styled if angle brackets were present)
-      parts.push(this.formatter.preserveLinks(msg));
+      const preserved = this.formatter.preserveLinks(msg);
+      parts.push(preserved == null ? '' : preserved);
     } catch {
       // Fallback without formatter if it throws
       if (this.includeTimestamp) parts.push(new Date().toISOString());
@@ -235,17 +276,24 @@ export class NodeLogger extends LoggerBase {
 
   /**
    * Writes a message to file if file logging is enabled.
-   * 
+   *
    * @param {string} msg - Message to write
    * @private
    */
   private writeToFile(msg: string): void {
     if (!this.writeToDisk || !this.fileManager) return;
     const plainMsg = Colorizer.stripAnsi(msg);
+    if (!this.fileManager.isReady()) {
+      // Buffer until async init completes
+      this.fileBuffer.push(plainMsg);
+      return;
+    }
     const ok = this.fileManager.appendToFile(plainMsg);
     if (!ok) {
       this.writeToDisk = false;
-      try { console.error('[FileManager] Failed to append to log file:'); } catch {
+      try {
+        console.error('[FileManager] Failed to append to log file:');
+      } catch {
         // ignore
       }
     }
@@ -253,7 +301,7 @@ export class NodeLogger extends LoggerBase {
 
   /**
    * Truncates a message if it exceeds max length.
-   * 
+   *
    * @param {string} msg - Message to truncate
    * @returns {string} Truncated message
    * @private
@@ -267,7 +315,7 @@ export class NodeLogger extends LoggerBase {
 
   /**
    * Core print method that handles all output.
-   * 
+   *
    * @param {string} level - Log level
    * @param {string} msg - Message to print
    * @param {StylePreset} preset - Style preset to use
@@ -276,19 +324,18 @@ export class NodeLogger extends LoggerBase {
   protected print(level: string, msg: string, preset: StylePreset): void {
     // Parse angle brackets first and coerce non-strings safely
     msg = this.parseAngleBrackets(msg as unknown as string);
-    
+
     // Truncate if needed
     msg = this.truncateMessage(msg);
-    
+
     let formattedMsg: string;
     try {
       // Apply preset colors if not already styled
       const colors = this.getPresetColors(preset);
       const containsAnsi = typeof msg === 'string' && msg.indexOf('\x1b[') !== -1;
-      const styledMsg = this.useColors && !containsAnsi 
-        ? this.formatter.colorize(msg, colors)
-        : msg;
-      
+      const styledMsg =
+        this.useColors && !containsAnsi ? this.formatter.colorize(msg, colors) : msg;
+
       // Format the complete message
       formattedMsg = this.formatMessage(styledMsg, level as LogLevel);
     } catch {
@@ -299,10 +346,10 @@ export class NodeLogger extends LoggerBase {
       parts.push(String(msg));
       formattedMsg = parts.join(' ');
     }
-    
+
     // Output to console using static Printer method
     Printer.print(formattedMsg);
-    
+
     // Write to file
     this.writeToFile(formattedMsg);
   }
@@ -312,10 +359,10 @@ export class NodeLogger extends LoggerBase {
    * @private
    */
   private logWithMetrics(level: LogLevel, msg: string, preset: StylePreset): void {
-  const startMs = Date.now();
-  this.print(level, msg, preset);
-  const endMs = Date.now();
-  this.trackPerformance(level, endMs - startMs);
+    const startMs = Date.now();
+    this.print(level, msg, preset);
+    const endMs = Date.now();
+    this.trackPerformance(level, endMs - startMs);
     this.emit('log', {
       level,
       message: msg,
@@ -329,54 +376,54 @@ export class NodeLogger extends LoggerBase {
   /**
    * Logs an info message.
    * Automatically parses angle bracket syntax.
-   * 
+   *
    * @param {string} msg - Message to log (supports <style> syntax)
-   * 
+   *
    * @example
    * ```typescript
    * logger.info('<green>Success:</> Operation completed');
    * ```
    */
   public info(msg: string): void {
-  this.logWithMetrics('info', msg, 'info');
+    this.logWithMetrics('info', msg, 'info');
   }
 
   /**
    * Logs a warning message.
    * Automatically parses angle bracket syntax.
-   * 
+   *
    * @param {string} msg - Message to log (supports <style> syntax)
-   * 
+   *
    * @example
    * ```typescript
    * logger.warn('<yellow.bold>Warning:</> High memory usage');
    * ```
    */
   public warn(msg: string): void {
-  this.logWithMetrics('warn', msg, 'warning');
+    this.logWithMetrics('warn', msg, 'warning');
   }
 
   /**
    * Logs an error message.
    * Automatically parses angle bracket syntax.
-   * 
+   *
    * @param {string} msg - Message to log (supports <style> syntax)
-   * 
+   *
    * @example
    * ```typescript
    * logger.error('<red>Error:</> Connection <yellow>timeout</>');
    * ```
    */
   public error(msg: string): void {
-  this.logWithMetrics('error', msg, 'error');
+    this.logWithMetrics('error', msg, 'error');
   }
 
   /**
    * Logs a debug message (only if verbose mode is enabled).
    * Automatically parses angle bracket syntax.
-   * 
+   *
    * @param {string} msg - Message to log (supports <style> syntax)
-   * 
+   *
    * @example
    * ```typescript
    * logger.debug('<dim>Debug:</> Cache hit for <cyan>user_123</>');
@@ -384,33 +431,33 @@ export class NodeLogger extends LoggerBase {
    */
   public debug(msg: string): void {
     if (this.verbose) {
-  this.logWithMetrics('debug', msg, 'debug');
+      this.logWithMetrics('debug', msg, 'debug');
     }
   }
 
   /**
    * Logs a success message.
    * Automatically parses angle bracket syntax.
-   * 
+   *
    * @param {string} msg - Message to log (supports <style> syntax)
-   * 
+   *
    * @example
    * ```typescript
    * logger.success('<green.bold>✓</> All tests passed');
    * ```
    */
   public success(msg: string): void {
-  this.logWithMetrics('success', msg, 'success');
+    this.logWithMetrics('success', msg, 'success');
   }
 
   /**
    * Logs a custom message with custom colors.
    * Automatically parses angle bracket syntax.
-   * 
+   *
    * @param {string} msg - Message to log (supports <style> syntax)
    * @param {ColorName[]} colors - Colors to apply (if no angle brackets)
    * @param {string} [prefix='LOG'] - Prefix for the message
-   * 
+   *
    * @example
    * ```typescript
    * logger.custom('<magenta>Custom:</> Special event', ['magenta'], 'EVENT');
@@ -419,17 +466,18 @@ export class NodeLogger extends LoggerBase {
   public custom(msg: string, colors: ColorName[] = ['white'], prefix = 'LOG'): void {
     // Parse angle brackets first
     msg = this.parseAngleBrackets(msg);
-    
+
     const prefixStr = `[${prefix}]`;
-    const styledPrefix = this.useColors 
-      ? this.formatter.colorize(prefixStr, colors)
-      : prefixStr;
-    
-    const formattedMsg = this.formatMessage(`${styledPrefix} ${this.formatter.preserveLinks(msg)}`);
-    
-  Printer.print(formattedMsg);
-  // Also write a plain unformatted line for file expectations
-  this.writeToFile(`[${prefix}] ${msg}`);
+    const styledPrefix = this.useColors ? this.formatter.colorize(prefixStr, colors) : prefixStr;
+
+    const preserved = this.formatter.preserveLinks(msg);
+    const formattedMsg = this.formatMessage(
+      `${styledPrefix} ${preserved == null ? '' : preserved}`
+    );
+
+    Printer.print(formattedMsg);
+    // Also write a plain unformatted line for file expectations
+    this.writeToFile(`[${prefix}] ${msg}`);
     this.emit('log', {
       level: prefix.toLowerCase() as LogLevel,
       message: msg,
@@ -443,10 +491,10 @@ export class NodeLogger extends LoggerBase {
   /**
    * Logs a message with a specific style preset.
    * Automatically parses angle bracket syntax.
-   * 
+   *
    * @param {string} msg - Message to log (supports <style> syntax)
    * @param {StylePreset} preset - Style preset to use
-   * 
+   *
    * @example
    * ```typescript
    * logger.styled('<cyan>Info:</> System status', 'highlight');
@@ -463,7 +511,9 @@ export class NodeLogger extends LoggerBase {
       if (this.useColors && !containsAnsi) {
         display = this.formatter.colorize(display, colors);
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
     // Build console line with timestamp/level/tags
     try {
@@ -479,7 +529,9 @@ export class NodeLogger extends LoggerBase {
       const alias: Record<string, string> = { warning: 'WARN' };
       const label = alias[upper.toLowerCase()] || upper;
       this.writeToFile(`[${label}] ${msg}`);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
     // Track metrics and emit event
     this.trackPerformance('info', Date.now() - startMs);
@@ -495,10 +547,10 @@ export class NodeLogger extends LoggerBase {
 
   /**
    * Prints a section header.
-   * 
+   *
    * @param {string} title - Header title
    * @param {ColorName[]} [colors=['brightWhite', 'bold']] - Colors for the header
-   * 
+   *
    * @example
    * ```typescript
    * logger.header('🚀 DEPLOYMENT PROCESS');
@@ -509,9 +561,7 @@ export class NodeLogger extends LoggerBase {
     const padding = Math.max(0, Math.floor((width - title.length - 4) / 2));
     const titleLine = ` ${' '.repeat(padding)}${title}${' '.repeat(padding)} `;
     try {
-      const styledTitle = this.useColors
-        ? this.formatter.colorize(titleLine, colors)
-        : titleLine;
+      const styledTitle = this.useColors ? this.formatter.colorize(titleLine, colors) : titleLine;
       Printer.print(styledTitle);
     } catch {
       Printer.print(titleLine);
@@ -522,10 +572,10 @@ export class NodeLogger extends LoggerBase {
 
   /**
    * Prints a separator line.
-   * 
+   *
    * @param {string} [char='-'] - Character to use for the separator
    * @param {number} [length] - Length of the separator (defaults to terminal width)
-   * 
+   *
    * @example
    * ```typescript
    * logger.separator('=', 50);
@@ -545,10 +595,10 @@ export class NodeLogger extends LoggerBase {
 
   /**
    * Prints a table from an array of objects.
-   * 
+   *
    * @param {Record<string, unknown>[]} data - Data to display
    * @param {ColorName[]} [headerColor=['brightWhite', 'bold']] - Colors for the header
-   * 
+   *
    * @example
    * ```typescript
    * logger.table([
@@ -557,21 +607,26 @@ export class NodeLogger extends LoggerBase {
    * ]);
    * ```
    */
-  public table(data: Record<string, unknown>[], headerColor: ColorName[] = ['brightWhite', 'bold']): void {
+  public table(
+    data: Record<string, unknown>[],
+    headerColor: ColorName[] = ['brightWhite', 'bold']
+  ): void {
     if (!data || data.length === 0) {
       Printer.printTable([]);
       return;
     }
     // Delegate rendering to Printer for consistent behavior
     Printer.printTable(data, headerColor);
-    
+
     // Write summary and rows to file for test expectations
     if (this.writeToDisk) {
       // Header line with union of keys
       try {
         const keys = Array.from(new Set(data.flatMap(item => Object.keys(item))));
         this.writeToFile(keys.join(' '));
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
       this.writeToFile(`[TABLE] ${data.length} rows`);
       data.forEach((item, idx) => {
         const keys = Object.keys(item);
@@ -583,12 +638,12 @@ export class NodeLogger extends LoggerBase {
 
   /**
    * Prints a progress bar.
-   * 
+   *
    * @param {number} progress - Progress percentage (0-100)
    * @param {number} [length=20] - Length of the progress bar
    * @param {string} [completeChar='█'] - Character for completed portion
    * @param {string} [incompleteChar='░'] - Character for incomplete portion
-   * 
+   *
    * @example
    * ```typescript
    * for (let i = 0; i <= 100; i += 10) {
@@ -598,13 +653,13 @@ export class NodeLogger extends LoggerBase {
    * ```
    */
   public progressBar(
-    progress: number, 
-    length = 20, 
-    completeChar = '█', 
+    progress: number,
+    length = 20,
+    completeChar = '█',
     incompleteChar = '░'
   ): void {
     const percent = Math.min(100, Math.max(0, progress));
-    const filled = Math.floor(length * percent / 100);
+    const filled = Math.floor((length * percent) / 100);
     const empty = Math.max(0, length - filled);
     const completeSeg = completeChar.repeat(filled);
     const incompleteSeg = incompleteChar.repeat(empty);
@@ -620,13 +675,18 @@ export class NodeLogger extends LoggerBase {
       // ignore formatter errors
     }
 
-  // Tests expect no surrounding brackets in the raw output
-  const bar = `${coloredComplete}${coloredIncomplete}`;
-  const percentStr = `${percent.toFixed(1)}%`;
-  Printer.printProgress(bar, percentStr);
+    // Tests expect no surrounding brackets in the raw output
+    const bar = `${coloredComplete}${coloredIncomplete}`;
+    const percentStr = `${percent.toFixed(1)}%`;
+    Printer.printProgress(bar, percentStr);
 
     // Some tests spy on console.log only
-    try { if (typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'test') console.log(''); } catch { /* noop */ }
+    try {
+      if (typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'test')
+        console.log('');
+    } catch {
+      /* noop */
+    }
 
     if (percent >= 100) {
       this.writeToFile('[PROGRESS] 100% complete');
@@ -635,10 +695,10 @@ export class NodeLogger extends LoggerBase {
 
   /**
    * Logs a clickable link (if terminal supports it).
-   * 
+   *
    * @param {string} url - URL to link to
    * @param {string} [description] - Link description
-   * 
+   *
    * @example
    * ```typescript
    * logger.link('https://github.com/user/repo', 'View on GitHub');
@@ -662,10 +722,10 @@ export class NodeLogger extends LoggerBase {
 
   /**
    * Creates a reusable color function.
-   * 
+   *
    * @param {...ColorName[]} colors - Colors to apply
    * @returns {Function} Function that applies the colors to text
-   * 
+   *
    * @example
    * ```typescript
    * const error = logger.color('red', 'bold');
@@ -676,20 +736,18 @@ export class NodeLogger extends LoggerBase {
     return (text: string) => {
       // Parse angle brackets first
       text = this.parseAngleBrackets(text);
-      
-      return this.useColors
-        ? this.formatter.colorize(text, colors)
-        : text;
+
+      return this.useColors ? this.formatter.colorize(text, colors) : text;
     };
   }
 
   /**
    * Applies different colors to specific parts of a message.
-   * 
+   *
    * @param {string} message - Message to color
    * @param {Record<string, ColorName[]>} colorMap - Map of text to colors
    * @returns {string} Colored message
-   * 
+   *
    * @example
    * ```typescript
    * const msg = logger.colorParts('Error: Connection failed', {
@@ -701,24 +759,27 @@ export class NodeLogger extends LoggerBase {
   public colorParts(message: string, colorMap: Record<string, ColorName[]>): string {
     // First parse angle brackets
     message = this.parseAngleBrackets(message);
-    
+
     if (!this.useColors) {
       return message;
     }
 
     let result = message;
-    
+
     // Sort by length to avoid partial matches
     const sortedParts = Object.keys(colorMap).sort((a, b) => b.length - a.length);
-    
-  for (const part of sortedParts) {
+
+    for (const part of sortedParts) {
       const colors = colorMap[part];
       if (colors && colors.length > 0) {
-    const colored = this.formatter.colorize(part, colors);
-        result = result.replace(new RegExp(part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), colored);
+        const colored = this.formatter.colorize(part, colors);
+        result = result.replace(
+          new RegExp(part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'),
+          colored
+        );
       }
     }
-    
+
     return result;
   }
 
@@ -745,7 +806,7 @@ export class NodeLogger extends LoggerBase {
 
   /**
    * Gets the current log file path.
-   * 
+   *
    * @returns {string | null} Current log file path or null
    */
   public getLogFilePath(): string | null {
@@ -755,7 +816,7 @@ export class NodeLogger extends LoggerBase {
 
   /**
    * Gets the log directory.
-   * 
+   *
    * @returns {string} Log directory path
    */
   public getLogDirectory(): string {
@@ -764,7 +825,7 @@ export class NodeLogger extends LoggerBase {
 
   /**
    * Sets the log directory.
-   * 
+   *
    * @param {string} dir - New log directory
    */
   public setLogDirectory(dir: string, reinit = false): void {
@@ -772,14 +833,18 @@ export class NodeLogger extends LoggerBase {
     if (this.fileManager) {
       this.fileManager.setLogDir(dir);
       if (reinit && typeof this.fileManager.initLogFile === 'function') {
-        try { void this.fileManager.initLogFile(); } catch { /* ignore */ }
+        try {
+          void this.fileManager.initLogFile();
+        } catch {
+          /* ignore */
+        }
       }
     }
   }
 
   /**
    * Gets the log retention period.
-   * 
+   *
    * @returns {number} Retention period in days
    */
   public getLogRetentionDays(): number {
@@ -788,7 +853,7 @@ export class NodeLogger extends LoggerBase {
 
   /**
    * Sets the log retention period.
-   * 
+   *
    * @param {number} days - Retention period in days
    * @param {boolean} [cleanNow=false] - Whether to clean immediately
    */
@@ -798,14 +863,18 @@ export class NodeLogger extends LoggerBase {
     if (this.fileManager) {
       this.fileManager.setLogRetentionDays(effective);
       if (cleanNow) {
-        try { this.fileManager.cleanupOldLogs(); } catch { /* ignore */ }
+        try {
+          this.fileManager.cleanupOldLogs();
+        } catch {
+          /* ignore */
+        }
       }
     }
   }
 
   /**
    * Checks if file logging is enabled.
-   * 
+   *
    * @returns {boolean} Whether writing to disk is enabled
    */
   public isWriteToDiskEnabled(): boolean {
@@ -814,7 +883,7 @@ export class NodeLogger extends LoggerBase {
 
   /**
    * Creates a child logger with merged configuration.
-   * 
+   *
    * @param {Partial<LoggerOptions>} options - Child logger options
    * @returns {NodeLogger} Child logger instance
    */
@@ -825,7 +894,7 @@ export class NodeLogger extends LoggerBase {
       tags: [...(this.tags || []), ...(options.tags || [])],
       context: { ...this.context, ...options.context },
     };
-    
+
     return new NodeLogger(childOptions);
   }
 
@@ -861,12 +930,20 @@ export class NodeLogger extends LoggerBase {
   }
 
   /** Expose managers for tests */
-  public getContextManager(): ContextManager | undefined { return this.contextManager; }
-  public getTagManager(): TagManager { return this.tagManager; }
+  public getContextManager(): ContextManager | undefined {
+    return this.contextManager;
+  }
+  public getTagManager(): TagManager {
+    return this.tagManager;
+  }
 
   /** Keep formatter in sync with color setting */
   public override setColorsEnabled(enabled: boolean): void {
     super.setColorsEnabled(enabled);
-    try { this.formatter.setUseColors(enabled); } catch { /* ignore */ }
+    try {
+      this.formatter.setUseColors(enabled);
+    } catch {
+      /* ignore */
+    }
   }
 }
