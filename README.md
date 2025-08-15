@@ -1,4 +1,16 @@
 <p align="center">
+  <a href="https://github.com/manicinc/magiclogger">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="website/static/img/magiclogger-primary-white-4x.png">
+      <source media="(prefers-color-scheme: light)" srcset="website/static/img/magiclogger-primary-no-subtitle-dark-4x.png">
+      <img src="website/static/img/magiclogger-primary-no-subtitle-dark-4x.png" alt="MagicLogger" width="420">
+    </picture>
+  </a>
+</p>
+
+# MagicLogger 🪄
+
+<p align="center">
   <img src="https://img.shields.io/badge/zero_dependencies-✓-blue" alt="Zero Dependencies">
   <img src="https://img.shields.io/badge/typescript-5.0+-blue" alt="TypeScript">
   <img src="https://img.shields.io/badge/node-14+-green" alt="Node.js">
