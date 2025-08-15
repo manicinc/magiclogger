@@ -45,6 +45,13 @@ jobs:
       - name: Build library
         run: pnpm run build
 
+      - name: Verify dist outputs
+        run: |
+          echo "Listing dist and dist/browser contents:";
+          ls -la dist || true
+          echo "--- dist/browser:";
+          ls -la dist/browser || true
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
       
