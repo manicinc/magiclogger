@@ -810,6 +810,12 @@ export interface StreamTransportOptions extends TransportOptions {
    * @default 'utf8'
    */
   encoding?: BufferEncoding;
+
+  /**
+   * Maximum internal queue size before dropping/handling backpressure.
+   * Defaults to 1000 if not provided.
+   */
+  maxQueueSize?: number;
 }
 
 /**
