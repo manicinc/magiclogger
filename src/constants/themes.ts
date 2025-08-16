@@ -1,6 +1,6 @@
 // File: src/constants/themes.ts
 
-import type { ColorName } from '../types';
+import type { ColorName } from '../types/colors';
 
 /**
  * Default theme definition with comprehensive styling for all log levels and UI elements.

@@ -38,10 +38,16 @@ export default function InteractiveDemo() {
   const originalConsole = useRef<Record<string, (...args: unknown[]) => void>>({});
 
   useEffect(() => {
-    // Load MagicLogger via package entry to avoid path issues in website build
+    // Load MagicLogger via package entry; fall back to local shim if unavailable
     const loadMagicLogger = async () => {
       try {
-        const { Logger } = await import('magiclogger');
+        let Logger: any | undefined;
+        try {
+          ({ Logger } = await import('magiclogger'));
+        } catch (_err) {
+          // Attempt local shim (aliased in webpack too)
+          ({ Logger } = await import('../../../shims/magiclogger'));
+        }
         if (Logger) {
           const loggerInstance = new Logger({
             useColors: true,

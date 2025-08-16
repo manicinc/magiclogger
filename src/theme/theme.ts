@@ -10,7 +10,7 @@
 // Re-export theme functionality
 export { ThemeManager, DEFAULT_THEME } from './ThemeManager';
 export { getTheme, listThemes, loadThemes } from './index';
-export type { ThemeDefinition } from '../types';
+export type { ThemeDefinition } from '../types/theme';
 
 // Import for internal use
 import { ThemeManager } from './ThemeManager';

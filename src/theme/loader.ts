@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import type { ThemeDefinition } from '../types';
+import type { ThemeDefinition } from '../types/theme';
 
 let themesCache: Record<string, ThemeDefinition> | null = null;
 

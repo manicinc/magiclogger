@@ -9,7 +9,10 @@ import { Formatter } from './core/Formatter';
 import { StyleBuilder } from './core/StyleBuilder';
 import { TemplateParser } from './parsers/TemplateParser';
 import { TextStyler } from './utils/TextStyler';
-import type { LoggerOptions, LogLevel, StylePreset, ColorName, LogEntry } from './types';
+import type { LoggerOptions, LogLevel } from './types/logger';
+import type { StylePreset } from './types/preset';
+import type { ColorName } from './types/colors';
+import type { LogEntry } from './types/transport';
 import type { StyledPart, WordStyleMap, TemplateFormatter, IStyleBuilder } from './types/styling';
 import type { LoggerBase } from './core/LoggerBase';
 import { FileManager } from './core/FileManager';
@@ -1611,12 +1614,10 @@ export class Logger {
 export type {
   LoggerOptions,
   LogLevel,
-  StylePreset,
-  ColorName,
-  Transport,
-  TransportOptions,
-  LogEntry,
-} from './types';
+} from './types/logger';
+export type { StylePreset } from './types/preset';
+export type { ColorName } from './types/colors';
+export type { Transport, TransportOptions, LogEntry } from './types/transport';
 
 export type {
   StyledPart,

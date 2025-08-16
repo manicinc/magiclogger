@@ -1,7 +1,9 @@
 // File: src/core/LoggerBase.ts
 
 import { Emitter as EventEmitter } from './events-compat';
-import type { LoggerOptions, LogLevel, ColorName, StylePreset } from '../types';
+import type { LoggerOptions, LogLevel } from '../types/logger';
+import type { ColorName } from '../types/colors';
+import type { StylePreset } from '../types/preset';
 import { PRESETS } from '../constants/preset';
 import { isBrowserEnvironment } from '../utils/environment';
 import { DEFAULT_THEME } from '../constants/themes';

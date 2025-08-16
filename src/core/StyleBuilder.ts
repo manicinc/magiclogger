@@ -1,6 +1,6 @@
 // File: src/core/StyleBuilder.ts
 
-import { ColorName } from '../types';
+import type { ColorName } from '../types/colors';
 import { Colorizer } from './Colorizer';
 
 /**

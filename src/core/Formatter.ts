@@ -2,7 +2,7 @@
 
 import { ANSI_CODES } from '../constants/colors';
 import { getFallbackStyle, isStyleSupported } from '../utils/terminal';
-import type { ColorName } from '../types';
+import type { ColorName } from '../types/colors';
 
 /**
  * Formatter class for handling text formatting and styling.

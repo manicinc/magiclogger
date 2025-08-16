@@ -1,7 +1,7 @@
 // File: src/compatibility/loggers/PinoCompatibleLogger.ts
 
 import { BaseCompatibleLogger } from './BaseCompatibleLogger';
-import type { LoggerOptions } from '../../types';
+import type { LoggerOptions } from '../../types/logger';
 
 /**
  * Pino log method type with all supported signatures

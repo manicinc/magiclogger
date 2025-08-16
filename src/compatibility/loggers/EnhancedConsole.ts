@@ -1,7 +1,8 @@
 // File: src/compatibility/loggers/EnhancedConsole.ts
 
 import { Logger } from '../../Logger';
-import { ColorName, StylePreset } from '../../types';
+import type { ColorName } from '../../types/colors';
+import type { StylePreset } from '../../types/preset';
 import { Colorizer } from '../../core/Colorizer';
 import type { LoggerOptions } from '../../types';
 

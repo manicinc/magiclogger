@@ -10,7 +10,8 @@
  */
 
 import { BrowserLogger } from './core/BrowserLogger';
-import type { LoggerOptions, LogLevel, ColorName } from './types';
+import type { LoggerOptions, LogLevel } from './types/logger';
+import type { ColorName } from './types/colors';
 
 // Minimal facade that mirrors the main Logger API used by the docs site/demo
 export class Logger {
@@ -112,4 +113,5 @@ export class Logger {
 }
 
 // Re-export a tiny set of safe types for convenience in docs
-export type { LoggerOptions, LogLevel, ColorName } from './types';
+export type { LoggerOptions, LogLevel } from './types/logger';
+export type { ColorName } from './types/colors';

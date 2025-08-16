@@ -1,7 +1,8 @@
 // File: src/async/AsyncLogger.ts
 
 import { AsyncBuffer } from './AsyncBuffer';
-import type { LogEntry, LogLevel } from '../types';
+import type { LogEntry } from '../types/transport';
+import type { LogLevel } from '../types/logger';
 
 /**
  * Configuration options for AsyncLogger.

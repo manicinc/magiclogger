@@ -3,7 +3,7 @@
 import { Transport } from '../Transport';
 import type { LogEntry } from '../../../types/transport';
 import { Colorizer } from '../../../core/Colorizer';
-import type { ColorName } from '../../../types';
+import type { ColorName } from '../../../types/colors';
 
 // Align options with shared transport types and allow a few extras for console formatting.
 import type { ConsoleTransportOptions as ConsoleTransportOptionsBase } from '../../../types/transport';

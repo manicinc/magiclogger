@@ -1,6 +1,6 @@
 // File: src/utils/TextStyler.ts
 
-import { ColorName } from '../types';
+import type { ColorName } from '../types/colors';
 import { Colorizer } from '../core/Colorizer';
 
 /**
