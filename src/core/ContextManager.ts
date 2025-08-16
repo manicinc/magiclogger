@@ -768,14 +768,20 @@ export class ContextManager extends EventEmitter {
       let current: Record<string, unknown> = result;
 
       for (let i = 0; i < parts.length - 1; i++) {
-        const part = parts[i]!; // non-null assertion: split('.') always yields string parts
-        if (!(part in current)) {
+        const part = parts[i];
+        if (!part) {
+          continue;
+        }
+        const existing = current[part];
+        if (typeof existing !== 'object' || existing === null) {
           current[part] = {} as Record<string, unknown>;
         }
-        current = current[part]! as Record<string, unknown>;
+        current = current[part] as Record<string, unknown>;
       }
-      const leaf = parts[parts.length - 1]!; // safe by loop bounds
-      current[leaf] = flattened[key];
+      const leaf = parts[parts.length - 1] ?? '';
+      if (leaf) {
+        current[leaf] = flattened[key];
+      }
     }
 
     return result;

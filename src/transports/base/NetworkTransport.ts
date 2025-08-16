@@ -883,7 +883,8 @@ export abstract class NetworkTransport extends BatchingTransport {
     // Retry on specific HTTP status codes
     const statusMatch = message.match(/status[:\s]+(\d+)/i);
     if (statusMatch && statusMatch[1]) {
-      const status = parseInt(statusMatch[1]!, 10);
+      const statusStr = statusMatch[1];
+      const status = Number.parseInt(statusStr, 10);
       // Retry 5xx and specific 4xx (429 Too Many Requests, 408 Request Timeout)
       if (status >= 500 || status === 429 || status === 408) {
         return true;

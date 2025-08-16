@@ -611,6 +611,40 @@ async function deploy() {
 
 | File | Format | Raw Size | Gzip |
 |------|--------|----------|------|
+| `index.cjs` | CJS | 3.03 kB | 723 B |
+| `index.js` | ESM | 1.36 kB | 519 B |
+| `index.d.ts` | Types | 113 kB | 21.9 kB |
+
+### Reference bundle sizes (gzip)
+
+| Scenario | Size |
+|----------|------|
+| core (esm, gzip) | 38 kB |
+| core + console (esm, gzip) | 38 kB |
+| core + all core transports (esm, gzip) | 46.4 kB |
+| all compatibility layers (esm, gzip) | 44.9 kB |
+
+*Generated via `scripts/analyze-build.js`.*
+
+| File | Format | Raw Size | Gzip |
+|------|--------|----------|------|
+| `index.cjs` | CJS | 3.03 kB | 723 B |
+| `index.js` | ESM | 1.36 kB | 519 B |
+| `index.d.ts` | Types | 113 kB | 21.9 kB |
+
+### Reference bundle sizes (gzip)
+
+| Scenario | Size |
+|----------|------|
+| core (esm, gzip) | 38 kB |
+| core + console (esm, gzip) | 38 kB |
+| core + all core transports (esm, gzip) | 46.4 kB |
+| all compatibility layers (esm, gzip) | 44.9 kB |
+
+*Generated via `scripts/analyze-build.js`.*
+
+| File | Format | Raw Size | Gzip |
+|------|--------|----------|------|
 | `index.cjs` | CJS | 3.03 kB | 720 B |
 | `index.js` | ESM | 1.36 kB | 519 B |
 | `index.d.ts` | Types | 113 kB | 21.9 kB |

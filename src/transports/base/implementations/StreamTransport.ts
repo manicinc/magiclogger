@@ -109,7 +109,7 @@ export class StreamTransport extends Transport {
     this.stream = options.stream;
     this.autoClose = options.autoClose ?? false;
     this.encoding = options.encoding || 'utf8';
-    this.maxQueueSize = (options as any).maxQueueSize || 1000;
+    this.maxQueueSize = typeof options.maxQueueSize === 'number' ? options.maxQueueSize : 1000;
     this.lineEnding = this.getLineEnding();
   }
 
@@ -123,7 +123,7 @@ export class StreamTransport extends Transport {
     try {
       // Use a property that can be mocked by tests
       const platform =
-        (globalThis as any).process?.platform ||
+        (globalThis as unknown as { process?: { platform?: string } }).process?.platform ??
         (typeof process !== 'undefined' ? process.platform : 'linux');
       return platform === 'win32' ? '\r\n' : '\n';
     } catch {

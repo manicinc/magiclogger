@@ -560,7 +560,8 @@ export class NodeLogger extends LoggerBase {
    * ```
    */
   public header(title: string, colors: ColorName[] = ['brightWhite', 'bgBlue', 'bold']): void {
-    const width = getTerminalWidth();
+    // Ensure a sensible minimum width so headers are consistently padded in tests/CI
+    const width = Math.max(80, getTerminalWidth());
     const padding = Math.max(0, Math.floor((width - title.length - 4) / 2));
     const titleLine = ` ${' '.repeat(padding)}${title}${' '.repeat(padding)} `;
     try {

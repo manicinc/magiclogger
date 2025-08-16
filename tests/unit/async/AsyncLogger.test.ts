@@ -101,11 +101,24 @@ describe('AsyncLogger', () => {
   afterEach(async () => {
     if (asyncLogger) {
       try {
-        // Increase timeout for cleanup
-        await Promise.race([
-          asyncLogger.close(),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Cleanup timeout')), 1000)),
-        ]);
+        // Increase timeout for cleanup and ensure the timeout is cleared to avoid open handles
+        let timeoutId: ReturnType<typeof setTimeout> | undefined;
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error('Cleanup timeout')), 1000);
+          // In Node, ensure the timer doesn't hold the event loop open
+          if (
+            timeoutId &&
+            typeof (timeoutId as unknown as { unref?: () => void }).unref === 'function'
+          ) {
+            (timeoutId as unknown as { unref: () => void }).unref();
+          }
+        });
+
+        await Promise.race([asyncLogger.close(), timeoutPromise]);
+
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
       } catch (error) {
         // Ignore cleanup errors in tests
         console.warn('Test cleanup error:', error);
@@ -292,11 +305,40 @@ describe('AsyncLogger', () => {
       });
     });
 
-    afterEach(() => {
-      (global as Record<string, unknown>).Worker = MockWorker;
-    });
+    afterEach(async () => {
+      if (asyncLogger) {
+        // Create a timeout we can clear to avoid leaving open handles
+        let timeoutId: ReturnType<typeof setTimeout> | null = null;
+        try {
+          const closePromise = asyncLogger.close();
+          const timeoutPromise = new Promise((_, reject) => {
+            timeoutId = setTimeout(() => reject(new Error('Cleanup timeout')), 1000);
+            // In Node, ensure the timer doesn't hold the event loop open
+            if (
+              timeoutId &&
+              typeof (timeoutId as unknown as { unref?: () => void }).unref === 'function'
+            ) {
+              (timeoutId as unknown as { unref: () => void }).unref();
+            }
+          });
 
-    it('should send entries to least loaded worker', () => {
+          await Promise.race([closePromise, timeoutPromise]);
+        } catch (error) {
+          // Ignore cleanup errors in tests
+          console.warn('Test cleanup error:', error);
+        } finally {
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+          }
+          asyncLogger = null as unknown as AsyncLogger;
+        }
+      }
+
+      // Clear the MockWorker between tests
+      MockWorker.mockClear();
+    }, 2000);
+
+    it('should distribute work to workers in round-robin fashion', () => {
       asyncLogger = new AsyncLogger(
         {
           useWorkers: true,

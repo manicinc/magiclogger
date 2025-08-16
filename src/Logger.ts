@@ -1611,10 +1611,7 @@ export class Logger {
 // Type Re-exports
 // ============================================================
 
-export type {
-  LoggerOptions,
-  LogLevel,
-} from './types/logger';
+export type { LoggerOptions, LogLevel } from './types/logger';
 export type { StylePreset } from './types/preset';
 export type { ColorName } from './types/colors';
 export type { Transport, TransportOptions, LogEntry } from './types/transport';
