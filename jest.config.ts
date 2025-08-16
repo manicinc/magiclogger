@@ -19,6 +19,7 @@ const config: Config = {
   },
   testMatch: ['**/tests/**/*.test.ts'],
   collectCoverageFrom: ['src/**/*.ts'],
+  coverageReporters: ['json', 'lcov', 'text', 'clover', 'json-summary'],
   coverageThreshold: {
     global: {
       statements: 70,
@@ -37,6 +38,7 @@ const config: Config = {
       testMatch: ['<rootDir>/tests/**/!(Browser)*.test.ts'],
       testEnvironment: 'node',
       preset: 'ts-jest',
+      collectCoverageFrom: ['<rootDir>/src/**/*.ts'],
       transform: {
         '^.+\\.tsx?$': [
           'ts-jest',
@@ -58,6 +60,7 @@ const config: Config = {
       testMatch: ['<rootDir>/tests/**/Browser*.test.ts'],
       testEnvironment: 'jsdom',
       preset: 'ts-jest',
+      collectCoverageFrom: ['<rootDir>/src/**/*.ts'],
       transform: {
         '^.+\\.tsx?$': [
           'ts-jest',

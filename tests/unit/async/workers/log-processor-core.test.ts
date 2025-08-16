@@ -98,7 +98,15 @@ describe('worker wrapper handleWorkerMessage', () => {
   type WorkerMessage = { type: string; entries?: LogEntry[]; config?: WorkerConfig };
   let handleWorkerMessage: (msg: WorkerMessage) => void;
   beforeAll(async () => {
-    (globalThis as unknown as { self: any }).self = {
+    (
+      globalThis as unknown as {
+        self: {
+          postMessage: (m: PostedMessage) => void;
+          addEventListener: (t: string, l: unknown) => void;
+          close: () => void;
+        };
+      }
+    ).self = {
       // eslint-disable-line @typescript-eslint/no-explicit-any
       postMessage: (msg: PostedMessage) => {
         posted.push(msg);

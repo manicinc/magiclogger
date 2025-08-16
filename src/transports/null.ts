@@ -19,10 +19,18 @@ export class NullTransport extends Transport {
     this.enabled = options.enabled ?? true;
   }
 
-  protected async doInit(): Promise<void> { /* no-op */ }
-  protected async doLog(_entry: LogEntry): Promise<void> { /* no-op */ }
-  protected async doClose(): Promise<void> { /* no-op */ }
-  public supportsBatching(): boolean { return false; }
+  protected async doInit(): Promise<void> {
+    /* no-op */
+  }
+  protected async doLog(_entry: LogEntry): Promise<void> {
+    /* no-op */
+  }
+  protected async doClose(): Promise<void> {
+    /* no-op */
+  }
+  public supportsBatching(): boolean {
+    return false;
+  }
 }
 
 export default NullTransport;

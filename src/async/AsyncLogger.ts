@@ -186,18 +186,28 @@ export class AsyncLogger {
     this.enableMetrics = options.enableMetrics ?? true;
     this.originalFlushHandler = options.onFlush;
 
+    // Allow tests to disable workers to avoid open handles in Jest
+    const disableWorkersForTests =
+      typeof process !== 'undefined' &&
+      !!(process as unknown as { env?: Record<string, string | undefined> }).env &&
+      (process as unknown as { env?: Record<string, string | undefined> }).env
+        ?.MAGICLOGGER_DISABLE_WORKERS_FOR_TESTS === '1';
+
+    const canUseWorkers =
+      this.useWorkers && typeof Worker !== 'undefined' && !disableWorkersForTests;
+
     // Initialize buffer with appropriate flush handler
     this.buffer = new AsyncBuffer({
       size: options.buffer?.size || 8192,
       flushInterval: options.buffer?.flushInterval || 100,
       flushSize: options.buffer?.flushSize || 1000,
-      onFlush: this.useWorkers ? this.sendToWorker.bind(this) : options.onFlush,
+      onFlush: canUseWorkers ? this.sendToWorker.bind(this) : options.onFlush,
       overflowStrategy: 'drop-oldest',
       enableMetrics: this.enableMetrics,
     });
 
     // Initialize workers if enabled
-    if (this.useWorkers && typeof Worker !== 'undefined') {
+    if (canUseWorkers) {
       this.initializeWorkers();
     }
   }
