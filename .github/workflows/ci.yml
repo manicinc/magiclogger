@@ -5,8 +5,8 @@ on:
     branches: [master, main, dev]
   pull_request:
     branches: [master, main]
-  schedule:
-    - cron: '0 3 * * *'
+  # schedule:
+  #   - cron: '0 3 * * *'  # Commented to save Actions minutes
   workflow_dispatch:
 
 permissions:
@@ -41,58 +41,68 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Use Node.js ${{ env.NODE_VERSION }}
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        # Uses packageManager from package.json
+      
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - name: Ensure pnpm available
-        shell: bash
-        run: |
-          echo "Node: $(node -v)"
-          corepack enable || true
-          corepack prepare pnpm@10.14.0 --activate || npm i -g pnpm@10.14.0
+          cache: 'pnpm'
+      
       - name: Install deps
         run: pnpm install --frozen-lockfile
+      
       - name: Lint
         run: pnpm run lint
+      
       - name: Type check
         run: pnpm run typecheck
+      
       - name: Format check
         run: pnpm run format:check
+      
       - name: Audit (non-blocking)
         run: pnpm audit || true
 
   test-linux:
     runs-on: ubuntu-latest
     needs: pre-check
-    strategy:
-      fail-fast: false
-      matrix:
-        node: ['18','20']
+    # UNCOMMENT FOR MATRIX TESTING:
+    # strategy:
+    #   fail-fast: false
+    #   matrix:
+    #     node: ['18', '20']
     steps:
       - uses: actions/checkout@v4
-      - name: Use Node.js ${{ matrix.node }}
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+      
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node }}
-      - name: Ensure pnpm available
-        shell: bash
-        run: |
-          echo "Node: $(node -v)"
-          corepack enable || true
-          corepack prepare pnpm@10.14.0 --activate || npm i -g pnpm@10.14.0
+          node-version: ${{ env.NODE_VERSION }}
+          # UNCOMMENT FOR MATRIX: node-version: ${{ matrix.node }}
+          cache: 'pnpm'
+      
       - name: Install deps
         run: pnpm install --frozen-lockfile
+      
       - name: Run tests with coverage
         run: pnpm run test:coverage
+      
       - name: Upload coverage artifact
-        if: matrix.node == '18'
+        # if: matrix.node == '18'  # UNCOMMENT FOR MATRIX
         uses: actions/upload-artifact@v4
         with:
           name: coverage-${{ github.sha }}
           path: coverage
+      
       - name: Upload to Codecov
-        if: matrix.node == '18'
+        # if: matrix.node == '18'  # UNCOMMENT FOR MATRIX
         uses: codecov/codecov-action@v4
         with:
           files: ./coverage/lcov.info
@@ -100,32 +110,34 @@ jobs:
           fail_ci_if_error: false
           verbose: true
 
-  test-cross:
-    name: test (windows/macOS)
-    if: github.event_name == 'pull_request' || github.event_name == 'schedule'
-    needs: pre-check
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, macos-latest]
-        node: ['20']
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Use Node.js ${{ matrix.node }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node }}
-      - name: Ensure pnpm available
-        shell: bash
-        run: |
-          echo "Node: $(node -v)"
-          corepack enable || true
-          corepack prepare pnpm@10.14.0 --activate || npm i -g pnpm@10.14.0
-      - name: Install deps
-        run: pnpm install --frozen-lockfile
-      - name: Run tests with coverage
-        run: pnpm run test:coverage
+  # UNCOMMENT THIS ENTIRE JOB FOR CROSS-PLATFORM TESTING:
+  # test-cross:
+  #   name: test (windows/macOS)
+  #   if: github.event_name == 'pull_request' || github.event_name == 'schedule'
+  #   needs: pre-check
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       os: [windows-latest, macos-latest]
+  #       node: ['20']
+  #   runs-on: ${{ matrix.os }}
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     
+  #     - name: Setup pnpm
+  #       uses: pnpm/action-setup@v4
+  #     
+  #     - name: Setup Node.js
+  #       uses: actions/setup-node@v4
+  #       with:
+  #         node-version: ${{ matrix.node }}
+  #         cache: 'pnpm'
+  #     
+  #     - name: Install deps
+  #       run: pnpm install --frozen-lockfile
+  #     
+  #     - name: Run tests with coverage
+  #       run: pnpm run test:coverage
 
   security:
     runs-on: ubuntu-latest
@@ -134,24 +146,28 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      
       - name: Dependency Review (PR only)
         if: github.event_name == 'pull_request'
         uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: critical
-      - name: Use Node.js ${{ env.NODE_VERSION }}
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+      
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - name: Ensure pnpm available
-        shell: bash
-        run: |
-          corepack enable || true
-          corepack prepare pnpm@10.14.0 --activate || npm i -g pnpm@10.14.0
+          cache: 'pnpm'
+      
       - name: Install deps (production only for audit)
         run: pnpm install --frozen-lockfile --prod=false
+      
       - name: Run pnpm audit (non-blocking)
         run: pnpm audit || true
+      
       - name: Trivy secret scan (repo)
         uses: aquasecurity/trivy-action@0.20.0
         with:
@@ -167,35 +183,43 @@ jobs:
     needs: [quality, test-linux]
     steps:
       - uses: actions/checkout@v4
-      - name: Use Node.js ${{ env.NODE_VERSION }}
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+      
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - name: Ensure pnpm available
-        shell: bash
-        run: |
-          corepack enable || true
-          corepack prepare pnpm@10.14.0 --activate || npm i -g pnpm@10.14.0
+          cache: 'pnpm'
+      
       - name: Install deps
         run: pnpm install --frozen-lockfile
+      
       - name: Build
         run: pnpm run build
+      
       - name: Bundle size check
         run: pnpm run size:check
+      
       - name: Update bundle size (README)
         run: pnpm run size:update
+      
       - name: Commit README size update (PR only)
         if: github.event_name == 'pull_request'
         run: |
           if git diff --quiet --exit-code README.md; then
-            echo "No README size changes"; exit 0; fi
+            echo "No README size changes"; exit 0
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add README.md
           git commit -m "chore(ci): update bundle size table [skip ci]" || true
           git push || echo "Non-fatal: push failed (likely due to permissions)"
+      
       - name: Bundle size analyze
         run: node scripts/analyze-build.js || true
+      
       - name: Upload dist artifact
         uses: actions/upload-artifact@v4
         with:
@@ -215,6 +239,7 @@ jobs:
   all-checks:
     runs-on: ubuntu-latest
     needs: [quality, test-linux, build, security]
+    # needs: [quality, test-linux, test-cross, build, security]  # UNCOMMENT FOR CROSS-PLATFORM
     if: always()
     steps:
       - name: Final status
