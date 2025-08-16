@@ -1,4 +1,6 @@
 import type { ColorName } from './colors';
+import type { ThemeDefinition as RichThemeDefinition } from './theme';
+export type { ThemeDefinition } from './theme';
 
 /**
  * A theme defines color/style mappings for log levels.
@@ -13,7 +15,9 @@ import type { ColorName } from './colors';
  *   header: ['brightWhite', 'bgBlue', 'bold']
  * }
  */
-export type ThemeDefinition = Record<string, ColorName[]>;
+// Back-compat alias for previous simple theme shape; prefer RichThemeDefinition everywhere.
+// Note: RichThemeDefinition supports 'tags' and preset keys; it's a superset of the simple map.
+export type SimpleThemeDefinition = Record<string, ColorName[]>;
 
 /**
  * Configuration options for a MagicLogger instance.
@@ -101,7 +105,7 @@ export interface LoggerOptions {
    *   header: ['brightWhite', 'bgBlue', 'bold']
    * }
    */
-  theme?: string | ThemeDefinition;
+  theme?: string | RichThemeDefinition;
 
   /**
    * Optional mapping of tags to theme names. When provided, if a logger has
