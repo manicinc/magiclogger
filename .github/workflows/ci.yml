@@ -13,9 +13,12 @@ permissions:
   contents: read
   pull-requests: write
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   NODE_VERSION: '18'
-  CACHE_VERSION: v1
 
 jobs:
   pre-check:
@@ -34,43 +37,22 @@ jobs:
   quality:
     runs-on: ubuntu-latest
     needs: pre-check
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-  # Use corepack to select a pnpm version compatible with matrix Node
       - name: Use Node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          # cache disabled here to avoid requiring pnpm before it's installed
       - name: Ensure pnpm available
+        shell: bash
         run: |
           echo "Node: $(node -v)"
           corepack enable || true
           corepack prepare pnpm@10.14.0 --activate || npm i -g pnpm@10.14.0
-  # pnpm provided by action above; also see fallback below
-      - name: Enable corepack
-        run: corepack enable
       - name: Install deps
         run: pnpm install --frozen-lockfile
-      - name: Lint (autofix) and format (PR only)
-        if: github.event_name == 'pull_request'
-        run: |
-          pnpm run lint:fix || true
-          pnpm run format || true
-      - name: Commit autofixes (PR from same repo only)
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false
-        run: |
-          if git diff --quiet --exit-code; then
-            echo "No lint/format fixes to commit"; exit 0; fi
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "chore(ci): apply lint/format autofixes [skip ci]" || true
-          git push || echo "Non-fatal: push failed (likely due to permissions)"
       - name: Lint
         run: pnpm run lint
       - name: Type check
@@ -80,61 +62,74 @@ jobs:
       - name: Audit (non-blocking)
         run: pnpm audit || true
 
-  test:
+  test-linux:
+    runs-on: ubuntu-latest
+    needs: pre-check
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
         node: ['18','20']
-        exclude:
-          - os: macos-latest
-            node: '18'
-    runs-on: ${{ matrix.os }}
-    needs: pre-check
     steps:
       - uses: actions/checkout@v4
-      # Use corepack to ensure a pnpm compatible with the Node matrix version
       - name: Use Node.js ${{ matrix.node }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
-          # cache disabled here to avoid requiring pnpm before it's installed
       - name: Ensure pnpm available
+        shell: bash
         run: |
           echo "Node: $(node -v)"
           corepack enable || true
           corepack prepare pnpm@10.14.0 --activate || npm i -g pnpm@10.14.0
-  # pnpm provided by action above; also see fallback below
-      - name: Enable corepack
-        run: corepack enable
       - name: Install deps
         run: pnpm install --frozen-lockfile
       - name: Run tests with coverage
         run: pnpm run test:coverage
       - name: Upload coverage artifact
-        if: matrix.os == 'ubuntu-latest' && matrix.node == '18'
+        if: matrix.node == '18'
         uses: actions/upload-artifact@v4
         with:
-            name: coverage-${{ github.sha }}
-            path: coverage
+          name: coverage-${{ github.sha }}
+          path: coverage
       - name: Upload to Codecov
-        if: matrix.os == 'ubuntu-latest' && matrix.node == '18'
+        if: matrix.node == '18'
         uses: codecov/codecov-action@v4
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage/lcov.info
           flags: unittests
           fail_ci_if_error: false
           verbose: true
 
+  test-cross:
+    name: test (windows/macOS)
+    if: github.event_name == 'pull_request' || github.event_name == 'schedule'
+    needs: pre-check
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+        node: ['20']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js ${{ matrix.node }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Ensure pnpm available
+        shell: bash
+        run: |
+          echo "Node: $(node -v)"
+          corepack enable || true
+          corepack prepare pnpm@10.14.0 --activate || npm i -g pnpm@10.14.0
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+      - name: Run tests with coverage
+        run: pnpm run test:coverage
+
   security:
     runs-on: ubuntu-latest
     needs: pre-check
-    permissions:
-      contents: read
-      security-events: write
-      actions: read
-      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -144,30 +139,21 @@ jobs:
         uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: critical
-      - name: Setup pnpm (early)
-        uses: pnpm/action-setup@v4
-      - name: Setup Node.js ${{ env.NODE_VERSION }}
+      - name: Use Node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          # cache disabled here to avoid requiring pnpm before it's installed
-      - name: Ensure pnpm available (fallback)
+      - name: Ensure pnpm available
+        shell: bash
         run: |
-          if ! command -v pnpm >/dev/null 2>&1; then
-            echo "pnpm not found; activating via corepack";
-            corepack enable || true
-            corepack prepare pnpm@10.14.0 --activate || npm i -g pnpm@10.14.0
-          fi
-  # pnpm provided by action above; also see fallback below
-      - name: Enable corepack
-        run: corepack enable
+          corepack enable || true
+          corepack prepare pnpm@10.14.0 --activate || npm i -g pnpm@10.14.0
       - name: Install deps (production only for audit)
         run: pnpm install --frozen-lockfile --prod=false
       - name: Run pnpm audit (non-blocking)
         run: pnpm audit || true
       - name: Trivy secret scan (repo)
         uses: aquasecurity/trivy-action@0.20.0
-        continue-on-error: false
         with:
           scan-type: 'fs'
           scan-ref: '.'
@@ -175,33 +161,21 @@ jobs:
           format: 'table'
           exit-code: '1'
           hide-progress: true
-  # Removed TruffleHog diff scan due to frequent false-positive failures; Trivy covers repo secrets.
-      - name: Upload SARIF (if any) placeholder
-        if: always()
-        run: echo "Security scanning complete"
 
   build:
     runs-on: ubuntu-latest
-    needs: [quality, test]
+    needs: [quality, test-linux]
     steps:
       - uses: actions/checkout@v4
-      - name: Setup pnpm (early)
-        uses: pnpm/action-setup@v4
       - name: Use Node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          # cache disabled here to avoid requiring pnpm before it's installed
-      - name: Ensure pnpm available (fallback)
+      - name: Ensure pnpm available
+        shell: bash
         run: |
-          if ! command -v pnpm >/dev/null 2>&1; then
-            echo "pnpm not found; activating via corepack";
-            corepack enable || true
-            corepack prepare pnpm@10.14.0 --activate || npm i -g pnpm@10.14.0
-          fi
-  # pnpm provided by action above; also see fallback below
-      - name: Enable corepack
-        run: corepack enable
+          corepack enable || true
+          corepack prepare pnpm@10.14.0 --activate || npm i -g pnpm@10.14.0
       - name: Install deps
         run: pnpm install --frozen-lockfile
       - name: Build
@@ -217,7 +191,6 @@ jobs:
             echo "No README size changes"; exit 0; fi
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-            
           git add README.md
           git commit -m "chore(ci): update bundle size table [skip ci]" || true
           git push || echo "Non-fatal: push failed (likely due to permissions)"
@@ -241,7 +214,7 @@ jobs:
 
   all-checks:
     runs-on: ubuntu-latest
-    needs: [quality, test, build, security]
+    needs: [quality, test-linux, build, security]
     if: always()
     steps:
       - name: Final status

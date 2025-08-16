@@ -6,7 +6,8 @@ import { IS_PATH_REGEX } from '../constants/paths';
 // Use namespace import so jest.spyOn on terminal utils updates behavior dynamically
 import * as terminalUtils from '../utils/terminal';
 import { ANSI } from '../constants/ansi';
-import type { ColorName, StylePreset } from '../types';
+import type { ColorName } from '../types/colors';
+import type { StylePreset } from '../types/preset';
 
 // Helper: raw ANSI map for styles (bypass conditional COLORS getters for fallbacks)
 const RAW_STYLE_MAP: Record<string, string | undefined> = {

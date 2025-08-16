@@ -19,6 +19,7 @@ export default defineConfig(options => {
     'transports/mongodb': 'src/transports/mongodb.ts',
     'transports/stream': 'src/transports/stream.ts',
     'transports/websocket': 'src/transports/websocket.ts',
+  'transports/null': 'src/transports/null.ts',
     'transports/otlp': 'src/transports/otlp.ts',
     'transports/base': 'src/transports/index.ts', // registry + base classes
 
@@ -53,7 +54,7 @@ export default defineConfig(options => {
     splitting: true, // enable code-splitting for ESM builds
     treeshake: true,
     dts: {
-      entry: './src/index.ts',
+      entry: ['./src/index.ts', './src/types/index.ts'],
       resolve: true,
       options: {
         declarationMap: true,

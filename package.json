@@ -111,6 +111,16 @@
         "default": "./dist/transports/websocket.cjs"
       }
     },
+    "./transports/null": {
+      "import": {
+        "types": "./dist/transports/null.d.ts",
+        "default": "./dist/transports/null.js"
+      },
+      "require": {
+        "types": "./dist/transports/null.d.cts",
+        "default": "./dist/transports/null.cjs"
+      }
+    },
     "./transports/base": {
       "import": {
         "types": "./dist/transports/base.d.ts",
@@ -275,24 +285,21 @@
     "demo:guided": "npx tsx examples/guided-animated-demo.ts",
     "demo:tree-shaking": "npx tsx examples/tree-shaking-demo.ts",
     "demo:web": "npm run build && node -e \"const fs = require('fs-extra'); fs.copySync('dist', 'examples/web-demo/dist')\" && serve examples/web-demo",
-    "docs": "cd website && npm start",
-  "docs:build": "npm run build && cd website && npm install && npm run build",
-  "docs:build:clean": "npm run clean && npm run build && cd website && rimraf build && npm install && npm run build",
+    "docs": "npm run docs:start",
+    "docs:start": "cd website && npm start",
+    "docs:build": "npm run build && cd website && npm ci && npm run build",
     "docs:serve": "cd website && npm run serve",
-  "docs:start:root": "cd website && npm run start:root",
-  "docs:build:root": "npm run build && cd website && npm install && npm run build:root",
-  "docs:serve:root": "cd website && npm run serve:root",
     "docs:deploy": "cd website && npm run deploy",
-    "docs:install": "cd website && npm install",
+    "docs:install": "cd website && npm ci",
     "clean": "rimraf dist test_logs .tsbuildinfo",
     "check": "npm run format && npm run lint",
     "dev": "tsup --watch",
-  "build": "npm run clean && tsup && tsup --platform=browser --entry.src=src/index.browser.ts",
+    "build": "npm run clean && tsup && tsup --platform=browser --entry.src=src/index.browser.ts",
     "build:analyze": "npm run build && npm run analyze:build",
     "build:examples": "tsup examples/*.ts --format=cjs --outDir=dist/examples",
     "build:examples:esm": "tsup examples/*.ts --format=esm --outDir=dist/examples --outExtension='.mjs'",
     "test": "jest",
-  "test:coverage": "jest --coverage --runInBand",
+    "test:coverage": "jest --coverage --runInBand",
     "test:treeshake": "node scripts/test-tree-shaking.js",
     "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\" \"examples/**/*.ts\"",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -303,6 +310,9 @@
     "commit": "cz",
     "test:coverage:badge": "node scripts/generate-coverage-badge.js",
     "analyze:build": "node scripts/analyze-build.js",
+  "perf:run": "npm run build && node scripts/performance/perf-bench.mjs",
+  "perf:run:ts": "npm run build && tsx scripts/performance/perf-bench.ts",
+  "perf:update": "node scripts/update-perf-table.js",
     "version:bump": "node scripts/version-bump.js",
     "preflight": "npm run clean && npm run check && npm run lint && npm run test:coverage && npm run build && npm run test:coverage:badge && npm run analyze:build && npm run test:treeshake",
     "prepublishOnly": "npm run test && npm run lint && npm run build && npm run test:coverage:badge && npm run analyze:build",
@@ -344,12 +354,15 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/manicinc/advanced-logger.git"
+    "url": "git+https://github.com/manicinc/magiclogger.git"
   },
   "bugs": {
-    "url": "https://github.com/manicinc/advanced-logger/issues"
+    "url": "https://github.com/manicinc/magiclogger/issues"
   },
-  "homepage": "https://github.com/manicinc/advanced-logger#readme",
+  "homepage": "https://github.com/manicinc/magiclogger#readme",
+  "publishConfig": {
+    "access": "public"
+  },
   "devDependencies": {
     "@commitlint/cli": "^18.6.0",
     "@commitlint/config-conventional": "^18.6.0",

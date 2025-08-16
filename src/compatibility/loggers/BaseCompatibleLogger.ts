@@ -3,7 +3,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { Logger } from '../../Logger';
-import type { LoggerOptions, LogLevel } from '../../types';
+import type { LoggerOptions, LogLevel } from '../../types/logger';
 import { Transport } from '../../transports/base/Transport';
 import type { ExtendedLoggerOptions } from '../../Logger';
 

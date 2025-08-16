@@ -1,6 +1,7 @@
 // File: src/theme/ThemeManager.ts
 
-import type { ThemeDefinition, ColorName } from '../types';
+import type { ThemeDefinition } from '../types/theme';
+import type { ColorName } from '../types/colors';
 import {
   getTheme as getThemeFromFile,
   listThemes as listThemesFromFile,

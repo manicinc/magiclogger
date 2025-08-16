@@ -8,7 +8,9 @@ import { Formatter } from './Formatter';
 import { TextStyler } from '../utils/TextStyler';
 import { TagManager } from './TagManager';
 import { ContextManager } from './ContextManager';
-import type { LoggerOptions, LogLevel, ColorName, StylePreset } from '../types';
+import type { LoggerOptions, LogLevel } from '../types/logger';
+import type { ColorName } from '../types/colors';
+import type { StylePreset } from '../types/preset';
 import { getTerminalWidth } from '../utils/terminal';
 
 /**

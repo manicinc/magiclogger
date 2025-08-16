@@ -144,8 +144,8 @@ const config: Config = {
       darkTheme: prismThemes.dracula,
     },
   } satisfies Preset.ThemeConfig,
-  // Plugin to alias 'magiclogger' to the local dist build during docs build/serve
-  // This keeps docs working without requiring a published package.
+  // Plugin to alias 'magiclogger' to the local dist build during docs build/serve.
+  // Falls back to a local shim when dist isn't built so the site still compiles.
   plugins: [
     function magicloggerLocalAliasPlugin() {
       return {
@@ -158,8 +158,11 @@ const config: Config = {
           const repoRoot = path.resolve(__dirname, '..');
           const distEsmBrowser = path.join(repoRoot, 'dist', 'browser', 'index.js');
           const distCjs = path.join(repoRoot, 'dist', 'index.cjs');
+          const shimPath = path.join(__dirname, 'src', 'shims', 'magiclogger.ts');
           const targetCandidate = isServer ? distCjs : distEsmBrowser;
-          const target = fs.existsSync(targetCandidate) ? targetCandidate : undefined;
+          const target = fs.existsSync(targetCandidate)
+            ? targetCandidate
+            : (fs.existsSync(shimPath) ? shimPath : undefined);
           return {
             resolve: {
               fallback: isServer

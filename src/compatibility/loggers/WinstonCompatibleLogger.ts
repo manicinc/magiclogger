@@ -1,7 +1,7 @@
 // File: src/compatibility/loggers/WinstonCompatibleLogger.ts
 
 import { BaseCompatibleLogger, LogCompatibilityOptions } from './BaseCompatibleLogger';
-import type { ColorName } from '../../types';
+import type { ColorName } from '../../types/colors';
 import type { Transport } from '../../transports/base/Transport';
 
 /**

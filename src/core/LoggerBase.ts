@@ -1,7 +1,9 @@
 // File: src/core/LoggerBase.ts
 
 import { Emitter as EventEmitter } from './events-compat';
-import type { LoggerOptions, LogLevel, ColorName, StylePreset } from '../types';
+import type { LoggerOptions, LogLevel } from '../types/logger';
+import type { ColorName } from '../types/colors';
+import type { StylePreset } from '../types/preset';
 import { PRESETS } from '../constants/preset';
 import { isBrowserEnvironment } from '../utils/environment';
 import { DEFAULT_THEME } from '../constants/themes';
@@ -142,7 +144,17 @@ export abstract class LoggerBase extends EventEmitter {
 
     // Initialize theme. Prefer explicit object theme; next explicit string; else try themeByTag first; fallback default.
     if (typeof options.theme === 'object' && options.theme) {
-      this.theme = { ...DEFAULT_THEME, ...options.theme };
+      // Filter out non-style keys (like 'tags') and undefined values to satisfy Record<string, ColorName[]>.
+      const filtered: Record<string, ColorName[]> = {};
+      for (const [key, value] of Object.entries(
+        options.theme as Record<string, ColorName[] | undefined> & {
+          tags?: Record<string, ColorName[]>;
+        }
+      )) {
+        if (key === 'tags') continue;
+        if (Array.isArray(value)) filtered[key] = value as ColorName[];
+      }
+      this.theme = { ...DEFAULT_THEME, ...filtered };
     } else {
       let initialTheme: Record<string, ColorName[]> | undefined;
       // Only attempt themeByTag if no explicit object theme provided
@@ -610,7 +622,17 @@ export abstract class LoggerBase extends EventEmitter {
       if (typeof options.theme === 'string') {
         this.theme = this.loadTheme(options.theme);
       } else if (options.theme) {
-        this.theme = { ...this.theme, ...options.theme };
+        // Shallow-merge only style keys (exclude 'tags' and non-array values)
+        const filtered: Record<string, ColorName[]> = {};
+        for (const [key, value] of Object.entries(
+          options.theme as Record<string, ColorName[] | undefined> & {
+            tags?: Record<string, ColorName[]>;
+          }
+        )) {
+          if (key === 'tags') continue;
+          if (Array.isArray(value)) filtered[key] = value as ColorName[];
+        }
+        this.theme = { ...this.theme, ...filtered };
       }
     } else if (options.tags && this.themeByTag) {
       // If tags updated without explicit theme and mapping exists, try auto-select

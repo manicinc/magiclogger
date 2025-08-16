@@ -3,7 +3,9 @@
 import { LoggerBase } from './LoggerBase';
 import { BrowserStorageManager } from './BrowserStorageManager';
 import { Printer } from './Printer';
-import type { LoggerOptions, ColorName, StylePreset } from '../types';
+import type { LoggerOptions } from '../types/logger';
+import type { ColorName } from '../types/colors';
+import type { StylePreset } from '../types/preset';
 
 /**
  * Browser implementation of the Logger.

@@ -1,5 +1,5 @@
 import { isBrowserEnvironment } from '../utils/environment';
-import type { ThemeDefinition } from '../types';
+import type { ThemeDefinition } from '../types/theme';
 import { DEFAULT_THEME as BUILTIN_DEFAULT_THEME } from '../constants/themes';
 // Bundled fallback: enables themes in browsers and ESM/tsx where fs/path aren't available
 // resolveJsonModule is enabled in tsconfig, so this will be inlined by the bundler.

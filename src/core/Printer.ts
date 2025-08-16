@@ -3,7 +3,7 @@
 import { isBrowserEnvironment } from '../utils/environment';
 import { Formatter } from './Formatter';
 import { Colorizer } from './Colorizer';
-import { ColorName } from '../types';
+import type { ColorName } from '../types/colors';
 
 /**
  * Configuration options for Printer.

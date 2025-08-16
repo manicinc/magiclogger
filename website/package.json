@@ -4,15 +4,12 @@
   "private": true,
   "scripts": {
     "docusaurus": "docusaurus",
-    "start": "docusaurus start",
+  "start": "docusaurus start --config docusaurus.config.local.ts --port 3000 --no-open",
     "build": "docusaurus build",
     "swizzle": "docusaurus swizzle",
     "deploy": "docusaurus deploy",
     "clear": "docusaurus clear",
   "serve": "docusaurus serve",
-  "start:root": "docusaurus start --config docusaurus.config.local.ts",
-  "build:root": "docusaurus build --config docusaurus.config.local.ts",
-  "serve:root": "docusaurus serve --dir build --config docusaurus.config.local.ts",
     "write-translations": "docusaurus write-translations",
     "write-heading-ids": "docusaurus write-heading-ids"
   },

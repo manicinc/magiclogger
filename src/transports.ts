@@ -10,6 +10,7 @@ export { ConsoleTransport } from './transports/console';
 export { FileTransport } from './transports/file';
 export { StreamTransport } from './transports/stream';
 export { HTTPTransport } from './transports/http';
+export { NullTransport } from './transports/null';
 export { S3Transport } from './transports/s3';
 export { MongoDBTransport } from './transports/mongodb';
 export { WebSocketTransport } from './transports/websocket';
