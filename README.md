@@ -1,79 +1,87 @@
 <p align="center">
+  <img src="docs/static/img/magiclogger-primary-no-subtitle-transparent-4x.png" alt="Magiclogger" width="520"/>
+</p>
+
+<p align="center">
   <img src="https://img.shields.io/badge/zero_dependencies-✓-blue" alt="Zero Dependencies">
   <img src="https://img.shields.io/badge/typescript-5.0+-blue" alt="TypeScript">
   <img src="https://img.shields.io/badge/node-14+-green" alt="Node.js">
   <img src="https://img.shields.io/badge/license-MIT-blue" alt="License">
   <img src="https://img.shields.io/badge/core_gzip-37kb-brightgreen.svg" alt="core_gzip">
-  <img src="https://img.shields.io/badge/core_console_gzip-37kb-brightgreen.svg" alt="core_console_gzip">
-  <img src="https://img.shields.io/badge/core_transports_gzip-45kb-brightgreen.svg" alt="core_transports_gzip">
-  <img src="https://img.shields.io/badge/compat_gzip-44kb-brightgreen.svg" alt="compat_gzip">
 </p>
 
-## Why MagicLogger?
+## 🚀 Production-Ready Logging with Style
 
-**Beautiful, structured logging that just works.** MagicLogger transforms boring console logs into vibrant, organized output while maintaining perfect performance and tree-shaking.
+**MagicLogger** transforms boring console logs into vibrant, organized output while maintaining perfect performance for production environments. Beautiful styling meets enterprise-grade features.
 
 ```typescript
 import { Logger } from 'magiclogger';
 
 const logger = new Logger({ useColors: true });
 
-// Simple, beautiful logging
-logger.info('Server started', { port: 3000 });
-logger.success('User authenticated', { userId: 'user_123' });
-logger.warn('Rate limit exceeded', { ip: '192.168.1.1' });
-logger.error('Database connection failed', new Error('Timeout'));
+// Beautiful styled output - three powerful APIs
+logger.info('<green.bold>✅ Server started:</> <cyan>http://localhost:3000</>');
+logger.info(logger.fmt`@red.bold{ERROR:} Failed to connect to @yellow{database}`);
+logger.info(logger.s.blue.bold('INFO:') + ' User ' + logger.s.cyan('john@example.com') + ' authenticated');
 
-// Rich styling with multiple APIs - pick your favorite!
-logger.info(logger.s.red.bold('CRITICAL:') + ' Server is ' + logger.s.yellow('shutting down'));
-logger.info(logger.fmt`@red.bold{CRITICAL:} Server is @yellow{shutting down} at @cyan{${new Date().toISOString()}}`);
-logger.info('<red.bold>CRITICAL:</> Server is <yellow>shutting down</> at <cyan>' + new Date().toISOString() + '</>');
-
-logger.header('🚀 DEPLOYMENT STARTED');
+// Rich visual elements
+logger.header('🚀 DEPLOYMENT PROCESS');
 logger.progressBar(75);
 logger.table([
   { service: 'API', status: 'healthy', uptime: '99.9%' },
   { service: 'DB', status: 'degraded', uptime: '95.2%' }
 ]);
+
+// Production-ready features
+logger.sample(0.1).debug('High-frequency event');  // 10% sampling
+logger.redact().info('User data:', { ssn: '123-45-6789' });  // Auto-redacted
+logger.withRateLimit('api-errors', 100).error('Rate limited');
 ```
-
-### The Problem with Other Loggers
-- **Winston**: Complex configuration, heavy dependencies
-- **Bunyan**: Outdated API, poor tree-shaking  
-- **Pino**: Limited styling, no visual elements
-- **Console**: No structure, no colors, no organization
-
-### The MagicLogger Solution
-- 🎯 **Zero-overhead** sync logging by default
-- 🌈 **Rich colors & styling** with automatic terminal detection
-- 📊 **Visual elements** - tables, progress bars, headers
-- 🌲 **Perfect tree-shaking** - only pay for what you use
-- 🔄 **Drop-in compatibility** with Winston/Bunyan/Pino
-- ⚡ **Optional async logging** with ring buffers
-- 🚀 **Transport system** for any destination
-- 🎨 **Theme system** with tag-based styling
 
 ---
 
-## Quick Start
+## ✨ Why MagicLogger?
 
-### Module formats and types
+### The Problem with Other Loggers
+- **Winston**: Complex configuration, heavy dependencies, poor styling
+- **Bunyan**: Outdated API, limited visual capabilities  
+- **Pino**: Fast but minimal styling, no visual elements
+- **Console**: No structure, colors, or production features
 
-MagicLogger publishes ESM and CJS builds with first-class TypeScript types. Use import in ESM/TypeScript and require in CJS:
+### The MagicLogger Solution
 
-- ESM/TS: `import { Logger } from 'magiclogger'`
-- CJS: `const { Logger } = require('magiclogger')`
+**For Developers:**
+- 🎨 **Three styling APIs** - chainable, template literals, and inline syntax
+- 🌈 **Rich colors & themes** with automatic terminal detection
+- 📊 **Visual elements** - tables, progress bars, headers, diffs
+- 🌲 **Perfect tree-shaking** - only pay for what you use
+- ⚡ **Zero overhead** sync logging by default
 
-All subpath exports work in both ESM and CJS (for example, `magiclogger/transports/http`).
+**For Production:**
+- 🔒 **PII protection** with automatic redaction patterns
+- 📈 **Sampling & rate limiting** to control costs and volume
+- 🚀 **Enterprise transports** - Kafka, PostgreSQL, OTLP, S3, and more
+- 📊 **Monitoring integration** - OpenTelemetry, metrics, health checks
+- 🔧 **Drop-in compatibility** with Winston/Bunyan/Pino
 
-### Installation
+---
+
+## 📦 Installation & Quick Start
 
 ```bash
 npm install magiclogger
-# or
-yarn add magiclogger
-# or  
-pnpm add magiclogger
+# or yarn add magiclogger / pnpm add magiclogger
+```
+
+### Module Formats
+MagicLogger supports both ESM and CJS with first-class TypeScript types:
+
+```typescript
+// ESM/TypeScript
+import { Logger } from 'magiclogger';
+
+// CommonJS  
+const { Logger } = require('magiclogger');
 ```
 
 ### Basic Usage
@@ -98,31 +106,120 @@ logger.log('Error message', 'error');
 
 ---
 
-## 🧱 Structured Logging (JSON)
+## 🎨 Three Powerful Styling APIs
 
-MagicLogger emits a consistent JSON structure to transports. Below are real inputs and the resulting JSON objects your transports receive.
+MagicLogger provides three complementary styling approaches. Use one or combine them seamlessly!
 
-### Input → Output (with sensible defaults)
+### 1. Chainable Style API (`logger.s`)
+
+Like Chalk, but built-in and optimized:
 
 ```typescript
-import { Logger } from 'magiclogger';
+// Create styled strings
+const error = logger.s.red.bold('ERROR:');
+const success = logger.s.green.bold('✅ Success');
+const highlight = logger.s.yellow.bold;
 
-const logger = new Logger({ id: 'api', tags: ['service', 'api'] });
+// Use in your logs
+logger.info(error + ' Connection failed');
+logger.info(success + ' Deployment complete');
+logger.info('Run ' + logger.s.cyan('npm install') + ' to continue');
 
-// 1) Plain metadata object
+// Chain multiple styles
+logger.info(
+  logger.s.white.bgRed.bold(' CRITICAL ') + ' ' +
+  logger.s.yellow('System memory at ') + 
+  logger.s.red.bold('92%')
+);
+
+// Available styles
+logger.s.red.bold.underline('Important text');
+logger.s.blue.bgYellow.italic('Styled background');
+logger.s.brightGreen.dim('Bright but dimmed');
+```
+
+### 2. Template Literal API (`logger.fmt`)
+
+Clean inline styling with template literals:
+
+```typescript
+// Variables and expressions work naturally
+const database = 'production_db';
+const timestamp = new Date().toISOString();
+
+logger.error(logger.fmt`
+  @red.bold{Connection Error} 
+  Database @yellow{${database}} failed at @dim{${timestamp}}
+`);
+
+// Multiple styles in one template
+logger.info(logger.fmt`
+  @white.bgRed.bold{ CRITICAL } 
+  @yellow{Warning:} System memory at @red.bold{92%} 
+  @dim{(threshold: 90%)}
+`);
+
+// Clean, readable formatting
+logger.info(logger.fmt`@blue{Processing} @cyan.underline{${filename}} @dim{(${fileSize} bytes)}`);
+```
+
+### 3. Inline Angle Bracket Syntax
+
+The simplest API - natural text with embedded styles:
+
+```typescript
+// Works in ALL log methods automatically
+logger.info('<green.bold>SUCCESS:</> All tests passed');
+logger.error('<red>Error:</> Connection to <yellow>database</> failed');
+logger.warn('<yellow.bold>⚠ Warning:</> <cyan>CPU usage</> is high');
+
+// Perfect with variables
+const user = 'john_doe';
+const action = 'DELETE';
+logger.warn(`User <cyan.bold>${user}</> performed <red.bold>${action}</> operation`);
+
+// Mix with regular text naturally
+logger.info('Starting <green>health check</> for service <cyan.underline>api-gateway</>...');
+logger.success('<green.bold>✓</> Deployment to <blue>production</> complete');
+```
+
+### Style Reference
+
+**Colors:**
+- Basic: `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`, `black`, `gray`
+- Extended: `orange`, `purple`, `teal`, `pink`, `brown`, `indigo`, `lime`
+- Bright: `brightRed`, `brightGreen`, `brightBlue`, etc.
+- Backgrounds: `bgRed`, `bgGreen`, `bgBlue`, `bgBrightRed`, etc.
+
+**Modifiers:**
+- Text: `bold`, `dim`, `italic`, `underline`, `strikethrough`
+- Display: `blink`, `reverse`, `hidden`
+
+---
+
+## 🧱 Structured Logging
+
+MagicLogger emits consistent JSON to transports while showing beautiful console output.
+
+### Input → Output Examples
+
+```typescript
+const logger = new Logger({ id: 'api', tags: ['service'] });
+
+// 1. Metadata object
 logger.info('User login', { userId: 'u_123', ip: '203.0.113.10' });
 
-// 2) Direct Error instance
+// 2. Error instance  
 logger.error('Payment failed', new Error('Card declined'));
 
-// 3) Metadata object containing an error
+// 3. Mixed metadata and error
 logger.error('DB query failed', {
   error: new Error('timeout'),
   query: 'SELECT * FROM users WHERE id = ?'
 });
 ```
 
-Example JSON produced (Node.js environment shown):
+**Resulting JSON structure:**
 
 ```json
 {
@@ -133,7 +230,7 @@ Example JSON produced (Node.js environment shown):
   "message": "User login",                       
   "plainMessage": "User login",                  
   "loggerId": "api",                             
-  "tags": ["service", "api"],                  
+  "tags": ["service"],                  
   "context": { "userId": "u_123", "ip": "203.0.113.10" },
   "metadata": {
     "hostname": "my-host",                       
@@ -144,144 +241,12 @@ Example JSON produced (Node.js environment shown):
 }
 ```
 
-Error examples:
-
-```json
-{
-  "level": "error",
-  "message": "Payment failed",
-  "error": {
-    "name": "Error",
-    "message": "Card declined",
-    "stack": "..."
-  },
-  "timestamp": "2025-08-14T12:34:36.234Z",
-  "timestampMs": 1765769676234
-}
-```
-
-```json
-{
-  "level": "error",
-  "message": "DB query failed",
-  "context": {
-    "query": "SELECT * FROM users WHERE id = ?"
-  },
-  "error": {
-    "name": "Error",
-    "message": "timeout",
-    "stack": "..."
-  },
-  "timestamp": "2025-08-14T12:34:37.345Z",
-  "timestampMs": 1765769677345
-}
-```
-
-Notes
-- id is auto-generated per entry; timestamp/timestampMs are always present.
-- message is the final (styled) string; plainMessage is ANSI-free for non-TTY transports.
-- loggerId and tags come from Logger options if provided.
-- context is either the metadata object you passed, or falls back to options.context.
-- metadata includes platform info (Node: hostname, pid, platform, nodeVersion; Browser: userAgent, platform).
-
----
-
-## 🎨 Styling Showcase
-
-### Three Powerful Styling APIs
-
-MagicLogger provides three complementary styling APIs. Use one or combine them - they all work together seamlessly!
-
-#### 1. Chainable Style API (`logger.s`)
-
-Like Chalk, but built-in. Chain styles intuitively:
-
-```typescript
-// Create styled strings
-const error = logger.s.red.bold('ERROR:');
-const warning = logger.s.yellow.underline('Warning:');
-const success = logger.s.green.bold('✓ Success');
-
-// Use in your logs
-logger.info(error + ' Connection failed');
-logger.info(warning + ' High memory usage');
-logger.info(success + ' Deployment complete');
-
-// Chain multiple styles
-logger.info(
-  logger.s.white.bgRed.bold(' CRITICAL ') + ' ' +
-  logger.s.yellow('System memory at ') + 
-  logger.s.red.bold('92%')
-);
-
-// Create reusable style functions
-const highlight = logger.s.yellow.bold;
-const code = logger.s.cyan;
-const error = logger.s.red.bold.underline;
-
-logger.info('Run ' + code('npm install') + ' to continue');
-logger.error(error('Failed') + ' to process request');
-```
-
-#### 2. Template Literal API (`logger.fmt`)
-
-Inline styling with template literals:
-
-```typescript
-// Clean, readable inline styling
-logger.info(logger.fmt`@red.bold{Error:} Failed to connect to @yellow.underline{users_db} on @cyan{localhost:5432}`);
-
-// With variables
-const errorType = 'Connection Error';
-const database = 'production_db';
-const timestamp = new Date().toISOString();
-
-logger.error(logger.fmt`
-  @red.bold{${errorType}} 
-  Database @yellow{${database}} failed at @dim{${timestamp}}
-`);
-
-// Multiple styles in one message
-logger.info(logger.fmt`
-  @white.bgRed.bold{ CRITICAL } 
-  @yellow{Warning:} System memory at @red.bold{92%} 
-  @dim{(threshold: 90%)}
-`);
-```
-
-#### 3. Inline Angle Bracket Syntax
-
-The simplest API - just write styled text naturally:
-
-```typescript
-// Automatic parsing in ALL log methods
-logger.info('<green.bold>SUCCESS:</> All tests passed');
-logger.error('<red>Error:</> Connection to <yellow>database</> failed');
-logger.warn('<yellow.bold>⚠ Warning:</> <cyan>CPU usage</> is high');
-
-// Works with variables
-const user = 'john_doe';
-const action = 'DELETE';
-logger.warn(`User <cyan.bold>${user}</> performed <red.bold>${action}</> operation`);
-
-// Combine with regular text
-logger.info('Starting <green>health check</> for service <cyan.underline>api-gateway</>...');
-
-// No need for special methods - it just works!
-logger.debug('<dim>Debug:</> Cache hit ratio: <green>85%</>');
-logger.success('<green.bold>✓</> Deployment to <blue>production</> complete');
-```
-
-### Style Reference
-
-#### Colors
-- Foreground: `black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`, `gray`, `orange`, `purple`, `teal`, `pink`, `brown`, `indigo`, `lime`
-- Bright (foreground): `brightRed`, `brightGreen`, `brightYellow`, `brightBlue`, `brightMagenta`, `brightCyan`, `brightWhite`, `brightOrange`, `brightPurple`, `brightTeal`, `brightPink`, `brightBrown`, `brightIndigo`, `brightLime`, `brightBlack`
-- Background: `bgBlack`, `bgRed`, `bgGreen`, `bgYellow`, `bgBlue`, `bgMagenta`, `bgCyan`, `bgWhite`, `bgGray`, `bgOrange`, `bgPurple`, `bgTeal`, `bgPink`, `bgBrown`, `bgIndigo`, `bgLime`
-- Bright backgrounds: `bgBrightBlack`, `bgBrightRed`, `bgBrightGreen`, `bgBrightYellow`, `bgBrightBlue`, `bgBrightMagenta`, `bgBrightCyan`, `bgBrightWhite`, `bgBrightOrange`, `bgBrightPurple`, `bgBrightTeal`, `bgBrightPink`, `bgBrightBrown`, `bgBrightIndigo`, `bgBrightLime`
-
-#### Modifiers
-- Styles: `bold`, `dim`, `italic`, `underline`, `blink`, `reverse`, `hidden`, `strikethrough`
+**Key Fields:**
+- `message`: Final styled string for console
+- `plainMessage`: ANSI-free version for non-TTY transports
+- `context`: Your metadata object
+- `metadata`: Automatic platform info (hostname, PID, etc.)
+- `error`: Structured error with name, message, and stack
 
 ---
 
@@ -290,15 +255,15 @@ logger.success('<green.bold>✓</> Deployment to <blue>production</> complete');
 ### Built-in Themes
 
 ```typescript
-// Use a built-in theme
+// Use predefined themes
 const logger = new Logger({ 
-  theme: 'ocean' // or 'forest', 'sunset', 'minimal', 'cyberpunk'
+  theme: 'ocean' // Available: 'ocean', 'forest', 'sunset', 'minimal', 'cyberpunk', 'dark'
 });
 
-// Or customize an existing theme
+// Customize existing themes
 const logger = new Logger({
   theme: {
-    base: 'ocean', // Start with a built-in theme
+    base: 'ocean',
     overrides: {
       error: ['brightRed', 'bold', 'underline'],
       success: ['brightGreen', 'bold']
@@ -307,12 +272,11 @@ const logger = new Logger({
 });
 ```
 
-### Tag-Based Theme Styling
+### Tag-Based Styling
 
-Automatically apply styles based on tags:
+Automatically style logs based on tags:
 
 ```typescript
-// Define tag styles in your theme
 const logger = new Logger({
   theme: {
     tags: {
@@ -322,46 +286,35 @@ const logger = new Logger({
       critical: ['white', 'bgRed', 'bold'],
       performance: ['magenta']
     }
-  },
-  tags: ['api'] // Global tags for this logger
+  }
 });
 
-// Tags automatically apply their theme styles
-logger.info('Request received', { tags: ['api'] }); // Styled with cyan.bold
-logger.error('Connection failed', { tags: ['database', 'error'] }); // Combined styles
-logger.warn('High latency detected', { tags: ['api', 'performance'] });
+// Tags automatically apply their styles
+logger.info('Request received', { tags: ['api'] }); // cyan.bold
+logger.error('Connection failed', { tags: ['database', 'error'] }); // combined styles
 ```
 
-### Tag-Driven Theme Selection (Auto)
-
-Make your logs brand-aware by auto-selecting a theme from tags:
+### Auto Theme Selection
 
 ```typescript
-// 1) Explicit mapping: map a tag to a theme name
-const logger1 = new Logger({
+// Map tags to themes
+const logger = new Logger({
   tags: ['acme'],
-  themeByTag: { acme: 'cyberpunk', contoso: 'dark' }
-  // When a logger has tag 'acme', load theme 'cyberpunk'
+  themeByTag: { 
+    acme: 'cyberpunk', 
+    contoso: 'dark' 
+  }
 });
 
-// 2) Implicit matching: if a tag matches a named theme, it's used automatically
-// Assuming a theme named 'neon' exists in themes.json
-const logger2 = new Logger({ tags: ['neon'] }); // auto-loads the 'neon' theme
-
-// Updating tags later also re-evaluates the theme if none was explicitly set
-logger2.updateConfig({ tags: ['dark'] }); // switches to 'dark' theme if available
+// Or implicit matching - if tag matches theme name
+const logger2 = new Logger({ tags: ['neon'] }); // auto-loads 'neon' theme if it exists
 ```
 
-Notes
-- Explicit object themes still take precedence over auto-selection.
-- Auto-selection only applies when a theme isn't explicitly provided.
-
-### Creating Custom Themes
+### Custom Themes
 
 ```typescript
 import type { ThemeDefinition } from 'magiclogger';
 
-// Define a theme object (keys map to your semantic roles)
 const myTheme: ThemeDefinition = {
   info: ['brightCyan'],
   success: ['brightGreen', 'bold'],
@@ -372,109 +325,6 @@ const myTheme: ThemeDefinition = {
 };
 
 const logger = new Logger({ theme: myTheme });
-```
-
-### Theme Variants and JSON
-
-```typescript
-// Use bundled themes by name if available (see src/theme/themes.json)
-const logger1 = new Logger({ theme: 'dark' });
-
-// Or load your own JSON file (Node.js)
-import fs from 'node:fs';
-const myThemeJson = JSON.parse(fs.readFileSync('./my-theme.json', 'utf8')) as ThemeDefinition;
-const logger2 = new Logger({ theme: myThemeJson });
-
-// Programmatic overrides
-const logger3 = new Logger({
-  theme: {
-    ...myTheme,
-    error: ['brightRed', 'bold', 'underline']
-  }
-});
-```
-
----
-
-## 🔌 Transports
-
-### Built-in Transports
-
-Available out of the box:
-- Console (`ConsoleTransport`)
-- File (`FileTransport`)
-- HTTP (`HTTPTransport`)
-- WebSocket (`WebSocketTransport`)
-- Stream (`StreamTransport`)
-- S3 (`S3Transport`)
-- MongoDB (`MongoDBTransport`)
-- OpenTelemetry OTLP (`OTLPTransport`)
-
-Notes
-- Core behavior: If you do not configure any transports, MagicLogger still writes to the console via its legacy output; this ensures you see logs during development. To automatically add console (and optional file) as managed transports, pass `{ useDefaultTransports: true }`.
-- Tree‑shaking: Importing from `magiclogger/transports` re‑exports all transport classes; for optimal tree‑shaking, prefer per‑transport imports like `magiclogger/transports/http`.
-- Core vs. extras: The Console transport is commonly used and can be auto‑enabled via `useDefaultTransports`. Other transports are opt‑in and only included in your bundle when you import/use them.
-
-Usage example:
-
-```typescript
-import { Logger } from 'magiclogger';
-import {
-  ConsoleTransport,
-  FileTransport,
-  HTTPTransport,
-  WebSocketTransport,
-  StreamTransport,
-  S3Transport,
-  MongoDBTransport,
-} from 'magiclogger/transports';
-
-const logger = new Logger({
-  transports: [
-    new ConsoleTransport({ level: 'debug', useColors: true }),
-    new FileTransport({ filepath: './logs/app.log', maxFiles: 7, maxSize: '10MB' }),
-    new HTTPTransport({ url: 'https://logs.example.com', batch: true, compress: true }),
-    new WebSocketTransport({ url: 'wss://logs.example.com/socket' }),
-    new StreamTransport({ stream: process.stdout }),
-    new S3Transport({ bucket: 'my-logs', prefix: 'prod/', region: 'us-east-1' }),
-    new MongoDBTransport({ uri: 'mongodb://localhost:27017', db: 'logs', collection: 'entries' }),
-  ]
-});
-```
-
-### OpenTelemetry Integration
-
-```typescript
-// Full OpenTelemetry integration with tracing
-import { Logger } from 'magiclogger';
-import { OTLPTransport } from 'magiclogger/transports/otlp';
-import { trace } from '@opentelemetry/api';
-
-const logger = new Logger({
-  transports: [
-    new OTLPTransport({
-      endpoint: process.env.OTLP_ENDPOINT || 'http://localhost:4318',
-      protocol: 'http/protobuf', // or 'grpc'
-      headers: {
-        'x-api-key': process.env.OTLP_API_KEY
-      },
-      serviceName: 'my-service',
-      resource: {
-        'service.version': process.env.APP_VERSION,
-        'deployment.environment': process.env.NODE_ENV
-      },
-      // Automatically attach trace context
-      includeTraceContext: true
-    })
-  ]
-});
-
-// Logs automatically include trace and span IDs
-const span = trace.getActiveSpan();
-logger.info('Processing request', {
-  userId: '123',
-  // Trace context automatically attached!
-});
 ```
 
 ---
@@ -513,245 +363,346 @@ logger.table([
 ]);
 ```
 
+### Object Diffs
+
+```typescript
+const oldState = { users: 100, revenue: 5000, plan: 'basic' };
+const newState = { users: 150, revenue: 7500, plan: 'pro' };
+
+logger.diff('State change', oldState, newState);
+// Output:
+//   users: 100 → 150 (+50)
+//   revenue: 5000 → 7500 (+2500)
+// + plan: "pro"
+```
+
 ---
 
-## 🎯 Real-World Examples
+## 🚀 Enterprise Transports
 
-### Express.js Middleware with Styled Output
+### Core Transports
 
 ```typescript
 import { Logger } from 'magiclogger';
+import {
+  ConsoleTransport,
+  FileTransport,
+  HTTPTransport,
+  WebSocketTransport,
+  StreamTransport
+} from 'magiclogger/transports';
 
 const logger = new Logger({
-  theme: {
-    tags: {
-      http: ['cyan'],
-      error: ['red', 'bold'],
-      slow: ['yellow', 'bold']
-    }
-  }
-});
-
-app.use((req, res, next) => {
-  const start = Date.now();
-  
-  // Log request with inline styling
-  logger.info(`<cyan.bold>${req.method}</> <dim>${req.path}</>`);
-  
-  res.on('finish', () => {
-    const duration = Date.now() - start;
-    const status = res.statusCode;
+  transports: [
+    // Console with styling
+    new ConsoleTransport({ 
+      level: 'debug', 
+      useColors: true,
+      format: 'pretty' 
+    }),
     
-    // Style based on status code
-    const statusStyle = status >= 500 ? 'red.bold' : 
-                       status >= 400 ? 'yellow' : 
-                       'green';
+    // File with rotation
+    new FileTransport({ 
+      filepath: './logs/app.log',
+      maxFiles: 7,
+      maxSize: '10MB',
+      format: 'json'
+    }),
     
-    logger.info(
-      `<cyan.bold>${req.method}</> ${req.path} ` +
-      `<${statusStyle}>${status}</> ` +
-      `<dim>${duration}ms</>`
-    );
+    // HTTP with batching
+    new HTTPTransport({ 
+      url: 'https://logs.example.com',
+      batch: { size: 100, timeout: 5000 },
+      compress: true,
+      headers: { 'x-api-key': process.env.LOG_API_KEY }
+    }),
     
-    // Tag-based styling for slow requests
-    if (duration > 1000) {
-      logger.warn('Slow request detected', { 
-        tags: ['slow', 'http'],
-        duration,
-        path: req.path
-      });
-    }
-  });
-  
-  next();
+    // WebSocket real-time
+    new WebSocketTransport({ 
+      url: 'wss://logs.example.com/socket',
+      reconnect: true 
+    }),
+    
+    // Stream (stdout/stderr)
+    new StreamTransport({ 
+      stream: process.stdout,
+      format: 'json'
+    })
+  ]
 });
 ```
 
-### Deployment Pipeline with Rich Visuals
+### Database & Storage
 
 ```typescript
-const logger = new Logger({ 
-  theme: 'cyberpunk',
-  tags: ['deployment']
+import {
+  PostgreSQLTransport,
+  MongoDBTransport,
+  S3Transport
+} from 'magiclogger/transports';
+
+// PostgreSQL with connection pooling
+const pgTransport = new PostgreSQLTransport({
+  connectionString: process.env.DATABASE_URL,
+  table: 'application_logs',
+  createTable: true,
+  poolSize: 10,
+  batchSize: 100,
+  flushInterval: 5000
 });
 
-async function deploy() {
-  logger.header('🚀 DEPLOYMENT PIPELINE', ['white', 'bgBlue', 'bold']);
-  
-  // Stage 1: Build
-  logger.info(logger.fmt`@blue{Stage 1/4:} Building application...`);
-  for (let i = 0; i <= 100; i += 5) {
-    logger.progressBar(i, 40, '█', '░');
-    await sleep(50);
+// MongoDB with TTL
+const mongoTransport = new MongoDBTransport({
+  uri: 'mongodb://localhost:27017',
+  database: 'logs',
+  collection: 'entries',
+  ttl: 2592000, // 30 days
+  createIndex: true
+});
+
+// S3 with compression and rotation
+const s3Transport = new S3Transport({
+  bucket: 'my-app-logs',
+  prefix: 'production/',
+  region: 'us-east-1',
+  compression: 'gzip',
+  rotation: 'daily',
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
   }
-  logger.success('<green.bold>✓ Build completed</> <dim>(450 files, 2.3MB)</>');
-  
-  // Stage 2: Tests
-  logger.info(logger.fmt`@blue{Stage 2/4:} Running tests...`);
-  const testResults = [
-    { suite: 'Unit Tests', passed: 342, failed: 0, time: '2.3s' },
-    { suite: 'Integration', passed: 89, failed: 0, time: '8.7s' },
-    { suite: 'E2E Tests', passed: 23, failed: 0, time: '45.2s' }
-  ];
-  logger.table(testResults);
-  
-  // Stage 3: Deploy
-  logger.info(logger.fmt`@blue{Stage 3/4:} Deploying to @cyan.underline{production}`);
-  
-  // Final status
-  logger.header('✅ DEPLOYMENT SUCCESSFUL', ['white', 'bgGreen', 'bold']);
-  logger.info(`
-    <green.bold>Version 2.4.1</> deployed to <cyan>production</>
-    <dim>Completed in <yellow>4m 32s</> with <green>0 errors</></>
-  `);
-}
+});
 ```
 
-## 📦 Build Output Sizes
+### Messaging & Streaming
 
-| File | Format | Raw Size | Gzip |
-|------|--------|----------|------|
-| `index.cjs` | CJS | 3.03 kB | 723 B |
-| `index.js` | ESM | 1.36 kB | 519 B |
-| `index.d.ts` | Types | 113 kB | 21.9 kB |
+```typescript
+import {
+  KafkaTransport,
+  SyslogTransport,
+  VectorTransport,
+  FluentBitTransport
+} from 'magiclogger/transports';
 
-### Reference bundle sizes (gzip)
+// Kafka with compression
+const kafkaTransport = new KafkaTransport({
+  brokers: ['localhost:9092'],
+  topic: 'application-logs',
+  clientId: 'my-app',
+  compression: 'gzip',
+  batch: { size: 100, lingerMs: 1000 }
+});
 
-| Scenario | Size |
-|----------|------|
-| core (esm, gzip) | 38 kB |
-| core + console (esm, gzip) | 38 kB |
-| core + all core transports (esm, gzip) | 46.4 kB |
-| all compatibility layers (esm, gzip) | 44.9 kB |
+// Syslog (RFC5424)
+const syslogTransport = new SyslogTransport({
+  host: 'localhost',
+  port: 514,
+  protocol: 'udp',
+  facility: 'local0',
+  appName: 'my-app',
+  rfc: 'RFC5424'
+});
 
-*Generated via `scripts/analyze-build.js`.*
+// Vector for observability pipelines
+const vectorTransport = new VectorTransport({
+  endpoint: 'http://localhost:8686',
+  source: 'my-app',
+  encoding: 'json',
+  compression: 'gzip'
+});
 
-| File | Format | Raw Size | Gzip |
-|------|--------|----------|------|
-| `index.cjs` | CJS | 3.03 kB | 723 B |
-| `index.js` | ESM | 1.36 kB | 519 B |
-| `index.d.ts` | Types | 113 kB | 21.9 kB |
+// Fluent Bit with MessagePack
+const fluentTransport = new FluentBitTransport({
+  host: 'localhost',
+  port: 24224,
+  tag: 'app.logs',
+  msgpack: true,
+  shared_key: process.env.FLUENTD_SHARED_KEY
+});
+```
 
-### Reference bundle sizes (gzip)
+### Observability Integration
 
-| Scenario | Size |
-|----------|------|
-| core (esm, gzip) | 38 kB |
-| core + console (esm, gzip) | 38 kB |
-| core + all core transports (esm, gzip) | 46.4 kB |
-| all compatibility layers (esm, gzip) | 44.9 kB |
+```typescript
+import { OTLPTransport } from 'magiclogger/transports/otlp';
 
-*Generated via `scripts/analyze-build.js`.*
+// OpenTelemetry with trace context
+const otlpTransport = new OTLPTransport({
+  endpoint: process.env.OTLP_ENDPOINT || 'http://localhost:4318',
+  protocol: 'http/protobuf',
+  headers: { 'x-api-key': process.env.OTLP_API_KEY },
+  serviceName: 'my-service',
+  resource: {
+    'service.version': process.env.APP_VERSION,
+    'deployment.environment': process.env.NODE_ENV
+  },
+  includeTraceContext: true // Auto-attach trace/span IDs
+});
 
-| File | Format | Raw Size | Gzip |
-|------|--------|----------|------|
-| `index.cjs` | CJS | 3.03 kB | 720 B |
-| `index.js` | ESM | 1.36 kB | 519 B |
-| `index.d.ts` | Types | 113 kB | 21.9 kB |
+// Popular observability platforms
+const signozTransport = new OTLPTransport({
+  endpoint: process.env.SIGNOZ_ENDPOINT,
+  headers: { 'signoz-access-token': process.env.SIGNOZ_TOKEN }
+});
 
-### Reference bundle sizes (gzip)
+// Grafana Loki
+const lokiTransport = new HTTPTransport({
+  url: 'http://localhost:3100/loki/api/v1/push',
+  transformRequest: (entries) => ({
+    streams: [{
+      stream: { app: 'my-app', env: 'production' },
+      values: entries.map(e => [String(e.timestampMs * 1000000), e.message])
+    }]
+  })
+});
+```
 
-| Scenario | Size |
-|----------|------|
-| core (esm, gzip) | 38 kB |
-| core + console (esm, gzip) | 38 kB |
-| core + all core transports (esm, gzip) | 46.3 kB |
-| all compatibility layers (esm, gzip) | 44.8 kB |
+---
 
-*Generated via `scripts/analyze-build.js`.*
+## 🛡️ Production Features
 
-| File | Format | Raw Size | Gzip |
-|------|--------|----------|------|
-| `index.cjs` | CJS | 3.03 kB | 720 B |
-| `index.js` | ESM | 1.36 kB | 519 B |
-| `index.d.ts` | Types | 146 kB | 29.2 kB |
+### Sampling & Rate Limiting
 
-### Reference bundle sizes (gzip)
+```typescript
+const logger = new Logger({
+  // Statistical sampling
+  sampling: {
+    enabled: true,
+    rate: 0.1, // Sample 10%
+    strategy: 'adaptive', // Adjusts based on volume
+    keyFn: (entry) => entry.context?.requestId // Group by request
+  },
+  
+  // Rate limiting
+  rateLimit: {
+    enabled: true,
+    window: 60000, // 1 minute
+    max: 1000, // Max 1000 logs per minute
+    strategy: 'sliding'
+  }
+});
 
-| Scenario | Size |
-|----------|------|
-| core (esm, gzip) | 38 kB |
-| core + console (esm, gzip) | 38 kB |
-| core + all core transports (esm, gzip) | 46.3 kB |
-| all compatibility layers (esm, gzip) | 44.8 kB |
+// Per-key rate limiting
+const apiLogger = logger.withRateLimit('api-calls', {
+  max: 100,
+  window: 60000,
+  onLimit: (key) => metrics.increment('logs.rate_limited', { key })
+});
 
-*Generated via `scripts/analyze-build.js`.*
+// Adaptive sampling
+const adaptiveLogger = logger.withSampling({
+  strategy: 'adaptive',
+  targetRate: 1000, // Target 1000 logs/minute
+  minRate: 0.001,   // Never below 0.1%
+  maxRate: 1.0      // Never above 100%
+});
+```
 
-| File | Format | Raw Size | Gzip |
-|------|--------|----------|------|
-| `index.cjs` | CJS | 3.03 kB | 717 B |
-| `index.js` | ESM | 1.36 kB | 517 B |
-| `index.d.ts` | Types | 146 kB | 29.2 kB |
+### PII Redaction
 
-### Reference bundle sizes (gzip)
+```typescript
+const logger = new Logger({
+  redaction: {
+    enabled: true,
+    preset: 'strict', // 'minimal', 'standard', 'strict'
+    patterns: [
+      { name: 'api-key', pattern: /sk-[a-zA-Z0-9]{48}/g, replacement: 'sk-***' },
+      { name: 'employee-id', pattern: /EMP\d{6}/g, replacement: 'EMP******' }
+    ],
+    fields: ['password', 'token', 'secret', 'creditCard']
+  }
+});
 
-| Scenario | Size |
-|----------|------|
-| core (esm, gzip) | 37.5 kB |
-| core + console (esm, gzip) | 37.5 kB |
-| core + all core transports (esm, gzip) | 45.9 kB |
-| all compatibility layers (esm, gzip) | 44.3 kB |
+// Auto-redaction in action
+logger.info('User data', {
+  email: 'user@example.com',     // → user@***
+  password: 'secret123',         // → ********
+  creditCard: '4111111111111111' // → ************1111
+});
 
-*Generated via `scripts/analyze-build.js`.*
+// Programmatic redaction
+logger.redact().info('Sensitive operation', { 
+  apiKey: 'sk-1234567890abcdef',
+  userId: 'user_123' // Not redacted
+});
+```
 
-| File | Format | Raw Size | Gzip |
-|------|--------|----------|------|
-| `index.cjs` | CJS | 3.03 kB | 718 B |
-| `index.js` | ESM | 1.36 kB | 521 B |
-| `index.d.ts` | Types | 146 kB | 29.2 kB |
+### Queue Management
 
-### Reference bundle sizes (gzip)
+```typescript
+const logger = new Logger({
+  queue: {
+    maxSize: 10000,
+    dropPolicy: 'tail', // 'head', 'priority', 'random'
+    priorityFn: (entry) => entry.level === 'error' ? 1 : 0,
+    onDrop: (entries) => {
+      console.warn(`Dropped ${entries.length} log entries`);
+      metrics.increment('logs.dropped', entries.length);
+    }
+  }
+});
+```
 
-| Scenario | Size |
-|----------|------|
-| core (esm, gzip) | 37.1 kB |
-| core + console (esm, gzip) | 37.1 kB |
-| core + all core transports (esm, gzip) | 45.5 kB |
-| all compatibility layers (esm, gzip) | 43.9 kB |
+---
 
-*Generated via `scripts/analyze-build.js`.*
+## 📊 Monitoring & Health
 
-| File | Format | Raw Size | Gzip |
-|------|--------|----------|------|
-| `index.cjs` | CJS | 3.03 kB | 718 B |
-| `index.js` | ESM | 1.36 kB | 518 B |
-| `index.d.ts` | Types | 145 kB | 29 kB |
+### Transport Health Monitoring
 
-### Reference bundle sizes (gzip)
+```typescript
+// Monitor transport health
+setInterval(async () => {
+  const health = await logger.getTransportHealth();
+  
+  Object.entries(health).forEach(([name, status]) => {
+    if (!status.healthy) {
+      alerting.notify(`Transport ${name} unhealthy: ${status.error}`);
+    }
+    
+    // Emit metrics
+    metrics.gauge('logger.transport.queue_size', status.queueSize, { transport: name });
+    metrics.gauge('logger.transport.success_rate', status.successRate, { transport: name });
+  });
+}, 60000);
 
-| Scenario | Size |
-|----------|------|
-| core (esm, gzip) | 37 kB |
-| core + console (esm, gzip) | 37 kB |
-| core + all core transports (esm, gzip) | 45.4 kB |
-| all compatibility layers (esm, gzip) | 43.8 kB |
+// Get detailed statistics
+const stats = logger.getStats();
+console.log('Logs processed:', stats.processed);
+console.log('Logs dropped:', stats.dropped);
+console.log('Current queue size:', stats.queued);
+```
 
-*Generated via `scripts/analyze-build.js`.*
+### Performance Monitoring
 
-| File | Format | Raw Size | Gzip |
-|------|--------|----------|------|
-| `index.cjs` | CJS | 3.03 kB | 718 B |
-| `index.js` | ESM | 1.36 kB | 518 B |
-| `index.d.ts` | Types | 145 kB | 29 kB |
+```typescript
+// Track slow logs
+logger.on('slow', ({ duration, entry }) => {
+  if (duration > 100) {
+    metrics.histogram('logger.slow_log', duration, {
+      level: entry.level,
+      transport: entry.transport
+    });
+  }
+});
 
-### Reference bundle sizes (gzip)
-
-| Scenario | Size |
-|----------|------|
-| core (esm, gzip) | 37 kB |
-| core + console (esm, gzip) | 37 kB |
-| core + all core transports (esm, gzip) | 45.4 kB |
-| all compatibility layers (esm, gzip) | 43.8 kB |
-
-*Generated via `scripts/analyze-build.js`.*
+// Memory pressure handling
+logger.on('memory_pressure', ({ usage }) => {
+  if (usage > 100_000_000) { // 100MB
+    logger.flush();
+    logger.resetQueues();
+  }
+});
+```
 
 ---
 
 ## ⚡ Performance
 
-Magiclogger’s performance tests validate high‑volume styled logging within strict thresholds (passes on CI and locally). External logger comparisons are performed with and without styling (using `chalk` in conjunction with alternative loggers) and with output suppressed.
+MagicLogger's performance varies by use case. For synchronous logging, other libraries excel, but MagicLogger's async implementation delivers superior throughput for high-volume scenarios.
 
-**Latest benchmark snapshot:**
+### Benchmark Results
+
+**Latest benchmark snapshot** (output suppressed, styled vs plain formatting):
 
 <!-- PERF_TABLE_START -->
 | Logger | Iterations | Time (ms) | Ops/sec |
@@ -770,35 +721,205 @@ Magiclogger’s performance tests validate high‑volume styled logging within s
 | Pino (Async, Plain) | 100,000 | 2628.9 | 38,038 |
 | Winston (Async, Styled) | 100,000 | 2648.0 | 37,765 |
 | Winston (Async, Plain) | 100,000 | 2681.5 | 37,293 |
-
-### Winners
-- Sync Plain: Winston (Sync, Plain) (29,179 ops/sec) — MagicLogger: 8,116 ops/sec
-- Sync Styled: Bunyan (Sync, Styled) (33,834 ops/sec) — MagicLogger: 7,586 ops/sec
-- Async Plain: MagicLogger (Async, Plain) (103,327 ops/sec)
-- Async Styled: MagicLogger (Async, Styled) (74,225 ops/sec)
-
 <!-- PERF_TABLE_END -->
 
-=== KEY COMPARISONS ===
+### Performance Insights
 
-Synchronous Styled Performance:
-  MagicLogger (Sync, Styled): 7,586 ops/sec
-  Bunyan (Sync, Styled): 33,834 ops/sec
-  → MagicLogger is 4.46x slower
+**Synchronous Performance:**
+- **Winners**: Bunyan (33,834 ops/sec styled), Winston (32,215 ops/sec styled)
+- **MagicLogger**: 7,586 ops/sec styled - optimized for features over raw speed
+- **Trade-off**: Rich styling and visual elements come with performance cost
 
-Asynchronous Styled Performance:
-  MagicLogger (Async, Styled): 74,225 ops/sec
-  Pino (Async, Styled): 66,994 ops/sec
-  → MagicLogger is 1.11x faster
+**Asynchronous Performance:**
+- **Winner**: MagicLogger leads with 103,327 ops/sec (plain) and 74,225 ops/sec (styled)
+- **Advantage**: Ring buffer and async architecture excel in high-volume scenarios
+- **Use case**: Ideal for production environments with burst logging
 
-Fastest Sync: Bunyan (Sync, Styled) (33,834 ops/sec)
-Fastest Async: MagicLogger (Async, Plain) (103,327 ops/sec)
+### When to Choose Each Mode
 
-Legend:
-  • Sync = True synchronous operations (blocking I/O)
-  • Async = Buffered/async operations (non-blocking)
-  • Plain = Minimal formatting
-  • Styled = Color/template formatting applied
-  • All output suppressed via null transport/stream
+**Sync Mode**: Development, debugging, interactive applications
+- Rich visual output with tables, progress bars, headers
+- Immediate console feedback
+- Perfect for human-readable logs
 
-*Generated via scripts/performance/perf-bench.mjs.*
+**Async Mode**: Production, high-throughput, batch processing
+- 10x+ performance improvement
+- Non-blocking operation
+- Configurable buffering and batching
+
+### Bundle Sizes (gzipped)
+
+| Scenario | Size |
+|----------|------|
+| Core only | 37 kB |
+| Core + Console | 37 kB |
+| Core + All transports | 45.4 kB |
+| Compatibility layers | 43.8 kB |
+
+---
+
+## 🎯 Real-World Examples
+
+### Express.js Middleware
+
+```typescript
+import { Logger } from 'magiclogger';
+
+const logger = new Logger({
+  theme: { tags: { http: ['cyan'], slow: ['yellow', 'bold'] } }
+});
+
+app.use((req, res, next) => {
+  const start = Date.now();
+  
+  logger.info(`<cyan.bold>${req.method}</> <dim>${req.path}</>`);
+  
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    const statusStyle = res.statusCode >= 500 ? 'red.bold' : 
+                       res.statusCode >= 400 ? 'yellow' : 'green';
+    
+    logger.info(
+      `<cyan.bold>${req.method}</> ${req.path} ` +
+      `<${statusStyle}>${res.statusCode}</> <dim>${duration}ms</>`
+    );
+    
+    if (duration > 1000) {
+      logger.warn('Slow request', { 
+        tags: ['slow', 'http'],
+        duration, path: req.path 
+      });
+    }
+  });
+  
+  next();
+});
+```
+
+### Deployment Pipeline
+
+```typescript
+async function deploy() {
+  const logger = new Logger({ theme: 'cyberpunk' });
+  
+  logger.header('🚀 DEPLOYMENT PIPELINE', ['white', 'bgBlue', 'bold']);
+  
+  // Build stage
+  logger.info(logger.fmt`@blue{Stage 1/4:} Building application...`);
+  for (let i = 0; i <= 100; i += 5) {
+    logger.progressBar(i, 40, '█', '░');
+    await sleep(50);
+  }
+  logger.success('<green.bold>✓ Build completed</> <dim>(450 files, 2.3MB)</>');
+  
+  // Test results
+  logger.info(logger.fmt`@blue{Stage 2/4:} Running tests...`);
+  logger.table([
+    { suite: 'Unit Tests', passed: 342, failed: 0, time: '2.3s' },
+    { suite: 'Integration', passed: 89, failed: 0, time: '8.7s' },
+    { suite: 'E2E Tests', passed: 23, failed: 0, time: '45.2s' }
+  ]);
+  
+  logger.header('✅ DEPLOYMENT SUCCESSFUL', ['white', 'bgGreen', 'bold']);
+}
+```
+
+### Production Configuration
+
+```typescript
+const prodLogger = new Logger({
+  // Sampling and rate limiting
+  sampling: { strategy: 'adaptive', targetRate: 10000 },
+  rateLimit: { max: 1000, window: 60000 },
+  redaction: { preset: 'strict' },
+  
+  // Multiple transports
+  transports: [
+    new KafkaTransport({ 
+      brokers: process.env.KAFKA_BROKERS.split(','),
+      compression: 'snappy'
+    }),
+    new PostgreSQLTransport({
+      connectionString: process.env.DATABASE_URL,
+      table: 'application_logs'
+    }),
+    new S3Transport({ // Archive
+      bucket: 'logs-archive',
+      rotation: 'daily'
+    })
+  ]
+});
+```
+
+---
+
+## 🔧 Configuration Reference
+
+### Logger Options
+
+```typescript
+interface LoggerOptions {
+  // Basic configuration
+  id?: string;
+  tags?: string[];
+  context?: Record<string, unknown>;
+  verbose?: boolean;
+  useColors?: boolean;
+  
+  // Styling & themes
+  theme?: string | ThemeDefinition;
+  themeByTag?: Record<string, string>;
+  
+  // Performance features
+  sampling?: {
+    enabled: boolean;
+    rate: number; // 0-1
+    strategy: 'random' | 'deterministic' | 'adaptive';
+    keyFn?: (entry: LogEntry) => string;
+  };
+  
+  rateLimit?: {
+    enabled: boolean;
+    max: number;
+    window: number;
+    strategy: 'sliding' | 'fixed' | 'token-bucket';
+  };
+  
+  // Security
+  redaction?: {
+    enabled: boolean;
+    preset?: 'minimal' | 'standard' | 'strict';
+    patterns?: RedactionPattern[];
+    fields?: string[];
+    deep?: boolean;
+  };
+  
+  // Queue management
+  queue?: {
+    maxSize: number;
+    dropPolicy: 'tail' | 'head' | 'priority' | 'random';
+    priorityFn?: (entry: LogEntry) => number;
+    onDrop?: (entries: LogEntry[]) => void;
+  };
+  
+  // Transports
+  transports?: Transport[];
+  useDefaultTransports?: boolean;
+}
+```
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+## 📄 License
+
+MIT © Manic.agency
+
+---
+
+<p align="center">
+  Developed and sponsored by <a href="https://manic.agency">Manic.agency</a>.
+</p>
