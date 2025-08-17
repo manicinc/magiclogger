@@ -78,6 +78,7 @@ export type { ThemeDefinition } from './types/theme';
  */
 export { Colorizer } from './core/Colorizer';
 export { StyleBuilder } from './core/StyleBuilder';
+export { meta, err } from './utils/meta';
 
 // ==========================================
 // TRANSPORT TYPES ONLY

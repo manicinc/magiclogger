@@ -38,6 +38,11 @@ logger.info('Payment processed successfully', {
   processingTime: 145,
   paymentMethod: 'credit_card'
 });
+
+// Tip: When using console-like variadic args, wrap context you don't want
+// to print using meta(...):
+// import { meta } from 'magiclogger';
+// logger.info('Processed', data, meta({ requestId: 'req-1' }));
 ```
 
 ### Context Merging

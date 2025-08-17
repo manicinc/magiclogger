@@ -302,6 +302,40 @@ logger.error('DB query failed', {
 
 ---
 
+### Console-like arguments and structured meta
+
+MagicLogger also supports console-like variadic arguments while preserving structured metadata.
+
+```typescript
+import { Logger, meta, err } from 'magiclogger';
+const logger = new Logger();
+
+// Print like console.log
+logger.info('Data:', { a: 1, b: 2 });
+
+// Print data, attach non-printed metadata for transports
+logger.info('Saved user', user, meta({ requestId, userId }));
+
+// Attach an Error as structured meta (not printed)
+logger.error('Failed to save', err(new Error('boom')), meta({ requestId }));
+
+// Back-compat still works (second arg treated as meta and not printed)
+logger.info('Started', { requestId });
+```
+
+Rules:
+
+- Exactly two args `(string, object)` keeps the original behavior: the object is metadata only (not printed).
+- In variadic form, all args are printed except a final `meta(...)`/`err(...)` (or a trailing `Error`, which becomes `meta.error`).
+- Non-strings are pretty-printed using Node `util.inspect` (with colors) or JSON in browsers; circular refs are handled.
+
+Options:
+
+- `prettyPrint`: `'inspect' | 'json'` (default `'inspect'`).
+- `printMetaInDebug`: when true and `verbose` is enabled, appends a compact `[meta]` summary to console output.
+
+---
+
 ## 🎨 Theme System
 
 ### Built-in Themes
@@ -921,6 +955,12 @@ interface LoggerOptions {
   // Styling & themes
   theme?: string | ThemeDefinition;
   themeByTag?: Record<string, string>;
+  
+  // Console-like args printing
+  /** How non-string args are rendered in variadic calls. Default: 'inspect' */
+  prettyPrint?: 'inspect' | 'json';
+  /** When true and verbose, append compact [meta] summary after message. */
+  printMetaInDebug?: boolean;
   
   // Performance features
   sampling?: {

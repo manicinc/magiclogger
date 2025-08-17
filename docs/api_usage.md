@@ -9,6 +9,7 @@ A comprehensive guide to using the MagicLogger API with transports, context, and
 - [Logger Configuration](#logger-configuration)
 - [Basic Logging](#basic-logging)
 - [Context & Metadata](#context--metadata)
+  - [Console-like Arguments and Meta Wrappers](#console-like-arguments-and-meta-wrappers)
 - [Transports](#transports)
 - [Advanced Logging](#advanced-logging)
 - [Styling and Formatting](#styling-and-formatting)
@@ -196,6 +197,39 @@ logger.log('Debug info', 'debug', { details: 'here' }); // with metadata
 ```
 
 ## Context & Metadata
+### Console-like Arguments and Meta Wrappers
+
+MagicLogger supports console-like variadic arguments while preserving structured metadata for transports.
+
+```typescript
+import { Logger, meta, err } from 'magiclogger';
+const logger = new Logger();
+
+// Print like console.log
+logger.info('Data:', { a: 1, b: 2 }, [3, 4]);
+
+// Attach metadata without printing it
+logger.info('Saved user', user, meta({ requestId: 'r1', userId: 'u1' }));
+
+// Attach an Error as meta (not printed)
+logger.error('Failed', err(new Error('boom')));
+
+// Back-compat: (string, object) keeps the object as meta only
+logger.info('Started', { requestId: 'r2' });
+```
+
+Behavior rules:
+
+- Exactly two args `(string, object)` keeps the original behavior: the object is metadata only (not printed).
+- In variadic form, all args are printed except a final `meta(...)`/`err(...)` (or a trailing `Error`, which becomes `meta.error`).
+- Non-strings are pretty-printed via Node `util.inspect` (with colors when enabled) by default; set `prettyPrint: 'json'` to use JSON.
+- Circular references are handled and errors are converted to `{ name, message, stack }` in metadata.
+
+Options:
+
+- `prettyPrint`: `'inspect' | 'json'` (default `'inspect'`).
+- `printMetaInDebug`: when true and `verbose` is enabled, appends a compact `[meta]` summary after the message.
+
 
 ### Global Context
 

@@ -12,6 +12,7 @@ on:
 permissions:
   contents: read
   pull-requests: write
+  id-token: write
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -103,12 +104,18 @@ jobs:
       
       - name: Upload to Codecov
         # if: matrix.node == '18'  # UNCOMMENT FOR MATRIX
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           files: ./coverage/lcov.info
           flags: unittests
           fail_ci_if_error: false
           verbose: true
+          slug: manicinc/magiclogger
+  # Token is NOT required for public repos when running in GitHub Actions.
+  # Uncomment the env block below only if you prefer token auth (e.g., private repos
+  # or if you want to use an org-level token). Add CODECOV_TOKEN as a GitHub secret.
+  # env:
+  #   CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   # UNCOMMENT THIS ENTIRE JOB FOR CROSS-PLATFORM TESTING:
   # test-cross:

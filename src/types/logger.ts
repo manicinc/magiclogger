@@ -147,6 +147,20 @@ export interface LoggerOptions {
    * @default true
    */
   useLocalStorage?: boolean;
+
+  /**
+   * Pretty-printing mode for non-string variadic args.
+   * 'inspect' uses util.inspect in Node (with colors when enabled);
+   * 'json' uses JSON.stringify; default is 'inspect'.
+   */
+  prettyPrint?: 'inspect' | 'json';
+
+  /**
+   * When true, and verbose mode is enabled, append a compact [meta] summary
+   * of selected keys after the printed message. Meta remains structured for transports.
+   * Default: false
+   */
+  printMetaInDebug?: boolean;
 }
 
 /**
