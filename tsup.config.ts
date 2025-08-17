@@ -21,6 +21,7 @@ export default defineConfig(options => {
     'transports/websocket': 'src/transports/websocket.ts',
     'transports/null': 'src/transports/null.ts',
     'transports/otlp': 'src/transports/otlp.ts',
+    'transports/postgresql': 'src/transports/postgresql.ts',
     'transports/base': 'src/transports/index.ts', // registry + base classes
 
     // Compatibility layers
@@ -63,6 +64,7 @@ export default defineConfig(options => {
       entry: [
         './src/index.ts',
         './src/types/index.ts',
+        './src/transports/postgresql.ts',
         './src/utils/Sampler.ts',
         './src/utils/RateLimiter.ts',
         './src/utils/Redactor.ts',

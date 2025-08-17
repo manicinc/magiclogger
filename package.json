@@ -21,6 +21,16 @@
         "default": "./dist/index.cjs"
       }
     },
+    "./transports/postgresql": {
+      "import": {
+        "types": "./dist/transports/postgresql.d.ts",
+        "default": "./dist/transports/postgresql.js"
+      },
+      "require": {
+        "types": "./dist/transports/postgresql.d.cts",
+        "default": "./dist/transports/postgresql.cjs"
+      }
+    },
     "./utils/sampler": {
       "import": {
         "types": "./dist/utils/sampler.d.ts",

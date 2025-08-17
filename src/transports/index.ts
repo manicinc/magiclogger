@@ -56,6 +56,7 @@ export type {
   S3TransportOptions,
   HTTPTransportOptions,
   MongoDBTransportOptions,
+  PostgreSQLTransportOptions,
   WebSocketTransportOptions,
   StreamTransportOptions,
 

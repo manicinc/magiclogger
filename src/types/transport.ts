@@ -251,6 +251,7 @@ export type TransportType =
   | 'mongodb'
   | 'websocket'
   | 'otlp'
+  | 'postgresql'
   | 'syslog'
   | 'elasticsearch'
   | 'custom';
@@ -435,6 +436,48 @@ export interface NetworkTransportOptions extends BatchingTransportOptions {
     cert?: string;
     key?: string;
     ca?: string;
+  };
+}
+
+/**
+ * PostgreSQL transport configuration options.
+ */
+export interface PostgreSQLTransportOptions extends BatchingTransportOptions {
+  /** Full connection string, or provide discrete connection fields */
+  connectionString?: string;
+  /** Hostname of the PostgreSQL server */
+  host?: string;
+  /** Port number */
+  port?: number;
+  /** Database name */
+  database?: string;
+  /** Username */
+  user?: string;
+  /** Password */
+  password?: string;
+  /** Enable SSL */
+  ssl?: boolean;
+  /** Schema name (default: public) */
+  schema?: string;
+  /** Table name (default: logs) */
+  table?: string;
+  /** Create table if it does not exist (default: true) */
+  createTable?: boolean;
+  /** JSON/JSONB columns to store structured fields */
+  jsonColumns?: string[];
+  /** Columns to create indexes on */
+  indexes?: string[];
+  /** Connection pool size */
+  poolSize?: number;
+  /** Flush interval override for batching (ms) */
+  flushInterval?: number;
+  /** Logical batch size override */
+  batchSize?: number;
+  /** Optional simple partitioning configuration */
+  partitioning?: {
+    enabled: boolean;
+    interval: 'daily' | 'weekly' | 'monthly';
+    retention: number; // days to retain
   };
 }
 

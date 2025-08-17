@@ -238,7 +238,7 @@ logger.success('<green.bold>✓</> Deployment to <blue>production</> complete');
 
 ## 🧱 Structured Logging
 
-MagicLogger emits consistent JSON to transports while showing beautiful console output.
+MagicLogger emits consistent JSON to transports.
 
 ### Input → Output Examples
 
