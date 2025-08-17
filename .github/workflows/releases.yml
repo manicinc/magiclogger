@@ -21,6 +21,7 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
+  timeout-minutes: 45
     if: ${{ !contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[skip release]') }}
     
     steps:
@@ -52,6 +53,9 @@ jobs:
         continue-on-error: false
       
       - name: Run tests with coverage
+        timeout-minutes: 25
+        env:
+          CI: true
         run: pnpm run test:coverage
         continue-on-error: false
       
@@ -68,10 +72,10 @@ jobs:
       
       - name: Commit coverage badge updates
         run: |
-          if [ -n "$(git status --porcelain README.md docs/test-coverage.md 2>/dev/null)" ]; then
+          if [ -n "$(git status --porcelain README.md docs/test-coverage.md docs/test_coverage.md 2>/dev/null)" ]; then
             git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git config --local user.name "github-actions[bot]"
-            git add README.md docs/test-coverage.md 2>/dev/null || true
+            git add README.md docs/test-coverage.md docs/test_coverage.md 2>/dev/null || true
             git diff --staged --quiet || (git commit -m "docs: update coverage badge [skip ci]" && echo "BADGE_UPDATED=true" >> $GITHUB_ENV)
           else
             echo "No coverage badge changes to commit"

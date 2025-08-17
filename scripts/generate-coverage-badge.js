@@ -43,12 +43,18 @@ try {
   } else if (htmlBadgeRegex.test(readmeContent)) {
     readmeContent = readmeContent.replace(htmlBadgeRegex, newBadge);
   } else {
-    // Insert into the badges block if present
-    const badgesBlockRegex = /<p align="center">([\s\S]*?)<\/p>/i;
-    if (badgesBlockRegex.test(readmeContent)) {
-      readmeContent = readmeContent.replace(badgesBlockRegex, (full, inner) => {
-        // Add the badge just before the size badges if possible, else append
-        return `<p align="center">\n${inner.trim()}\n  ${newBadge}\n</p>`;
+    // Insert into a badges block: prefer the second <p align="center"> block if it exists, else the first.
+    const blockRegexGlobal = /<p align="center">([\s\S]*?)<\/p>/gi;
+    const blocks = [...readmeContent.matchAll(blockRegexGlobal)];
+    if (blocks.length > 0) {
+      const targetIndex = Math.min(1, blocks.length - 1); // 2nd block if present, else first
+      let occurrence = 0;
+      readmeContent = readmeContent.replace(blockRegexGlobal, (full) => {
+        if (occurrence++ === targetIndex) {
+          // Insert just before </p> without disturbing existing formatting; ensure trailing newline after </p>
+          return full.replace(/<\/p>/i, ` ${newBadge}\n</p>`) + (full.endsWith('\n') ? '' : '\n');
+        }
+        return full;
       });
     } else {
       // Prepend a badges block
@@ -59,15 +65,22 @@ try {
   // Write the updated README
   fs.writeFileSync(readmePath, readmeContent);
   
-  // Read the latest coverage report from lcov-report/index.html
+  // Optionally read the latest coverage HTML report if present for a detailed table
   const lcovReportPath = path.join(__dirname, '..', 'coverage', 'lcov-report', 'index.html');
-  let lcovContent = fs.readFileSync(lcovReportPath, 'utf8');
+  let lcovContent = '';
+  if (fs.existsSync(lcovReportPath)) {
+    try {
+      lcovContent = fs.readFileSync(lcovReportPath, 'utf8');
+    } catch {
+      // ignore, will use fallback table
+    }
+  }
   
   // Extract the coverage table
   const tableMatch = lcovContent.match(/<table class="coverage-summary">([\s\S]*?)<\/table>/);
   let coverageTable = '';
   
-  if (tableMatch && tableMatch[1]) {
+  if (lcovContent && tableMatch && tableMatch[1]) {
     const tableContent = tableMatch[1];
     
     // Convert HTML table to markdown
