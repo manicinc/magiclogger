@@ -1,16 +1,16 @@
-<p align="center">
-  <img src="docs/static/img/magiclogger-primary-no-subtitle-transparent-4x.png" alt="Magiclogger" width="520"/>
-</p>
+# MagicLogger
 
 <p align="center">
-  <img src="https://img.shields.io/badge/zero_dependencies-✓-blue" alt="Zero Dependencies">
-  <img src="https://img.shields.io/badge/typescript-5.0+-blue" alt="TypeScript">
-  <img src="https://img.shields.io/badge/node-14+-green" alt="Node.js">
-  <img src="https://img.shields.io/badge/license-MIT-blue" alt="License">
-  <img src="https://img.shields.io/badge/core_gzip-37kb-brightgreen.svg" alt="core_gzip">
+    <img src="website/static/img/magiclogger-primary-no-subtitle-transparent-4x.png" alt="Magiclogger" width="520"/> <img src="https://img.shields.io/badge/core_gzip-37kb-brightgreen.svg" alt="core_gzip"> <img src="https://img.shields.io/badge/core_console_gzip-37kb-brightgreen.svg" alt="core_console_gzip"><br/>
+    <img src="https://img.shields.io/badge/core_transports_gzip-45kb-brightgreen.svg" alt="core_transports_gzip"> <img src="https://img.shields.io/badge/compat_gzip-44kb-brightgreen.svg" alt="compat_gzip">
+</p>
+<p align="center">
+  <!-- Top row: static + coverage badges -->
+  <img src="https://img.shields.io/badge/zero_dependencies-✓-blue" alt="Zero Dependencies"> <img src="https://img.shields.io/badge/typescript-5.0+-blue" alt="TypeScript"> <img src="https://img.shields.io/badge/node-14+-green" alt="Node.js"> <img src="https://img.shields.io/badge/license-MIT-blue" alt="License"> <img src="https://img.shields.io/badge/coverage-0%25-lightgrey.svg" alt="Test Coverage"> <a href="https://codecov.io/gh/manicinc/magiclogger"><img src="https://codecov.io/gh/manicinc/magiclogger/branch/master/graph/badge.svg" alt="codecov"/></a>
+  <!-- Bottom row: build size badges (auto-updated by scripts/analyze-build.js) -->
 </p>
 
-## 🚀 Production-Ready Logging with Style
+## Enterprise-Ready Logging with Style
 
 **MagicLogger** transforms boring console logs into vibrant, organized output while maintaining perfect performance for production environments. Beautiful styling meets enterprise-grade features.
 
@@ -923,3 +923,22 @@ MIT © Manic.agency
 <p align="center">
   Developed and sponsored by <a href="https://manic.agency">Manic.agency</a>.
 </p>
+
+## 📦 Build Output Sizes
+
+| File | Format | Raw Size | Gzip |
+|------|--------|----------|------|
+| `index.cjs` | CJS | 3.03 kB | 723 B |
+| `index.js` | ESM | 1.36 kB | 519 B |
+| `index.d.ts` | Types | 113 kB | 21.9 kB |
+
+### Reference bundle sizes (gzip)
+
+| Scenario | Size |
+|----------|------|
+| core (esm, gzip) | 38 kB |
+| core + console (esm, gzip) | 38 kB |
+| core + all core transports (esm, gzip) | 46.4 kB |
+| all compatibility layers (esm, gzip) | 44.9 kB |
+
+*Generated via `scripts/analyze-build.js`.*
