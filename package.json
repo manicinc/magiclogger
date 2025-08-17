@@ -21,6 +21,62 @@
         "default": "./dist/index.cjs"
       }
     },
+    "./utils/sampler": {
+      "import": {
+        "types": "./dist/utils/sampler.d.ts",
+        "default": "./dist/utils/sampler.js"
+      },
+      "require": {
+        "types": "./dist/utils/sampler.d.cts",
+        "default": "./dist/utils/sampler.cjs"
+      },
+      "browser": {
+        "types": "./dist/utils/sampler.d.ts",
+        "default": "./dist/browser/utils/sampler.js"
+      }
+    },
+    "./utils/rate-limiter": {
+      "import": {
+        "types": "./dist/utils/rate-limiter.d.ts",
+        "default": "./dist/utils/rate-limiter.js"
+      },
+      "require": {
+        "types": "./dist/utils/rate-limiter.d.cts",
+        "default": "./dist/utils/rate-limiter.cjs"
+      },
+      "browser": {
+        "types": "./dist/utils/rate-limiter.d.ts",
+        "default": "./dist/browser/utils/rate-limiter.js"
+      }
+    },
+    "./utils/redactor": {
+      "import": {
+        "types": "./dist/utils/redactor.d.ts",
+        "default": "./dist/utils/redactor.js"
+      },
+      "require": {
+        "types": "./dist/utils/redactor.d.cts",
+        "default": "./dist/utils/redactor.cjs"
+      },
+      "browser": {
+        "types": "./dist/utils/redactor.d.ts",
+        "default": "./dist/browser/utils/redactor.js"
+      }
+    },
+    "./utils/queue-manager": {
+      "import": {
+        "types": "./dist/utils/queue-manager.d.ts",
+        "default": "./dist/utils/queue-manager.js"
+      },
+      "require": {
+        "types": "./dist/utils/queue-manager.d.cts",
+        "default": "./dist/utils/queue-manager.cjs"
+      },
+      "browser": {
+        "types": "./dist/utils/queue-manager.d.ts",
+        "default": "./dist/browser/utils/queue-manager.js"
+      }
+    },
     "./transports/otlp": {
       "import": {
         "types": "./dist/transports/otlp.d.ts",

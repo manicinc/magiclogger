@@ -13,9 +13,7 @@
 ## Table of Contents
 
 - [Enterprise-Ready Logging with Style](#enterprise-ready-logging-with-style)
-- [Why MagicLogger?](#why-magiclogger)
-  - [The Problem with Other Loggers](#the-problem-with-other-loggers)
-  - [The MagicLogger Solution](#the-magiclogger-solution)
+- [Features](#features)
 - [Installation & Quick Start](#installation--quick-start)
   - [Module Formats](#module-formats)
   - [Basic Usage](#basic-usage)
@@ -92,30 +90,19 @@ logger.withRateLimit('api-errors', 100).error('Rate limited');
 
 ---
 
-## ✨ Why MagicLogger?
+## Features
 
-### The Problem with Other Loggers
-- **Winston**: Complex configuration, heavy dependencies, poor styling
-- **Bunyan**: Outdated API, limited visual capabilities  
-- **Pino**: Fast but minimal styling, no visual elements
-- **Console**: No structure, colors, or production features
+- **Three styling APIs** - chainable, template literals, and inline syntax
+- **Rich colors & themes** with automatic terminal detection
+- **Visual elements** - tables, progress bars, headers, diffs
+- **Perfect tree-shaking** - only pay for what you use
+- **Zero overhead** sync logging by default
 
-### The MagicLogger Solution
-
-**For Developers:**
-- 🎨 **Three styling APIs** - chainable, template literals, and inline syntax
-- 🌈 **Rich colors & themes** with automatic terminal detection
-- 📊 **Visual elements** - tables, progress bars, headers, diffs
-- 🌲 **Perfect tree-shaking** - only pay for what you use
-- ⚡ **Zero overhead** sync logging by default
-
-**For Production:**
-- 🔒 **PII protection** with automatic redaction patterns
-- 📈 **Sampling & rate limiting** to control costs and volume
-- 🚀 **Enterprise transports** - Kafka, PostgreSQL, OTLP, S3, and more
-- 📊 **Monitoring integration** - OpenTelemetry, metrics, health checks
-- 🔧 **Drop-in compatibility** with Winston/Bunyan/Pino
-
+- **PII protection** with automatic redaction patterns
+- **Sampling & rate limiting** to control costs and volume
+- **Enterprise transports** - Kafka, PostgreSQL, OTLP, S3, and more
+- **Monitoring integration** - OpenTelemetry, metrics, health checks
+- **Drop-in compatibility** with Winston/Bunyan/Pino
 ---
 
 ## 📦 Installation & Quick Start

@@ -318,7 +318,7 @@ runBuild();
 
 ## Universal Log Method Examples
 
-The new universal `log()` method can be combined with styling techniques for powerful results:
+The universal `log()` method can be combined with styling techniques for powerful results:
 
 ```typescript
 // Basic usage with different levels
