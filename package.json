@@ -299,7 +299,7 @@
     "build:examples": "tsup examples/*.ts --format=cjs --outDir=dist/examples",
     "build:examples:esm": "tsup examples/*.ts --format=esm --outDir=dist/examples --outExtension='.mjs'",
   "test": "jest",
-  "test:coverage": "jest --coverage --runInBand --ci --maxWorkers=50% --detectOpenHandles --coverageReporters=text --coverageReporters=lcov --coverageReporters=json --coverageReporters=json-summary --coverageReporters=clover --coverageReporters=html --forceExit",
+  "test:coverage": "jest --coverage --runInBand --ci --detectOpenHandles --coverageReporters=text --coverageReporters=lcov --coverageReporters=json --coverageReporters=json-summary --coverageReporters=clover --coverageReporters=html --forceExit",
     "test:treeshake": "node scripts/test-tree-shaking.js",
     "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\" \"examples/**/*.ts\"",
     "typecheck": "tsc -p tsconfig.json --noEmit",
