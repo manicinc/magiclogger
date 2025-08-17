@@ -33,11 +33,28 @@ try {
   const readmePath = path.join(__dirname, '..', 'README.md');
   let readmeContent = fs.readFileSync(readmePath, 'utf8');
   
-  // Replace the coverage badge in the README
-  readmeContent = readmeContent.replace(
-    /!\[Test Coverage\]\(https:\/\/img\.shields\.io\/badge\/coverage-\d+%25-[a-z]+\.svg\)/,
-    `![Test Coverage](https://img.shields.io/badge/coverage-${roundedCoverage}%25-${getCoverageColor(roundedCoverage)}.svg)`
-  );
+  // Replace existing coverage badge in README (Markdown or HTML). If missing, insert alongside other badges.
+  const mdBadgeRegex = /!\[Test Coverage\]\(https:\/\/img\.shields\.io\/badge\/coverage-\d+%25-[a-z]+\.svg\)/i;
+  const htmlBadgeRegex = /<img[^>]*src=["']https:\/\/img\.shields\.io\/badge\/coverage-\d+%25-[a-z]+\.svg["'][^>]*alt=["']Test Coverage["'][^>]*>/i;
+  const newBadge = `<img src="https://img.shields.io/badge/coverage-${roundedCoverage}%25-${getCoverageColor(roundedCoverage)}.svg" alt="Test Coverage">`;
+
+  if (mdBadgeRegex.test(readmeContent)) {
+    readmeContent = readmeContent.replace(mdBadgeRegex, newBadge);
+  } else if (htmlBadgeRegex.test(readmeContent)) {
+    readmeContent = readmeContent.replace(htmlBadgeRegex, newBadge);
+  } else {
+    // Insert into the badges block if present
+    const badgesBlockRegex = /<p align="center">([\s\S]*?)<\/p>/i;
+    if (badgesBlockRegex.test(readmeContent)) {
+      readmeContent = readmeContent.replace(badgesBlockRegex, (full, inner) => {
+        // Add the badge just before the size badges if possible, else append
+        return `<p align="center">\n${inner.trim()}\n  ${newBadge}\n</p>`;
+      });
+    } else {
+      // Prepend a badges block
+      readmeContent = `<p align="center">\n  ${newBadge}\n</p>\n\n` + readmeContent;
+    }
+  }
   
   // Write the updated README
   fs.writeFileSync(readmePath, readmeContent);
