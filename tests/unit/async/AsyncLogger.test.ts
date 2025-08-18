@@ -8,20 +8,25 @@ jest.mock('../../../src/async/AsyncBuffer');
 describe('AsyncLogger', () => {
   let asyncLogger: AsyncLogger;
   let mockOnFlush: jest.Mock;
-  let mockCreateEntry: jest.Mock;
+  let mockCreateEntry: jest.Mock<LogEntry, [LogLevel, string, unknown?]>;
   let mockAsyncBuffer: jest.Mocked<AsyncBuffer>;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     mockOnFlush = jest.fn();
-    mockCreateEntry = jest.fn().mockImplementation((level: LogLevel, message: string, meta?: unknown) => ({
-      id: 'test-id',
-      level,
-      message,
-      timestamp: new Date(),
-      context: meta,
-    }));
+    mockCreateEntry = jest.fn<LogEntry, [LogLevel, string, unknown?]>(
+      (level: LogLevel, message: string, meta?: unknown) => ({
+        id: 'test-id',
+        level,
+        message,
+        timestamp: new Date(),
+        context: meta,
+      })
+    );
+    // ensure LogEntry type import is used
+    const _unusedLogEntryShape: Partial<LogEntry> = {};
+    void _unusedLogEntryShape;
 
     // Mock AsyncBuffer instance
     mockAsyncBuffer = {
@@ -47,7 +52,7 @@ describe('AsyncLogger', () => {
       getSize: jest.fn().mockReturnValue(0),
       resetMetrics: jest.fn(),
       isBackpressured: jest.fn().mockReturnValue(false),
-    } as any;
+    } as unknown as jest.Mocked<AsyncBuffer>;
 
     (AsyncBuffer as jest.MockedClass<typeof AsyncBuffer>).mockImplementation(() => mockAsyncBuffer);
   });
@@ -66,14 +71,16 @@ describe('AsyncLogger', () => {
 
       asyncLogger = new AsyncLogger(options, mockCreateEntry);
 
-      expect(AsyncBuffer).toHaveBeenCalledWith(expect.objectContaining({
-        size: 8192,
-        flushInterval: 100,
-        flushSize: 1000,
-        onFlush: expect.any(Function),
-        overflowStrategy: 'drop-oldest',
-        enableMetrics: true,
-      }));
+      expect(AsyncBuffer).toHaveBeenCalledWith(
+        expect.objectContaining({
+          size: 8192,
+          flushInterval: 100,
+          flushSize: 1000,
+          onFlush: expect.any(Function),
+          overflowStrategy: 'drop-oldest',
+          enableMetrics: true,
+        })
+      );
     });
 
     it('should initialize with custom buffer options', () => {
@@ -111,7 +118,7 @@ describe('AsyncLogger', () => {
       };
 
       asyncLogger = new AsyncLogger(options, mockCreateEntry);
-      
+
       // Verify AsyncBuffer is initialized
       expect(AsyncBuffer).toHaveBeenCalled();
     });
@@ -123,9 +130,9 @@ describe('AsyncLogger', () => {
     });
 
     it('should return success result when buffer accepts entry', () => {
-      mockAsyncBuffer.add.mockReturnValue({ 
+      mockAsyncBuffer.add.mockReturnValue({
         success: true,
-        bufferStats: { size: 1, capacity: 8192, utilization: 0.0001 }
+        bufferStats: { size: 1, capacity: 8192, utilization: 0.0001 },
       });
 
       const result = asyncLogger.info('Test message');
@@ -136,10 +143,10 @@ describe('AsyncLogger', () => {
     });
 
     it('should return failure result when buffer is full', () => {
-      mockAsyncBuffer.add.mockReturnValue({ 
+      mockAsyncBuffer.add.mockReturnValue({
         success: false,
         reason: 'buffer_full',
-        bufferStats: { size: 8192, capacity: 8192, utilization: 1.0 }
+        bufferStats: { size: 8192, capacity: 8192, utilization: 1.0 },
       });
 
       const result = asyncLogger.info('Test message');
@@ -150,11 +157,16 @@ describe('AsyncLogger', () => {
     });
 
     it('should handle dropped entries with reason', () => {
-      mockAsyncBuffer.add.mockReturnValue({ 
+      mockAsyncBuffer.add.mockReturnValue({
         success: true,
         reason: 'dropped',
-        dropped: { id: 'dropped-entry', level: 'info', message: 'Old message', timestamp: new Date() },
-        bufferStats: { size: 8192, capacity: 8192, utilization: 1.0 }
+        dropped: {
+          id: 'dropped-entry',
+          level: 'info',
+          message: 'Old message',
+          timestamp: new Date(),
+        },
+        bufferStats: { size: 8192, capacity: 8192, utilization: 1.0 },
       });
 
       const result = asyncLogger.warn('New message');
@@ -168,7 +180,7 @@ describe('AsyncLogger', () => {
       mockAsyncBuffer.add.mockReturnValue({ success: true });
 
       const methods = ['info', 'warn', 'error', 'debug', 'success'] as const;
-      
+
       methods.forEach(method => {
         const result = asyncLogger[method]('Test message', { extra: 'data' });
         expect(result.success).toBe(true);
@@ -192,7 +204,7 @@ describe('AsyncLogger', () => {
 
       const promise = asyncLogger.logCritical('error', 'Critical error');
       jest.runAllTimers();
-      
+
       await expect(promise).resolves.toBeUndefined();
       expect(mockAsyncBuffer.add).toHaveBeenCalledTimes(1);
     });
@@ -205,7 +217,7 @@ describe('AsyncLogger', () => {
 
       const promise = asyncLogger.logCritical('error', 'Critical error');
       jest.runAllTimers();
-      
+
       await expect(promise).resolves.toBeUndefined();
       expect(mockAsyncBuffer.add).toHaveBeenCalledTimes(3);
     });
@@ -215,7 +227,7 @@ describe('AsyncLogger', () => {
 
       const promise = asyncLogger.logCritical('error', 'Critical error');
       jest.runAllTimers();
-      
+
       await expect(promise).rejects.toThrow('Logger is closing');
     });
 
@@ -224,7 +236,7 @@ describe('AsyncLogger', () => {
 
       const promise = asyncLogger.logCritical('error', 'Critical error');
       jest.runAllTimers();
-      
+
       await expect(promise).rejects.toThrow('Failed to log after 10 attempts');
       expect(mockAsyncBuffer.add).toHaveBeenCalledTimes(10);
     });
@@ -281,33 +293,33 @@ describe('AsyncLogger', () => {
   describe('resource management', () => {
     it('should flush manually', () => {
       asyncLogger = new AsyncLogger({ onFlush: mockOnFlush }, mockCreateEntry);
-      
+
       asyncLogger.flush();
-      
+
       expect(mockAsyncBuffer.flush).toHaveBeenCalled();
     });
 
     it('should flush and wait', async () => {
       asyncLogger = new AsyncLogger({ onFlush: mockOnFlush }, mockCreateEntry);
-      
+
       await asyncLogger.flushAndWait();
-      
+
       expect(mockAsyncBuffer.flushAndWait).toHaveBeenCalled();
     });
 
     it('should close gracefully', async () => {
       asyncLogger = new AsyncLogger({ onFlush: mockOnFlush }, mockCreateEntry);
-      
+
       await asyncLogger.close();
-      
+
       expect(mockAsyncBuffer.close).toHaveBeenCalled();
     });
 
     it('should reset metrics', () => {
       asyncLogger = new AsyncLogger({ onFlush: mockOnFlush }, mockCreateEntry);
-      
+
       asyncLogger.resetMetrics();
-      
+
       expect(mockAsyncBuffer.resetMetrics).toHaveBeenCalled();
     });
   });
@@ -318,11 +330,11 @@ describe('AsyncLogger', () => {
         sampler: { rate: 0 }, // Sample nothing
         onFlush: mockOnFlush,
       };
-      
+
       asyncLogger = new AsyncLogger(options, mockCreateEntry);
-      
+
       const result = asyncLogger.info('Should be sampled out');
-      
+
       // Should be rejected by sampler before reaching buffer
       expect(result.success).toBe(false);
       expect(mockAsyncBuffer.add).not.toHaveBeenCalled();
@@ -333,11 +345,11 @@ describe('AsyncLogger', () => {
         rateLimiter: { max: 0, window: 1000 }, // Allow nothing
         onFlush: mockOnFlush,
       };
-      
+
       asyncLogger = new AsyncLogger(options, mockCreateEntry);
-      
+
       const result = asyncLogger.info('Should be rate limited');
-      
+
       // Should be rejected by rate limiter before reaching buffer
       expect(result.success).toBe(false);
       expect(mockAsyncBuffer.add).not.toHaveBeenCalled();
