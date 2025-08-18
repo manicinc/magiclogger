@@ -171,6 +171,16 @@ The architecture favors explicit behavior over magic:
 - No hidden global state
 - Clear separation between sync and async APIs
 
+### Variadic Arguments and Metadata Separation
+
+The API layer accepts both classic `(message: string, meta?: object)` calls and console-like variadic arguments. A light normalization step:
+
+- Identifies wrapped metadata (`meta(...)`/`err(...)`) via an internal marker symbol and excludes it from console output.
+- Treats a trailing `Error` as structured metadata (`meta.error`) rather than printed data.
+- Pretty-prints non-strings for console while preserving a structured `LogEntry` for transports.
+
+This design keeps developer ergonomics (console-like printing) without compromising structured logging needed by transports and downstream systems.
+
 ## Component Architecture
 
 ### Core Logger Component

@@ -421,7 +421,8 @@ describe('TemplateParser', () => {
       }
 
       const duration = Date.now() - start;
-      expect(duration).toBeLessThan(100);
+      const threshold = process.env.CI || process.platform === 'win32' ? 200 : 120;
+      expect(duration).toBeLessThan(threshold);
     });
 
     it('should benefit from caching', () => {

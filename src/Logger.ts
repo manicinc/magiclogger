@@ -17,6 +17,7 @@ import type { StyledPart, WordStyleMap, TemplateFormatter, IStyleBuilder } from 
 import type { LoggerBase } from './core/LoggerBase';
 import { FileManager } from './core/FileManager';
 import { IS_PATH_REGEX } from './constants/paths';
+import { META_WRAPPER, type MetaArg } from './utils/meta';
 
 // Conditional imports for Node.js modules
 let path: typeof import('path') | undefined;
@@ -155,6 +156,10 @@ export interface ExtendedLoggerOptions extends LoggerOptions {
    * @default false
    */
   useDefaultTransports?: boolean;
+  /** Controls how non-string args are printed in variadic calls. */
+  prettyPrint?: 'inspect' | 'json';
+  /** When true and verbose, append compact meta summary to console output. */
+  printMetaInDebug?: boolean;
 }
 
 /**
@@ -240,6 +245,8 @@ export class Logger {
    * @private
    */
   private templateFormatter?: TemplateFormatter;
+  /** Cached Node.js util.inspect function when available */
+  private nodeUtilInspect?: ((val: unknown, opts?: unknown) => string) | null;
 
   /**
    * Creates a new Logger instance with the specified options.
@@ -334,6 +341,8 @@ export class Logger {
       useColors: true,
       logRetentionDays: 30,
       logDir: 'logs',
+      prettyPrint: 'inspect',
+      printMetaInDebug: false,
       ...processed,
     };
   }
@@ -525,6 +534,174 @@ export class Logger {
   }
 
   // ============================================================
+  // Variadic argument support helpers
+  // ============================================================
+
+  /** Detect if value is a wrapped meta argument */
+  private isMetaWrapper(v: unknown): v is MetaArg {
+    // Detect by symbol or by non-enumerable string marker fallback
+    return !!(
+      v &&
+      typeof v === 'object' &&
+      (META_WRAPPER in (v as object) ||
+        (v as Record<string, unknown>)['__magiclogger_meta__'] === true)
+    );
+  }
+
+  /** Stringify printable values safely according to prettyPrint setting */
+  private stringifyArg(v: unknown): string {
+    if (v == null) return String(v);
+    if (typeof v === 'string') return v;
+    if (v instanceof Error) return `${v.name}: ${v.message}`;
+
+    // Ensure arrays are compact single-line when printed (e.g., "[3, 4]")
+    if (Array.isArray(v)) {
+      try {
+        // Start with compact JSON, then add a space after comma for readability
+        const compact = JSON.stringify(v);
+        return typeof compact === 'string' ? compact.replace(/,(?=\S)/g, ', ') : String(v);
+      } catch {
+        // Fallback to joining stringified elements
+        try {
+          return `[${v.map(el => this.stringifyArg(el)).join(', ')}]`;
+        } catch {
+          return '[]';
+        }
+      }
+    }
+
+    const mode = this.options.prettyPrint ?? 'inspect';
+    if (mode === 'inspect') {
+      if (this.nodeUtilInspect === undefined) {
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          const util = require('util');
+          this.nodeUtilInspect = util && util.inspect ? util.inspect : null;
+        } catch {
+          this.nodeUtilInspect = null;
+        }
+      }
+      if (this.nodeUtilInspect) {
+        try {
+          return this.nodeUtilInspect(v, { colors: this.useColors, depth: 4 });
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+
+    // Fallback to JSON with circular-safe replacer
+    try {
+      const seen = new WeakSet();
+      return JSON.stringify(
+        v,
+        function (_k, val) {
+          if (typeof val === 'object' && val !== null) {
+            if (seen.has(val)) return '[Circular]';
+            try {
+              seen.add(val as object);
+            } catch {
+              /* ignore */
+            }
+          }
+          if (val instanceof Error)
+            return { name: val.name, message: val.message, stack: val.stack };
+          return val;
+        },
+        2
+      );
+    } catch {
+      try {
+        return String(v);
+      } catch {
+        return '[Unprintable]';
+      }
+    }
+  }
+
+  /** Normalize variadic args to a single message string plus optional meta */
+  private normalizeArgs(
+    level: LogLevel,
+    args: unknown[]
+  ): {
+    message: string;
+    meta?: LogEntryMeta;
+  } {
+    if (args.length === 0) return { message: '' };
+
+    // Back-compat: (msg: string, meta?) shape is preserved exactly
+    if (typeof args[0] === 'string' && (args.length === 1 || args.length === 2)) {
+      const [msg, maybeMeta] = args as [string, unknown?];
+      if (maybeMeta === undefined) return { message: msg };
+      return { message: msg, meta: maybeMeta as LogEntryMeta };
+    }
+
+    // Collect printable args and all wrapped meta pieces (remove from print)
+    const printable: unknown[] = [];
+    let mergedMeta: Record<string, unknown> | undefined;
+
+    for (const a of args) {
+      if (this.isMetaWrapper(a)) {
+        const val = (a as MetaArg).value as unknown;
+        if (val instanceof Error) {
+          mergedMeta = { ...(mergedMeta || {}), error: val };
+        } else if (val && typeof val === 'object') {
+          mergedMeta = { ...(mergedMeta || {}), ...(val as Record<string, unknown>) };
+        }
+        // Do not add to printable
+      } else {
+        printable.push(a);
+      }
+    }
+
+    // If the last remaining printable arg is an Error, treat it as structured meta (and not printed)
+    if (printable.length > 0) {
+      const tail = printable[printable.length - 1];
+      if (tail instanceof Error) {
+        printable.pop();
+        mergedMeta = { ...(mergedMeta || {}), error: tail };
+      }
+    }
+
+    const parts: string[] = [];
+    for (const a of printable) parts.push(this.stringifyArg(a));
+
+    let message = parts.join(' ');
+    if (message && message.includes('<')) message = this.parseBrackets(message);
+
+    // Optionally append compact meta summary in verbose mode
+    if (
+      this.options.printMetaInDebug &&
+      this.verbose &&
+      mergedMeta &&
+      typeof mergedMeta === 'object'
+    ) {
+      try {
+        const preferred = ['error', 'requestId', 'traceId', 'userId'];
+        const summaryKeys = preferred.filter(
+          k => (mergedMeta as Record<string, unknown>)[k] !== undefined
+        );
+        if (summaryKeys.length > 0) {
+          const summary = summaryKeys
+            .map(k => {
+              const v = (mergedMeta as Record<string, unknown>)[k];
+              if (k === 'error' && v instanceof Error) return `${k}=${v.name}`;
+              return `${k}=${this.stringifyArg(v)}`;
+            })
+            .join(', ');
+          const label = this.useColors ? this.colorize('[meta]', ['dim']) : '[meta]';
+          message += ` ${label} ${summary}`;
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+
+    const meta = mergedMeta as LogEntryMeta | undefined;
+    return { message, meta };
+  }
+
+  // ============================================================
   // Modern Styling APIs
   // ============================================================
 
@@ -697,8 +874,19 @@ export class Logger {
    * @param {LogEntryMeta} [meta] - Additional metadata
    * @returns {void}
    */
-  public info(msg: string, meta?: LogEntryMeta): void {
-    this.log(msg, 'info', meta);
+  public info(msg: string, meta?: LogEntryMeta): void;
+  public info(...args: unknown[]): void;
+  public info(...args: unknown[]): void {
+    if (typeof args[0] === 'string' && (args.length === 1 || args.length === 2)) {
+      const maybeMeta = args[1] as unknown;
+      const unwrapped = this.isMetaWrapper(maybeMeta)
+        ? ((maybeMeta as MetaArg).value as LogEntryMeta)
+        : (maybeMeta as LogEntryMeta);
+      this.log(args[0] as string, 'info', unwrapped);
+      return;
+    }
+    const { message, meta } = this.normalizeArgs('info', args);
+    this.log(message, 'info', meta);
   }
 
   /**
@@ -710,8 +898,19 @@ export class Logger {
    * @param {LogEntryMeta} [meta] - Additional metadata
    * @returns {void}
    */
-  public success(msg: string, meta?: LogEntryMeta): void {
-    this.log(msg, 'success', meta);
+  public success(msg: string, meta?: LogEntryMeta): void;
+  public success(...args: unknown[]): void;
+  public success(...args: unknown[]): void {
+    if (typeof args[0] === 'string' && (args.length === 1 || args.length === 2)) {
+      const maybeMeta = args[1] as unknown;
+      const unwrapped = this.isMetaWrapper(maybeMeta)
+        ? ((maybeMeta as MetaArg).value as LogEntryMeta)
+        : (maybeMeta as LogEntryMeta);
+      this.log(args[0] as string, 'success', unwrapped);
+      return;
+    }
+    const { message, meta } = this.normalizeArgs('success', args);
+    this.log(message, 'success', meta);
   }
 
   /**
@@ -723,8 +922,19 @@ export class Logger {
    * @param {LogEntryMeta} [meta] - Additional metadata
    * @returns {void}
    */
-  public warn(msg: string, meta?: LogEntryMeta): void {
-    this.log(msg, 'warn', meta);
+  public warn(msg: string, meta?: LogEntryMeta): void;
+  public warn(...args: unknown[]): void;
+  public warn(...args: unknown[]): void {
+    if (typeof args[0] === 'string' && (args.length === 1 || args.length === 2)) {
+      const maybeMeta = args[1] as unknown;
+      const unwrapped = this.isMetaWrapper(maybeMeta)
+        ? ((maybeMeta as MetaArg).value as LogEntryMeta)
+        : (maybeMeta as LogEntryMeta);
+      this.log(args[0] as string, 'warn', unwrapped);
+      return;
+    }
+    const { message, meta } = this.normalizeArgs('warn', args);
+    this.log(message, 'warn', meta);
   }
 
   /**
@@ -736,8 +946,19 @@ export class Logger {
    * @param {LogEntryMeta} [meta] - Additional metadata or error object
    * @returns {void}
    */
-  public error(msg: string, meta?: LogEntryMeta): void {
-    this.log(msg, 'error', meta);
+  public error(msg: string, meta?: LogEntryMeta): void;
+  public error(...args: unknown[]): void;
+  public error(...args: unknown[]): void {
+    if (typeof args[0] === 'string' && (args.length === 1 || args.length === 2)) {
+      const maybeMeta = args[1] as unknown;
+      const unwrapped = this.isMetaWrapper(maybeMeta)
+        ? ((maybeMeta as MetaArg).value as LogEntryMeta)
+        : (maybeMeta as LogEntryMeta);
+      this.log(args[0] as string, 'error', unwrapped);
+      return;
+    }
+    const { message, meta } = this.normalizeArgs('error', args);
+    this.log(message, 'error', meta);
   }
 
   /**
@@ -750,8 +971,19 @@ export class Logger {
    * @param {LogEntryMeta} [meta] - Additional metadata
    * @returns {void}
    */
-  public debug(msg: string, meta?: LogEntryMeta): void {
-    this.log(msg, 'debug', meta);
+  public debug(msg: string, meta?: LogEntryMeta): void;
+  public debug(...args: unknown[]): void;
+  public debug(...args: unknown[]): void {
+    if (typeof args[0] === 'string' && (args.length === 1 || args.length === 2)) {
+      const maybeMeta = args[1] as unknown;
+      const unwrapped = this.isMetaWrapper(maybeMeta)
+        ? ((maybeMeta as MetaArg).value as LogEntryMeta)
+        : (maybeMeta as LogEntryMeta);
+      this.log(args[0] as string, 'debug', unwrapped);
+      return;
+    }
+    const { message, meta } = this.normalizeArgs('debug', args);
+    this.log(message, 'debug', meta);
   }
 
   // ============================================================

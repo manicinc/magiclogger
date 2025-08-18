@@ -21,6 +21,72 @@
         "default": "./dist/index.cjs"
       }
     },
+    "./transports/postgresql": {
+      "import": {
+        "types": "./dist/transports/postgresql.d.ts",
+        "default": "./dist/transports/postgresql.js"
+      },
+      "require": {
+        "types": "./dist/transports/postgresql.d.cts",
+        "default": "./dist/transports/postgresql.cjs"
+      }
+    },
+    "./utils/sampler": {
+      "import": {
+        "types": "./dist/utils/sampler.d.ts",
+        "default": "./dist/utils/sampler.js"
+      },
+      "require": {
+        "types": "./dist/utils/sampler.d.cts",
+        "default": "./dist/utils/sampler.cjs"
+      },
+      "browser": {
+        "types": "./dist/utils/sampler.d.ts",
+        "default": "./dist/browser/utils/sampler.js"
+      }
+    },
+    "./utils/rate-limiter": {
+      "import": {
+        "types": "./dist/utils/rate-limiter.d.ts",
+        "default": "./dist/utils/rate-limiter.js"
+      },
+      "require": {
+        "types": "./dist/utils/rate-limiter.d.cts",
+        "default": "./dist/utils/rate-limiter.cjs"
+      },
+      "browser": {
+        "types": "./dist/utils/rate-limiter.d.ts",
+        "default": "./dist/browser/utils/rate-limiter.js"
+      }
+    },
+    "./utils/redactor": {
+      "import": {
+        "types": "./dist/utils/redactor.d.ts",
+        "default": "./dist/utils/redactor.js"
+      },
+      "require": {
+        "types": "./dist/utils/redactor.d.cts",
+        "default": "./dist/utils/redactor.cjs"
+      },
+      "browser": {
+        "types": "./dist/utils/redactor.d.ts",
+        "default": "./dist/browser/utils/redactor.js"
+      }
+    },
+    "./utils/queue-manager": {
+      "import": {
+        "types": "./dist/utils/queue-manager.d.ts",
+        "default": "./dist/utils/queue-manager.js"
+      },
+      "require": {
+        "types": "./dist/utils/queue-manager.d.cts",
+        "default": "./dist/utils/queue-manager.cjs"
+      },
+      "browser": {
+        "types": "./dist/utils/queue-manager.d.ts",
+        "default": "./dist/browser/utils/queue-manager.js"
+      }
+    },
     "./transports/otlp": {
       "import": {
         "types": "./dist/transports/otlp.d.ts",
@@ -251,24 +317,34 @@
         "default": "./dist/core/formatter.cjs"
       }
     },
-    "./async/logger": {
+    "./async": {
       "import": {
-        "types": "./dist/async/logger.d.ts",
-        "default": "./dist/async/logger.js"
+        "types": "./dist/async/AsyncLogger.d.ts",
+        "default": "./dist/async/AsyncLogger.js"
       },
       "require": {
-        "types": "./dist/async/logger.d.cts",
-        "default": "./dist/async/logger.cjs"
+        "types": "./dist/async/AsyncLogger.d.cts",
+        "default": "./dist/async/AsyncLogger.cjs"
+      }
+    },
+    "./async/logger": {
+      "import": {
+        "types": "./dist/async/AsyncLogger.d.ts",
+        "default": "./dist/async/AsyncLogger.js"
+      },
+      "require": {
+        "types": "./dist/async/AsyncLogger.d.cts",
+        "default": "./dist/async/AsyncLogger.cjs"
       }
     },
     "./async/buffer": {
       "import": {
-        "types": "./dist/async/buffer.d.ts",
-        "default": "./dist/async/buffer.js"
+        "types": "./dist/async/AsyncBuffer.d.ts",
+        "default": "./dist/async/AsyncBuffer.js"
       },
       "require": {
-        "types": "./dist/async/buffer.d.cts",
-        "default": "./dist/async/buffer.cjs"
+        "types": "./dist/async/AsyncBuffer.d.cts",
+        "default": "./dist/async/AsyncBuffer.cjs"
       }
     },
     "./package.json": "./package.json"

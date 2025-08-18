@@ -13,12 +13,12 @@
 ## Table of Contents
 
 - [Enterprise-Ready Logging with Style](#enterprise-ready-logging-with-style)
-- [Why MagicLogger?](#why-magiclogger)
-  - [The Problem with Other Loggers](#the-problem-with-other-loggers)
-  - [The MagicLogger Solution](#the-magiclogger-solution)
+- [Features](#features)
 - [Installation & Quick Start](#installation--quick-start)
   - [Module Formats](#module-formats)
   - [Basic Usage](#basic-usage)
+  - [AsyncLogger with Operational Utilities](#asynclogger-with-operational-utilities)
+  - [Unified API - Same Utilities Work in Both Loggers](#unified-api---same-utilities-work-in-both-loggers)
 - [Three Powerful Styling APIs](#three-powerful-styling-apis)
   - [1. Chainable Style API](#1-chainable-style-api-loggers)
   - [2. Template Literal API](#2-template-literal-api-loggerfmt)
@@ -64,10 +64,10 @@
 
 ## Enterprise-Ready Logging with Style
 
-**MagicLogger** transforms boring console logs into vibrant, organized output while maintaining perfect performance for production environments. Beautiful styling meets enterprise-grade features.
+**MagicLogger** transforms boring console logs into vibrant, organized output while providing production-ready async logging with explicit backpressure handling. Beautiful styling meets enterprise-grade operational features.
 
 ```typescript
-import { Logger } from 'magiclogger';
+import { Logger, createAsyncLogger } from 'magiclogger';
 
 const logger = new Logger({ useColors: true });
 
@@ -84,38 +84,48 @@ logger.table([
   { service: 'DB', status: 'degraded', uptime: '95.2%' }
 ]);
 
-// Production-ready features
-logger.sample(0.1).debug('High-frequency event');  // 10% sampling
-logger.redact().info('User data:', { ssn: '123-45-6789' });  // Auto-redacted
-logger.withRateLimit('api-errors', 100).error('Rate limited');
+// Production AsyncLogger with integrated operational utilities
+const asyncLogger = createAsyncLogger({
+  buffer: { size: 8192, flushInterval: 100 },
+  redactor: { preset: 'strict' },                    // Auto-redact PII
+  rateLimiter: { max: 1000, window: 60000 },        // Rate limiting  
+  sampler: { rate: 0.1, strategy: 'adaptive' },     // Adaptive sampling
+  onFlush: async (entries) => await transport.sendBatch(entries)
+});
+
+// Explicit backpressure handling - never silently drop logs
+const result = asyncLogger.info('User data:', { ssn: '123-45-6789', email: 'user@example.com' });
+if (!result.success) {
+  console.warn(`Log dropped: ${result.reason}`);
+  // Handle backpressure explicitly
+}
 ```
 
 ---
 
-## ✨ Why MagicLogger?
+## Features
 
-### The Problem with Other Loggers
-- **Winston**: Complex configuration, heavy dependencies, poor styling
-- **Bunyan**: Outdated API, limited visual capabilities  
-- **Pino**: Fast but minimal styling, no visual elements
-- **Console**: No structure, colors, or production features
+### 🎨 **Beautiful Styling & Visualization**
+- **Three styling APIs** - chainable, template literals, and inline syntax
+- **Rich colors & themes** with automatic terminal detection
+- **Visual elements** - tables, progress bars, headers, diffs
 
-### The MagicLogger Solution
+### ⚡ **High Performance & Efficiency**
+- **Perfect tree-shaking** - only pay for what you use
+- **Zero overhead** sync logging by default
+- **AsyncLogger with explicit backpressure** - production-ready async logging
+- **Unified import API** - seamless Logger and AsyncLogger experience
 
-**For Developers:**
-- 🎨 **Three styling APIs** - chainable, template literals, and inline syntax
-- 🌈 **Rich colors & themes** with automatic terminal detection
-- 📊 **Visual elements** - tables, progress bars, headers, diffs
-- 🌲 **Perfect tree-shaking** - only pay for what you use
-- ⚡ **Zero overhead** sync logging by default
+### 🛡️ **Production-Ready Security & Operations**
+- **Integrated utilities** - rate limiting, PII redaction, sampling, queue management
+- **Explicit backpressure handling** - never silently drop logs
+- **PII protection** with comprehensive redaction patterns
+- **Sampling & rate limiting** to control costs and volume
 
-**For Production:**
-- 🔒 **PII protection** with automatic redaction patterns
-- 📈 **Sampling & rate limiting** to control costs and volume
-- 🚀 **Enterprise transports** - Kafka, PostgreSQL, OTLP, S3, and more
-- 📊 **Monitoring integration** - OpenTelemetry, metrics, health checks
-- 🔧 **Drop-in compatibility** with Winston/Bunyan/Pino
-
+### 🔌 **Enterprise Integration**
+- **Enterprise transports** - Kafka, PostgreSQL, OTLP, S3, and more
+- **Monitoring integration** - OpenTelemetry, metrics, health checks
+- **Drop-in compatibility** with Winston/Bunyan/Pino
 ---
 
 ## 📦 Installation & Quick Start
@@ -154,6 +164,72 @@ logger.debug('Auth token: eyJhbGciOiJIUzI1NiIs...');
 logger.log('Message with default info level');
 logger.log('Warning message', 'warn');
 logger.log('Error message', 'error');
+```
+
+### AsyncLogger with Operational Utilities
+
+For high-performance async logging with built-in operational capabilities:
+
+```typescript
+import { 
+  createAsyncLogger, 
+  Redactor, 
+  RateLimiter 
+} from 'magiclogger';
+
+// Simple configuration with integrated utilities
+const asyncLogger = createAsyncLogger({
+  buffer: { size: 8192, flushInterval: 100 },
+  
+  // Built-in operational utilities
+  redactor: { preset: 'strict' },                    // Auto-redact PII
+  rateLimiter: { max: 1000, window: 60000 },        // Rate limiting
+  sampler: { rate: 0.1, strategy: 'adaptive' },     // 10% adaptive sampling
+  
+  // Observability
+  onMetrics: (metrics) => {
+    console.log(`Metric: ${metrics.type}, Count: ${metrics.count}`);
+  },
+  
+  onFlush: async (entries) => {
+    await transport.sendBatch(entries); // Your transport logic
+  }
+});
+
+// Explicit backpressure handling - never lose visibility into failures
+const result = asyncLogger.info('User login', { email: 'user@example.com' });
+if (!result.success) {
+  console.warn(`Log dropped: ${result.reason}`);
+}
+
+// Critical logging with retry mechanism
+try {
+  await asyncLogger.logCritical('error', 'System failure detected!');
+} catch (error) {
+  // Critical log failed after retries
+  alerting.sendAlert('Logger failure', error);
+}
+
+// Backpressure monitoring
+if (asyncLogger.isBackpressured()) {
+  console.warn('Logger under pressure, throttling application');
+}
+```
+
+### Unified API - Same Utilities Work in Both Loggers
+
+```typescript
+// Regular Logger with integrated utilities
+const logger = new Logger({
+  redactor: { preset: 'standard' },
+  rateLimiter: { max: 100, window: 30000 },
+  sampler: { rate: 1.0 }, // No sampling for regular logger
+  
+  transports: [new ConsoleTransport()]
+});
+
+logger.info('This is automatically redacted and rate limited');
+// Both sync and async loggers support the same operational utilities!
 ```
 
 ---
@@ -251,7 +327,7 @@ logger.success('<green.bold>✓</> Deployment to <blue>production</> complete');
 
 ## 🧱 Structured Logging
 
-MagicLogger emits consistent JSON to transports while showing beautiful console output.
+MagicLogger emits consistent JSON to transports.
 
 ### Input → Output Examples
 
@@ -299,6 +375,40 @@ logger.error('DB query failed', {
 - `context`: Your metadata object
 - `metadata`: Automatic platform info (hostname, PID, etc.)
 - `error`: Structured error with name, message, and stack
+
+---
+
+### Console-like arguments and structured meta
+
+MagicLogger also supports console-like variadic arguments while preserving structured metadata.
+
+```typescript
+import { Logger, meta, err } from 'magiclogger';
+const logger = new Logger();
+
+// Print like console.log
+logger.info('Data:', { a: 1, b: 2 });
+
+// Print data, attach non-printed metadata for transports
+logger.info('Saved user', user, meta({ requestId, userId }));
+
+// Attach an Error as structured meta (not printed)
+logger.error('Failed to save', err(new Error('boom')), meta({ requestId }));
+
+// Back-compat still works (second arg treated as meta and not printed)
+logger.info('Started', { requestId });
+```
+
+Rules:
+
+- Exactly two args `(string, object)` keeps the original behavior: the object is metadata only (not printed).
+- In variadic form, all args are printed except a final `meta(...)`/`err(...)` (or a trailing `Error`, which becomes `meta.error`).
+- Non-strings are pretty-printed using Node `util.inspect` (with colors) or JSON in browsers; circular refs are handled.
+
+Options:
+
+- `prettyPrint`: `'inspect' | 'json'` (default `'inspect'`).
+- `printMetaInDebug`: when true and `verbose` is enabled, appends a compact `[meta]` summary to console output.
 
 ---
 
@@ -921,6 +1031,12 @@ interface LoggerOptions {
   // Styling & themes
   theme?: string | ThemeDefinition;
   themeByTag?: Record<string, string>;
+  
+  // Console-like args printing
+  /** How non-string args are rendered in variadic calls. Default: 'inspect' */
+  prettyPrint?: 'inspect' | 'json';
+  /** When true and verbose, append compact [meta] summary after message. */
+  printMetaInDebug?: boolean;
   
   // Performance features
   sampling?: {

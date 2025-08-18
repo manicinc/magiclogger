@@ -19,8 +19,9 @@ export default defineConfig(options => {
     'transports/mongodb': 'src/transports/mongodb.ts',
     'transports/stream': 'src/transports/stream.ts',
     'transports/websocket': 'src/transports/websocket.ts',
-  'transports/null': 'src/transports/null.ts',
+    'transports/null': 'src/transports/null.ts',
     'transports/otlp': 'src/transports/otlp.ts',
+    'transports/postgresql': 'src/transports/postgresql.ts',
     'transports/base': 'src/transports/index.ts', // registry + base classes
 
     // Compatibility layers
@@ -46,6 +47,12 @@ export default defineConfig(options => {
 
     // Types runtime stubs (optional – most are type-only, small cost)
     'types/index': 'src/types/index.ts',
+
+    // Utils (tree-shakeable, optional)
+    'utils/sampler': 'src/utils/Sampler.ts',
+    'utils/rate-limiter': 'src/utils/RateLimiter.ts',
+    'utils/redactor': 'src/utils/Redactor.ts',
+    'utils/queue-manager': 'src/utils/QueueManager.ts',
   } as const;
 
   return {
@@ -54,7 +61,15 @@ export default defineConfig(options => {
     splitting: true, // enable code-splitting for ESM builds
     treeshake: true,
     dts: {
-      entry: ['./src/index.ts', './src/types/index.ts'],
+      entry: [
+        './src/index.ts',
+        './src/types/index.ts',
+        './src/transports/postgresql.ts',
+        './src/utils/Sampler.ts',
+        './src/utils/RateLimiter.ts',
+        './src/utils/Redactor.ts',
+        './src/utils/QueueManager.ts',
+      ],
       resolve: true,
       options: {
         declarationMap: true,
