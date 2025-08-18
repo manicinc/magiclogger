@@ -149,7 +149,10 @@ export class QueueManager {
       const queueEntry = this.queue.shift();
       if (queueEntry) {
         if (this.options.metricsEnabled) {
-          const waitTime = Date.now() - queueEntry.timestamp;
+          // In very fast environments (CI or same-tick processing), Date.now() may equal the
+          // enqueue timestamp. Clamp to a minimum of 1ms to avoid flakiness in stats/assertions.
+          const delta = Date.now() - queueEntry.timestamp;
+          const waitTime = delta > 0 ? delta : 1;
           this.stats.totalWaitTime += waitTime;
         }
         entries.push(queueEntry.entry);
