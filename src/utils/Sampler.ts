@@ -86,16 +86,18 @@ export class Sampler {
    *
    * @param {SamplerOptions} options - Sampling configuration
    */
-  constructor(options: SamplerOptions) {
+  constructor(options: SamplerOptions);
+  constructor(options?: SamplerOptions) {
+    const o: SamplerOptions = options ?? { rate: 1.0, strategy: 'random' };
     this.options = {
-      rate: Math.max(0, Math.min(1, options.rate)),
-      strategy: options.strategy || 'random',
-      keyFn: options.keyFn || (entry => entry.id || ''),
-      targetRate: options.targetRate || 1000,
-      minRate: options.minRate || 0.001,
-      maxRate: options.maxRate || 1.0,
-      adjustInterval: options.adjustInterval || 60000,
-      reservoirSize: options.reservoirSize || 1000,
+      rate: Math.max(0, Math.min(1, o.rate)),
+      strategy: o.strategy || 'random',
+      keyFn: o.keyFn || (entry => entry.id || ''),
+      targetRate: o.targetRate || 1000,
+      minRate: o.minRate || 0.001,
+      maxRate: o.maxRate || 1.0,
+      adjustInterval: o.adjustInterval || 60000,
+      reservoirSize: o.reservoirSize || 1000,
     };
 
     this.currentRate = this.options.rate;
