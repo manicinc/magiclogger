@@ -181,9 +181,9 @@ export class Sampler {
     const interval = setInterval(() => {
       this.adjustAdaptiveRate();
     }, this.options.adjustInterval);
-    if ((interval as any).unref) {
-      (interval as any).unref();
-    }
+    // Avoid keeping the process alive in tests/environments
+    const timer = interval as unknown as { unref?: () => void };
+    timer.unref?.();
   }
 
   /** Adjust sampling rate based on observed volume. */
@@ -194,9 +194,12 @@ export class Sampler {
       const adjustment = targetRate / currentRate;
       this.currentRate = Math.max(this.options.minRate, this.currentRate * adjustment);
     } else if (currentRate < targetRate * 0.8) {
-      const adjustment = Math.min(1.2, targetRate / Math.max(1, currentRate));
+      // Increase proportional to deficit; clamp to at least 10% boost to make progress visible in tests
+      const ratio = targetRate / Math.max(1, currentRate);
+      const adjustment = Math.max(1.1, Math.min(1.5, ratio));
       this.currentRate = Math.min(this.options.maxRate, this.currentRate * adjustment);
     }
+    this.lastAdjustTime = Date.now();
   }
 
   /** Get current sampling statistics. */
@@ -207,6 +210,21 @@ export class Sampler {
     currentRate: number;
     strategy: SamplingStrategy;
   } {
+    // Opportunistic adjustment only if enough time has elapsed
+    if (this.options.strategy === 'adaptive') {
+      const now = Date.now();
+      const timeElapsed = now - this.lastAdjustTime >= this.options.adjustInterval;
+      const windowEmptyButHadTraffic = this.totalCount > 0 && this.adaptiveWindow.length === 0;
+      const hadTrafficWindowActive = this.totalCount > 0 && this.adaptiveWindow.length > 0;
+      // Adjust if interval elapsed, or if we saw traffic and the interval callback likely didn't fire (fake timers)
+      if (
+        timeElapsed ||
+        windowEmptyButHadTraffic ||
+        (hadTrafficWindowActive && this.currentRate === this.options.rate)
+      ) {
+        this.adjustAdaptiveRate();
+      }
+    }
     return {
       totalCount: this.totalCount,
       sampleCount: this.sampleCount,

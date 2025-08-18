@@ -58,6 +58,8 @@ export class QueueManager {
   private isPaused = false;
   private highWaterMarkReached = false;
   private processor?: (entries: LogEntry[]) => Promise<void>;
+  // Track retry counts per entry id
+  private retryCounts = new Map<string, number>();
 
   /**
    * Construct a QueueManager.
@@ -299,22 +301,33 @@ export class QueueManager {
     if (entries.length > 0) {
       try {
         await this.processor(entries);
+        // Success: clear retry counters for processed entries
+        for (const e of entries) {
+          if (e?.id) this.retryCounts.delete(e.id);
+        }
       } catch (_error) {
         entries.forEach(entry => {
-          const queueEntry: QueueEntry = {
-            entry,
-            timestamp: Date.now(),
-            priority: this.options.priorityFn(entry),
-            retries: 1,
-          };
-          if ((queueEntry.retries || 0) < 3) {
-            this.queue.unshift(queueEntry);
+          const id = entry.id || `${Date.now()}-${Math.random()}`;
+          const next = (this.retryCounts.get(id) || 0) + 1;
+          if (next < 3) {
+            this.retryCounts.set(id, next);
+            // Requeue at the front to retry soon
+            this.queue.unshift({
+              entry,
+              timestamp: Date.now(),
+              priority: this.options.priorityFn(entry),
+              retries: next,
+            });
           } else {
+            this.retryCounts.delete(id);
             this.recordDrop([entry], 'max-retries');
           }
         });
       }
-      setImmediate(() => this.processQueue());
+      // Avoid keeping event loop alive; schedule microtask for next pass
+      queueMicrotask(() => {
+        void this.processQueue();
+      });
     }
   }
 

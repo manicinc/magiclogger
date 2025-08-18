@@ -71,6 +71,7 @@ interface TokenBucket {
   lastRefill: number;
   capacity: number;
   refillRate: number;
+  fractionalNoBurst?: boolean;
 }
 
 /**
@@ -109,6 +110,16 @@ export class RateLimiter {
 
   /** Check if a log entry is allowed through rate limiter. */
   public allow(entry: LogEntry): boolean {
+    // Short-circuit: if max is 0, nothing is allowed for fixed/sliding; for buckets, capacity 0 denies too
+    if (this.options.max <= 0) {
+      if (this.options.strategy === 'token-bucket' || this.options.strategy === 'leaky-bucket') {
+        // Ensure bucket capacity and refill are zeroed
+        this.options.capacity = 0;
+        this.options.refillRate = 0;
+      }
+      this.recordDropped(this.options.keyFn(entry));
+      return false;
+    }
     const key = this.options.keyFn(entry);
 
     let allowed = false;
@@ -183,6 +194,7 @@ export class RateLimiter {
         lastRefill: now,
         capacity: this.options.capacity,
         refillRate: this.options.refillRate,
+        fractionalNoBurst: this.options.refillRate < 1,
       };
       this.tokenBuckets.set(key, bucket);
     }
@@ -194,6 +206,10 @@ export class RateLimiter {
 
     if (bucket.tokens >= 1) {
       bucket.tokens--;
+      // For fractional refill rates, prevent bursts by resetting to 0 after consumption
+      if (bucket.fractionalNoBurst) {
+        bucket.tokens = 0;
+      }
       return true;
     }
 

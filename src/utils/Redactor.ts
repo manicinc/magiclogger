@@ -161,7 +161,16 @@ const BUILT_IN_PATTERNS: Record<string, RedactionPattern[]> = {
     {
       name: 'credit-card-generic',
       pattern: /\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{3,4}\b/g,
-      replacement: match => match.replace(/\d(?=\d{4})/g, '*'),
+      replacement: match => {
+        const digits = match.replace(/\D/g, '');
+        const g1 = digits.slice(0, 4);
+        const g2 = digits.slice(4, 8);
+        const g3 = digits.slice(8, 12);
+        const g4 = digits.slice(12);
+        return `${'*'.repeat(g1.length || 4)}-${'*'.repeat(g2.length || 4)}-${'*'.repeat(
+          g3.length || 4
+        )}-${g4}`;
+      },
       preserveFormat: true,
     },
   ],
@@ -187,19 +196,23 @@ const BUILT_IN_PATTERNS: Record<string, RedactionPattern[]> = {
   email: [
     {
       name: 'email',
-      pattern: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
+      pattern: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g,
       replacement: match => {
         const [local, domain] = match.split('@');
-        return `${local[0]}${'*'.repeat(Math.min(local.length - 1, 5))}@${domain}`;
+        const visible = local.slice(0, 1);
+        const masked = '*'.repeat(Math.max(local.length - 1, 1));
+        return `${visible}${masked}@${domain}`;
       },
       preserveFormat: true,
     },
   ],
 
+  // Phone numbers
   phone: [
     {
       name: 'phone-us',
-      pattern: /\b(?:\+?1[-.]?)?\(?([0-9]{3})\)?[-.]?([0-9]{3})[-.]?([0-9]{4})\b/g,
+      // Match common US formats: +1 (555) 123-4567, (555)123-4567, 555-123-4567, 555 123 4567
+      pattern: /\b(?:\+?1[.\-\s]?)?\(?(\d{3})\)?[.\-\s]?(\d{3})[.\-\s]?(\d{4})\b/g,
       replacement: match => match.replace(/\d/g, '*'),
       preserveFormat: true,
     },
@@ -507,23 +520,34 @@ export class Redactor {
     let redacted = value;
 
     switch (strategy) {
-      case 'mask':
+      case 'mask': {
+        const before = redacted;
         if (typeof pattern.replacement === 'function') {
-          redacted = value.replace(pattern.pattern, m =>
+          redacted = redacted.replace(pattern.pattern, m =>
             (pattern.replacement as (match: string) => string)(m)
           );
         } else {
-          redacted = value.replace(pattern.pattern, pattern.replacement);
+          redacted = redacted.replace(pattern.pattern, pattern.replacement);
+        }
+        if (this.options.auditTrail && redacted !== before) {
+          this.auditLog.push({
+            timestamp: new Date(),
+            field: fieldPath,
+            pattern: pattern.name,
+            original: before,
+            redacted,
+          });
         }
         break;
+      }
       case 'hash':
-        redacted = value.replace(pattern.pattern, match => {
+        redacted = redacted.replace(pattern.pattern, match => {
           const hash = createHash('sha256').update(match).digest('hex');
           return `[HASH:${hash.substring(0, 8)}]`;
         });
         break;
       case 'tokenize':
-        redacted = value.replace(pattern.pattern, match => {
+        redacted = redacted.replace(pattern.pattern, match => {
           let token = this.tokenMap.get(match);
           if (!token) {
             const hash = createHash('sha256')
@@ -536,23 +560,13 @@ export class Redactor {
         });
         break;
       case 'truncate':
-        redacted = value.replace(pattern.pattern, match => {
+        redacted = redacted.replace(pattern.pattern, match => {
           return match.substring(0, Math.min(3, match.length)) + '...';
         });
         break;
       case 'remove':
-        redacted = value.replace(pattern.pattern, '[REDACTED]');
+        redacted = redacted.replace(pattern.pattern, '[REDACTED]');
         break;
-    }
-
-    if (this.options.auditTrail && redacted !== value) {
-      this.auditLog.push({
-        timestamp: new Date(),
-        field: fieldPath,
-        pattern: pattern.name,
-        original: value,
-        redacted: redacted,
-      });
     }
 
     if (redacted !== value) {
