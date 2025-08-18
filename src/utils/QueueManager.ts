@@ -113,6 +113,10 @@ export class QueueManager {
     };
     this.queue.push(queueEntry);
     this.checkWaterMarks();
+    // Trigger processing when a processor is set and not paused
+    if (this.processor && !this.isPaused) {
+      void this.processQueue();
+    }
     return true;
   }
 
@@ -249,10 +253,10 @@ export class QueueManager {
     if (fillRatio >= this.options.highWaterMark && !this.highWaterMarkReached) {
       this.highWaterMarkReached = true;
       this.stats.highWaterMarkHits++;
-      this.pause();
+      // Do not pause processing automatically; only track the state.
     } else if (fillRatio <= this.options.lowWaterMark && this.highWaterMarkReached) {
       this.highWaterMarkReached = false;
-      this.resume();
+      // No automatic resume needed; processing continues.
     }
   }
 

@@ -123,13 +123,13 @@ export abstract class BatchingTransport extends Transport {
     super(options);
 
     // Set batching parameters with defaults
-    this.maxBatchSize = options.maxBatchSize || 100;
-    this.maxBatchTime = options.maxBatchTime || 5000;
-    this.maxBatchBytes = options.maxBatchBytes || 1024 * 1024; // 1MB default
-    this.maxRetries = options.maxRetries || 3;
-    this.retryDelay = options.retryDelay || 1000;
-    this.retryOnFailure = options.retryOnFailure !== false;
-    this.maxQueueSize = options.maxQueueSize || 10000;
+  this.maxBatchSize = options.maxBatchSize ?? 100;
+  this.maxBatchTime = options.maxBatchTime ?? 5000;
+  this.maxBatchBytes = options.maxBatchBytes ?? 1024 * 1024; // 1MB default
+  this.maxRetries = options.maxRetries ?? 3;
+  this.retryDelay = options.retryDelay ?? 1000;
+  this.retryOnFailure = options.retryOnFailure !== false;
+  this.maxQueueSize = options.maxQueueSize ?? 10000;
   }
 
   /**
@@ -234,6 +234,11 @@ export abstract class BatchingTransport extends Transport {
         this.handleError(error);
       });
     }, this.maxBatchTime);
+    // Prevent keeping the Node process alive in tests/environments
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (this.batchTimer && typeof (this.batchTimer as unknown as { unref?: () => void }).unref === 'function') {
+      (this.batchTimer as unknown as { unref?: () => void }).unref?.();
+    }
   }
 
   /**
@@ -357,7 +362,14 @@ export abstract class BatchingTransport extends Transport {
    * @private
    */
   private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise(resolve => {
+      const t = setTimeout(resolve, ms);
+      // Avoid keeping the process alive in tests/environments
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+      if (typeof (t as unknown as { unref?: () => void }).unref === 'function') {
+        (t as unknown as { unref?: () => void }).unref?.();
+      }
+    });
   }
 
   /**
@@ -371,7 +383,13 @@ export abstract class BatchingTransport extends Transport {
 
     // Wait for send queue to empty
     while (this.sendQueue.length > 0 || this.sending) {
-      await this.sleep(100);
+      // If we're not currently sending but there's still work, kick the processor
+      if (!this.sending && this.sendQueue.length > 0) {
+        await this.processSendQueue();
+        // Loop again to re-check state
+        continue;
+      }
+      await this.sleep(50);
     }
   }
 
