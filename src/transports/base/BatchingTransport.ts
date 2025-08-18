@@ -123,13 +123,13 @@ export abstract class BatchingTransport extends Transport {
     super(options);
 
     // Set batching parameters with defaults
-  this.maxBatchSize = options.maxBatchSize ?? 100;
-  this.maxBatchTime = options.maxBatchTime ?? 5000;
-  this.maxBatchBytes = options.maxBatchBytes ?? 1024 * 1024; // 1MB default
-  this.maxRetries = options.maxRetries ?? 3;
-  this.retryDelay = options.retryDelay ?? 1000;
-  this.retryOnFailure = options.retryOnFailure !== false;
-  this.maxQueueSize = options.maxQueueSize ?? 10000;
+    this.maxBatchSize = options.maxBatchSize ?? 100;
+    this.maxBatchTime = options.maxBatchTime ?? 5000;
+    this.maxBatchBytes = options.maxBatchBytes ?? 1024 * 1024; // 1MB default
+    this.maxRetries = options.maxRetries ?? 3;
+    this.retryDelay = options.retryDelay ?? 1000;
+    this.retryOnFailure = options.retryOnFailure !== false;
+    this.maxQueueSize = options.maxQueueSize ?? 10000;
   }
 
   /**
@@ -236,7 +236,10 @@ export abstract class BatchingTransport extends Transport {
     }, this.maxBatchTime);
     // Prevent keeping the Node process alive in tests/environments
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (this.batchTimer && typeof (this.batchTimer as unknown as { unref?: () => void }).unref === 'function') {
+    if (
+      this.batchTimer &&
+      typeof (this.batchTimer as unknown as { unref?: () => void }).unref === 'function'
+    ) {
       (this.batchTimer as unknown as { unref?: () => void }).unref?.();
     }
   }

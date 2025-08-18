@@ -165,7 +165,7 @@ const BUILT_IN_PATTERNS: Record<string, RedactionPattern[]> = {
               masked += '*';
               maskedCount++;
             } else {
-              masked += keep[di - (toMask)];
+              masked += keep[di - toMask];
             }
             di++;
           } else {
@@ -492,7 +492,10 @@ export class Redactor {
     if (typeof data === 'string') {
       // Try to parse JSON strings to redact nested values
       const trimmed = data.trim();
-      if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+      if (
+        (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+        (trimmed.startsWith('[') && trimmed.endsWith(']'))
+      ) {
         try {
           const parsed = JSON.parse(data);
           const red = this.redact(parsed, fieldPath);
@@ -610,14 +613,17 @@ export class Redactor {
             // Ensure distinct tokens across different inputs even when crypto is mocked
             let prefix = 'token';
             try {
-              const hash = createHash('sha256').update(match + this.options.tokenSalt).digest('hex');
+              const hash = createHash('sha256')
+                .update(match + this.options.tokenSalt)
+                .digest('hex');
               prefix = hash.substring(0, 8);
             } catch {
               // ignore
             }
             // Deterministic checksum from the match
             let sum = 0;
-            for (let i = 0; i < match.length; i++) sum = (sum + match.charCodeAt(i) * (i + 1)) >>> 0;
+            for (let i = 0; i < match.length; i++)
+              sum = (sum + match.charCodeAt(i) * (i + 1)) >>> 0;
             const suffix = sum.toString(36).slice(-4).padStart(4, '0');
             token = `[TOKEN:${prefix}${suffix}]`;
             this.tokenMap.set(match, token);
@@ -705,8 +711,11 @@ export class Redactor {
         continue;
       }
       // Additional field-name based masking for strict/paranoid presets
-      if ((this.options.preset === 'strict' || this.options.preset === 'paranoid') &&
-          typeof value === 'string' && /(password|passwd|pwd|secret|token|api[-_]?key)/i.test(key)) {
+      if (
+        (this.options.preset === 'strict' || this.options.preset === 'paranoid') &&
+        typeof value === 'string' &&
+        /(password|passwd|pwd|secret|token|api[-_]?key)/i.test(key)
+      ) {
         redacted[key] = '***';
         this.stats.fieldRedactions.set(
           fieldPath,
@@ -718,7 +727,12 @@ export class Redactor {
         if (Array.isArray(value)) {
           redacted[key] = value.map((v, i) => this.redact(v, `${fieldPath}[${i}]`));
         } else if (value && typeof value === 'object') {
-          redacted[key] = this.redactObject(value as Record<string, unknown>, fieldPath, depth + 1, seen);
+          redacted[key] = this.redactObject(
+            value as Record<string, unknown>,
+            fieldPath,
+            depth + 1,
+            seen
+          );
         } else {
           redacted[key] = this.redact(value, fieldPath);
         }

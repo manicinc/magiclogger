@@ -169,24 +169,26 @@ export interface LoggerOptions {
   /**
    * Rate limiting configuration for log throttling.
    * Can be a RateLimiter instance or options to create one.
-   * 
+   *
    * @example
    * // Using options
    * rateLimiter: { max: 1000, window: 60000, strategy: 'sliding' }
-   * 
+   *
    * // Using instance
    * rateLimiter: new RateLimiter({ max: 100, window: 10000 })
    */
-  rateLimiter?: import('../utils/RateLimiter').RateLimiter | import('../utils/RateLimiter').RateLimiterOptions;
+  rateLimiter?:
+    | import('../utils/RateLimiter').RateLimiter
+    | import('../utils/RateLimiter').RateLimiterOptions;
 
   /**
    * PII and sensitive data redaction configuration.
    * Can be a Redactor instance or options to create one.
-   * 
+   *
    * @example
    * // Using preset
    * redactor: { preset: 'strict' }
-   * 
+   *
    * // Using instance
    * redactor: new Redactor({ preset: 'paranoid', auditTrail: true })
    */
@@ -195,12 +197,12 @@ export interface LoggerOptions {
   /**
    * Statistical sampling configuration for volume control.
    * Can be a Sampler instance or options to create one.
-   * 
+   *
    * @example
    * // Using options
    * sampler: { rate: 0.1, strategy: 'adaptive', targetRate: 1000 }
-   * 
-   * // Using instance  
+   *
+   * // Using instance
    * sampler: createSamplerPreset('production')
    */
   sampler?: import('../utils/Sampler').Sampler | import('../utils/Sampler').SamplerOptions;
@@ -208,15 +210,17 @@ export interface LoggerOptions {
   /**
    * Queue management configuration for handling backpressure.
    * Can be a QueueManager instance or options to create one.
-   * 
+   *
    * @example
    * // Using options
    * queueManager: { maxSize: 10000, dropPolicy: 'tail', highWaterMark: 0.8 }
-   * 
+   *
    * // Using instance
    * queueManager: new QueueManager({ maxSize: 5000, dropPolicy: 'priority' })
    */
-  queueManager?: import('../utils/QueueManager').QueueManager | import('../utils/QueueManager').QueueManagerOptions;
+  queueManager?:
+    | import('../utils/QueueManager').QueueManager
+    | import('../utils/QueueManager').QueueManagerOptions;
 }
 
 /**

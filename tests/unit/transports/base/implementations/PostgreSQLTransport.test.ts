@@ -6,7 +6,12 @@ import type { LogEntry } from '../../../../../src/types/transport';
 // Mock pg module
 jest.mock('pg', () => {
   const mockResults: { rows: Array<Record<string, unknown>>; rowCount: number }[] = [];
-  let queryHandler: ((text: string, params?: unknown[]) => { rows: Array<Record<string, unknown>>; rowCount: number } | undefined) | null = null;
+  let queryHandler:
+    | ((
+        text: string,
+        params?: unknown[]
+      ) => { rows: Array<Record<string, unknown>>; rowCount: number } | undefined)
+    | null = null;
 
   class MockClient {
     async query(text: string, params?: unknown[]) {
@@ -27,9 +32,10 @@ jest.mock('pg', () => {
 
       if (sql.includes('insert into')) {
         const perRowParams = 9;
-        const countFromParams = params && Array.isArray(params) && params.length > 0
-          ? Math.max(1, Math.round(params.length / perRowParams))
-          : undefined;
+        const countFromParams =
+          params && Array.isArray(params) && params.length > 0
+            ? Math.max(1, Math.round(params.length / perRowParams))
+            : undefined;
         let count = countFromParams ?? 1;
         if (!countFromParams) {
           const afterValues = text.split(/values/i)[1] || '';
@@ -61,8 +67,12 @@ jest.mock('pg', () => {
     constructor(config: Record<string, unknown>) {
       this.config = config;
     }
-    async connect() { return new MockClient(); }
-    async end() { /* no-op */ }
+    async connect() {
+      return new MockClient();
+    }
+    async end() {
+      /* no-op */
+    }
   }
 
   return {
@@ -70,8 +80,12 @@ jest.mock('pg', () => {
     Client: MockClient,
     getMockResults: () => mockResults,
     clearMockResults: () => (mockResults.length = 0),
-    setMockQueryHandler: (fn: typeof queryHandler) => { queryHandler = fn; },
-    resetMockQueryHandler: () => { queryHandler = null; },
+    setMockQueryHandler: (fn: typeof queryHandler) => {
+      queryHandler = fn;
+    },
+    resetMockQueryHandler: () => {
+      queryHandler = null;
+    },
   };
 });
 
@@ -98,7 +112,7 @@ describe('PostgreSQLTransport', () => {
         name: 'pg-test',
         connectionString: 'postgresql://user:pass@localhost:5432/testdb',
         table: 'logs',
-        schema: 'public'
+        schema: 'public',
       });
 
       expect(transport).toBeInstanceOf(PostgreSQLTransport);
@@ -114,7 +128,7 @@ describe('PostgreSQLTransport', () => {
         user: 'testuser',
         password: 'testpass',
         ssl: true,
-        table: 'logs'
+        table: 'logs',
       });
 
       expect(transport).toBeInstanceOf(PostgreSQLTransport);
@@ -125,7 +139,7 @@ describe('PostgreSQLTransport', () => {
         new PostgreSQLTransport({
           name: 'pg-test',
           host: 'localhost',
-          table: 'logs'
+          table: 'logs',
         });
       }).toThrow('PostgreSQL database is required');
     });
@@ -138,7 +152,7 @@ describe('PostgreSQLTransport', () => {
         connectionString: 'postgresql://user:pass@localhost:5432/testdb',
         table: 'test_logs',
         createTable: true,
-        indexes: ['timestamp', 'level', 'logger_id']
+        indexes: ['timestamp', 'level', 'logger_id'],
       });
 
       await transport.init();
@@ -158,7 +172,7 @@ describe('PostgreSQLTransport', () => {
         name: 'pg-test',
         connectionString: 'postgresql://user:pass@localhost:5432/testdb',
         table: 'test_logs',
-        createTable: false
+        createTable: false,
       });
 
       await transport.init();
@@ -173,7 +187,7 @@ describe('PostgreSQLTransport', () => {
       transport = new PostgreSQLTransport({
         name: 'pg-test',
         connectionString: 'postgresql://user:pass@localhost:5432/testdb',
-        table: 'test_logs'
+        table: 'test_logs',
       });
 
       await expect(transport.init()).rejects.toThrow('Connection failed');
@@ -187,12 +201,12 @@ describe('PostgreSQLTransport', () => {
         connectionString: 'postgresql://user:pass@localhost:5432/testdb',
         table: 'test_logs',
         createTable: false,
-  batchSize: 2,
-  flushInterval: 100,
-  // Disable retries in tests to avoid long backoff delays
-  retryOnFailure: false,
-  maxRetries: 0,
-  retryDelay: 0
+        batchSize: 2,
+        flushInterval: 100,
+        // Disable retries in tests to avoid long backoff delays
+        retryOnFailure: false,
+        maxRetries: 0,
+        retryDelay: 0,
       });
       await transport.init();
     });
@@ -208,7 +222,7 @@ describe('PostgreSQLTransport', () => {
         loggerId: 'test-logger',
         tags: ['test'],
         context: { key: 'value' },
-        metadata: { env: 'test' }
+        metadata: { env: 'test' },
       };
 
       const entry2: LogEntry = {
@@ -222,8 +236,8 @@ describe('PostgreSQLTransport', () => {
         error: {
           name: 'TestError',
           message: 'Test error message',
-          stack: 'Test stack trace'
-        }
+          stack: 'Test stack trace',
+        },
       };
 
       await transport.log(entry1);
@@ -235,26 +249,26 @@ describe('PostgreSQLTransport', () => {
       expect(results[0].rowCount).toBe(2);
     });
 
-  it('should handle single log entry', async () => {
+    it('should handle single log entry', async () => {
       const entry: LogEntry = {
         id: '1',
         timestamp: new Date().toISOString(),
         timestampMs: Date.now(),
-  level: 'info',
+        level: 'info',
         message: 'Debug message',
-        plainMessage: 'Debug message'
+        plainMessage: 'Debug message',
       };
 
-  await transport.log(entry);
-  await transport.flush();
-  const stats = transport.getStats();
-  expect(stats.succeeded + stats.failed).toBeGreaterThan(0);
+      await transport.log(entry);
+      await transport.flush();
+      const stats = transport.getStats();
+      expect(stats.succeeded + stats.failed).toBeGreaterThan(0);
     });
 
-  it('should handle batch insert errors with rollback', async () => {
-  let beginCalled = false;
+    it('should handle batch insert errors with rollback', async () => {
+      let beginCalled = false;
       let rollbackCalled = false;
-      
+
       mockPg.setMockQueryHandler((sql: string) => {
         if (sql.toLowerCase().includes('begin')) {
           beginCalled = true;
@@ -276,17 +290,17 @@ describe('PostgreSQLTransport', () => {
         timestampMs: Date.now(),
         level: 'error',
         message: 'Test',
-        plainMessage: 'Test'
+        plainMessage: 'Test',
       };
 
       await transport.log(entry);
-      
-  // Flush should trigger the batch insert and record failure (no retries)
-  await transport.flush();
-  expect(beginCalled).toBe(true);
-  expect(rollbackCalled).toBe(true);
-  const stats = transport.getStats();
-  expect(stats.failed).toBeGreaterThan(0);
+
+      // Flush should trigger the batch insert and record failure (no retries)
+      await transport.flush();
+      expect(beginCalled).toBe(true);
+      expect(rollbackCalled).toBe(true);
+      const stats = transport.getStats();
+      expect(stats.failed).toBeGreaterThan(0);
     });
 
     it('should respect log level filtering', async () => {
@@ -295,7 +309,7 @@ describe('PostgreSQLTransport', () => {
         connectionString: 'postgresql://user:pass@localhost:5432/testdb',
         table: 'test_logs',
         createTable: false,
-        level: 'warn' // Only warn and above
+        level: 'warn', // Only warn and above
       });
       await transport.init();
 
@@ -305,7 +319,7 @@ describe('PostgreSQLTransport', () => {
         timestampMs: Date.now(),
         level: 'debug',
         message: 'Debug',
-        plainMessage: 'Debug'
+        plainMessage: 'Debug',
       };
 
       const errorEntry: LogEntry = {
@@ -314,7 +328,7 @@ describe('PostgreSQLTransport', () => {
         timestampMs: Date.now(),
         level: 'error',
         message: 'Error',
-        plainMessage: 'Error'
+        plainMessage: 'Error',
       };
 
       await transport.log(debugEntry); // Should be filtered out
@@ -333,7 +347,7 @@ describe('PostgreSQLTransport', () => {
         name: 'pg-test',
         connectionString: 'postgresql://user:pass@localhost:5432/testdb',
         table: 'test_logs',
-        createTable: false
+        createTable: false,
       });
       await transport.init();
     });
@@ -341,9 +355,11 @@ describe('PostgreSQLTransport', () => {
     it('should clean up old logs', async () => {
       mockPg.setMockQueryHandler((sql: string) => {
         if (sql.toLowerCase().includes('delete from')) {
-          return { 
-            rows: Array(10).fill(null).map((_, i) => ({ id: i + 1 })), 
-            rowCount: 10 
+          return {
+            rows: Array(10)
+              .fill(null)
+              .map((_, i) => ({ id: i + 1 })),
+            rowCount: 10,
           };
         }
         return undefined;
@@ -361,21 +377,21 @@ describe('PostgreSQLTransport', () => {
               { level: 'info', count: '150' },
               { level: 'warn', count: 75 },
               { level: 'error', count: '25' },
-              { level: 'debug', count: 300 }
+              { level: 'debug', count: 300 },
             ],
-            rowCount: 4
+            rowCount: 4,
           };
         }
         return undefined;
       });
 
       const counts = await transport.getLogCountByLevel();
-      
+
       expect(counts).toEqual({
         info: 150,
         warn: 75,
         error: 25,
-        debug: 300
+        debug: 300,
       });
     });
 
@@ -401,8 +417,8 @@ describe('PostgreSQLTransport', () => {
         partitioning: {
           enabled: true,
           interval: 'daily',
-          retention: 30
-        }
+          retention: 30,
+        },
       });
 
       await transport.init();
@@ -417,21 +433,21 @@ describe('PostgreSQLTransport', () => {
         connectionString: 'postgresql://user:pass@localhost:5432/testdb',
         table: 'test_logs',
         createTable: false,
-  silent: true,
-  // Disable retries to ensure failures surface immediately in tests
-  retryOnFailure: false,
-  maxRetries: 0,
-  retryDelay: 0
+        silent: true,
+        // Disable retries to ensure failures surface immediately in tests
+        retryOnFailure: false,
+        maxRetries: 0,
+        retryDelay: 0,
       });
       await transport.init();
     });
-  
-  it('should handle connection pool errors', async () => {
+
+    it('should handle connection pool errors', async () => {
       const mockPool = {
         connect: jest.fn().mockRejectedValue(new Error('Pool exhausted')),
-        end: jest.fn()
+        end: jest.fn(),
       };
-      
+
       (transport as any).pool = mockPool;
 
       const entry: LogEntry = {
@@ -440,14 +456,14 @@ describe('PostgreSQLTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: 'Test',
-        plainMessage: 'Test'
+        plainMessage: 'Test',
       };
 
-  await transport.log(entry);
-  await transport.flush();
-  const stats = transport.getStats();
-  expect(stats.failed).toBeGreaterThan(0);
-  });
+      await transport.log(entry);
+      await transport.flush();
+      const stats = transport.getStats();
+      expect(stats.failed).toBeGreaterThan(0);
+    });
 
     it('should handle JSON serialization errors', async () => {
       const circularRef: any = { prop: 'value' };
@@ -460,14 +476,14 @@ describe('PostgreSQLTransport', () => {
         level: 'info',
         message: 'Test',
         plainMessage: 'Test',
-        context: circularRef
+        context: circularRef,
       };
 
-  // Force an insert path but cause JSON serialization failure; stats should record failure
-  await transport.log(entry);
-  await transport.flush();
-  const stats = transport.getStats();
-  expect(stats.failed).toBeGreaterThan(0);
+      // Force an insert path but cause JSON serialization failure; stats should record failure
+      await transport.log(entry);
+      await transport.flush();
+      const stats = transport.getStats();
+      expect(stats.failed).toBeGreaterThan(0);
     });
   });
 
@@ -477,7 +493,7 @@ describe('PostgreSQLTransport', () => {
         name: 'pg-test',
         connectionString: 'postgresql://user:pass@localhost:5432/testdb',
         table: 'test_logs',
-        createTable: false
+        createTable: false,
       });
       await transport.init();
     });
@@ -489,11 +505,11 @@ describe('PostgreSQLTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: 'Test',
-        plainMessage: 'Test'
+        plainMessage: 'Test',
       };
 
       await transport.log(entry);
-      
+
       const stats = transport.getStats();
       expect(stats.processed).toBe(1);
       expect(stats.queued).toBe(1);
@@ -507,7 +523,7 @@ describe('PostgreSQLTransport', () => {
         connectionString: 'postgresql://user:pass@localhost:5432/testdb',
         table: 'test_logs',
         createTable: false,
-        batchSize: 10
+        batchSize: 10,
       });
       await transport.init();
 
@@ -517,14 +533,14 @@ describe('PostgreSQLTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: 'Test',
-        plainMessage: 'Test'
+        plainMessage: 'Test',
       };
 
       await transport.log(entry);
-      
+
       // Close should flush pending logs
       await transport.close();
-      
+
       const results = mockPg.getMockResults();
       expect(results.length).toBeGreaterThan(0);
     });

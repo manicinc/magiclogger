@@ -413,16 +413,16 @@ describe('TemplateParser', () => {
   });
 
   describe('Performance', () => {
-  it('should handle rapid parsing efficiently', () => {
+    it('should handle rapid parsing efficiently', () => {
       const start = Date.now();
 
       for (let i = 0; i < 1000; i++) {
         parser.parseString(`@red{test${i}}`);
       }
 
-  const duration = Date.now() - start;
-  const threshold = (process.env.CI || process.platform === 'win32') ? 200 : 120;
-  expect(duration).toBeLessThan(threshold);
+      const duration = Date.now() - start;
+      const threshold = process.env.CI || process.platform === 'win32' ? 200 : 120;
+      expect(duration).toBeLessThan(threshold);
     });
 
     it('should benefit from caching', () => {

@@ -111,7 +111,12 @@ export type { RateLimiterOptions, RateLimitStrategy } from './utils/RateLimiter'
  * Tree-shakeable: Only imported when needed.
  */
 export { Redactor, createRedactorPreset } from './utils/Redactor';
-export type { RedactorOptions, RedactionPattern, RedactionPreset, RedactionStrategy } from './utils/Redactor';
+export type {
+  RedactorOptions,
+  RedactionPattern,
+  RedactionPreset,
+  RedactionStrategy,
+} from './utils/Redactor';
 
 /**
  * Statistical sampling for log volume control.
@@ -216,10 +221,10 @@ export function createLogger(options: Partial<LoggerOptions> = {}): Logger {
  * @example
  * ```typescript
  * import { createAsyncLogger, Redactor, RateLimiter } from 'magiclogger';
- * 
+ *
  * const redactor = new Redactor({ preset: 'strict' });
  * const rateLimiter = new RateLimiter({ max: 1000, window: 60000 });
- * 
+ *
  * const asyncLogger = createAsyncLogger({
  *   buffer: { size: 8192, flushInterval: 100 },
  *   redactor,
