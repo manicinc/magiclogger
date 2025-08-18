@@ -1,0 +1,71 @@
+name: Auto PR Summary
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, edited, ready_for_review]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  summarize:
+    name: Generate PR summary section
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    steps:
+      - name: Build summary markdown
+        id: build
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const commits = await github.paginate(github.rest.pulls.listCommits, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              per_page: 100,
+            });
+
+            // Collect scopes/types from conventional commits
+            const cc = /^(feat|fix|perf|refactor|docs|test|build|ci|chore|style|revert)(\(([^)]+)\))?:\s+(.+)/i;
+            const items = [];
+            for (const c of commits) {
+              const firstLine = c.commit.message.split('\n')[0];
+              const m = firstLine.match(cc);
+              if (m) {
+                const [, type, , scope = '', subject] = m;
+                items.push(`- ${type.toLowerCase()}${scope ? `(${scope})` : ''}: ${subject}`);
+              }
+            }
+
+            // Fallback to PR title if nothing matched
+            const changes = items.length ? items.join('\n') : `- ${pr.title}`;
+
+            const body = pr.body || '';
+            const start = '<!-- auto-summary-start -->';
+            const end = '<!-- auto-summary-end -->';
+            const summary = `\n## 🧾 Auto Summary\n${changes}\n`;
+
+            let newBody;
+            if (body.includes(start) && body.includes(end)) {
+              newBody = body.replace(new RegExp(`${start}[\s\S]*?${end}`), `${start}${summary}${end}`);
+            } else {
+              newBody = `${body}\n${start}${summary}${end}`.trim();
+            }
+
+            core.setOutput('body', newBody);
+      - name: Update PR body
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const body = process.env.BODY;
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              body,
+            });
+        env:
+          BODY: ${{ steps.build.outputs.body }}
