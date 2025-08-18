@@ -20,8 +20,9 @@ describe('AsyncLogger', () => {
         id: 'test-id',
         level,
         message,
-        timestamp: new Date(),
-        context: meta,
+        timestamp: new Date().toISOString(),
+        timestampMs: Date.now(),
+        context: meta as Record<string, unknown> | undefined,
       })
     );
     // ensure LogEntry type import is used
@@ -164,7 +165,8 @@ describe('AsyncLogger', () => {
           id: 'dropped-entry',
           level: 'info',
           message: 'Old message',
-          timestamp: new Date(),
+          timestamp: new Date().toISOString(),
+          timestampMs: Date.now(),
         },
         bufferStats: { size: 8192, capacity: 8192, utilization: 1.0 },
       });

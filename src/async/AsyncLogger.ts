@@ -57,16 +57,18 @@ export interface AsyncLoggerOptions {
   /**
    * Rate limiting configuration for log throttling.
    * Can be a RateLimiter instance or options to create one.
-   * 
+   *
    * @example
    * rateLimiter: { max: 1000, window: 60000, strategy: 'sliding' }
    */
-  rateLimiter?: import('../utils/RateLimiter').RateLimiter | import('../utils/RateLimiter').RateLimiterOptions;
+  rateLimiter?:
+    | import('../utils/RateLimiter').RateLimiter
+    | import('../utils/RateLimiter').RateLimiterOptions;
 
   /**
    * PII and sensitive data redaction configuration.
    * Can be a Redactor instance or options to create one.
-   * 
+   *
    * @example
    * redactor: { preset: 'strict', auditTrail: true }
    */
@@ -75,7 +77,7 @@ export interface AsyncLoggerOptions {
   /**
    * Statistical sampling configuration for volume control.
    * Can be a Sampler instance or options to create one.
-   * 
+   *
    * @example
    * sampler: { rate: 0.1, strategy: 'adaptive' }
    */
@@ -84,11 +86,13 @@ export interface AsyncLoggerOptions {
   /**
    * Queue management configuration for handling backpressure.
    * Can be a QueueManager instance or options to create one.
-   * 
+   *
    * @example
    * queueManager: { maxSize: 10000, dropPolicy: 'tail' }
    */
-  queueManager?: import('../utils/QueueManager').QueueManager | import('../utils/QueueManager').QueueManagerOptions;
+  queueManager?:
+    | import('../utils/QueueManager').QueueManager
+    | import('../utils/QueueManager').QueueManagerOptions;
 
   /**
    * Fallback to sync logging when buffers are full or unavailable.
@@ -112,7 +116,6 @@ export interface AsyncLoggerOptions {
     [key: string]: unknown;
   }) => void;
 }
-
 
 /**
  * Async logging interface for high-performance logging.
@@ -170,7 +173,6 @@ export class AsyncLogger {
     message: string,
     meta?: Record<string, unknown>
   ) => LogEntry;
-
 
   /**
    * Whether metrics are enabled.
@@ -352,11 +354,6 @@ export class AsyncLogger {
     await this.buffer.close();
   }
 
-
-
-
-
-
   /**
    * Check if the async logger is ready.
    *
@@ -384,8 +381,8 @@ export class AsyncLogger {
   }
 
   /**
-  * Check if logger is experiencing backpressure.
-  * @returns {boolean} True if under backpressure
+   * Check if logger is experiencing backpressure.
+   * @returns {boolean} True if under backpressure
    */
   public isBackpressured(): boolean {
     return this.backpressure;
@@ -400,7 +397,7 @@ export class AsyncLogger {
     const timeSinceWarning = now - this.lastDropWarning;
     return {
       total: this.droppedCount,
-      rate: timeSinceWarning > 0 ? this.droppedCount / timeSinceWarning * 1000 : 0
+      rate: timeSinceWarning > 0 ? (this.droppedCount / timeSinceWarning) * 1000 : 0,
     };
   }
 
@@ -414,7 +411,7 @@ export class AsyncLogger {
     meta?: Record<string, unknown>
   ): Promise<void> {
     const entry = this.createEntry(level, message, meta);
-    
+
     let attempts = 0;
     const maxAttempts = 10;
     // Synchronous retry loop to avoid timer leaks in tests
@@ -467,14 +464,14 @@ export class AsyncLogger {
         this.queueManager = options.queueManager as QueueManager;
       } else {
         this.queueManager = new QueueManager({
-          ...options.queueManager as QueueManagerOptions,
+          ...(options.queueManager as QueueManagerOptions),
           onDrop: (entries, reason) => {
             this.onMetrics?.({
               type: 'drop',
               count: entries.length,
-              reason
+              reason,
             });
-          }
+          },
         });
       }
     }
@@ -494,8 +491,8 @@ export class AsyncLogger {
         bufferStats: {
           size: 0,
           capacity: 1,
-          utilization: 0
-        }
+          utilization: 0,
+        },
       };
     }
 
@@ -508,8 +505,8 @@ export class AsyncLogger {
         bufferStats: {
           size: 0,
           capacity: 1,
-          utilization: 0
-        }
+          utilization: 0,
+        },
       };
     }
 
@@ -526,21 +523,20 @@ export class AsyncLogger {
         bufferStats: {
           size: this.queueManager.size(),
           capacity: this.queueManager.getStats().capacity,
-          utilization: this.queueManager.size() / this.queueManager.getStats().capacity
-        }
+          utilization: this.queueManager.size() / this.queueManager.getStats().capacity,
+        },
       };
     }
 
-    const addResult = (this.buffer as unknown as {
-      add: (e: LogEntry) => boolean | AddResult;
-      getStats: () => { size: number; capacity: number; utilization: number };
-    }).add(entry);
-
-    if (typeof addResult === 'boolean') {
+    const addRet = this.buffer.add(entry) as boolean | AddResult;
+    if (typeof addRet === 'boolean') {
       const s = this.buffer.getStats();
-      return { success: addResult, bufferStats: { size: s.size, capacity: s.capacity, utilization: s.utilization } };
+      return {
+        success: addRet,
+        bufferStats: { size: s.size, capacity: s.capacity, utilization: s.utilization },
+      };
     }
-    return addResult;
+    return addRet;
   }
 
   /**
@@ -562,23 +558,23 @@ export class AsyncLogger {
    */
   private handleBufferDrop(entry: LogEntry, reason: string): void {
     this.droppedCount++;
-    
+
     // Rate-limit warnings
     const now = Date.now();
     if (now - this.lastDropWarning > 5000) {
-      console.warn(
-        `[AsyncLogger] Dropped ${this.droppedCount} log entries due to ${reason}`,
-        { level: entry.level, message: entry.message?.toString().slice(0, 100) }
-      );
+      console.warn(`[AsyncLogger] Dropped ${this.droppedCount} log entries due to ${reason}`, {
+        level: entry.level,
+        message: entry.message?.toString().slice(0, 100),
+      });
       this.lastDropWarning = now;
       this.droppedCount = 0;
     }
-    
+
     // Emit metrics
     this.onMetrics?.({
       type: 'drop',
       count: this.droppedCount,
-      reason
+      reason,
     });
   }
 
@@ -589,12 +585,12 @@ export class AsyncLogger {
   private handleHighWater(stats: BufferStats): void {
     this.backpressure = true;
     console.warn('[AsyncLogger] Buffer high water mark reached', stats);
-    
+
     // Emergency flush if configured
     if (this.flushOnHighWater) {
       this.buffer.flush();
     }
-    
+
     this.onMetrics?.({ type: 'backpressure', ...stats });
   }
 
@@ -605,7 +601,7 @@ export class AsyncLogger {
   private handleLowWater(stats: BufferStats): void {
     this.backpressure = false;
     console.info('[AsyncLogger] Buffer pressure relieved', stats);
-    
+
     this.onMetrics?.({ type: 'backpressure', ...stats });
   }
 }

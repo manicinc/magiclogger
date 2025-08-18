@@ -1,7 +1,7 @@
 // File: src/compatibility/loggers/PinoCompatibleLogger.ts
 
 import { BaseCompatibleLogger } from './BaseCompatibleLogger';
-import type { LoggerOptions } from '../../types/logger';
+import type { LogCompatibilityOptions } from './BaseCompatibleLogger';
 
 /**
  * Pino log method type with all supported signatures
@@ -48,7 +48,7 @@ interface Formatters {
  * @interface PinoCompatibleOptions
  * @extends {LoggerOptions}
  */
-export interface PinoCompatibleOptions extends LoggerOptions {
+export interface PinoCompatibleOptions extends Omit<LogCompatibilityOptions, 'prettyPrint'> {
   /**
    * Log level (string or number)
    * @type {string | number}
@@ -244,7 +244,13 @@ export class PinoCompatibleLogger extends BaseCompatibleLogger {
    * @param {PinoCompatibleOptions} options - Logger options
    */
   constructor(options: PinoCompatibleOptions = {}) {
-    super(options);
+    // Map boolean prettyPrint to core LoggerOptions union type for the base logger
+    const { prettyPrint: pp, ...rest } = options;
+    const baseOptions: LogCompatibilityOptions = {
+      ...(rest as LogCompatibilityOptions),
+      prettyPrint: pp !== false ? 'inspect' : 'json',
+    };
+    super(baseOptions);
 
     // Handle numeric level
     if (typeof options.level === 'number') {
@@ -696,7 +702,7 @@ export class PinoCompatibleLogger extends BaseCompatibleLogger {
    * @protected
    * @returns {PinoCompatibleOptions} Current configuration
    */
-  protected getConfig(): PinoCompatibleOptions {
+  protected getConfig(): LogCompatibilityOptions {
     return {
       verbose: this._verbose,
       useColors: this.useColors,

@@ -253,7 +253,7 @@ describe('PinoCompatibleLogger', () => {
       logger.info({ user: 'john' }, 'Test message');
 
       const call = logSpy.mock.calls[0][0];
-      const parsed = JSON.parse(call);
+      const parsed = JSON.parse(call as string);
 
       expect(parsed).toHaveProperty('level', 'info');
       expect(parsed).toHaveProperty('msg', 'Test message');
@@ -270,7 +270,7 @@ describe('PinoCompatibleLogger', () => {
       logger.info('Custom key test');
 
       const call = logSpy.mock.calls[0][0];
-      const parsed = JSON.parse(call);
+      const parsed = JSON.parse(call as string);
 
       expect(parsed).toHaveProperty('message', 'Custom key test');
       expect(parsed).not.toHaveProperty('msg');
@@ -780,7 +780,7 @@ describe('PinoCompatibleLogger', () => {
 
   describe('Performance', () => {
     it('should handle high-frequency logging', () => {
-      const iterations = (process.env.CI || process.platform === 'win32') ? 800 : 1000;
+      const iterations = process.env.CI || process.platform === 'win32' ? 800 : 1000;
       const start = Date.now();
 
       for (let i = 0; i < iterations; i++) {
@@ -789,9 +789,9 @@ describe('PinoCompatibleLogger', () => {
 
       const duration = Date.now() - start;
 
-  expect(logSpy).toHaveBeenCalledTimes(iterations);
-  const maxDuration = (process.env.CI || process.platform === 'win32') ? 2000 : 1200;
-  expect(duration).toBeLessThan(maxDuration); // Allow headroom in CI/Windows
+      expect(logSpy).toHaveBeenCalledTimes(iterations);
+      const maxDuration = process.env.CI || process.platform === 'win32' ? 2000 : 1200;
+      expect(duration).toBeLessThan(maxDuration); // Allow headroom in CI/Windows
     });
 
     it('should handle concurrent operations', async () => {

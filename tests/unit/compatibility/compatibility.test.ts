@@ -324,7 +324,7 @@ describe('Magic Logger Compatibility Layer Integration', () => {
 
       pino.info('JSON format test');
 
-      const call = logSpy.mock.calls[0][0];
+      const call = logSpy.mock.calls[0][0] as string;
       const parsed = JSON.parse(call);
 
       expect(parsed).toHaveProperty('level', 'info');

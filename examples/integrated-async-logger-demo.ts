@@ -115,7 +115,7 @@ async function demonstrateIntegratedAsyncLogger() {
   const rateLimiter = new RateLimiter({
     max: 1000,
     window: 60000,
-    strategy: 'adaptive', // Not available, falls back to sliding
+    strategy: 'sliding', // 'adaptive' not available; use a supported strategy
     keyFn: entry => entry.level, // Rate limit per level
     onLimit: (key, dropped) => {
       console.log(`🚦 Rate limit hit for ${key}: ${dropped} entries dropped`);
@@ -169,7 +169,8 @@ async function demonstrateIntegratedAsyncLogger() {
       id: `log_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       level,
       message,
-      timestamp: new Date(),
+      timestamp: new Date().toISOString(),
+      timestampMs: Date.now(),
       context: meta,
     })
   );
@@ -269,7 +270,7 @@ async function demonstrateIntegratedAsyncLogger() {
     rateLimiter: { max: 50, window: 30000 },
     sampler: { rate: 1.0 }, // No sampling for regular logger
 
-    transports: [new ConsoleTransport()],
+    transports: [new ConsoleTransport({})],
   });
 
   console.log('📝 Regular logger with integrated utilities:');

@@ -273,7 +273,7 @@ export class AsyncBuffer {
       return {
         success: false,
         reason: 'closing',
-        bufferStats
+        bufferStats,
       };
     }
 
@@ -289,40 +289,40 @@ export class AsyncBuffer {
             success: false,
             reason: 'buffer_full',
             dropped: entry,
-            bufferStats
+            bufferStats,
           };
         }
         case 'drop-oldest': {
           const droppedEntry = this.buffer[this.readPos];
           this.readPos = (this.readPos + 1) % this.capacity;
           this.size--;
-          
+
           // Add new entry
           this.buffer[this.writePos] = entry;
           this.writePos = (this.writePos + 1) % this.capacity;
           this.size++;
-          
+
           if (this.enableMetrics) {
             this.metrics.totalAdded++;
             this.metrics.totalDropped++;
           }
-          
+
           if (droppedEntry) {
             this.onDrop?.(droppedEntry, 'overflow');
           }
-          
+
           this.checkWaterMarks();
-          
+
           // Check if we should flush
           if (this.size >= this.flushSize) {
             this.flush();
           }
-          
+
           return {
             success: true,
             reason: 'dropped',
             dropped: droppedEntry || undefined,
-            bufferStats: this.getBufferStats()
+            bufferStats: this.getBufferStats(),
           };
         }
         case 'block': {
@@ -334,7 +334,7 @@ export class AsyncBuffer {
           return {
             success: false,
             reason: 'buffer_full',
-            bufferStats
+            bufferStats,
           };
         }
       }
@@ -358,13 +358,13 @@ export class AsyncBuffer {
 
     return {
       success: true,
-      bufferStats: this.getBufferStats()
+      bufferStats: this.getBufferStats(),
     };
   }
 
   /**
    * Legacy add method for backward compatibility.
-   * 
+   *
    * @param {LogEntry} entry - The log entry to add
    * @returns {boolean} True if entry was added, false if dropped
    */
@@ -377,8 +377,10 @@ export class AsyncBuffer {
    * Returns a simple boolean for backward compatibility with older code/tests.
    * Advanced users should call addDetailed for structured results.
    */
-  public add(entry: LogEntry): boolean {
-    return this.addDetailed(entry).success;
+  public add(entry: LogEntry): boolean | AddResult {
+    // Keep runtime behavior boolean for backward compatibility; tests/mocks can still return AddResult
+    const res = this.addDetailed(entry);
+    return res.success;
   }
 
   /**
@@ -629,20 +631,20 @@ export class AsyncBuffer {
    */
   private checkWaterMarks(): void {
     const utilization = this.size / this.capacity;
-    
+
     if (!this.aboveHighWater && utilization >= this.highWaterMark) {
       this.aboveHighWater = true;
       this.onHighWater?.({
         size: this.size,
         capacity: this.capacity,
-        utilization
+        utilization,
       });
     } else if (this.aboveHighWater && utilization <= this.lowWaterMark) {
       this.aboveHighWater = false;
       this.onLowWater?.({
         size: this.size,
         capacity: this.capacity,
-        utilization
+        utilization,
       });
     }
   }
@@ -655,7 +657,7 @@ export class AsyncBuffer {
     return {
       size: this.size,
       capacity: this.capacity,
-      utilization: this.size / this.capacity
+      utilization: this.size / this.capacity,
     };
   }
 
