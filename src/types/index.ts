@@ -53,23 +53,6 @@ export interface AsyncOptions {
      */
     flushSize?: number;
   };
-
-  /**
-   * Use worker threads for processing.
-   * @default false
-   */
-  useWorkers?: boolean;
-
-  /**
-   * Number of worker threads.
-   * @default 2
-   */
-  workerCount?: number;
-
-  /**
-   * Path to worker script.
-   */
-  workerPath?: string;
 }
 
 // Context types

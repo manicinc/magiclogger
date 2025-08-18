@@ -317,24 +317,34 @@
         "default": "./dist/core/formatter.cjs"
       }
     },
-    "./async/logger": {
+    "./async": {
       "import": {
-        "types": "./dist/async/logger.d.ts",
-        "default": "./dist/async/logger.js"
+        "types": "./dist/async/AsyncLogger.d.ts",
+        "default": "./dist/async/AsyncLogger.js"
       },
       "require": {
-        "types": "./dist/async/logger.d.cts",
-        "default": "./dist/async/logger.cjs"
+        "types": "./dist/async/AsyncLogger.d.cts",
+        "default": "./dist/async/AsyncLogger.cjs"
+      }
+    },
+    "./async/logger": {
+      "import": {
+        "types": "./dist/async/AsyncLogger.d.ts",
+        "default": "./dist/async/AsyncLogger.js"
+      },
+      "require": {
+        "types": "./dist/async/AsyncLogger.d.cts",
+        "default": "./dist/async/AsyncLogger.cjs"
       }
     },
     "./async/buffer": {
       "import": {
-        "types": "./dist/async/buffer.d.ts",
-        "default": "./dist/async/buffer.js"
+        "types": "./dist/async/AsyncBuffer.d.ts",
+        "default": "./dist/async/AsyncBuffer.js"
       },
       "require": {
-        "types": "./dist/async/buffer.d.cts",
-        "default": "./dist/async/buffer.cjs"
+        "types": "./dist/async/AsyncBuffer.d.cts",
+        "default": "./dist/async/AsyncBuffer.cjs"
       }
     },
     "./package.json": "./package.json"

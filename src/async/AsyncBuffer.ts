@@ -27,6 +27,29 @@ const ensureTimers = () => {
 ensureTimers();
 
 /**
+ * Result of adding an entry to the buffer.
+ */
+export interface AddResult {
+  success: boolean;
+  reason?: 'buffer_full' | 'closing' | 'dropped';
+  dropped?: LogEntry;
+  bufferStats?: {
+    size: number;
+    capacity: number;
+    utilization: number;
+  };
+}
+
+/**
+ * Buffer statistics for monitoring.
+ */
+export interface BufferStats {
+  size: number;
+  capacity: number;
+  utilization: number;
+}
+
+/**
  * Configuration options for AsyncBuffer.
  */
 export interface AsyncBufferOptions {
@@ -64,6 +87,33 @@ export interface AsyncBufferOptions {
    * @default false
    */
   enableMetrics?: boolean;
+
+  /**
+   * Called when an entry is dropped.
+   */
+  onDrop?: (entry: LogEntry, reason: 'buffer_full' | 'overflow') => void;
+
+  /**
+   * Called when buffer reaches high water mark.
+   */
+  onHighWater?: (stats: BufferStats) => void;
+
+  /**
+   * Called when buffer returns to low water mark.
+   */
+  onLowWater?: (stats: BufferStats) => void;
+
+  /**
+   * High water mark (percentage of capacity).
+   * @default 0.8
+   */
+  highWaterMark?: number;
+
+  /**
+   * Low water mark (percentage of capacity).
+   * @default 0.5
+   */
+  lowWaterMark?: number;
 }
 
 /**
@@ -80,7 +130,7 @@ export interface AsyncBufferOptions {
  *   flushInterval: 100,
  *   onFlush: (entries) => {
  *     // Process entries in background
- *     worker.postMessage({ type: 'logs', entries });
+ *     transport.sendBatch(entries);
  *   }
  * });
  *
@@ -127,6 +177,12 @@ export class AsyncBuffer {
   private readonly flushInterval: number;
   private readonly onFlush: (entries: LogEntry[]) => void | Promise<void>;
   private readonly overflowStrategy: 'drop-oldest' | 'drop-newest' | 'block';
+  private readonly highWaterMark: number;
+  private readonly lowWaterMark: number;
+  private aboveHighWater = false;
+  private readonly onDrop?: (entry: LogEntry, reason: 'buffer_full' | 'overflow') => void;
+  private readonly onHighWater?: (stats: BufferStats) => void;
+  private readonly onLowWater?: (stats: BufferStats) => void;
 
   /**
    * Flush timer reference.
@@ -177,6 +233,15 @@ export class AsyncBuffer {
     this.onFlush = options.onFlush;
     this.overflowStrategy = options.overflowStrategy || 'drop-oldest';
     this.enableMetrics = options.enableMetrics || false;
+    this.highWaterMark = options.highWaterMark || 0.8;
+    this.lowWaterMark = options.lowWaterMark || 0.5;
+    this.onDrop = options.onDrop;
+    this.onHighWater = options.onHighWater;
+    this.onLowWater = options.onLowWater;
+
+    if (this.highWaterMark <= this.lowWaterMark) {
+      throw new Error('High water mark must be greater than low water mark');
+    }
 
     // Pre-allocate buffer
     this.buffer = new Array(this.capacity).fill(null);
@@ -186,50 +251,96 @@ export class AsyncBuffer {
   }
 
   /**
-   * Add a log entry to the buffer.
+   * Add a log entry to the buffer with explicit result.
    *
    * This method is designed to be as fast as possible:
    * - No promises
    * - No allocations (except when buffer is full)
    * - Direct array access
+   * - Explicit backpressure signals
    *
    * @param {LogEntry} entry - The log entry to add
-   * @returns {boolean} True if entry was added, false if dropped
+   * @returns {AddResult} Result with success status and metadata
    */
-  public add(entry: LogEntry): boolean {
+  /**
+   * Add a log entry to the buffer and return detailed result.
+   * This is the primary implementation used by advanced integrations.
+   */
+  public addDetailed(entry: LogEntry): AddResult {
+    const bufferStats = this.getBufferStats();
+
     if (this.closing) {
-      return false;
+      return {
+        success: false,
+        reason: 'closing',
+        bufferStats
+      };
     }
 
     // Handle buffer overflow
     if (this.size === this.capacity) {
       switch (this.overflowStrategy) {
-        case 'drop-newest':
+        case 'drop-newest': {
           if (this.enableMetrics) {
             this.metrics.totalDropped++;
           }
-          return false;
-
-        case 'drop-oldest':
-          // Overwrite oldest entry
+          this.onDrop?.(entry, 'buffer_full');
+          return {
+            success: false,
+            reason: 'buffer_full',
+            dropped: entry,
+            bufferStats
+          };
+        }
+        case 'drop-oldest': {
+          const droppedEntry = this.buffer[this.readPos];
           this.readPos = (this.readPos + 1) % this.capacity;
           this.size--;
+          
+          // Add new entry
+          this.buffer[this.writePos] = entry;
+          this.writePos = (this.writePos + 1) % this.capacity;
+          this.size++;
+          
+          if (this.enableMetrics) {
+            this.metrics.totalAdded++;
+            this.metrics.totalDropped++;
+          }
+          
+          if (droppedEntry) {
+            this.onDrop?.(droppedEntry, 'overflow');
+          }
+          
+          this.checkWaterMarks();
+          
+          // Check if we should flush
+          if (this.size >= this.flushSize) {
+            this.flush();
+          }
+          
+          return {
+            success: true,
+            reason: 'dropped',
+            dropped: droppedEntry || undefined,
+            bufferStats: this.getBufferStats()
+          };
+        }
+        case 'block': {
+          // Explicit rejection and account as dropped
           if (this.enableMetrics) {
             this.metrics.totalDropped++;
           }
-          break;
-
-        case 'block':
-          // In a real implementation, this would block
-          // For now, we'll drop to avoid blocking
-          if (this.enableMetrics) {
-            this.metrics.totalDropped++;
-          }
-          return false;
+          this.onDrop?.(entry, 'buffer_full');
+          return {
+            success: false,
+            reason: 'buffer_full',
+            bufferStats
+          };
+        }
       }
     }
 
-    // Add entry to buffer
+    // Normal add
     this.buffer[this.writePos] = entry;
     this.writePos = (this.writePos + 1) % this.capacity;
     this.size++;
@@ -238,12 +349,36 @@ export class AsyncBuffer {
       this.metrics.totalAdded++;
     }
 
+    this.checkWaterMarks();
+
     // Check if we should flush
     if (this.size >= this.flushSize) {
       this.flush();
     }
 
-    return true;
+    return {
+      success: true,
+      bufferStats: this.getBufferStats()
+    };
+  }
+
+  /**
+   * Legacy add method for backward compatibility.
+   * 
+   * @param {LogEntry} entry - The log entry to add
+   * @returns {boolean} True if entry was added, false if dropped
+   */
+  public addLegacy(entry: LogEntry): boolean {
+    return this.addDetailed(entry).success;
+  }
+
+  /**
+   * Add a log entry to the buffer.
+   * Returns a simple boolean for backward compatibility with older code/tests.
+   * Advanced users should call addDetailed for structured results.
+   */
+  public add(entry: LogEntry): boolean {
+    return this.addDetailed(entry).success;
   }
 
   /**
@@ -486,5 +621,49 @@ export class AsyncBuffer {
         avgFlushSize: 0,
       };
     }
+  }
+
+  /**
+   * Check and handle water marks for backpressure signaling.
+   * @private
+   */
+  private checkWaterMarks(): void {
+    const utilization = this.size / this.capacity;
+    
+    if (!this.aboveHighWater && utilization >= this.highWaterMark) {
+      this.aboveHighWater = true;
+      this.onHighWater?.({
+        size: this.size,
+        capacity: this.capacity,
+        utilization
+      });
+    } else if (this.aboveHighWater && utilization <= this.lowWaterMark) {
+      this.aboveHighWater = false;
+      this.onLowWater?.({
+        size: this.size,
+        capacity: this.capacity,
+        utilization
+      });
+    }
+  }
+
+  /**
+   * Get current buffer statistics.
+   * @private
+   */
+  private getBufferStats(): BufferStats {
+    return {
+      size: this.size,
+      capacity: this.capacity,
+      utilization: this.size / this.capacity
+    };
+  }
+
+  /**
+   * Check if buffer is currently experiencing backpressure.
+   * @returns {boolean} True if above high water mark
+   */
+  public isBackpressured(): boolean {
+    return this.aboveHighWater;
   }
 }

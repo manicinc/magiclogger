@@ -1,80 +1,34 @@
-// File: tests/unit/async/AsyncLogger.test.ts
-
-import { AsyncLogger, AsyncLoggerOptions } from '../../../src/async/AsyncLogger';
+import { AsyncLogger, type AsyncLoggerOptions } from '../../../src/async/AsyncLogger';
 import { AsyncBuffer } from '../../../src/async/AsyncBuffer';
-import type { LogEntry, LogLevel } from '../../../src/types';
+import type { LogEntry, LogLevel } from '../../../src/types/transport';
 
-// Mock AsyncBuffer
+// Mock the AsyncBuffer
 jest.mock('../../../src/async/AsyncBuffer');
-
-// Mock ErrorEvent for Node.js environment
-if (typeof ErrorEvent === 'undefined') {
-  (global as Record<string, unknown>).ErrorEvent = class ErrorEvent extends Error {
-    constructor(public type: string, options?: { message?: string }) {
-      super(options?.message || type);
-      this.name = 'ErrorEvent';
-    }
-  };
-}
-
-// Mock Worker
-interface MockWorkerInstance {
-  onmessage: ((event: MessageEvent) => void) | null;
-  onerror: ((event: ErrorEvent) => void) | null;
-  postMessage: jest.Mock;
-  terminate: jest.Mock;
-  addEventListener: jest.Mock;
-  removeEventListener: jest.Mock;
-}
-
-const MockWorker = jest.fn().mockImplementation(function (this: MockWorkerInstance) {
-  this.onmessage = null;
-  this.onerror = null;
-  this.postMessage = jest.fn();
-  this.terminate = jest.fn();
-  this.addEventListener = jest.fn(
-    (event: string, handler: (event: MessageEvent | ErrorEvent) => void) => {
-      if (event === 'message') this.onmessage = handler as (event: MessageEvent) => void;
-      if (event === 'error') this.onerror = handler as (event: ErrorEvent) => void;
-    }
-  );
-  this.removeEventListener = jest.fn();
-});
-
-// Replace global Worker
-(global as Record<string, unknown>).Worker = MockWorker;
 
 describe('AsyncLogger', () => {
   let asyncLogger: AsyncLogger;
-  let mockCreateEntry: jest.Mock;
   let mockOnFlush: jest.Mock;
-  let mockBuffer: jest.Mocked<AsyncBuffer>;
-
-  const createMockEntry = (
-    level: LogLevel,
-    message: string,
-    meta?: Record<string, unknown>
-  ): LogEntry => ({
-    id: `test-${Date.now()}`,
-    timestamp: new Date().toISOString(),
-    timestampMs: Date.now(),
-    level,
-    message,
-    plainMessage: message,
-    context: meta,
-  });
+  let mockCreateEntry: jest.Mock;
+  let mockAsyncBuffer: jest.Mocked<AsyncBuffer>;
 
   beforeEach(() => {
     jest.clearAllMocks();
-
-    mockCreateEntry = jest.fn(createMockEntry);
+    
     mockOnFlush = jest.fn();
+    mockCreateEntry = jest.fn().mockImplementation((level: LogLevel, message: string, meta?: unknown) => ({
+      id: 'test-id',
+      level,
+      message,
+      timestamp: new Date(),
+      context: meta,
+    }));
 
-    // Setup mock buffer
-    mockBuffer = {
-      add: jest.fn().mockReturnValue(true),
+    // Mock AsyncBuffer instance
+    mockAsyncBuffer = {
+      add: jest.fn().mockReturnValue({ success: true }),
       flush: jest.fn(),
       flushAndWait: jest.fn().mockResolvedValue(undefined),
+      close: jest.fn().mockResolvedValue(undefined),
       getStats: jest.fn().mockReturnValue({
         size: 0,
         capacity: 8192,
@@ -88,70 +42,47 @@ describe('AsyncLogger', () => {
           avgFlushSize: 0,
         },
       }),
-      close: jest.fn().mockResolvedValue(undefined),
       isEmpty: jest.fn().mockReturnValue(true),
       isFull: jest.fn().mockReturnValue(false),
       getSize: jest.fn().mockReturnValue(0),
       resetMetrics: jest.fn(),
-    } as unknown as jest.Mocked<AsyncBuffer>;
+      isBackpressured: jest.fn().mockReturnValue(false),
+    } as any;
 
-    (AsyncBuffer as jest.MockedClass<typeof AsyncBuffer>).mockImplementation(() => mockBuffer);
+    (AsyncBuffer as jest.MockedClass<typeof AsyncBuffer>).mockImplementation(() => mockAsyncBuffer);
   });
 
   afterEach(async () => {
     if (asyncLogger) {
-      try {
-        // Increase timeout for cleanup and ensure the timeout is cleared to avoid open handles
-        let timeoutId: ReturnType<typeof setTimeout> | undefined;
-        const timeoutPromise = new Promise<never>((_, reject) => {
-          timeoutId = setTimeout(() => reject(new Error('Cleanup timeout')), 1000);
-          // In Node, ensure the timer doesn't hold the event loop open
-          if (
-            timeoutId &&
-            typeof (timeoutId as unknown as { unref?: () => void }).unref === 'function'
-          ) {
-            (timeoutId as unknown as { unref: () => void }).unref();
-          }
-        });
-
-        await Promise.race([asyncLogger.close(), timeoutPromise]);
-
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-        }
-      } catch (error) {
-        // Ignore cleanup errors in tests
-        console.warn('Test cleanup error:', error);
-      }
-      asyncLogger = null as unknown as AsyncLogger;
+      await asyncLogger.close();
     }
-
-    // Clear the MockWorker between tests
-    MockWorker.mockClear();
-  }, 2000);
+  });
 
   describe('constructor', () => {
-    it('should create with default options', () => {
-      asyncLogger = new AsyncLogger({ onFlush: mockOnFlush }, mockCreateEntry);
+    it('should initialize with default options', () => {
+      const options: AsyncLoggerOptions = {
+        onFlush: mockOnFlush,
+      };
 
-      expect(AsyncBuffer).toHaveBeenCalledWith({
+      asyncLogger = new AsyncLogger(options, mockCreateEntry);
+
+      expect(AsyncBuffer).toHaveBeenCalledWith(expect.objectContaining({
         size: 8192,
         flushInterval: 100,
         flushSize: 1000,
-        onFlush: mockOnFlush,
+        onFlush: expect.any(Function),
         overflowStrategy: 'drop-oldest',
         enableMetrics: true,
-      });
+      }));
     });
 
-    it('should create with custom options', () => {
+    it('should initialize with custom buffer options', () => {
       const options: AsyncLoggerOptions = {
         buffer: {
           size: 16384,
           flushInterval: 200,
           flushSize: 2000,
         },
-        useWorkers: false,
         enableMetrics: false,
         onFlush: mockOnFlush,
       };
@@ -162,542 +93,254 @@ describe('AsyncLogger', () => {
         size: 16384,
         flushInterval: 200,
         flushSize: 2000,
-        onFlush: mockOnFlush,
+        onFlush: expect.any(Function),
         overflowStrategy: 'drop-oldest',
         enableMetrics: false,
+        onDrop: expect.any(Function),
+        onHighWater: expect.any(Function),
+        onLowWater: expect.any(Function),
       });
     });
 
-    it('should initialize workers when enabled', () => {
+    it('should initialize with operational utilities', () => {
       const options: AsyncLoggerOptions = {
-        useWorkers: true,
-        workerCount: 4,
-        workerPath: './custom-worker.js',
+        redactor: { preset: 'standard' },
+        rateLimiter: { max: 100, window: 60000 },
+        sampler: { rate: 0.5 },
         onFlush: mockOnFlush,
       };
 
       asyncLogger = new AsyncLogger(options, mockCreateEntry);
-
-      // Should create 4 workers
-      expect(MockWorker).toHaveBeenCalledTimes(4);
-    });
-
-    it('should handle worker initialization failure', () => {
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-      const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
-
-      // Make Worker constructor throw
-      (global as Record<string, unknown>).Worker = jest.fn(() => {
-        throw new Error('Worker not supported');
-      });
-
-      asyncLogger = new AsyncLogger({ useWorkers: true, onFlush: mockOnFlush }, mockCreateEntry);
-
-      expect(consoleSpy).toHaveBeenCalledWith(
-        '[AsyncLogger] Failed to initialize workers:',
-        expect.any(Error)
-      );
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        '[AsyncLogger] Falling back to main thread processing'
-      );
-
-      // Should recreate buffer without worker handler
-      expect(AsyncBuffer).toHaveBeenCalledTimes(2);
-
-      consoleSpy.mockRestore();
-      consoleLogSpy.mockRestore();
-
-      // Restore MockWorker
-      (global as Record<string, unknown>).Worker = MockWorker;
+      
+      // Verify AsyncBuffer is initialized
+      expect(AsyncBuffer).toHaveBeenCalled();
     });
   });
 
-  describe('logging methods', () => {
+  describe('logging methods with explicit backpressure', () => {
     beforeEach(() => {
       asyncLogger = new AsyncLogger({ onFlush: mockOnFlush }, mockCreateEntry);
     });
 
-    it('should log info message', () => {
-      asyncLogger.info('Info message', { key: 'value' });
-
-      expect(mockCreateEntry).toHaveBeenCalledWith('info', 'Info message', { key: 'value' });
-      expect(mockBuffer.add).toHaveBeenCalledWith(
-        expect.objectContaining({
-          level: 'info',
-          message: 'Info message',
-        })
-      );
-    });
-
-    it('should log warn message', () => {
-      asyncLogger.warn('Warning message');
-
-      expect(mockCreateEntry).toHaveBeenCalledWith('warn', 'Warning message', undefined);
-      expect(mockBuffer.add).toHaveBeenCalled();
-    });
-
-    it('should log error message', () => {
-      asyncLogger.error('Error message', { error: new Error('test') });
-
-      expect(mockCreateEntry).toHaveBeenCalledWith('error', 'Error message', {
-        error: new Error('test'),
+    it('should return success result when buffer accepts entry', () => {
+      mockAsyncBuffer.add.mockReturnValue({ 
+        success: true,
+        bufferStats: { size: 1, capacity: 8192, utilization: 0.0001 }
       });
-      expect(mockBuffer.add).toHaveBeenCalled();
+
+      const result = asyncLogger.info('Test message');
+
+      expect(result.success).toBe(true);
+      expect(result.bufferStats).toBeDefined();
+      expect(mockCreateEntry).toHaveBeenCalledWith('info', 'Test message', undefined);
     });
 
-    it('should log debug message', () => {
-      asyncLogger.debug('Debug message');
+    it('should return failure result when buffer is full', () => {
+      mockAsyncBuffer.add.mockReturnValue({ 
+        success: false,
+        reason: 'buffer_full',
+        bufferStats: { size: 8192, capacity: 8192, utilization: 1.0 }
+      });
 
-      expect(mockCreateEntry).toHaveBeenCalledWith('debug', 'Debug message', undefined);
-      expect(mockBuffer.add).toHaveBeenCalled();
+      const result = asyncLogger.info('Test message');
+
+      expect(result.success).toBe(false);
+      expect(result.reason).toBe('buffer_full');
+      expect(result.bufferStats?.utilization).toBe(1.0);
     });
 
-    it('should log success message', () => {
-      asyncLogger.success('Success message');
+    it('should handle dropped entries with reason', () => {
+      mockAsyncBuffer.add.mockReturnValue({ 
+        success: true,
+        reason: 'dropped',
+        dropped: { id: 'dropped-entry', level: 'info', message: 'Old message', timestamp: new Date() },
+        bufferStats: { size: 8192, capacity: 8192, utilization: 1.0 }
+      });
 
-      expect(mockCreateEntry).toHaveBeenCalledWith('success', 'Success message', undefined);
-      expect(mockBuffer.add).toHaveBeenCalled();
+      const result = asyncLogger.warn('New message');
+
+      expect(result.success).toBe(true);
+      expect(result.reason).toBe('dropped');
+      expect(result.dropped).toBeDefined();
     });
 
-    it('should log with custom level', () => {
-      asyncLogger.log('Custom message', 'custom' as LogLevel, { data: 'test' });
+    it('should work with all log levels', () => {
+      mockAsyncBuffer.add.mockReturnValue({ success: true });
 
-      expect(mockCreateEntry).toHaveBeenCalledWith('custom', 'Custom message', { data: 'test' });
-      expect(mockBuffer.add).toHaveBeenCalled();
-    });
-
-    it('should use default level when not specified', () => {
-      asyncLogger.log('Default level message');
-
-      expect(mockCreateEntry).toHaveBeenCalledWith('info', 'Default level message', undefined);
+      const methods = ['info', 'warn', 'error', 'debug', 'success'] as const;
+      
+      methods.forEach(method => {
+        const result = asyncLogger[method]('Test message', { extra: 'data' });
+        expect(result.success).toBe(true);
+        expect(mockCreateEntry).toHaveBeenCalledWith(method, 'Test message', { extra: 'data' });
+      });
     });
   });
 
-  describe('flush operations', () => {
+  describe('critical logging', () => {
     beforeEach(() => {
       asyncLogger = new AsyncLogger({ onFlush: mockOnFlush }, mockCreateEntry);
-    });
-
-    it('should flush buffer', () => {
-      asyncLogger.flush();
-
-      expect(mockBuffer.flush).toHaveBeenCalled();
-    });
-
-    it('should flush and wait', async () => {
-      await asyncLogger.flushAndWait();
-
-      expect(mockBuffer.flushAndWait).toHaveBeenCalled();
-    });
-  });
-
-  describe('worker operations', () => {
-    let mockWorkers: MockWorkerInstance[];
-
-    beforeEach(() => {
-      mockWorkers = [];
-
-      // Track created workers
-      (global as Record<string, unknown>).Worker = jest.fn(() => {
-        const worker = new (MockWorker as new () => MockWorkerInstance)();
-        mockWorkers.push(worker);
-        return worker;
-      });
-    });
-
-    afterEach(async () => {
-      if (asyncLogger) {
-        // Create a timeout we can clear to avoid leaving open handles
-        let timeoutId: ReturnType<typeof setTimeout> | null = null;
-        try {
-          const closePromise = asyncLogger.close();
-          const timeoutPromise = new Promise((_, reject) => {
-            timeoutId = setTimeout(() => reject(new Error('Cleanup timeout')), 1000);
-            // In Node, ensure the timer doesn't hold the event loop open
-            if (
-              timeoutId &&
-              typeof (timeoutId as unknown as { unref?: () => void }).unref === 'function'
-            ) {
-              (timeoutId as unknown as { unref: () => void }).unref();
-            }
-          });
-
-          await Promise.race([closePromise, timeoutPromise]);
-        } catch (error) {
-          // Ignore cleanup errors in tests
-          console.warn('Test cleanup error:', error);
-        } finally {
-          if (timeoutId) {
-            clearTimeout(timeoutId);
-          }
-          asyncLogger = null as unknown as AsyncLogger;
-        }
-      }
-
-      // Clear the MockWorker between tests
-      MockWorker.mockClear();
-    }, 2000);
-
-    it('should distribute work to workers in round-robin fashion', () => {
-      asyncLogger = new AsyncLogger(
-        {
-          useWorkers: true,
-          workerCount: 2,
-          onFlush: mockOnFlush,
-        },
-        mockCreateEntry
-      );
-
-      // Get the flush handler that was passed to AsyncBuffer
-      const workerFlushHandler = (AsyncBuffer as jest.MockedClass<typeof AsyncBuffer>).mock
-        .calls[0][0].onFlush;
-
-      const entries = [createMockEntry('info', 'Test 1')];
-
-      // Call the flush handler
-      workerFlushHandler(entries);
-
-      // Should send to first worker
-      expect(mockWorkers[0].postMessage).toHaveBeenCalledWith({
-        type: 'logs',
-        entries,
-      });
-    });
-
-    it('should handle worker messages', () => {
-      asyncLogger = new AsyncLogger(
-        {
-          useWorkers: true,
-          workerCount: 1,
-          onFlush: mockOnFlush,
-          enableMetrics: true,
-        },
-        mockCreateEntry
-      );
-
-      const worker = mockWorkers[0];
-
-      // Simulate processed message
-      if (worker.onmessage) {
-        worker.onmessage({ data: { type: 'processed', metrics: {} } } as MessageEvent);
-      }
-
-      // Worker should be marked as less busy
-      const stats = asyncLogger.getStats();
-      expect(stats.workers.totalProcessing).toBe(0);
-    });
-
-    it('should handle worker ready message', () => {
-      asyncLogger = new AsyncLogger(
-        {
-          useWorkers: true,
-          workerCount: 1,
-          onFlush: mockOnFlush,
-        },
-        mockCreateEntry
-      );
-
-      const worker = mockWorkers[0];
-
-      // Simulate ready message
-      if (worker.onmessage) {
-        worker.onmessage({ data: { type: 'ready' } } as MessageEvent);
-      }
-
-      const stats = asyncLogger.getStats();
-      expect(stats.workers.active).toBe(1);
-    });
-
-    it('should handle worker errors', () => {
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-
-      asyncLogger = new AsyncLogger(
-        {
-          useWorkers: true,
-          workerCount: 1,
-          onFlush: mockOnFlush,
-        },
-        mockCreateEntry
-      );
-
-      const worker = mockWorkers[0];
-
-      // Simulate error message
-      if (worker.onmessage) {
-        worker.onmessage({
-          data: { type: 'error', error: 'Worker processing failed' },
-        } as MessageEvent);
-      }
-
-      expect(consoleSpy).toHaveBeenCalledWith(
-        '[AsyncLogger] Worker error:',
-        'Worker processing failed'
-      );
-
-      consoleSpy.mockRestore();
-    });
-
-    it('should handle worker failure and attempt restart', () => {
       jest.useFakeTimers();
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-      const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
+    });
 
-      asyncLogger = new AsyncLogger(
-        {
-          useWorkers: true,
-          workerCount: 2,
-          onFlush: mockOnFlush,
-        },
-        mockCreateEntry
-      );
-
-      const worker = mockWorkers[0];
-
-      // Simulate worker error
-      const errorEvent = new ErrorEvent('error', { message: 'Worker crashed' });
-      if (worker.onerror) {
-        worker.onerror(errorEvent);
-      }
-
-      expect(consoleSpy).toHaveBeenCalledWith('[AsyncLogger] Worker error:', errorEvent);
-
-      // Worker should be removed
-      const statsBefore = asyncLogger.getStats();
-      expect(statsBefore.workers.count).toBe(1);
-
-      // Should attempt restart after timeout
-      jest.advanceTimersByTime(1000);
-
-      expect(consoleLogSpy).toHaveBeenCalledWith('[AsyncLogger] Attempting to restart worker');
-
-      consoleSpy.mockRestore();
-      consoleLogSpy.mockRestore();
+    afterEach(() => {
       jest.useRealTimers();
     });
 
-    it('should fallback to direct processing when no workers available', () => {
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-      const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
+    it('should succeed when buffer accepts entry on first try', async () => {
+      mockAsyncBuffer.add.mockReturnValue({ success: true });
 
-      asyncLogger = new AsyncLogger(
-        {
-          useWorkers: true,
-          workerCount: 0,
-          onFlush: mockOnFlush,
-        },
-        mockCreateEntry
-      );
-
-      // Verify initialization log was called with 0 workers
-      expect(consoleLogSpy).toHaveBeenCalledWith('[AsyncLogger] Initialized 0 worker threads');
-
-      // Verify that no workers were created
-      const workers = (asyncLogger as unknown as { workers: unknown[] }).workers;
-      expect(workers).toHaveLength(0);
-
-      // Call the sendToWorker method directly to test fallback
-      const entries = [createMockEntry('info', 'Test')];
-      (asyncLogger as unknown as { sendToWorker: (entries: unknown[]) => void }).sendToWorker(
-        entries
-      );
-
-      // Should log error and fallback to original handler
-      expect(consoleSpy).toHaveBeenCalledWith(
-        '[AsyncLogger] No workers available, falling back to direct processing'
-      );
-      expect(mockOnFlush).toHaveBeenCalledWith(entries);
-
-      consoleSpy.mockRestore();
-      consoleLogSpy.mockRestore();
+      const promise = asyncLogger.logCritical('error', 'Critical error');
+      jest.runAllTimers();
+      
+      await expect(promise).resolves.toBeUndefined();
+      expect(mockAsyncBuffer.add).toHaveBeenCalledTimes(1);
     });
 
-    it('should handle worker send failure', () => {
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+    it('should retry and eventually succeed', async () => {
+      mockAsyncBuffer.add
+        .mockReturnValueOnce({ success: false, reason: 'buffer_full' })
+        .mockReturnValueOnce({ success: false, reason: 'buffer_full' })
+        .mockReturnValueOnce({ success: true });
 
-      asyncLogger = new AsyncLogger(
-        {
-          useWorkers: true,
-          workerCount: 1,
-          onFlush: mockOnFlush,
-        },
-        mockCreateEntry
-      );
+      const promise = asyncLogger.logCritical('error', 'Critical error');
+      jest.runAllTimers();
+      
+      await expect(promise).resolves.toBeUndefined();
+      expect(mockAsyncBuffer.add).toHaveBeenCalledTimes(3);
+    });
 
-      // Make postMessage throw
-      mockWorkers[0].postMessage.mockImplementation(() => {
-        throw new Error('PostMessage failed');
-      });
+    it('should throw error if buffer is closing', async () => {
+      mockAsyncBuffer.add.mockReturnValue({ success: false, reason: 'closing' });
 
-      const workerFlushHandler = (AsyncBuffer as jest.MockedClass<typeof AsyncBuffer>).mock
-        .calls[0][0].onFlush;
-      const entries = [createMockEntry('info', 'Test')];
+      const promise = asyncLogger.logCritical('error', 'Critical error');
+      jest.runAllTimers();
+      
+      await expect(promise).rejects.toThrow('Logger is closing');
+    });
 
-      workerFlushHandler(entries);
+    it('should throw error after max attempts', async () => {
+      mockAsyncBuffer.add.mockReturnValue({ success: false, reason: 'buffer_full' });
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        '[AsyncLogger] Failed to send to worker:',
-        expect.any(Error)
-      );
-
-      // Should fallback to direct processing
-      expect(mockOnFlush).toHaveBeenCalledWith(entries);
-
-      consoleSpy.mockRestore();
+      const promise = asyncLogger.logCritical('error', 'Critical error');
+      jest.runAllTimers();
+      
+      await expect(promise).rejects.toThrow('Failed to log after 10 attempts');
+      expect(mockAsyncBuffer.add).toHaveBeenCalledTimes(10);
     });
   });
 
-  describe('close and cleanup', () => {
-    it('should close buffer and terminate workers', async () => {
-      asyncLogger = new AsyncLogger(
-        {
-          useWorkers: true,
-          workerCount: 2,
-          onFlush: mockOnFlush,
-        },
-        mockCreateEntry
-      );
-
-      // Get workers
-      const workers = (
-        asyncLogger as unknown as { workers: Array<{ worker: MockWorkerInstance }> }
-      ).workers.map(w => w.worker);
-
-      await asyncLogger.close();
-
-      expect(mockBuffer.close).toHaveBeenCalled();
-
-      // All workers should receive shutdown message and be terminated
-      workers.forEach((worker: MockWorkerInstance) => {
-        expect(worker.postMessage).toHaveBeenCalledWith({ type: 'shutdown' });
-        expect(worker.terminate).toHaveBeenCalled();
-      });
-    }, 10000);
-
-    it('should handle close without workers', async () => {
-      asyncLogger = new AsyncLogger({ onFlush: mockOnFlush }, mockCreateEntry);
-
-      await asyncLogger.close();
-
-      expect(mockBuffer.close).toHaveBeenCalled();
-    });
-  });
-
-  describe('statistics and metrics', () => {
+  describe('backpressure monitoring', () => {
     beforeEach(() => {
-      asyncLogger = new AsyncLogger(
-        {
-          useWorkers: true,
-          workerCount: 2,
-          onFlush: mockOnFlush,
-        },
-        mockCreateEntry
-      );
+      asyncLogger = new AsyncLogger({ onFlush: mockOnFlush }, mockCreateEntry);
     });
 
-    it('should return complete stats', () => {
+    it('should report backpressure status', () => {
+      expect(asyncLogger.isBackpressured()).toBe(false);
+    });
+
+    it('should report drop statistics', () => {
+      const stats = asyncLogger.getDropStats();
+      expect(stats).toEqual({ total: 0, rate: 0 });
+    });
+  });
+
+  describe('statistics and monitoring', () => {
+    beforeEach(() => {
+      asyncLogger = new AsyncLogger({ onFlush: mockOnFlush }, mockCreateEntry);
+    });
+
+    it('should start with buffer statistics', () => {
       const stats = asyncLogger.getStats();
 
-      expect(stats).toEqual({
-        buffer: {
-          size: 0,
-          capacity: 8192,
-          utilization: 0,
-          metrics: expect.any(Object),
-        },
-        workers: {
-          enabled: true,
-          count: 2,
-          active: 2,
-          totalProcessing: 0,
-        },
-      });
+      expect(stats.buffer).toBeDefined();
+      expect(stats.buffer.capacity).toBe(8192);
+      expect(stats.buffer.utilization).toBe(0);
     });
 
-    it('should reset metrics', () => {
-      asyncLogger.resetMetrics();
-
-      expect(mockBuffer.resetMetrics).toHaveBeenCalled();
-    });
-
-    it('should calculate utilization percentage', () => {
-      mockBuffer.getStats.mockReturnValue({
+    it('should report utilization percentage', () => {
+      mockAsyncBuffer.getStats.mockReturnValue({
         size: 4096,
         capacity: 8192,
         utilization: 0.5,
       });
 
-      expect(asyncLogger.getUtilization()).toBe(50);
+      const utilization = asyncLogger.getUtilization();
+      expect(utilization).toBe(50);
     });
 
-    it('should check if ready', () => {
-      mockBuffer.isEmpty.mockReturnValue(false);
-
+    it('should report ready status based on buffer', () => {
+      mockAsyncBuffer.isEmpty.mockReturnValue(false);
       expect(asyncLogger.isReady()).toBe(true);
+
+      mockAsyncBuffer.isEmpty.mockReturnValue(true);
+      expect(asyncLogger.isReady()).toBe(false);
     });
   });
 
-  describe('edge cases', () => {
-    it('should handle async flush handler errors', async () => {
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-
-      mockOnFlush.mockRejectedValue(new Error('Async flush failed'));
-
-      asyncLogger = new AsyncLogger(
-        {
-          useWorkers: true,
-          workerCount: 1,
-          onFlush: mockOnFlush,
-        },
-        mockCreateEntry
-      );
-
-      // Get the flush handler
-      const workerFlushHandler = (AsyncBuffer as jest.MockedClass<typeof AsyncBuffer>).mock
-        .calls[0][0].onFlush;
-
-      // Make worker unavailable
-      (asyncLogger as unknown as { workers: unknown[] }).workers = [];
-
-      const entries = [createMockEntry('info', 'Test')];
-      workerFlushHandler(entries);
-
-      // Wait for the promise rejection to be handled
-      await new Promise(resolve => setTimeout(resolve, 0));
-
-      expect(consoleSpy).toHaveBeenCalledWith(
-        '[AsyncLogger] Flush handler error:',
-        expect.any(Error)
-      );
-
-      consoleSpy.mockRestore();
+  describe('resource management', () => {
+    it('should flush manually', () => {
+      asyncLogger = new AsyncLogger({ onFlush: mockOnFlush }, mockCreateEntry);
+      
+      asyncLogger.flush();
+      
+      expect(mockAsyncBuffer.flush).toHaveBeenCalled();
     });
 
-    it('should handle unknown worker message types', () => {
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+    it('should flush and wait', async () => {
+      asyncLogger = new AsyncLogger({ onFlush: mockOnFlush }, mockCreateEntry);
+      
+      await asyncLogger.flushAndWait();
+      
+      expect(mockAsyncBuffer.flushAndWait).toHaveBeenCalled();
+    });
 
-      asyncLogger = new AsyncLogger(
-        {
-          useWorkers: true,
-          workerCount: 1,
-          onFlush: mockOnFlush,
-        },
-        mockCreateEntry
-      );
+    it('should close gracefully', async () => {
+      asyncLogger = new AsyncLogger({ onFlush: mockOnFlush }, mockCreateEntry);
+      
+      await asyncLogger.close();
+      
+      expect(mockAsyncBuffer.close).toHaveBeenCalled();
+    });
 
-      const worker = (asyncLogger as unknown as { workers: Array<{ worker: MockWorkerInstance }> })
-        .workers[0].worker;
+    it('should reset metrics', () => {
+      asyncLogger = new AsyncLogger({ onFlush: mockOnFlush }, mockCreateEntry);
+      
+      asyncLogger.resetMetrics();
+      
+      expect(mockAsyncBuffer.resetMetrics).toHaveBeenCalled();
+    });
+  });
 
-      // Send unknown message type
-      if (worker.onmessage) {
-        worker.onmessage({ data: { type: 'unknown', data: 'test' } } as MessageEvent);
-      }
+  describe('operational utilities integration', () => {
+    it('should handle sampling rejection', () => {
+      const options: AsyncLoggerOptions = {
+        sampler: { rate: 0 }, // Sample nothing
+        onFlush: mockOnFlush,
+      };
+      
+      asyncLogger = new AsyncLogger(options, mockCreateEntry);
+      
+      const result = asyncLogger.info('Should be sampled out');
+      
+      // Should be rejected by sampler before reaching buffer
+      expect(result.success).toBe(false);
+      expect(mockAsyncBuffer.add).not.toHaveBeenCalled();
+    });
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        '[AsyncLogger] Unknown worker message type:',
-        'unknown'
-      );
-
-      consoleSpy.mockRestore();
+    it('should handle rate limiting', () => {
+      const options: AsyncLoggerOptions = {
+        rateLimiter: { max: 0, window: 1000 }, // Allow nothing
+        onFlush: mockOnFlush,
+      };
+      
+      asyncLogger = new AsyncLogger(options, mockCreateEntry);
+      
+      const result = asyncLogger.info('Should be rate limited');
+      
+      // Should be rejected by rate limiter before reaching buffer
+      expect(result.success).toBe(false);
+      expect(mockAsyncBuffer.add).not.toHaveBeenCalled();
     });
   });
 });

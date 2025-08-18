@@ -17,6 +17,8 @@
 - [Installation & Quick Start](#installation--quick-start)
   - [Module Formats](#module-formats)
   - [Basic Usage](#basic-usage)
+  - [AsyncLogger with Operational Utilities](#asynclogger-with-operational-utilities)
+  - [Unified API - Same Utilities Work in Both Loggers](#unified-api---same-utilities-work-in-both-loggers)
 - [Three Powerful Styling APIs](#three-powerful-styling-apis)
   - [1. Chainable Style API](#1-chainable-style-api-loggers)
   - [2. Template Literal API](#2-template-literal-api-loggerfmt)
@@ -62,10 +64,10 @@
 
 ## Enterprise-Ready Logging with Style
 
-**MagicLogger** transforms boring console logs into vibrant, organized output while maintaining perfect performance for production environments. Beautiful styling meets enterprise-grade features.
+**MagicLogger** transforms boring console logs into vibrant, organized output while providing production-ready async logging with explicit backpressure handling. Beautiful styling meets enterprise-grade operational features.
 
 ```typescript
-import { Logger } from 'magiclogger';
+import { Logger, createAsyncLogger } from 'magiclogger';
 
 const logger = new Logger({ useColors: true });
 
@@ -82,24 +84,45 @@ logger.table([
   { service: 'DB', status: 'degraded', uptime: '95.2%' }
 ]);
 
-// Production-ready features
-logger.sample(0.1).debug('High-frequency event');  // 10% sampling
-logger.redact().info('User data:', { ssn: '123-45-6789' });  // Auto-redacted
-logger.withRateLimit('api-errors', 100).error('Rate limited');
+// Production AsyncLogger with integrated operational utilities
+const asyncLogger = createAsyncLogger({
+  buffer: { size: 8192, flushInterval: 100 },
+  redactor: { preset: 'strict' },                    // Auto-redact PII
+  rateLimiter: { max: 1000, window: 60000 },        // Rate limiting  
+  sampler: { rate: 0.1, strategy: 'adaptive' },     // Adaptive sampling
+  onFlush: async (entries) => await transport.sendBatch(entries)
+});
+
+// Explicit backpressure handling - never silently drop logs
+const result = asyncLogger.info('User data:', { ssn: '123-45-6789', email: 'user@example.com' });
+if (!result.success) {
+  console.warn(`Log dropped: ${result.reason}`);
+  // Handle backpressure explicitly
+}
 ```
 
 ---
 
 ## Features
 
+### 🎨 **Beautiful Styling & Visualization**
 - **Three styling APIs** - chainable, template literals, and inline syntax
 - **Rich colors & themes** with automatic terminal detection
 - **Visual elements** - tables, progress bars, headers, diffs
+
+### ⚡ **High Performance & Efficiency**
 - **Perfect tree-shaking** - only pay for what you use
 - **Zero overhead** sync logging by default
+- **AsyncLogger with explicit backpressure** - production-ready async logging
+- **Unified import API** - seamless Logger and AsyncLogger experience
 
-- **PII protection** with automatic redaction patterns
+### 🛡️ **Production-Ready Security & Operations**
+- **Integrated utilities** - rate limiting, PII redaction, sampling, queue management
+- **Explicit backpressure handling** - never silently drop logs
+- **PII protection** with comprehensive redaction patterns
 - **Sampling & rate limiting** to control costs and volume
+
+### 🔌 **Enterprise Integration**
 - **Enterprise transports** - Kafka, PostgreSQL, OTLP, S3, and more
 - **Monitoring integration** - OpenTelemetry, metrics, health checks
 - **Drop-in compatibility** with Winston/Bunyan/Pino
@@ -141,6 +164,72 @@ logger.debug('Auth token: eyJhbGciOiJIUzI1NiIs...');
 logger.log('Message with default info level');
 logger.log('Warning message', 'warn');
 logger.log('Error message', 'error');
+```
+
+### AsyncLogger with Operational Utilities
+
+For high-performance async logging with built-in operational capabilities:
+
+```typescript
+import { 
+  createAsyncLogger, 
+  Redactor, 
+  RateLimiter 
+} from 'magiclogger';
+
+// Simple configuration with integrated utilities
+const asyncLogger = createAsyncLogger({
+  buffer: { size: 8192, flushInterval: 100 },
+  
+  // Built-in operational utilities
+  redactor: { preset: 'strict' },                    // Auto-redact PII
+  rateLimiter: { max: 1000, window: 60000 },        // Rate limiting
+  sampler: { rate: 0.1, strategy: 'adaptive' },     // 10% adaptive sampling
+  
+  // Observability
+  onMetrics: (metrics) => {
+    console.log(`Metric: ${metrics.type}, Count: ${metrics.count}`);
+  },
+  
+  onFlush: async (entries) => {
+    await transport.sendBatch(entries); // Your transport logic
+  }
+});
+
+// Explicit backpressure handling - never lose visibility into failures
+const result = asyncLogger.info('User login', { email: 'user@example.com' });
+if (!result.success) {
+  console.warn(`Log dropped: ${result.reason}`);
+}
+
+// Critical logging with retry mechanism
+try {
+  await asyncLogger.logCritical('error', 'System failure detected!');
+} catch (error) {
+  // Critical log failed after retries
+  alerting.sendAlert('Logger failure', error);
+}
+
+// Backpressure monitoring
+if (asyncLogger.isBackpressured()) {
+  console.warn('Logger under pressure, throttling application');
+}
+```
+
+### Unified API - Same Utilities Work in Both Loggers
+
+```typescript
+// Regular Logger with integrated utilities
+const logger = new Logger({
+  redactor: { preset: 'standard' },
+  rateLimiter: { max: 100, window: 30000 },
+  sampler: { rate: 1.0 }, // No sampling for regular logger
+  
+  transports: [new ConsoleTransport()]
+});
+
+logger.info('This is automatically redacted and rate limited');
+// Both sync and async loggers support the same operational utilities!
 ```
 
 ---

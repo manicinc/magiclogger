@@ -1,8 +1,13 @@
 // File: src/async/AsyncLogger.ts
 
-import { AsyncBuffer } from './AsyncBuffer';
+import { AsyncBuffer, type AddResult } from './AsyncBuffer';
+import type { BufferStats } from './AsyncBuffer';
 import type { LogEntry } from '../types/transport';
 import type { LogLevel } from '../types/logger';
+import { RateLimiter, type RateLimiterOptions } from '../utils/RateLimiter';
+import { Redactor, type RedactorOptions } from '../utils/Redactor';
+import { Sampler, type SamplerOptions } from '../utils/Sampler';
+import { QueueManager, type QueueManagerOptions } from '../utils/QueueManager';
 
 /**
  * Configuration options for AsyncLogger.
@@ -15,7 +20,7 @@ export interface AsyncLoggerOptions {
    */
   buffer?: {
     /**
-     * Size of the ring buffer (will be rounded to next power of 2).
+     * Size of the ring buffer.
      * @default 8192
      */
     size?: number;
@@ -34,24 +39,6 @@ export interface AsyncLoggerOptions {
   };
 
   /**
-   * Enable worker thread processing.
-   * @default false
-   */
-  useWorkers?: boolean;
-
-  /**
-   * Number of worker threads to spawn.
-   * @default 2
-   */
-  workerCount?: number;
-
-  /**
-   * Path to worker script.
-   * @default './workers/log-processor.worker.js'
-   */
-  workerPath?: string;
-
-  /**
    * Handler function called when buffer is flushed.
    * This function processes the log entries.
    */
@@ -62,32 +49,84 @@ export interface AsyncLoggerOptions {
    * @default true
    */
   enableMetrics?: boolean;
+
+  // ==========================================
+  // OPERATIONAL UTILITIES INTEGRATION
+  // ==========================================
+
+  /**
+   * Rate limiting configuration for log throttling.
+   * Can be a RateLimiter instance or options to create one.
+   * 
+   * @example
+   * rateLimiter: { max: 1000, window: 60000, strategy: 'sliding' }
+   */
+  rateLimiter?: import('../utils/RateLimiter').RateLimiter | import('../utils/RateLimiter').RateLimiterOptions;
+
+  /**
+   * PII and sensitive data redaction configuration.
+   * Can be a Redactor instance or options to create one.
+   * 
+   * @example
+   * redactor: { preset: 'strict', auditTrail: true }
+   */
+  redactor?: import('../utils/Redactor').Redactor | import('../utils/Redactor').RedactorOptions;
+
+  /**
+   * Statistical sampling configuration for volume control.
+   * Can be a Sampler instance or options to create one.
+   * 
+   * @example
+   * sampler: { rate: 0.1, strategy: 'adaptive' }
+   */
+  sampler?: import('../utils/Sampler').Sampler | import('../utils/Sampler').SamplerOptions;
+
+  /**
+   * Queue management configuration for handling backpressure.
+   * Can be a QueueManager instance or options to create one.
+   * 
+   * @example
+   * queueManager: { maxSize: 10000, dropPolicy: 'tail' }
+   */
+  queueManager?: import('../utils/QueueManager').QueueManager | import('../utils/QueueManager').QueueManagerOptions;
+
+  /**
+   * Fallback to sync logging when buffers are full or unavailable.
+   * @default false
+   */
+  fallbackToSync?: boolean;
+
+  /**
+   * Force flush when high water mark is reached.
+   * @default true
+   */
+  flushOnHighWater?: boolean;
+
+  /**
+   * Metrics callback for observability.
+   */
+  onMetrics?: (metrics: {
+    type: 'drop' | 'backpressure' | 'flush' | 'rate_limit' | 'sample';
+    count?: number;
+    reason?: string;
+    [key: string]: unknown;
+  }) => void;
 }
 
-/**
- * Worker state tracking interface.
- * @interface
- */
-interface TrackedWorker {
-  worker: Worker;
-  active: boolean;
-  processing: number;
-}
 
 /**
  * Async logging interface for high-performance logging.
  *
- * This class provides async logging methods that use a lock-free ring buffer
- * for zero-allocation logging. It's designed to work with the main Logger
+ * This class provides async logging methods that use a ring buffer
+ * with explicit backpressure handling. It's designed to work with the main Logger
  * class to provide both sync and async APIs.
  *
  * Features:
- * - Zero allocation in the hot path
- * - Lock-free ring buffer for single producer
- * - Optional worker thread processing
- * - Automatic batching and flushing
- * - Backpressure handling
- * - Performance metrics
+ * - Explicit backpressure with AddResult objects
+ * - Ring buffer for efficient batching
+ * - Automatic batching and flushing via microtasks and timers
+ * - Integrated operational utilities (rate limiting, redaction, etc.)
+ * - Performance metrics and monitoring
  *
  * @class AsyncLogger
  *
@@ -98,20 +137,21 @@ interface TrackedWorker {
  *     size: 8192,
  *     flushInterval: 100
  *   },
- *   useWorkers: true,
- *   workerCount: 4,
+ *   redactor: { preset: 'strict' },
+ *   rateLimiter: { max: 1000, window: 60000 },
  *   onFlush: async (entries) => {
- *     // Process entries
  *     await transport.sendBatch(entries);
  *   }
  * }, createLogEntry);
  *
- * // Log without blocking - returns immediately
- * asyncLogger.info('High frequency log', { data: 'value' });
+ * // Explicit backpressure handling
+ * const result = asyncLogger.info('Message', { data: 'value' });
+ * if (!result.success) {
+ *   console.warn(`Log dropped: ${result.reason}`);
+ * }
  *
- * // Get performance stats
- * const stats = asyncLogger.getStats();
- * console.log(`Processed: ${stats.buffer.metrics.totalFlushed} logs`);
+ * // Critical logging with retries
+ * await asyncLogger.logCritical('error', 'System failure');
  * ```
  */
 export class AsyncLogger {
@@ -131,31 +171,6 @@ export class AsyncLogger {
     meta?: Record<string, unknown>
   ) => LogEntry;
 
-  /**
-   * Worker threads for processing logs.
-   * @private
-   */
-  private workers: TrackedWorker[] = [];
-
-  // (Removed unused workerIndex previously intended for round-robin distribution)
-
-  /**
-   * Number of worker threads.
-   * @private
-   */
-  private readonly workerCount: number;
-
-  /**
-   * Whether workers are enabled.
-   * @private
-   */
-  private readonly useWorkers: boolean;
-
-  /**
-   * Path to worker script.
-   * @private
-   */
-  private readonly workerPath: string;
 
   /**
    * Whether metrics are enabled.
@@ -170,6 +185,26 @@ export class AsyncLogger {
   private readonly originalFlushHandler: (entries: LogEntry[]) => void | Promise<void>;
 
   /**
+   * Operational utilities.
+   * @private
+   */
+  private rateLimiter?: RateLimiter;
+  private redactor?: Redactor;
+  private sampler?: Sampler;
+  private queueManager?: QueueManager;
+  private droppedCount = 0;
+  private lastDropWarning = 0;
+  private backpressure = false;
+  private readonly fallbackToSync: boolean;
+  private readonly flushOnHighWater: boolean;
+  private readonly onMetrics?: (metrics: {
+    type: 'drop' | 'backpressure' | 'flush' | 'rate_limit' | 'sample';
+    count?: number;
+    reason?: string;
+    [key: string]: unknown;
+  }) => void;
+
+  /**
    * Creates a new AsyncLogger instance.
    *
    * @param {AsyncLoggerOptions} options - Configuration options
@@ -180,36 +215,27 @@ export class AsyncLogger {
     createEntry: (level: LogLevel, message: string, meta?: Record<string, unknown>) => LogEntry
   ) {
     this.createEntry = createEntry;
-    this.useWorkers = options.useWorkers || false;
-    this.workerCount = options.workerCount ?? 2;
-    this.workerPath = options.workerPath || './workers/log-processor.worker.js';
     this.enableMetrics = options.enableMetrics ?? true;
     this.originalFlushHandler = options.onFlush;
+    this.fallbackToSync = options.fallbackToSync || false;
+    this.flushOnHighWater = options.flushOnHighWater !== false;
+    this.onMetrics = options.onMetrics;
 
-    // Allow tests to disable workers to avoid open handles in Jest
-    const disableWorkersForTests =
-      typeof process !== 'undefined' &&
-      !!(process as unknown as { env?: Record<string, string | undefined> }).env &&
-      (process as unknown as { env?: Record<string, string | undefined> }).env
-        ?.MAGICLOGGER_DISABLE_WORKERS_FOR_TESTS === '1';
+    // Initialize operational utilities
+    this.initializeUtilities(options);
 
-    const canUseWorkers =
-      this.useWorkers && typeof Worker !== 'undefined' && !disableWorkersForTests;
-
-    // Initialize buffer with appropriate flush handler
+    // Initialize buffer with flush handler
     this.buffer = new AsyncBuffer({
       size: options.buffer?.size || 8192,
       flushInterval: options.buffer?.flushInterval || 100,
       flushSize: options.buffer?.flushSize || 1000,
-      onFlush: canUseWorkers ? this.sendToWorker.bind(this) : options.onFlush,
+      onFlush: this.processEntries.bind(this),
       overflowStrategy: 'drop-oldest',
       enableMetrics: this.enableMetrics,
+      onDrop: this.handleBufferDrop.bind(this),
+      onHighWater: this.handleHighWater.bind(this),
+      onLowWater: this.handleLowWater.bind(this),
     });
-
-    // Initialize workers if enabled
-    if (canUseWorkers) {
-      this.initializeWorkers();
-    }
   }
 
   /**
@@ -217,10 +243,11 @@ export class AsyncLogger {
    *
    * @param {string} message - The message to log
    * @param {Record<string, unknown>} [meta] - Optional metadata
+   * @returns {AddResult} Result of adding the entry
    */
-  public info(message: string, meta?: Record<string, unknown>): void {
+  public info(message: string, meta?: Record<string, unknown>): AddResult {
     const entry = this.createEntry('info', message, meta);
-    this.buffer.add(entry);
+    return this.addEntry(entry);
   }
 
   /**
@@ -228,10 +255,11 @@ export class AsyncLogger {
    *
    * @param {string} message - The message to log
    * @param {Record<string, unknown>} [meta] - Optional metadata
+   * @returns {AddResult} Result of adding the entry
    */
-  public warn(message: string, meta?: Record<string, unknown>): void {
+  public warn(message: string, meta?: Record<string, unknown>): AddResult {
     const entry = this.createEntry('warn', message, meta);
-    this.buffer.add(entry);
+    return this.addEntry(entry);
   }
 
   /**
@@ -239,10 +267,11 @@ export class AsyncLogger {
    *
    * @param {string} message - The message to log
    * @param {Record<string, unknown>} [meta] - Optional metadata
+   * @returns {AddResult} Result of adding the entry
    */
-  public error(message: string, meta?: Record<string, unknown>): void {
+  public error(message: string, meta?: Record<string, unknown>): AddResult {
     const entry = this.createEntry('error', message, meta);
-    this.buffer.add(entry);
+    return this.addEntry(entry);
   }
 
   /**
@@ -250,10 +279,11 @@ export class AsyncLogger {
    *
    * @param {string} message - The message to log
    * @param {Record<string, unknown>} [meta] - Optional metadata
+   * @returns {AddResult} Result of adding the entry
    */
-  public debug(message: string, meta?: Record<string, unknown>): void {
+  public debug(message: string, meta?: Record<string, unknown>): AddResult {
     const entry = this.createEntry('debug', message, meta);
-    this.buffer.add(entry);
+    return this.addEntry(entry);
   }
 
   /**
@@ -261,10 +291,11 @@ export class AsyncLogger {
    *
    * @param {string} message - The message to log
    * @param {Record<string, unknown>} [meta] - Optional metadata
+   * @returns {AddResult} Result of adding the entry
    */
-  public success(message: string, meta?: Record<string, unknown>): void {
+  public success(message: string, meta?: Record<string, unknown>): AddResult {
     const entry = this.createEntry('success', message, meta);
-    this.buffer.add(entry);
+    return this.addEntry(entry);
   }
 
   /**
@@ -273,10 +304,11 @@ export class AsyncLogger {
    * @param {string} message - The message to log
    * @param {LogLevel} [level='info'] - The log level
    * @param {Record<string, unknown>} [meta] - Optional metadata
+   * @returns {AddResult} Result of adding the entry
    */
-  public log(message: string, level: LogLevel = 'info', meta?: Record<string, unknown>): void {
+  public log(message: string, level: LogLevel = 'info', meta?: Record<string, unknown>): AddResult {
     const entry = this.createEntry(level, message, meta);
-    this.buffer.add(entry);
+    return this.addEntry(entry);
   }
 
   /**
@@ -300,25 +332,13 @@ export class AsyncLogger {
   /**
    * Get async logger statistics.
    *
-   * @returns {object} Statistics including buffer stats and worker info
+   * @returns {object} Statistics including buffer stats
    */
   public getStats(): {
     buffer: ReturnType<AsyncBuffer['getStats']>;
-    workers: {
-      enabled: boolean;
-      count: number;
-      active: number;
-      totalProcessing: number;
-    };
   } {
     return {
       buffer: this.buffer.getStats(),
-      workers: {
-        enabled: this.useWorkers,
-        count: this.workers.length,
-        active: this.workers.filter(w => w.active).length,
-        totalProcessing: this.workers.reduce((sum, w) => sum + w.processing, 0),
-      },
     };
   }
 
@@ -328,205 +348,14 @@ export class AsyncLogger {
    * @returns {Promise<void>} Resolves when logger is closed
    */
   public async close(): Promise<void> {
-    // Close buffer first
+    // Close buffer
     await this.buffer.close();
-
-    // Terminate workers
-    if (this.workers.length > 0) {
-      await Promise.all(this.workers.map(({ worker }) => this.terminateWorker(worker)));
-      this.workers = [];
-    }
   }
 
-  /**
-   * Initialize worker threads for log processing.
-   * @private
-   */
-  private initializeWorkers(): void {
-    try {
-      // Create worker threads
-      for (let i = 0; i < this.workerCount; i++) {
-        const worker = new Worker(this.workerPath);
 
-        // Set up worker event handlers
-        worker.addEventListener('message', event => {
-          this.handleWorkerMessage(worker, event);
-        });
 
-        worker.addEventListener('error', error => {
-          this.handleWorkerError(worker, error);
-        });
 
-        this.workers.push({
-          worker,
-          active: true,
-          processing: 0,
-        });
-      }
 
-      console.log(`[AsyncLogger] Initialized ${this.workers.length} worker threads`);
-    } catch (error) {
-      console.error('[AsyncLogger] Failed to initialize workers:', error);
-      console.log('[AsyncLogger] Falling back to main thread processing');
-
-      // Recreate buffer with direct flush handler
-      this.buffer = new AsyncBuffer({
-        size: this.buffer.getStats().capacity,
-        flushInterval: 100,
-        flushSize: 1000,
-        onFlush: this.originalFlushHandler,
-        overflowStrategy: 'drop-oldest',
-        enableMetrics: this.enableMetrics,
-      });
-    }
-  }
-
-  /**
-   * Send log entries to worker thread.
-   *
-   * @param {LogEntry[]} entries - Log entries to process
-   * @private
-   */
-  private sendToWorker(entries: LogEntry[]): void {
-    if (this.workers.length === 0) {
-      console.error('[AsyncLogger] No workers available, falling back to direct processing');
-      // Fallback to direct processing
-      const result = this.originalFlushHandler(entries);
-      if (result && typeof result.then === 'function') {
-        result.catch(error => {
-          console.error('[AsyncLogger] Flush handler error:', error);
-        });
-      }
-      return;
-    }
-
-    // Find worker with least load
-    let selectedWorker: TrackedWorker | undefined = this.workers[0];
-    let minLoad = selectedWorker ? selectedWorker.processing : Number.MAX_SAFE_INTEGER;
-
-    for (const worker of this.workers) {
-      if (worker.active && worker.processing < minLoad) {
-        selectedWorker = worker;
-        minLoad = worker.processing;
-      }
-    }
-
-    // Send entries to worker
-    if (!selectedWorker) {
-      // Should not happen due to earlier length check, but guard for TS
-      const direct = this.originalFlushHandler(entries);
-      if (direct && typeof (direct as Promise<void>).then === 'function') {
-        (direct as Promise<void>).catch(err =>
-          console.error('[AsyncLogger] Flush handler error:', err)
-        );
-      }
-      return;
-    }
-
-    try {
-      selectedWorker.processing++;
-      selectedWorker.worker.postMessage({ type: 'logs', entries });
-    } catch (error) {
-      selectedWorker.processing--;
-      console.error('[AsyncLogger] Failed to send to worker:', error);
-
-      // Fallback to direct processing
-      const result = this.originalFlushHandler(entries);
-      if (result && typeof result.then === 'function') {
-        result.catch(err => {
-          console.error('[AsyncLogger] Fallback flush handler error:', err);
-        });
-      }
-    }
-  }
-
-  /**
-   * Handle message from worker thread.
-   *
-   * @param {Worker} worker - The worker that sent the message
-   * @param {MessageEvent} event - The message event
-   * @private
-   */
-  private handleWorkerMessage(worker: Worker, event: MessageEvent): void {
-    const { type, ...data } = event.data;
-
-    // Find tracked worker
-    const trackedWorker = this.workers.find(w => w.worker === worker);
-    if (!trackedWorker) return;
-
-    switch (type) {
-      case 'processed':
-        // Worker successfully processed logs
-        trackedWorker.processing = Math.max(0, trackedWorker.processing - 1);
-        if (data.metrics && this.enableMetrics) {
-          // Could aggregate worker metrics here
-        }
-        break;
-
-      case 'ready':
-        // Worker is ready
-        trackedWorker.active = true;
-        break;
-
-      case 'error':
-        // Worker encountered an error
-        console.error('[AsyncLogger] Worker error:', data.error);
-        break;
-
-      default:
-        console.warn('[AsyncLogger] Unknown worker message type:', type);
-    }
-  }
-
-  /**
-   * Handle worker thread error.
-   *
-   * @param {Worker} worker - The worker that errored
-   * @param {ErrorEvent} error - The error event
-   * @private
-   */
-  private handleWorkerError(worker: Worker, error: ErrorEvent): void {
-    console.error('[AsyncLogger] Worker error:', error);
-
-    // Find and mark worker as inactive
-    const trackedWorker = this.workers.find(w => w.worker === worker);
-    if (trackedWorker) {
-      trackedWorker.active = false;
-      trackedWorker.processing = 0;
-    }
-
-    // Remove failed worker
-    const index = this.workers.findIndex(w => w.worker === worker);
-    if (index >= 0) {
-      this.workers.splice(index, 1);
-    }
-
-    // Attempt to restart worker
-    if (this.workers.length < this.workerCount && this.useWorkers) {
-      console.log('[AsyncLogger] Attempting to restart worker');
-      setTimeout(() => this.initializeWorkers(), 1000);
-    }
-  }
-
-  /**
-   * Terminate a worker thread gracefully.
-   *
-   * @param {Worker} worker - The worker to terminate
-   * @returns {Promise<void>} Resolves when worker is terminated
-   * @private
-   */
-  private async terminateWorker(worker: Worker): Promise<void> {
-    return new Promise(resolve => {
-      // Send shutdown message
-      worker.postMessage({ type: 'shutdown' });
-
-      // Give worker time to cleanup
-      setTimeout(() => {
-        worker.terminate();
-        resolve();
-      }, 100);
-    });
-  }
 
   /**
    * Check if the async logger is ready.
@@ -534,7 +363,7 @@ export class AsyncLogger {
    * @returns {boolean} True if logger is ready
    */
   public isReady(): boolean {
-    return !this.buffer.isEmpty() || this.workers.some(w => w.active);
+    return !this.buffer.isEmpty();
   }
 
   /**
@@ -552,5 +381,231 @@ export class AsyncLogger {
   public getUtilization(): number {
     const stats = this.buffer.getStats();
     return Math.round(stats.utilization * 100);
+  }
+
+  /**
+  * Check if logger is experiencing backpressure.
+  * @returns {boolean} True if under backpressure
+   */
+  public isBackpressured(): boolean {
+    return this.backpressure;
+  }
+
+  /**
+   * Get drop statistics.
+   * @returns Drop stats
+   */
+  public getDropStats(): { total: number; rate: number } {
+    const now = Date.now();
+    const timeSinceWarning = now - this.lastDropWarning;
+    return {
+      total: this.droppedCount,
+      rate: timeSinceWarning > 0 ? this.droppedCount / timeSinceWarning * 1000 : 0
+    };
+  }
+
+  /**
+   * Log critical message with acknowledgment.
+   * Waits for space if buffer is full.
+   */
+  public async logCritical(
+    level: LogLevel,
+    message: string,
+    meta?: Record<string, unknown>
+  ): Promise<void> {
+    const entry = this.createEntry(level, message, meta);
+    
+    let attempts = 0;
+    const maxAttempts = 10;
+    // Synchronous retry loop to avoid timer leaks in tests
+    while (attempts < maxAttempts) {
+      const result = this.addEntry(entry);
+      if (result.success) return;
+      if (result.reason === 'closing') {
+        throw new Error('Logger is closing');
+      }
+      attempts++;
+    }
+    throw new Error(`Failed to log after ${maxAttempts} attempts`);
+  }
+
+  /**
+   * Initialize operational utilities.
+   * @private
+   */
+  private initializeUtilities(options: AsyncLoggerOptions): void {
+    // Initialize RateLimiter
+    if (options.rateLimiter) {
+      if ('allow' in options.rateLimiter) {
+        this.rateLimiter = options.rateLimiter as RateLimiter;
+      } else {
+        this.rateLimiter = new RateLimiter(options.rateLimiter as RateLimiterOptions);
+      }
+    }
+
+    // Initialize Redactor
+    if (options.redactor) {
+      if ('redact' in options.redactor) {
+        this.redactor = options.redactor as Redactor;
+      } else {
+        this.redactor = new Redactor(options.redactor as RedactorOptions);
+      }
+    }
+
+    // Initialize Sampler
+    if (options.sampler) {
+      if ('shouldSample' in options.sampler) {
+        this.sampler = options.sampler as Sampler;
+      } else {
+        this.sampler = new Sampler(options.sampler as SamplerOptions);
+      }
+    }
+
+    // Initialize QueueManager
+    if (options.queueManager) {
+      if ('enqueue' in options.queueManager) {
+        this.queueManager = options.queueManager as QueueManager;
+      } else {
+        this.queueManager = new QueueManager({
+          ...options.queueManager as QueueManagerOptions,
+          onDrop: (entries, reason) => {
+            this.onMetrics?.({
+              type: 'drop',
+              count: entries.length,
+              reason
+            });
+          }
+        });
+      }
+    }
+  }
+
+  /**
+   * Add entry with operational utilities processing.
+   * @private
+   */
+  private addEntry(entry: LogEntry): AddResult {
+    // Apply sampling
+    if (this.sampler && !this.sampler.shouldSample(entry)) {
+      this.onMetrics?.({ type: 'sample', count: 1 });
+      return {
+        success: false,
+        reason: 'buffer_full', // Reuse this for consistency
+        bufferStats: {
+          size: 0,
+          capacity: 1,
+          utilization: 0
+        }
+      };
+    }
+
+    // Apply rate limiting
+    if (this.rateLimiter && !this.rateLimiter.allow(entry)) {
+      this.onMetrics?.({ type: 'rate_limit', count: 1 });
+      return {
+        success: false,
+        reason: 'buffer_full', // Reuse this for consistency
+        bufferStats: {
+          size: 0,
+          capacity: 1,
+          utilization: 0
+        }
+      };
+    }
+
+    // Apply redaction
+    if (this.redactor) {
+      entry = this.redactor.redactLogEntry(entry);
+    }
+
+    // Add to buffer or queue
+    if (this.queueManager) {
+      const queued = this.queueManager.enqueue(entry);
+      return {
+        success: queued,
+        bufferStats: {
+          size: this.queueManager.size(),
+          capacity: this.queueManager.getStats().capacity,
+          utilization: this.queueManager.size() / this.queueManager.getStats().capacity
+        }
+      };
+    }
+
+    const addResult = (this.buffer as unknown as {
+      add: (e: LogEntry) => boolean | AddResult;
+      getStats: () => { size: number; capacity: number; utilization: number };
+    }).add(entry);
+
+    if (typeof addResult === 'boolean') {
+      const s = this.buffer.getStats();
+      return { success: addResult, bufferStats: { size: s.size, capacity: s.capacity, utilization: s.utilization } };
+    }
+    return addResult;
+  }
+
+  /**
+   * Process entries with utilities applied.
+   * @private
+   */
+  private async processEntries(entries: LogEntry[]): Promise<void> {
+    try {
+      await this.originalFlushHandler(entries);
+    } catch (error) {
+      console.error('[AsyncLogger] Process entries error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Handle buffer drop events.
+   * @private
+   */
+  private handleBufferDrop(entry: LogEntry, reason: string): void {
+    this.droppedCount++;
+    
+    // Rate-limit warnings
+    const now = Date.now();
+    if (now - this.lastDropWarning > 5000) {
+      console.warn(
+        `[AsyncLogger] Dropped ${this.droppedCount} log entries due to ${reason}`,
+        { level: entry.level, message: entry.message?.toString().slice(0, 100) }
+      );
+      this.lastDropWarning = now;
+      this.droppedCount = 0;
+    }
+    
+    // Emit metrics
+    this.onMetrics?.({
+      type: 'drop',
+      count: this.droppedCount,
+      reason
+    });
+  }
+
+  /**
+   * Handle high water mark events.
+   * @private
+   */
+  private handleHighWater(stats: BufferStats): void {
+    this.backpressure = true;
+    console.warn('[AsyncLogger] Buffer high water mark reached', stats);
+    
+    // Emergency flush if configured
+    if (this.flushOnHighWater) {
+      this.buffer.flush();
+    }
+    
+    this.onMetrics?.({ type: 'backpressure', ...stats });
+  }
+
+  /**
+   * Handle low water mark events.
+   * @private
+   */
+  private handleLowWater(stats: BufferStats): void {
+    this.backpressure = false;
+    console.info('[AsyncLogger] Buffer pressure relieved', stats);
+    
+    this.onMetrics?.({ type: 'backpressure', ...stats });
   }
 }

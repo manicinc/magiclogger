@@ -28,7 +28,9 @@
 
 // Import types and classes for internal use
 import { Logger } from './Logger';
-import type { LoggerOptions } from './types/logger';
+import type { LoggerOptions, LogLevel } from './types/logger';
+import type { AsyncLoggerOptions } from './async/AsyncLogger';
+import { AsyncLogger } from './async/AsyncLogger';
 
 /**
  * Main Logger class - the primary interface for logging.
@@ -36,6 +38,12 @@ import type { LoggerOptions } from './types/logger';
  */
 export { Logger } from './Logger';
 export type { LoggerOptions } from './types/logger';
+
+/**
+ * AsyncLogger for high-performance async logging with buffering.
+ */
+export { AsyncLogger } from './async/AsyncLogger';
+export type { AsyncLoggerOptions } from './async/AsyncLogger';
 
 /**
  * Core logger types
@@ -79,6 +87,38 @@ export type { ThemeDefinition } from './types/theme';
 export { Colorizer } from './core/Colorizer';
 export { StyleBuilder } from './core/StyleBuilder';
 export { meta, err } from './utils/meta';
+
+// ==========================================
+// OPERATIONS/MONITORING UTILITIES
+// ==========================================
+
+/**
+ * Queue management for handling backpressure and log overflow.
+ * Tree-shakeable: Only imported when needed.
+ */
+export { QueueManager } from './utils/QueueManager';
+export type { QueueManagerOptions, QueueStats, DropPolicy } from './utils/QueueManager';
+
+/**
+ * Rate limiting for log throttling and volume control.
+ * Tree-shakeable: Only imported when needed.
+ */
+export { RateLimiter } from './utils/RateLimiter';
+export type { RateLimiterOptions, RateLimitStrategy } from './utils/RateLimiter';
+
+/**
+ * PII and sensitive data redaction system.
+ * Tree-shakeable: Only imported when needed.
+ */
+export { Redactor, createRedactorPreset } from './utils/Redactor';
+export type { RedactorOptions, RedactionPattern, RedactionPreset, RedactionStrategy } from './utils/Redactor';
+
+/**
+ * Statistical sampling for log volume control.
+ * Tree-shakeable: Only imported when needed.
+ */
+export { Sampler, createSamplerPreset } from './utils/Sampler';
+export type { SamplerOptions, SamplingStrategy } from './utils/Sampler';
 
 // ==========================================
 // TRANSPORT TYPES ONLY
@@ -165,6 +205,56 @@ export { createPinoCompatible } from './compatibility/loggers/PinoCompatibleLogg
 export function createLogger(options: Partial<LoggerOptions> = {}): Logger {
   return new Logger(options);
 }
+
+/**
+ * Creates a new AsyncLogger instance with the given options.
+ * Convenience function for creating async loggers with operational utilities.
+ *
+ * @param {AsyncLoggerOptions} options - AsyncLogger options
+ * @returns {AsyncLogger} New async logger instance
+ *
+ * @example
+ * ```typescript
+ * import { createAsyncLogger, Redactor, RateLimiter } from 'magiclogger';
+ * 
+ * const redactor = new Redactor({ preset: 'strict' });
+ * const rateLimiter = new RateLimiter({ max: 1000, window: 60000 });
+ * 
+ * const asyncLogger = createAsyncLogger({
+ *   buffer: { size: 8192, flushInterval: 100 },
+ *   redactor,
+ *   rateLimiter,
+ *   onFlush: async (entries) => {
+ *     // Process entries with built-in redaction and rate limiting
+ *     await transport.sendBatch(entries);
+ *   }
+ * });
+ * ```
+ */
+export function createAsyncLogger(options: AsyncLoggerOptions): AsyncLogger {
+  // Create a simple log entry factory function
+  const now = new Date();
+  const createLogEntry = (level: LogLevel, message: string, meta?: Record<string, unknown>) => ({
+    id: `async-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    level,
+    message,
+    timestamp: now.toISOString(),
+    timestampMs: Date.now(),
+    plainMessage: message,
+    context: meta,
+  });
+
+  return new AsyncLogger(options, createLogEntry);
+}
+
+// ==========================================
+// ENHANCED ASYNC TYPES EXPORTS
+// ==========================================
+
+/**
+ * Enhanced async buffer types for explicit backpressure handling
+ */
+export type { AddResult, BufferStats } from './async/AsyncBuffer';
 
 // ==========================================
 // DEFAULT LOGGER SINGLETON
