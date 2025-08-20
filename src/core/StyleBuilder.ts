@@ -179,6 +179,13 @@ export class StyleBuilder {
   private static styleCache = new Map<string, StyleBuilder>();
 
   /**
+   * Counter for cache size checks to avoid checking on every add.
+   * @private
+   * @static
+   */
+  private static cacheAddCount = 0;
+
+  /**
    * Metadata for cached builders tracking their useColors state.
    *
    * @private
@@ -239,19 +246,24 @@ export class StyleBuilder {
     const createBuilder = (next: ColorName[], precomputedKey?: string): StyleBuilderCallable => {
       // Use cache when possible
       const cacheKey = precomputedKey ?? (next.length ? next.join(',') : '');
-      const cached = StyleBuilder.styleCache.get(cacheKey);
 
-      if (cached) {
-        const meta = StyleBuilder.cacheMeta.get(cached);
-        if (meta && meta.useColors === use) {
-          return cached as unknown as StyleBuilderCallable;
+      // Skip cache lookup for empty key
+      if (cacheKey) {
+        const cached = StyleBuilder.styleCache.get(cacheKey);
+        if (cached) {
+          const meta = StyleBuilder.cacheMeta.get(cached);
+          if (meta && meta.useColors === use) {
+            return cached as unknown as StyleBuilderCallable;
+          }
         }
       }
 
       const child = new StyleBuilder(use, next) as unknown as StyleBuilderCallable;
       const childSB = child as unknown as StyleBuilder;
-      StyleBuilder.addToCache(cacheKey, childSB);
-      StyleBuilder.cacheMeta.set(childSB, { useColors: use });
+      if (cacheKey) {
+        StyleBuilder.addToCache(cacheKey, childSB);
+        StyleBuilder.cacheMeta.set(childSB, { useColors: use });
+      }
       return child;
     };
 
@@ -267,62 +279,66 @@ export class StyleBuilder {
        * @returns {any} The appropriate value or function for the property
        */
       get: (_target, prop: string | symbol): unknown => {
+        // Fast path for string properties
+        if (typeof prop === 'string') {
+          // Fast path: check per-instance child cache first
+          const hit = childrenCache[prop];
+          if (hit) {
+            return hit;
+          }
+
+          // Handle style properties
+          const alias = StyleBuilder.ALIASES[prop];
+          // Resolve alias if present, otherwise use property name
+          const styleKey: string = alias !== undefined ? alias : prop;
+          const styleName = styleKey as ColorName;
+
+          if (StyleBuilder.VALID.has(styleKey)) {
+            // Check global cache
+            const nextKey = key ? key + ',' + styleKey : styleKey;
+            const cached = StyleBuilder.styleCache.get(nextKey);
+
+            if (cached) {
+              const meta = StyleBuilder.cacheMeta.get(cached);
+              if (meta && meta.useColors === use) {
+                const asCallable = cached as unknown as StyleBuilderCallable;
+                childrenCache[prop] = asCallable;
+                return asCallable;
+              }
+            }
+
+            // Build new style array using spread to avoid undefined reads under noUncheckedIndexedAccess
+            const nextStyles = styles.length
+              ? ([...styles, styleName] as ColorName[])
+              : ([styleName] as ColorName[]);
+
+            // Create and cache new builder
+            const child = createBuilder(nextStyles, nextKey);
+            childrenCache[prop] = child;
+            return child;
+          }
+
+          // Expose helper methods
+          if (prop === 'getStyles') {
+            return () => [...styles];
+          }
+          if (prop === 'isColorEnabled') {
+            return () => use;
+          }
+        }
+
         // Handle special methods
         if (prop === 'valueOf' || prop === 'toString') {
           return () => call;
         }
 
-        if (typeof prop !== 'string') {
-          if (prop === Symbol.for('nodejs.util.inspect.custom')) {
-            return () => call;
-          }
+        if (prop === Symbol.for('nodejs.util.inspect.custom')) {
+          return () => call;
+        }
+
+        // For symbol properties, return undefined (except for known symbols)
+        if (typeof prop === 'symbol') {
           return undefined;
-        }
-
-        // Expose helper methods
-        if (prop === 'getStyles') {
-          return () => [...styles];
-        }
-        if (prop === 'isColorEnabled') {
-          return () => use;
-        }
-
-        // Handle style properties
-        const propStr = prop as string; // narrowed by typeof check above
-        const alias = StyleBuilder.ALIASES[propStr];
-        // Resolve alias if present, otherwise use property name
-        const styleKey: string = alias !== undefined ? alias : propStr;
-        const styleName = styleKey as ColorName;
-
-        if (StyleBuilder.isValidStyle(styleKey)) {
-          // Fast path: check per-instance child cache first
-          const hit = childrenCache[styleKey];
-          if (hit) {
-            return hit;
-          }
-
-          // Check global cache
-          const nextKey = key ? key + ',' + styleKey : styleKey;
-          const cached = StyleBuilder.styleCache.get(nextKey);
-
-          if (cached) {
-            const meta = StyleBuilder.cacheMeta.get(cached);
-            if (meta && meta.useColors === use) {
-              const asCallable = cached as unknown as StyleBuilderCallable;
-              childrenCache[styleKey] = asCallable;
-              return asCallable;
-            }
-          }
-
-          // Build new style array using spread to avoid undefined reads under noUncheckedIndexedAccess
-          const nextStyles = styles.length
-            ? ([...styles, styleName] as ColorName[])
-            : ([styleName] as ColorName[]);
-
-          // Create and cache new builder
-          const child = createBuilder(nextStyles, nextKey);
-          childrenCache[styleKey] = child;
-          return child;
         }
 
         // Unknown property returns the callable function
@@ -419,13 +435,18 @@ export class StyleBuilder {
    * @private
    */
   private static addToCache(key: string, builder: StyleBuilder): void {
-    // Implement cache size limit
-    if (StyleBuilder.styleCache.size >= StyleBuilder.MAX_CACHE_SIZE) {
-      // Remove the oldest entry (first in map) if present
-      const iter = StyleBuilder.styleCache.keys().next();
-      if (!iter.done) {
-        const firstKey = iter.value as string;
-        StyleBuilder.styleCache.delete(firstKey);
+    // Only check cache size periodically to improve performance
+    if (++StyleBuilder.cacheAddCount % 100 === 0) {
+      if (StyleBuilder.styleCache.size >= StyleBuilder.MAX_CACHE_SIZE) {
+        // Clear 10% of cache when full
+        const toRemove = Math.floor(StyleBuilder.MAX_CACHE_SIZE * 0.1);
+        const iter = StyleBuilder.styleCache.keys();
+        for (let i = 0; i < toRemove; i++) {
+          const next = iter.next();
+          if (!next.done) {
+            StyleBuilder.styleCache.delete(next.value);
+          }
+        }
       }
     }
 

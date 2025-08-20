@@ -197,8 +197,8 @@ export class AsyncLogger {
   private droppedCount = 0;
   private lastDropWarning = 0;
   private backpressure = false;
-  private readonly fallbackToSync: boolean;
   private readonly flushOnHighWater: boolean;
+  private readonly fallbackToSync: boolean;
   private readonly onMetrics?: (metrics: {
     type: 'drop' | 'backpressure' | 'flush' | 'rate_limit' | 'sample';
     count?: number;
@@ -219,7 +219,7 @@ export class AsyncLogger {
     this.createEntry = createEntry;
     this.enableMetrics = options.enableMetrics ?? true;
     this.originalFlushHandler = options.onFlush;
-    this.fallbackToSync = options.fallbackToSync || false;
+    this.fallbackToSync = options.fallbackToSync ?? false;
     this.flushOnHighWater = options.flushOnHighWater !== false;
     this.onMetrics = options.onMetrics;
 
@@ -478,10 +478,33 @@ export class AsyncLogger {
   }
 
   /**
-   * Add entry with operational utilities processing.
+   * Add entry with operational utilities processing - fast path for common case.
    * @private
    */
   private addEntry(entry: LogEntry): AddResult {
+    // Fast path: no utilities configured
+    if (!this.sampler && !this.rateLimiter && !this.redactor && !this.queueManager) {
+      const ret = this.buffer.add(entry) as boolean | AddResult;
+      // Support both boolean (fast path) and structured AddResult from mocks/alt implementations
+      if (ret && typeof ret === 'object' && 'success' in ret) {
+        return ret as AddResult;
+      }
+      const success = ret as boolean;
+      return {
+        success,
+        bufferStats: success ? undefined : this.getBufferStatsLazy(),
+      };
+    }
+
+    // Slow path: apply utilities
+    return this.addEntryWithUtilities(entry);
+  }
+
+  /**
+   * Add entry with full utility processing - only called when utilities are configured.
+   * @private
+   */
+  private addEntryWithUtilities(entry: LogEntry): AddResult {
     // Apply sampling
     if (this.sampler && !this.sampler.shouldSample(entry)) {
       this.onMetrics?.({ type: 'sample', count: 1 });
@@ -528,15 +551,41 @@ export class AsyncLogger {
       };
     }
 
-    const addRet = this.buffer.add(entry) as boolean | AddResult;
-    if (typeof addRet === 'boolean') {
-      const s = this.buffer.getStats();
-      return {
-        success: addRet,
-        bufferStats: { size: s.size, capacity: s.capacity, utilization: s.utilization },
-      };
+    const ret = this.buffer.add(entry) as boolean | AddResult;
+    if (ret && typeof ret === 'object' && 'success' in ret) {
+      return ret as AddResult;
     }
-    return addRet;
+    const success = ret as boolean;
+    const result = {
+      success,
+      bufferStats: success ? undefined : this.getBufferStatsLazy(),
+    };
+
+    // If buffer add failed and fallbackToSync is enabled, process immediately
+    if (!success && this.fallbackToSync) {
+      try {
+        this.processEntries([entry]);
+        return { ...result, success: true };
+      } catch (error) {
+        // If sync processing fails, return the original failed result
+        return result;
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Lazy buffer stats creation - only create when needed.
+   * @private
+   */
+  private getBufferStatsLazy(): { size: number; capacity: number; utilization: number } {
+    const stats = this.buffer.getStats();
+    return {
+      size: stats.size,
+      capacity: stats.capacity,
+      utilization: stats.utilization,
+    };
   }
 
   /**

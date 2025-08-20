@@ -447,12 +447,24 @@ describe('Sampler', () => {
 
     it('should handle very high sampling rates efficiently', () => {
       sampler = new Sampler({ rate: 0.99999, strategy: 'random' });
+      // Reuse a prebuilt entry to avoid 10k Date/toISOString allocations in the loop
+      const hotEntry: LogEntry = {
+        id: 'hot',
+        timestamp: '2000-01-01T00:00:00.000Z',
+        timestampMs: 946684800000,
+        level: 'info',
+        message: 'Hot path',
+        plainMessage: 'Hot path',
+        loggerId: 'test-logger',
+        tags: ['test'],
+      } as LogEntry;
 
-      const start = Date.now();
+      const start = (globalThis.performance?.now?.() as number | undefined) ?? Date.now();
       for (let i = 0; i < 10000; i++) {
-        sampler.shouldSample(createEntry(String(i)));
+        sampler.shouldSample(hotEntry);
       }
-      const duration = Date.now() - start;
+      const end = (globalThis.performance?.now?.() as number | undefined) ?? Date.now();
+      const duration = end - start;
 
       // Should complete quickly (< 1 second for 10k samples)
       expect(duration).toBeLessThan(1000);

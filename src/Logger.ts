@@ -620,10 +620,7 @@ export class Logger {
   }
 
   /** Normalize variadic args to a single message string plus optional meta */
-  private normalizeArgs(
-    level: LogLevel,
-    args: unknown[]
-  ): {
+  private normalizeArgs(args: unknown[]): {
     message: string;
     meta?: LogEntryMeta;
   } {
@@ -885,7 +882,7 @@ export class Logger {
       this.log(args[0] as string, 'info', unwrapped);
       return;
     }
-    const { message, meta } = this.normalizeArgs('info', args);
+    const { message, meta } = this.normalizeArgs(args);
     this.log(message, 'info', meta);
   }
 
@@ -909,7 +906,7 @@ export class Logger {
       this.log(args[0] as string, 'success', unwrapped);
       return;
     }
-    const { message, meta } = this.normalizeArgs('success', args);
+    const { message, meta } = this.normalizeArgs(args);
     this.log(message, 'success', meta);
   }
 
@@ -933,7 +930,7 @@ export class Logger {
       this.log(args[0] as string, 'warn', unwrapped);
       return;
     }
-    const { message, meta } = this.normalizeArgs('warn', args);
+    const { message, meta } = this.normalizeArgs(args);
     this.log(message, 'warn', meta);
   }
 
@@ -957,7 +954,7 @@ export class Logger {
       this.log(args[0] as string, 'error', unwrapped);
       return;
     }
-    const { message, meta } = this.normalizeArgs('error', args);
+    const { message, meta } = this.normalizeArgs(args);
     this.log(message, 'error', meta);
   }
 
@@ -982,7 +979,7 @@ export class Logger {
       this.log(args[0] as string, 'debug', unwrapped);
       return;
     }
-    const { message, meta } = this.normalizeArgs('debug', args);
+    const { message, meta } = this.normalizeArgs(args);
     this.log(message, 'debug', meta);
   }
 

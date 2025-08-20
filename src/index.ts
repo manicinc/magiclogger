@@ -29,6 +29,7 @@
 // Import types and classes for internal use
 import { Logger } from './Logger';
 import type { LoggerOptions, LogLevel } from './types/logger';
+import type { LogEntry } from './types/transport';
 import type { AsyncLoggerOptions } from './async/AsyncLogger';
 import { AsyncLogger } from './async/AsyncLogger';
 
@@ -193,22 +194,101 @@ export { createPinoCompatible } from './compatibility/loggers/PinoCompatibleLogg
 // ==========================================
 
 /**
- * Creates a new Logger instance with the given options.
- * Convenience function for creating loggers.
+ * Creates a new logger instance with async by default.
+ * This is the modern, high-performance API similar to Pino's approach.
+ * For maximum stability and security audits, set async: false.
  *
- * @param {Partial<LoggerOptions>} [options={}] - Logger options
- * @returns {Logger} New logger instance
+ * @param {object} [options={}] - Logger options
+ * @param {boolean} [options.async=true] - Use async logging by default (recommended)
+ * @param {Function} [options.onFlush] - Required for async mode
+ * @returns {Logger | AsyncLogger} Logger instance (async by default)
  *
  * @example
  * ```typescript
+ * // Modern async-first API (recommended)
  * const logger = createLogger({
  *   id: 'my-app',
- *   tags: ['production']
+ *   tags: ['production'],
+ *   onFlush: async (entries) => transport.sendBatch(entries)
+ * });
+ *
+ * // For maximum stability/security audits (synchronous)
+ * const syncLogger = createLogger({
+ *   async: false,
+ *   id: 'my-app'
  * });
  * ```
  */
-export function createLogger(options: Partial<LoggerOptions> = {}): Logger {
-  return new Logger(options);
+export function createLogger(
+  options: {
+    async?: boolean;
+    onFlush?: (entries: LogEntry[]) => Promise<void>;
+    buffer?: { size?: number; flushInterval?: number; flushSize?: number };
+    redactor?: any;
+    rateLimiter?: any;
+    sampler?: any;
+    queueManager?: any;
+  } & Partial<LoggerOptions> = {}
+): Logger | AsyncLogger {
+  const {
+    async: useAsync = true,
+    onFlush,
+    buffer,
+    redactor,
+    rateLimiter,
+    sampler,
+    queueManager,
+    ...loggerOptions
+  } = options;
+
+  if (useAsync) {
+    if (!onFlush) {
+      // Provide helpful error message
+      throw new Error(
+        'createLogger(): async mode requires onFlush handler. ' +
+          'Either provide onFlush or set async: false for synchronous logging. ' +
+          'See docs for transport setup: https://docs.magiclogger.dev/transports'
+      );
+    }
+
+    return createAsyncLogger({
+      buffer: buffer || { size: 8192, flushInterval: 100 },
+      onFlush,
+      redactor,
+      rateLimiter,
+      sampler,
+      queueManager,
+      fallbackToSync: true, // Graceful degradation
+      flushOnHighWater: true,
+    });
+  }
+
+  return new Logger(loggerOptions);
+}
+
+/**
+ * Creates a synchronous logger for maximum stability and robustness.
+ * Recommended for security audits, development, debugging, and when you need
+ * guaranteed log delivery without async complexity.
+ *
+ * @param {Partial<LoggerOptions>} [options={}] - Logger options
+ * @returns {Logger} Synchronous logger instance
+ *
+ * @example
+ * ```typescript
+ * // For development, debugging, security audits
+ * const logger = createSyncLogger({
+ *   id: 'my-app',
+ *   tags: ['production'],
+ *   useColors: true
+ * });
+ *
+ * // Guaranteed immediate output, no async complexity
+ * logger.info('Critical security event'); // Appears instantly
+ * ```
+ */
+export function createSyncLogger(options: Partial<LoggerOptions> = {}): Logger {
+  return new Logger({ ...options, mode: 'sync' });
 }
 
 /**
@@ -238,18 +318,172 @@ export function createLogger(options: Partial<LoggerOptions> = {}): Logger {
  */
 export function createAsyncLogger(options: AsyncLoggerOptions): AsyncLogger {
   // Create a simple log entry factory function
-  const now = new Date();
   const createLogEntry = (level: LogLevel, message: string, meta?: Record<string, unknown>) => ({
     id: `async-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     level,
     message,
-    timestamp: now.toISOString(),
+    timestamp: new Date().toISOString(),
     timestampMs: Date.now(),
     plainMessage: message,
     context: meta,
   });
 
   return new AsyncLogger(options, createLogEntry);
+}
+
+/**
+ * Creates a minimal, high-performance AsyncLogger with no operational utilities.
+ * Optimized for maximum throughput - only ring buffer and flushing.
+ *
+ * @param {object} options - Minimal async logger options
+ * @returns {AsyncLogger} High-performance async logger
+ *
+ * @example
+ * ```typescript
+ * const fastLogger = createFastAsyncLogger({
+ *   buffer: { size: 16384, flushInterval: 50, flushSize: 2000 },
+ *   onFlush: async (entries) => {
+ *     await transport.sendBatchFast(entries);
+ *   }
+ * });
+ *
+ * // Minimal overhead - no utilities, no complex AddResult objects
+ * fastLogger.info('High throughput logging');
+ * ```
+ */
+export function createFastAsyncLogger(options: {
+  buffer?: {
+    size?: number;
+    flushInterval?: number;
+    flushSize?: number;
+  };
+  onFlush: (entries: LogEntry[]) => void | Promise<void>;
+  enableMetrics?: boolean;
+}): AsyncLogger {
+  const optimizedOptions: AsyncLoggerOptions = {
+    buffer: {
+      size: options.buffer?.size || 16384,
+      flushInterval: options.buffer?.flushInterval || 50,
+      flushSize: options.buffer?.flushSize || 2000,
+    },
+    onFlush: options.onFlush,
+    enableMetrics: options.enableMetrics || false,
+    // No utilities for maximum performance
+    rateLimiter: undefined,
+    redactor: undefined,
+    sampler: undefined,
+    queueManager: undefined,
+    fallbackToSync: false,
+    flushOnHighWater: true,
+  };
+
+  // Optimized log entry factory - minimal allocations
+  const createLogEntry = (level: LogLevel, message: string, meta?: Record<string, unknown>) => {
+    const now = Date.now();
+    return {
+      id: `${now}-${Math.random().toString(36).substr(2, 6)}`,
+      level,
+      message,
+      timestamp: new Date(now).toISOString(),
+      timestampMs: now,
+      plainMessage: message,
+      context: meta,
+    };
+  };
+
+  return new AsyncLogger(optimizedOptions, createLogEntry);
+}
+
+/**
+ * Creates a logger with performance-aware defaults based on environment.
+ * Smart factory that chooses sync/async based on target environment and usage.
+ *
+ * @param {object} options - Performance-aware logger options
+ * @returns {Logger | AsyncLogger} Optimized logger instance
+ *
+ * @example
+ * ```typescript
+ * // Auto-selects based on NODE_ENV and TTY
+ * const logger = createPerformantLogger({ target: 'auto' });
+ *
+ * // Explicit performance choice
+ * const prodLogger = createPerformantLogger({
+ *   target: 'production',  // Uses AsyncLogger
+ *   onFlush: async (entries) => await transport.sendBatch(entries)
+ * });
+ *
+ * const devLogger = createPerformantLogger({
+ *   target: 'development' // Uses sync Logger
+ * });
+ * ```
+ */
+export function createPerformantLogger(
+  options: {
+    target?: 'auto' | 'development' | 'production';
+    mode?: 'sync' | 'async';
+    onFlush?: (entries: LogEntry[]) => Promise<void>;
+    logger?: Partial<LoggerOptions>;
+    async?: Partial<AsyncLoggerOptions>;
+  } = {}
+): Logger | AsyncLogger {
+  const {
+    target = 'auto',
+    mode,
+    onFlush,
+    logger: loggerOptions = {},
+    async: asyncOptions = {},
+  } = options;
+
+  // Non-empty default async flush handler to satisfy lint rules
+  const DEFAULT_ON_FLUSH = async (entries: LogEntry[]): Promise<void> => {
+    // Touch entries length to avoid empty async function lint error
+    if (entries && entries.length > 0) {
+      // no-op
+    }
+  };
+
+  // Explicit mode override
+  if (mode === 'sync') {
+    return new Logger(loggerOptions);
+  }
+  if (mode === 'async') {
+    return createAsyncLogger({
+      onFlush: onFlush || DEFAULT_ON_FLUSH,
+      ...asyncOptions,
+    });
+  }
+
+  // Smart detection based on target
+  let useAsync = false;
+
+  if (target === 'production') {
+    useAsync = true;
+  } else if (target === 'development') {
+    useAsync = false;
+  } else if (target === 'auto') {
+    // Auto-detection logic
+    const isProduction = process.env.NODE_ENV === 'production';
+    const isInteractive = process.stdout && process.stdout.isTTY;
+    const isTesting = process.env.NODE_ENV === 'test' || process.env.CI;
+
+    // Use async in production or non-interactive environments
+    // Use sync for development, testing, or interactive shells
+    useAsync = isProduction && !isInteractive && !isTesting;
+  }
+
+  if (useAsync) {
+    return createAsyncLogger({
+      onFlush: onFlush || DEFAULT_ON_FLUSH,
+      buffer: { size: 1024, flushInterval: 100 },
+      fallbackToSync: true,
+      ...asyncOptions,
+    });
+  } else {
+    return new Logger({
+      mode: 'sync',
+      ...loggerOptions,
+    });
+  }
 }
 
 // ==========================================

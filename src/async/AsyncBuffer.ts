@@ -373,14 +373,80 @@ export class AsyncBuffer {
   }
 
   /**
-   * Add a log entry to the buffer.
-   * Returns a simple boolean for backward compatibility with older code/tests.
-   * Advanced users should call addDetailed for structured results.
+   * Add a log entry to the buffer - fast path.
+   * Returns a simple boolean for maximum performance.
+   * Use addDetailed() if you need structured error information.
    */
-  public add(entry: LogEntry): boolean | AddResult {
-    // Keep runtime behavior boolean for backward compatibility; tests/mocks can still return AddResult
-    const res = this.addDetailed(entry);
-    return res.success;
+  public add(entry: LogEntry): boolean {
+    if (this.closing) {
+      return false;
+    }
+
+    // Handle buffer overflow - fast path
+    if (this.size === this.capacity) {
+      switch (this.overflowStrategy) {
+        case 'drop-newest': {
+          if (this.enableMetrics) {
+            this.metrics.totalDropped++;
+          }
+          this.onDrop?.(entry, 'buffer_full');
+          return false;
+        }
+        case 'drop-oldest': {
+          const droppedEntry = this.buffer[this.readPos];
+          this.readPos = (this.readPos + 1) % this.capacity;
+          this.size--;
+
+          // Add new entry
+          this.buffer[this.writePos] = entry;
+          this.writePos = (this.writePos + 1) % this.capacity;
+          this.size++;
+
+          if (this.enableMetrics) {
+            this.metrics.totalAdded++;
+            this.metrics.totalDropped++;
+          }
+
+          if (droppedEntry) {
+            this.onDrop?.(droppedEntry, 'overflow');
+          }
+
+          this.checkWaterMarks();
+
+          // Check if we should flush
+          if (this.size >= this.flushSize) {
+            this.flush();
+          }
+
+          return true;
+        }
+        case 'block': {
+          if (this.enableMetrics) {
+            this.metrics.totalDropped++;
+          }
+          this.onDrop?.(entry, 'buffer_full');
+          return false;
+        }
+      }
+    }
+
+    // Normal add - fast path
+    this.buffer[this.writePos] = entry;
+    this.writePos = (this.writePos + 1) % this.capacity;
+    this.size++;
+
+    if (this.enableMetrics) {
+      this.metrics.totalAdded++;
+    }
+
+    this.checkWaterMarks();
+
+    // Check if we should flush
+    if (this.size >= this.flushSize) {
+      this.flush();
+    }
+
+    return true;
   }
 
   /**

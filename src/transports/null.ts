@@ -33,4 +33,4 @@ export class NullTransport extends Transport {
   }
 }
 
-export default NullTransport;
+// Do not default-export to avoid mixed CJS named+default export warnings

@@ -22,6 +22,10 @@
       }
     },
     "./transports/postgresql": {
+      "browser": {
+        "types": "./dist/transports/postgresql.d.ts",
+        "default": "./dist/transports/postgresql.js"
+      },
       "import": {
         "types": "./dist/transports/postgresql.d.ts",
         "default": "./dist/transports/postgresql.js"
@@ -32,6 +36,10 @@
       }
     },
     "./utils/sampler": {
+      "browser": {
+        "types": "./dist/utils/sampler.d.ts",
+        "default": "./dist/browser/utils/sampler.js"
+      },
       "import": {
         "types": "./dist/utils/sampler.d.ts",
         "default": "./dist/utils/sampler.js"
@@ -39,13 +47,13 @@
       "require": {
         "types": "./dist/utils/sampler.d.cts",
         "default": "./dist/utils/sampler.cjs"
-      },
-      "browser": {
-        "types": "./dist/utils/sampler.d.ts",
-        "default": "./dist/browser/utils/sampler.js"
       }
     },
     "./utils/rate-limiter": {
+      "browser": {
+        "types": "./dist/utils/rate-limiter.d.ts",
+        "default": "./dist/browser/utils/rate-limiter.js"
+      },
       "import": {
         "types": "./dist/utils/rate-limiter.d.ts",
         "default": "./dist/utils/rate-limiter.js"
@@ -53,13 +61,13 @@
       "require": {
         "types": "./dist/utils/rate-limiter.d.cts",
         "default": "./dist/utils/rate-limiter.cjs"
-      },
-      "browser": {
-        "types": "./dist/utils/rate-limiter.d.ts",
-        "default": "./dist/browser/utils/rate-limiter.js"
       }
     },
     "./utils/redactor": {
+      "browser": {
+        "types": "./dist/utils/redactor.d.ts",
+        "default": "./dist/browser/utils/redactor.js"
+      },
       "import": {
         "types": "./dist/utils/redactor.d.ts",
         "default": "./dist/utils/redactor.js"
@@ -67,13 +75,13 @@
       "require": {
         "types": "./dist/utils/redactor.d.cts",
         "default": "./dist/utils/redactor.cjs"
-      },
-      "browser": {
-        "types": "./dist/utils/redactor.d.ts",
-        "default": "./dist/browser/utils/redactor.js"
       }
     },
     "./utils/queue-manager": {
+      "browser": {
+        "types": "./dist/utils/queue-manager.d.ts",
+        "default": "./dist/browser/utils/queue-manager.js"
+      },
       "import": {
         "types": "./dist/utils/queue-manager.d.ts",
         "default": "./dist/utils/queue-manager.js"
@@ -81,13 +89,13 @@
       "require": {
         "types": "./dist/utils/queue-manager.d.cts",
         "default": "./dist/utils/queue-manager.cjs"
-      },
-      "browser": {
-        "types": "./dist/utils/queue-manager.d.ts",
-        "default": "./dist/browser/utils/queue-manager.js"
       }
     },
     "./transports/otlp": {
+      "browser": {
+        "types": "./dist/transports/otlp.d.ts",
+        "default": "./dist/transports/otlp.js"
+      },
       "import": {
         "types": "./dist/transports/otlp.d.ts",
         "default": "./dist/transports/otlp.js"
@@ -98,6 +106,10 @@
       }
     },
     "./transports": {
+      "browser": {
+        "types": "./dist/transports.d.ts",
+        "default": "./dist/transports.js"
+      },
       "import": {
         "types": "./dist/transports.d.ts",
         "default": "./dist/transports.js"
@@ -108,6 +120,10 @@
       }
     },
     "./transports/console": {
+      "browser": {
+        "types": "./dist/transports/console.d.ts",
+        "default": "./dist/transports/console.js"
+      },
       "import": {
         "types": "./dist/transports/console.d.ts",
         "default": "./dist/transports/console.js"
@@ -118,6 +134,10 @@
       }
     },
     "./transports/file": {
+      "browser": {
+        "types": "./dist/transports/file.d.ts",
+        "default": "./dist/transports/file.js"
+      },
       "import": {
         "types": "./dist/transports/file.d.ts",
         "default": "./dist/transports/file.js"
@@ -128,6 +148,10 @@
       }
     },
     "./transports/http": {
+      "browser": {
+        "types": "./dist/transports/http.d.ts",
+        "default": "./dist/transports/http.js"
+      },
       "import": {
         "types": "./dist/transports/http.d.ts",
         "default": "./dist/transports/http.js"
@@ -138,6 +162,10 @@
       }
     },
     "./transports/s3": {
+      "browser": {
+        "types": "./dist/transports/s3.d.ts",
+        "default": "./dist/transports/s3.js"
+      },
       "import": {
         "types": "./dist/transports/s3.d.ts",
         "default": "./dist/transports/s3.js"
@@ -148,6 +176,10 @@
       }
     },
     "./transports/mongodb": {
+      "browser": {
+        "types": "./dist/transports/mongodb.d.ts",
+        "default": "./dist/transports/mongodb.js"
+      },
       "import": {
         "types": "./dist/transports/mongodb.d.ts",
         "default": "./dist/transports/mongodb.js"
@@ -158,6 +190,10 @@
       }
     },
     "./transports/stream": {
+      "browser": {
+        "types": "./dist/transports/stream.d.ts",
+        "default": "./dist/transports/stream.js"
+      },
       "import": {
         "types": "./dist/transports/stream.d.ts",
         "default": "./dist/transports/stream.js"
@@ -168,6 +204,10 @@
       }
     },
     "./transports/websocket": {
+      "browser": {
+        "types": "./dist/transports/websocket.d.ts",
+        "default": "./dist/transports/websocket.js"
+      },
       "import": {
         "types": "./dist/transports/websocket.d.ts",
         "default": "./dist/transports/websocket.js"
@@ -178,6 +218,10 @@
       }
     },
     "./transports/null": {
+      "browser": {
+        "types": "./dist/transports/null.d.ts",
+        "default": "./dist/transports/null.js"
+      },
       "import": {
         "types": "./dist/transports/null.d.ts",
         "default": "./dist/transports/null.js"
@@ -188,6 +232,10 @@
       }
     },
     "./transports/base": {
+      "browser": {
+        "types": "./dist/transports/base.d.ts",
+        "default": "./dist/transports/base.js"
+      },
       "import": {
         "types": "./dist/transports/base.d.ts",
         "default": "./dist/transports/base.js"
@@ -198,6 +246,10 @@
       }
     },
     "./compatibility": {
+      "browser": {
+        "types": "./dist/compatibility/index.d.ts",
+        "default": "./dist/compatibility/index.js"
+      },
       "import": {
         "types": "./dist/compatibility/index.d.ts",
         "default": "./dist/compatibility/index.js"
@@ -208,6 +260,10 @@
       }
     },
     "./compatibility/winston": {
+      "browser": {
+        "types": "./dist/compatibility/winston.d.ts",
+        "default": "./dist/compatibility/winston.js"
+      },
       "import": {
         "types": "./dist/compatibility/winston.d.ts",
         "default": "./dist/compatibility/winston.js"
@@ -218,6 +274,10 @@
       }
     },
     "./compatibility/bunyan": {
+      "browser": {
+        "types": "./dist/compatibility/bunyan.d.ts",
+        "default": "./dist/compatibility/bunyan.js"
+      },
       "import": {
         "types": "./dist/compatibility/bunyan.d.ts",
         "default": "./dist/compatibility/bunyan.js"
@@ -228,6 +288,10 @@
       }
     },
     "./compatibility/pino": {
+      "browser": {
+        "types": "./dist/compatibility/pino.d.ts",
+        "default": "./dist/compatibility/pino.js"
+      },
       "import": {
         "types": "./dist/compatibility/pino.d.ts",
         "default": "./dist/compatibility/pino.js"
@@ -238,6 +302,10 @@
       }
     },
     "./compatibility/console": {
+      "browser": {
+        "types": "./dist/compatibility/console.d.ts",
+        "default": "./dist/compatibility/console.js"
+      },
       "import": {
         "types": "./dist/compatibility/console.d.ts",
         "default": "./dist/compatibility/console.js"
@@ -248,6 +316,10 @@
       }
     },
     "./compatibility/base": {
+      "browser": {
+        "types": "./dist/compatibility/base.d.ts",
+        "default": "./dist/compatibility/base.js"
+      },
       "import": {
         "types": "./dist/compatibility/base.d.ts",
         "default": "./dist/compatibility/base.js"
@@ -258,6 +330,10 @@
       }
     },
     "./theme": {
+      "browser": {
+        "types": "./dist/theme/theme.d.ts",
+        "default": "./dist/theme/theme.js"
+      },
       "import": {
         "types": "./dist/theme/theme.d.ts",
         "default": "./dist/theme/theme.js"
@@ -268,6 +344,10 @@
       }
     },
     "./types": {
+      "browser": {
+        "types": "./dist/types/index.d.ts",
+        "default": "./dist/types/index.js"
+      },
       "import": {
         "types": "./dist/types/index.d.ts",
         "default": "./dist/types/index.js"
@@ -278,6 +358,10 @@
       }
     },
     "./core/colorizer": {
+      "browser": {
+        "types": "./dist/core/colorizer.d.ts",
+        "default": "./dist/core/colorizer.js"
+      },
       "import": {
         "types": "./dist/core/colorizer.d.ts",
         "default": "./dist/core/colorizer.js"
@@ -288,6 +372,10 @@
       }
     },
     "./core/context-manager": {
+      "browser": {
+        "types": "./dist/core/context-manager.d.ts",
+        "default": "./dist/core/context-manager.js"
+      },
       "import": {
         "types": "./dist/core/context-manager.d.ts",
         "default": "./dist/core/context-manager.js"
@@ -298,6 +386,10 @@
       }
     },
     "./core/tag-manager": {
+      "browser": {
+        "types": "./dist/core/tag-manager.d.ts",
+        "default": "./dist/core/tag-manager.js"
+      },
       "import": {
         "types": "./dist/core/tag-manager.d.ts",
         "default": "./dist/core/tag-manager.js"
@@ -308,6 +400,10 @@
       }
     },
     "./core/formatter": {
+      "browser": {
+        "types": "./dist/core/formatter.d.ts",
+        "default": "./dist/core/formatter.js"
+      },
       "import": {
         "types": "./dist/core/formatter.d.ts",
         "default": "./dist/core/formatter.js"
@@ -373,7 +469,7 @@
     "build": "npm run clean && tsup && tsup --platform=browser --entry.src=src/index.browser.ts",
     "build:analyze": "npm run build && npm run analyze:build",
     "build:examples": "tsup examples/*.ts --format=cjs --outDir=dist/examples",
-    "build:examples:esm": "tsup examples/*.ts --format=esm --outDir=dist/examples --outExtension='.mjs'",
+  "build:examples:esm": "tsup examples/*.ts --format=esm --outDir=dist/examples --outExtension='.mjs'",
   "test": "jest",
   "test:coverage": "jest --coverage --runInBand --ci --detectOpenHandles --coverageReporters=text --coverageReporters=lcov --coverageReporters=json --coverageReporters=json-summary --coverageReporters=clover --coverageReporters=html --forceExit",
     "test:treeshake": "node scripts/test-tree-shaking.js",
@@ -386,11 +482,11 @@
     "commit": "cz",
     "test:coverage:badge": "node scripts/generate-coverage-badge.js",
     "analyze:build": "node scripts/analyze-build.js",
-  "perf:run": "npm run build && node scripts/performance/perf-bench.mjs",
-  "perf:run:ts": "npm run build && tsx scripts/performance/perf-bench.ts",
-  "perf:update": "node scripts/update-perf-table.js",
+    "perf:run": "npm run build && node scripts/performance/perf-bench.mjs",
+    "perf:run:ts": "npm run build && tsx scripts/performance/perf-bench.ts",
+    "perf:update": "node scripts/update-perf-table.js",
     "version:bump": "node scripts/version-bump.js",
-  "preflight": "npm run clean && npm run check && npm run lint && npm run test:coverage && npm run build && npm run test:coverage:badge && npm run analyze:build && npm run test:treeshake",
+    "preflight": "npm run clean && npm run check && npm run lint && npm run test:coverage && npm run build && npm run test:coverage:badge && npm run analyze:build && npm run test:treeshake",
     "prepublishOnly": "npm run test && npm run lint && npm run build && npm run test:coverage:badge && npm run analyze:build",
     "prepare": "npm run clean && husky",
     "version": "npm run format && git add -A src",

@@ -2,8 +2,21 @@
 
 This guide covers the full integration of operational utilities (QueueManager, RateLimiter, Redactor, Sampler) with AsyncLogger for production-ready logging with explicit backpressure handling.
 
+## Should You Use AsyncLogger?
+
+| Scenario | Recommendation | Reason |
+|----------|---------------|---------|
+| Development/Local | Logger (sync) | Immediate feedback, easier debugging |
+| Production API (< 100 RPS) | Logger (sync) | Simplicity outweighs performance |
+| Production API (> 100 RPS) | AsyncLogger | Performance critical |
+| Background Jobs | AsyncLogger | Non-blocking processing |
+| CLI Tools | Logger (sync) | Users expect immediate output |
+| Lambda/Serverless | Logger (sync) | Short-lived, needs guaranteed delivery |
+| Long-running Services | AsyncLogger | Efficiency over time |
+
 ## Table of Contents
 
+- [Should You Use AsyncLogger?](#should-you-use-asynclogger)
 - [Overview](#overview)
 - [Unified Import API](#unified-import-api)
 - [Basic Usage](#basic-usage)

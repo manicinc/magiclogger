@@ -36,7 +36,7 @@ function runBench() {
     cwd: ROOT,
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
-    maxBuffer: 10 * 1024 * 1024 // 10MB buffer for large outputs
+    maxBuffer: 50 * 1024 * 1024 // Increase buffer to 50MB for large outputs
   });
 
   if (res.error) {

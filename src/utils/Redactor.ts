@@ -241,7 +241,11 @@ const BUILT_IN_PATTERNS: Record<string, RedactionPattern[]> = {
       name: 'email',
       pattern: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g,
       replacement: match => {
-        const [local, domain] = match.split('@');
+        const parts = match.split('@');
+        if (parts.length !== 2) return match; // Safety check
+        const local = parts[0];
+        const domain = parts[1];
+        if (!local || !domain) return match; // Additional safety check
         const visible = local.slice(0, 1);
         const masked = '*'.repeat(Math.max(local.length - 1, 1));
         return `${visible}${masked}@${domain}`;
@@ -421,6 +425,23 @@ export class Redactor {
     fieldRedactions: new Map<string, number>(),
   };
 
+  /**
+   * Creates a new Redactor instance.
+   *
+   * @param options - Configuration options for the redactor
+   * @param options.enabled - Enable redaction (default: true)
+   * @param options.preset - Redaction preset level (default: 'standard')
+   * @param options.patterns - Custom redaction patterns
+   * @param options.fields - Fields to always redact
+   * @param options.excludeFields - Fields to never redact
+   * @param options.deep - Enable deep object traversal (default: true)
+   * @param options.maxDepth - Maximum object traversal depth (default: 10)
+   * @param options.contextAware - Enable context-aware detection (default: true)
+   * @param options.auditTrail - Enable audit logging (default: false)
+   * @param options.tokenSalt - Salt for tokenization
+   * @param options.cacheEnabled - Enable caching (default: true)
+   * @param options.maxCacheSize - Maximum cache size (default: 1000)
+   */
   constructor(options: RedactorOptions = {}) {
     this.options = {
       enabled: options.enabled !== false,

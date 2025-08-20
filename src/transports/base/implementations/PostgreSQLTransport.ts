@@ -59,7 +59,6 @@ export class PostgreSQLTransport extends BatchingTransport {
   private readonly table: string;
   private readonly schema: string;
   private readonly createTable: boolean;
-  private readonly jsonColumns: string[];
   private readonly indexes: string[];
   private readonly partitioning?: {
     enabled: boolean;
@@ -85,7 +84,6 @@ export class PostgreSQLTransport extends BatchingTransport {
     this.table = options.table || 'logs';
     this.schema = options.schema || 'public';
     this.createTable = options.createTable !== false;
-    this.jsonColumns = options.jsonColumns || ['context', 'metadata'];
     this.indexes = options.indexes || ['timestamp', 'level', 'logger_id'];
     this.partitioning = options.partitioning;
   }

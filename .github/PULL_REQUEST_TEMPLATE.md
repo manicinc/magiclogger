@@ -2,6 +2,12 @@
 
 Describe the change and why it is needed.
 
+<!-- auto-summary-start -->
+<!-- The section below will be updated by CI to summarize changes from conventional commits. -->
+## 🧾 Auto Summary
+- _Pending CI update_
+<!-- auto-summary-end -->
+
 ## 🔗 Related Issues
 Closes #
 

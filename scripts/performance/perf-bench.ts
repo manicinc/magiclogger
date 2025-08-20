@@ -16,8 +16,10 @@ import { AsyncLogger } from '../../dist/async/logger.js';
 // (No type imports required)
 
 import { Writable } from 'stream';
-import { fileURLToPath } from 'url';
 import path from 'path';
+import { fileURLToPath } from 'url';
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+import fs from 'fs';
 import { NullTransport } from '../../dist/transports/null.js';
 // no fs/os needed when targeting OS null device
 
@@ -376,7 +378,7 @@ async function runBenchmarks() {
     const styledMsg = chalk ? chalk.green.bold('✔') + ' ' + testMessage : '✔ ' + testMessage;
     results.push(await benchmark(
       'Pino (Sync, Styled)', 
-  () => { loggers.pinoLoggerSync?.info(testMetadata, styledMsg); }
+      () => { loggers.pinoLoggerSync?.info(testMetadata, styledMsg); }
     ));
   }
 
@@ -384,12 +386,12 @@ async function runBenchmarks() {
   if (loggers.winstonLoggerSync) {
     results.push(await benchmark(
       'Winston (Sync, Plain)', 
-  () => { loggers.winstonLoggerSync?.info(testMessage, testMetadata); }
+      () => { loggers.winstonLoggerSync?.info(testMessage, testMetadata); }
     ));
     const styledMsg = chalk ? chalk.green.bold('✔') + ' ' + testMessage : '✔ ' + testMessage;
     results.push(await benchmark(
       'Winston (Sync, Styled)', 
-  () => { loggers.winstonLoggerSync?.info(styledMsg, testMetadata); }
+      () => { loggers.winstonLoggerSync?.info(styledMsg, testMetadata); }
     ));
   }
 
@@ -397,12 +399,12 @@ async function runBenchmarks() {
   if (loggers.bunyanLoggerSync) {
     results.push(await benchmark(
       'Bunyan (Sync, Plain)', 
-  () => { loggers.bunyanLoggerSync?.info(testMetadata, testMessage); }
+      () => { loggers.bunyanLoggerSync?.info(testMetadata, testMessage); }
     ));
     const styledMsg = chalk ? chalk.green.bold('✔') + ' ' + testMessage : '✔ ' + testMessage;
     results.push(await benchmark(
       'Bunyan (Sync, Styled)', 
-  () => { loggers.bunyanLoggerSync?.info(testMetadata, styledMsg); }
+      () => { loggers.bunyanLoggerSync?.info(testMetadata, styledMsg); }
     ));
   }
 
@@ -427,12 +429,12 @@ async function runBenchmarks() {
   if (loggers.pinoLoggerAsync) {
     results.push(await benchmark(
       'Pino (Async, Plain)', 
-  () => { loggers.pinoLoggerAsync?.info(testMetadata, testMessage); }
+      () => { loggers.pinoLoggerAsync?.info(testMetadata, testMessage); }
     ));
     const styledMsg = chalk ? chalk.green.bold('✔') + ' ' + testMessage : '✔ ' + testMessage;
     results.push(await benchmark(
       'Pino (Async, Styled)', 
-  () => { loggers.pinoLoggerAsync?.info(testMetadata, styledMsg); }
+      () => { loggers.pinoLoggerAsync?.info(testMetadata, styledMsg); }
     ));
   }
 
@@ -440,12 +442,12 @@ async function runBenchmarks() {
   if (loggers.winstonLoggerAsync) {
     results.push(await benchmark(
       'Winston (Async, Plain)', 
-  () => { loggers.winstonLoggerAsync?.info(testMessage, testMetadata); }
+      () => { loggers.winstonLoggerAsync?.info(testMessage, testMetadata); }
     ));
     const styledMsg = chalk ? chalk.green.bold('✔') + ' ' + testMessage : '✔ ' + testMessage;
     results.push(await benchmark(
       'Winston (Async, Styled)', 
-  () => { loggers.winstonLoggerAsync?.info(styledMsg, testMetadata); }
+      () => { loggers.winstonLoggerAsync?.info(styledMsg, testMetadata); }
     ));
   }
 
@@ -456,6 +458,103 @@ async function runBenchmarks() {
 }
 
 async function main() {
+  // If running under perf:update, run benchmarks silently and output only markdown
+  if (process.env.npm_lifecycle_event === 'perf:update') {
+    const { results } = await runBenchmarks();
+    
+    const syncResults = results.filter(r => r.name.includes('Sync'));
+    const asyncResults = results.filter(r => r.name.includes('Async'));
+    syncResults.sort((a, b) => b.opsSec - a.opsSec);
+    asyncResults.sort((a, b) => b.opsSec - a.opsSec);
+    const allResults = [...syncResults, ...asyncResults];
+
+    const pickWinner = (arr: typeof allResults) => arr.length ? arr.reduce((a, b) => (a.opsSec > b.opsSec ? a : b)) : null;
+    const syncPlain = syncResults.filter(r => r.name.includes('Sync') && r.name.includes('Plain'));
+    const syncStyled = syncResults.filter(r => r.name.includes('Sync') && r.name.includes('Styled'));
+    const asyncPlain = asyncResults.filter(r => r.name.includes('Async') && r.name.includes('Plain'));
+    const asyncStyled = asyncResults.filter(r => r.name.includes('Async') && r.name.includes('Styled'));
+
+    const formatLine = (label: string, winner: typeof allResults[number] | null, pool: typeof allResults) => {
+      if (!winner) return null;
+      const ml = pool.find(r => r.name.startsWith('MagicLogger'));
+      const mlSuffix = ml && !winner.name.startsWith('MagicLogger')
+        ? ` — MagicLogger: ${ml.opsSecFormatted} ops/sec`
+        : '';
+      return `- ${label}: ${winner.name} (${winner.opsSecFormatted} ops/sec)${mlSuffix}`;
+    };
+
+    const wSyncPlain = pickWinner(syncPlain);
+    const wSyncStyled = pickWinner(syncStyled);
+    const wAsyncPlain = pickWinner(asyncPlain);
+    const wAsyncStyled = pickWinner(asyncStyled);
+
+    const winnersMarkdown = [
+      '### Winners',
+      '',
+      formatLine('Sync Plain', wSyncPlain, syncPlain),
+      formatLine('Sync Styled', wSyncStyled, syncStyled),
+      formatLine('Async Plain', wAsyncPlain, asyncPlain),
+      formatLine('Async Styled', wAsyncStyled, asyncStyled),
+    ].filter(Boolean).join('\n');
+
+    const buildKeyComparisons = () => {
+      const lines: string[] = ['=== KEY COMPARISONS ==='];
+
+      const magicSyncStyled = syncResults.find(r => r.name === 'MagicLogger (Sync, Styled)');
+      const otherSyncStyledResults = syncResults.filter(
+        r => !r.name.includes('MagicLogger') && r.name.includes('(Sync, Styled)')
+      );
+      if (magicSyncStyled && otherSyncStyledResults.length > 0) {
+        const fastestOtherSync = otherSyncStyledResults[0];
+        const syncRatio = magicSyncStyled.opsSec / fastestOtherSync.opsSec;
+        lines.push(
+          '',
+          'Synchronous Styled Performance:',
+          `  MagicLogger (Sync, Styled): ${magicSyncStyled.opsSecFormatted} ops/sec`,
+          `  ${fastestOtherSync.name}: ${fastestOtherSync.opsSecFormatted} ops/sec`,
+          syncRatio > 1
+            ? `  → MagicLogger is ${syncRatio.toFixed(2)}x faster`
+            : `  → MagicLogger is ${(1 / syncRatio).toFixed(2)}x slower`
+        );
+      }
+
+      const magicAsyncStyled = asyncResults.find(r => r.name === 'MagicLogger (Async, Styled)');
+      const otherAsyncStyledResults = asyncResults.filter(
+        r => !r.name.includes('MagicLogger') && r.name.includes('(Async, Styled)')
+      );
+      if (magicAsyncStyled && otherAsyncStyledResults.length > 0) {
+        const fastestOtherAsync = otherAsyncStyledResults[0];
+        const asyncRatio = magicAsyncStyled.opsSec / fastestOtherAsync.opsSec;
+        lines.push(
+          '',
+          'Asynchronous Styled Performance:',
+          `  MagicLogger (Async, Styled): ${magicAsyncStyled.opsSecFormatted} ops/sec`,
+          `  ${fastestOtherAsync.name}: ${fastestOtherAsync.opsSecFormatted} ops/sec`,
+          asyncRatio > 1
+            ? `  → MagicLogger is ${asyncRatio.toFixed(2)}x faster`
+            : `  → MagicLogger is ${(1 / asyncRatio).toFixed(2)}x slower`
+        );
+      }
+
+      return lines.join('\n');
+    };
+
+    const keyComparisonsBlock = buildKeyComparisons();
+    const markdownTable = `<!-- PERF_TABLE_START -->
+${createResultsTable(allResults)}
+
+${winnersMarkdown}
+
+${keyComparisonsBlock}
+
+Note: External libraries' "Styled" cases use chalk for coloring (chalk + library) for fair comparison.
+
+*Generated via scripts/performance/perf-bench.ts*
+<!-- PERF_TABLE_END -->`;
+
+    console.log(markdownTable);
+    return;
+  }
   
   try {
     console.log('Starting MagicLogger Performance Benchmark\n');
@@ -464,7 +563,7 @@ async function main() {
     console.log(`  Warmup: ${formatNumber(WARMUP_ITERATIONS)}`);
     console.log('  Output: Suppressed (null transport/stream)\n');
     
-  const { results, loggers } = await runBenchmarks();
+    const { results, loggers } = await runBenchmarks();
     
     // Separate sync and async results
     const syncResults = results.filter(r => r.name.includes('Sync'));
@@ -513,15 +612,16 @@ async function main() {
       formatLine('Async Styled', wAsyncStyled, asyncStyled),
     ].filter(Boolean).join('\n');
 
-    // Build Key Comparisons block (also included in README PERF_TABLE)
+    // Build Key Comparisons block
     const buildKeyComparisons = () => {
       const lines: string[] = ['=== KEY COMPARISONS ==='];
 
-      // MagicLogger Sync Styled vs fastest other sync
       const magicSyncStyled = syncResults.find(r => r.name === 'MagicLogger (Sync, Styled)');
-      const otherSyncResults = syncResults.filter(r => !r.name.includes('MagicLogger'));
-      if (magicSyncStyled && otherSyncResults.length > 0) {
-        const fastestOtherSync = otherSyncResults[0];
+      const otherSyncStyledResults = syncResults.filter(
+        r => !r.name.includes('MagicLogger') && r.name.includes('(Sync, Styled)')
+      );
+      if (magicSyncStyled && otherSyncStyledResults.length > 0) {
+        const fastestOtherSync = otherSyncStyledResults[0];
         const syncRatio = magicSyncStyled.opsSec / fastestOtherSync.opsSec;
         lines.push(
           '',
@@ -534,11 +634,12 @@ async function main() {
         );
       }
 
-      // MagicLogger Async Styled vs fastest other async
       const magicAsyncStyled = asyncResults.find(r => r.name === 'MagicLogger (Async, Styled)');
-      const otherAsyncResults = asyncResults.filter(r => !r.name.includes('MagicLogger'));
-      if (magicAsyncStyled && otherAsyncResults.length > 0) {
-        const fastestOtherAsync = otherAsyncResults[0];
+      const otherAsyncStyledResults = asyncResults.filter(
+        r => !r.name.includes('MagicLogger') && r.name.includes('(Async, Styled)')
+      );
+      if (magicAsyncStyled && otherAsyncStyledResults.length > 0) {
+        const fastestOtherAsync = otherAsyncStyledResults[0];
         const asyncRatio = magicAsyncStyled.opsSec / fastestOtherAsync.opsSec;
         lines.push(
           '',
@@ -556,7 +657,7 @@ async function main() {
 
     const keyComparisonsBlock = buildKeyComparisons();
 
-    // Markdown output for documentation (table + winners + key comparisons)
+    // Markdown output for documentation
     console.log('\nMarkdown Output (Combined):');
     const markdownTable = `<!-- PERF_TABLE_START -->
 ${createResultsTable(allResults)}
@@ -565,11 +666,34 @@ ${winnersMarkdown}
 
 ${keyComparisonsBlock}
 
+Note: External libraries' "Styled" cases use chalk for coloring (chalk + library) for fair comparison.
+
 *Generated via scripts/performance/perf-bench.ts*
 <!-- PERF_TABLE_END -->`;
-    console.log(markdownTable);
 
-    // Also print Key comparisons to console (duplicating for clarity)
+    try {
+      // Write to benchmark-results.md
+      fs.writeFileSync(path.resolve(__dirname, 'benchmark-results.md'), markdownTable);
+      
+      // Update README.md PERF_TABLE block
+      const readmePath = path.resolve(__dirname, '../../README.md');
+      let readme = fs.readFileSync(readmePath, 'utf8');
+      
+      // Replace PERF_TABLE block
+      readme = readme.replace(/<!-- PERF_TABLE_START -->(.|\n)*?<!-- PERF_TABLE_END -->/m, markdownTable);
+      
+      // Remove any old footnote and add new one after PERF_TABLE_END
+      const footnote = '\n*Table generated by `scripts/performance/perf-bench.ts`. External libraries\' "Styled" cases use chalk for coloring (chalk + library) for fair comparison.*\n';
+      readme = readme.replace(/\n\*Table generated by `scripts\/performance\/perf-bench\.ts`.*chalk.*\*\n?/m, '');
+      readme = readme.replace(/(<!-- PERF_TABLE_END -->)/, `$1${footnote}`);
+      
+      fs.writeFileSync(readmePath, readme);
+      console.log('Benchmarks written to benchmark-results.md and README.md');
+    } catch (err) {
+      console.error('Failed to write benchmark results:', err);
+    }
+    
+    // Also print Key comparisons to console
     console.log('\n' + keyComparisonsBlock);
 
     // Performance analysis
@@ -589,6 +713,7 @@ ${keyComparisonsBlock}
     console.log('  • Async = Buffered/async operations (non-blocking)');
     console.log('  • Plain = Minimal formatting');
     console.log('  • Styled = Color/template formatting applied');
+    console.log('  • External Styled cases = chalk + respective library (for parity)');
     console.log('  • All output suppressed via null transport/stream');
 
     // Cleanup async loggers - wait for flush
@@ -603,8 +728,6 @@ ${keyComparisonsBlock}
   } catch (error) {
     console.error('Benchmark failed:', error);
     process.exit(1);
-  } finally {
-    // nothing to clean up
   }
 }
 
@@ -612,7 +735,6 @@ ${keyComparisonsBlock}
 export { benchmark, setupLoggers, createResultsTable };
 
 // Run if this file is executed directly
-// Robust ESM "is main" check (handles Windows paths and file:// URLs)
 const __filename = fileURLToPath(import.meta.url);
 const isMain = (() => {
   try {
