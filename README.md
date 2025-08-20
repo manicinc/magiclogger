@@ -1216,98 +1216,41 @@ MIT © Manic.agency
 | `index.js` | ESM | 5.52 kB | 1.76 kB |
 | `index.d.ts` | Types | 127 kB | 25.3 kB |
 
-### Reference bundle sizes (gzip)
+### Core Bundle Sizes (gzipped)
 
 | Scenario | Size |
 |----------|------|
-| core (esm, gzip) | 48.3 kB |
-| core + console (esm, gzip) | 48.3 kB |
-| core + all core transports (esm, gzip) | 56.6 kB |
-| all compatibility layers (esm, gzip) | 45.8 kB |
+| Core (bare minimum) | 48.3 kB |
+| Core + Console Transport | 48.3 kB |
+| Core + File Transport | 48.3 kB |
+| Core + HTTP Transport | 55.3 kB |
+| Core + All Basic Transports | 56.6 kB |
+
+### Individual Transport Sizes (gzipped)
+
+| Transport | Size |
+|-----------|------|
+| Console Transport Only | 7.9 kB |
+| File Transport Only | 4.12 kB |
+| HTTP Transport Only | 21.7 kB |
+
+### Compatibility Layer Sizes (gzipped)
+
+| Compatibility | Size |
+|---------------|------|
+| Winston Compatibility | 41.9 kB |
+| Pino Compatibility | 41.4 kB |
+| Bunyan Compatibility | 41.4 kB |
+| All Compatibility | 45.8 kB |
+
+### Utility Sizes (gzipped)
+
+| Utility | Size |
+|---------|------|
+| Sampler | 1.21 kB |
+| RateLimiter | 1.09 kB |
+| Redactor | 3.79 kB |
 
 *Generated via `scripts/analyze-build.js`.*
 
-| File | Format | Raw Size | Gzip |
-|------|--------|----------|------|
-| `index.cjs` | CJS | 8.56 kB | 2.06 kB |
-| `index.js` | ESM | 5.44 kB | 1.75 kB |
-| `index.d.ts` | Types | 127 kB | 25.3 kB |
-
-### Reference bundle sizes (gzip)
-
-| Scenario | Size |
-|----------|------|
-| core (esm, gzip) | 48.3 kB |
-| core + console (esm, gzip) | 48.3 kB |
-| core + all core transports (esm, gzip) | 56.6 kB |
-| all compatibility layers (esm, gzip) | 45.8 kB |
-
-*Generated via `scripts/analyze-build.js`.*
-
-| File | Format | Raw Size | Gzip |
-|------|--------|----------|------|
-| `index.cjs` | CJS | 7.66 kB | 1.77 kB |
-| `index.js` | ESM | 4.59 kB | 1.47 kB |
-| `index.d.ts` | Types | 125 kB | 24.9 kB |
-
-### Reference bundle sizes (gzip)
-
-| Scenario | Size |
-|----------|------|
-| core (esm, gzip) | 48.1 kB |
-| core + console (esm, gzip) | 48.1 kB |
-| core + all core transports (esm, gzip) | 56.5 kB |
-| all compatibility layers (esm, gzip) | 45.8 kB |
-
-*Generated via `scripts/analyze-build.js`.*
-
-| File | Format | Raw Size | Gzip |
-|------|--------|----------|------|
-| `index.cjs` | CJS | 7.66 kB | 1.77 kB |
-| `index.js` | ESM | 4.59 kB | 1.47 kB |
-| `index.d.ts` | Types | 125 kB | 24.9 kB |
-
-### Reference bundle sizes (gzip)
-
-| Scenario | Size |
-|----------|------|
-| core (esm, gzip) | 48.1 kB |
-| core + console (esm, gzip) | 48.1 kB |
-| core + all core transports (esm, gzip) | 56.5 kB |
-| all compatibility layers (esm, gzip) | 45.8 kB |
-
-*Generated via `scripts/analyze-build.js`.*
-
-| File | Format | Raw Size | Gzip |
-|------|--------|----------|------|
-| `index.cjs` | CJS | 6.57 kB | 1.52 kB |
-| `index.js` | ESM | 3.59 kB | 1.23 kB |
-| `index.d.ts` | Types | 124 kB | 24.6 kB |
-
-### Reference bundle sizes (gzip)
-
-| Scenario | Size |
-|----------|------|
-| core (esm, gzip) | 47.8 kB |
-| core + console (esm, gzip) | 47.8 kB |
-| core + all core transports (esm, gzip) | 56.2 kB |
-| all compatibility layers (esm, gzip) | 45.8 kB |
-
-*Generated via `scripts/analyze-build.js`.*
-
-| File | Format | Raw Size | Gzip |
-|------|--------|----------|------|
-| `index.cjs` | CJS | 3.03 kB | 723 B |
-| `index.js` | ESM | 1.36 kB | 519 B |
-| `index.d.ts` | Types | 113 kB | 21.9 kB |
-
-### Reference bundle sizes (gzip)
-
-| Scenario | Size |
-|----------|------|
-| core (esm, gzip) | 38 kB |
-| core + console (esm, gzip) | 38 kB |
-| core + all core transports (esm, gzip) | 46.4 kB |
-| all compatibility layers (esm, gzip) | 44.9 kB |
-
-*Generated via `scripts/analyze-build.js`.*
+*This section will be automatically updated by the analyze-build script*

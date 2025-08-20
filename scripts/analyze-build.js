@@ -87,6 +87,88 @@ async function measureScenarioGzip(imports) {
 }
 
 /**
+ * Measure all bundle scenarios
+ */
+async function measureAllScenarios() {
+  const scenarios = {
+    // Core scenarios
+    'Core (bare minimum)': [
+      { path: './dist/index.js', symbols: ['Logger'] },
+    ],
+    'Core + Console Transport': [
+      { path: './dist/index.js', symbols: ['Logger'] },
+      { path: './dist/transports/console.js', symbols: ['ConsoleTransport'] },
+    ],
+    'Core + File Transport': [
+      { path: './dist/index.js', symbols: ['Logger'] },
+      { path: './dist/transports/file.js', symbols: ['FileTransport'] },
+    ],
+    'Core + HTTP Transport': [
+      { path: './dist/index.js', symbols: ['Logger'] },
+      { path: './dist/transports/http.js', symbols: ['HTTPTransport'] },
+    ],
+    'Core + All Basic Transports': [
+      { path: './dist/index.js', symbols: ['Logger'] },
+      { path: './dist/transports/console.js', symbols: ['ConsoleTransport'] },
+      { path: './dist/transports/file.js', symbols: ['FileTransport'] },
+      { path: './dist/transports/stream.js', symbols: ['StreamTransport'] },
+      { path: './dist/transports/http.js', symbols: ['HTTPTransport'] },
+    ],
+    
+    // Individual transports (to show tree-shaking)
+    'Console Transport Only': [
+      { path: './dist/transports/console.js', symbols: ['ConsoleTransport'] },
+    ],
+    'File Transport Only': [
+      { path: './dist/transports/file.js', symbols: ['FileTransport'] },
+    ],
+    'HTTP Transport Only': [
+      { path: './dist/transports/http.js', symbols: ['HTTPTransport'] },
+    ],
+    
+    // Compatibility layers (individual)
+    'Winston Compatibility': [
+      { path: './dist/compatibility/winston.js' },
+    ],
+    'Pino Compatibility': [
+      { path: './dist/compatibility/pino.js' },
+    ],
+    'Bunyan Compatibility': [
+      { path: './dist/compatibility/bunyan.js' },
+    ],
+    'All Compatibility': [
+      { path: './dist/compatibility/index.js' },
+    ],
+    
+    // Utilities (tree-shakeable)
+    'Utils: Sampler Only': [
+      { path: './dist/utils/sampler.js', symbols: ['Sampler'] },
+    ],
+    'Utils: RateLimiter Only': [
+      { path: './dist/utils/rate-limiter.js', symbols: ['RateLimiter'] },
+    ],
+    'Utils: Redactor Only': [
+      { path: './dist/utils/redactor.js', symbols: ['Redactor'] },
+    ],
+  };
+  
+  const results = {};
+  console.log('📏 Measuring bundle sizes...');
+  
+  for (const [name, imports] of Object.entries(scenarios)) {
+    try {
+      const size = await measureScenarioGzip(imports);
+      results[name] = size;
+      console.log(`  ${name}: ${prettyBytes(size)}`);
+    } catch (e) {
+      console.warn(`  ⚠️ Could not measure ${name}`);
+    }
+  }
+  
+  return results;
+}
+
+/**
  * Update or add a badge in the badges block WITHOUT fucking up formatting
  */
 function updateOrAddBadge(badgesBlock, label, bytes) {
@@ -127,53 +209,14 @@ async function injectIntoReadme(table) {
   // Remove old-style ambiguous bundle_size badges if they exist
   readme = removeLegacyBundleBadge(readme);
   
-  // Measure all the scenario sizes
-  console.log('📏 Measuring bundle sizes...');
-  let coreGz = 0;
-  let coreConsoleGz = 0;
-  let coreTransportsGz = 0;
-  let compatAllGz = 0;
+  // Measure all scenarios
+  const allMeasurements = await measureAllScenarios();
   
-  try {
-    coreGz = await measureScenarioGzip([
-      { path: './dist/index.js', symbols: ['Logger'] },
-    ]);
-    console.log(`  Core: ${prettyBytes(coreGz)}`);
-  } catch (e) { 
-    console.warn('  ⚠️ Could not measure core size');
-  }
-  
-  try {
-    coreConsoleGz = await measureScenarioGzip([
-      { path: './dist/index.js', symbols: ['Logger'] },
-      { path: './dist/transports/console.js', symbols: ['ConsoleTransport'] },
-    ]);
-    console.log(`  Core + Console: ${prettyBytes(coreConsoleGz)}`);
-  } catch (e) {
-    console.warn('  ⚠️ Could not measure core+console size');
-  }
-  
-  try {
-    coreTransportsGz = await measureScenarioGzip([
-      { path: './dist/index.js', symbols: ['Logger'] },
-      { path: './dist/transports/console.js', symbols: ['ConsoleTransport'] },
-      { path: './dist/transports/file.js', symbols: ['FileTransport'] },
-      { path: './dist/transports/stream.js', symbols: ['StreamTransport'] },
-      { path: './dist/transports/http.js', symbols: ['HTTPTransport'] },
-    ]);
-    console.log(`  Core + Transports: ${prettyBytes(coreTransportsGz)}`);
-  } catch (e) {
-    console.warn('  ⚠️ Could not measure core+transports size');
-  }
-  
-  try {
-    compatAllGz = await measureScenarioGzip([
-      { path: './dist/compatibility/index.js' },
-    ]);
-    console.log(`  Compatibility: ${prettyBytes(compatAllGz)}`);
-  } catch (e) {
-    console.warn('  ⚠️ Could not measure compatibility size');
-  }
+  // Extract key measurements for badges
+  const coreGz = allMeasurements['Core (bare minimum)'] || 0;
+  const coreConsoleGz = allMeasurements['Core + Console Transport'] || 0;
+  const coreTransportsGz = allMeasurements['Core + All Basic Transports'] || 0;
+  const compatAllGz = allMeasurements['All Compatibility'] || 0;
 
   // UPDATE BADGES - Do this in ONE operation on the badges block
   // to avoid multiple regex passes fucking things up
@@ -212,19 +255,64 @@ async function injectIntoReadme(table) {
     'm'
   );
   
-  // Build the scenarios table if we have measurements
-  const scenarios = [
-    coreGz ? `| core (esm, gzip) | ${prettyBytes(coreGz)} |` : null,
-    coreConsoleGz ? `| core + console (esm, gzip) | ${prettyBytes(coreConsoleGz)} |` : null,
-    coreTransportsGz ? `| core + all core transports (esm, gzip) | ${prettyBytes(coreTransportsGz)} |` : null,
-    compatAllGz ? `| all compatibility layers (esm, gzip) | ${prettyBytes(compatAllGz)} |` : null,
-  ].filter(Boolean).join('\n');
+  // Build core scenarios table
+  const coreScenarios = [
+    ['Core (bare minimum)', allMeasurements['Core (bare minimum)']],
+    ['Core + Console Transport', allMeasurements['Core + Console Transport']],
+    ['Core + File Transport', allMeasurements['Core + File Transport']],
+    ['Core + HTTP Transport', allMeasurements['Core + HTTP Transport']],
+    ['Core + All Basic Transports', allMeasurements['Core + All Basic Transports']],
+  ].filter(([_, size]) => size)
+    .map(([name, size]) => `| ${name} | ${prettyBytes(size)} |`)
+    .join('\n');
   
-  const scenarioBlock = scenarios 
-    ? `\n\n### Reference bundle sizes (gzip)\n\n| Scenario | Size |\n|----------|------|\n${scenarios}` 
-    : '';
+  // Build transport sizes table (individual)
+  const transportScenarios = [
+    ['Console Transport Only', allMeasurements['Console Transport Only']],
+    ['File Transport Only', allMeasurements['File Transport Only']],
+    ['HTTP Transport Only', allMeasurements['HTTP Transport Only']],
+  ].filter(([_, size]) => size)
+    .map(([name, size]) => `| ${name} | ${prettyBytes(size)} |`)
+    .join('\n');
   
-  const newSection = `${sectionHeader}\n\n${table}${scenarioBlock}\n\n*Generated via \`scripts/analyze-build.js\`.*`;
+  // Build compatibility table
+  const compatScenarios = [
+    ['Winston Compatibility', allMeasurements['Winston Compatibility']],
+    ['Pino Compatibility', allMeasurements['Pino Compatibility']],
+    ['Bunyan Compatibility', allMeasurements['Bunyan Compatibility']],
+    ['All Compatibility', allMeasurements['All Compatibility']],
+  ].filter(([_, size]) => size)
+    .map(([name, size]) => `| ${name} | ${prettyBytes(size)} |`)
+    .join('\n');
+  
+  // Build utilities table
+  const utilScenarios = [
+    ['Sampler', allMeasurements['Utils: Sampler Only']],
+    ['RateLimiter', allMeasurements['Utils: RateLimiter Only']],
+    ['Redactor', allMeasurements['Utils: Redactor Only']],
+  ].filter(([_, size]) => size)
+    .map(([name, size]) => `| ${name} | ${prettyBytes(size)} |`)
+    .join('\n');
+  
+  let scenarioBlocks = '';
+  
+  if (coreScenarios) {
+    scenarioBlocks += `\n\n### Core Bundle Sizes (gzipped)\n\n| Scenario | Size |\n|----------|------|\n${coreScenarios}`;
+  }
+  
+  if (transportScenarios) {
+    scenarioBlocks += `\n\n### Individual Transport Sizes (gzipped)\n\n| Transport | Size |\n|-----------|------|\n${transportScenarios}`;
+  }
+  
+  if (compatScenarios) {
+    scenarioBlocks += `\n\n### Compatibility Layer Sizes (gzipped)\n\n| Compatibility | Size |\n|---------------|------|\n${compatScenarios}`;
+  }
+  
+  if (utilScenarios) {
+    scenarioBlocks += `\n\n### Utility Sizes (gzipped)\n\n| Utility | Size |\n|---------|------|\n${utilScenarios}`;
+  }
+  
+  const newSection = `${sectionHeader}\n\n${table}${scenarioBlocks}\n\n*Generated via \`scripts/analyze-build.js\`.*`;
   
   if (sectionRegex.test(readme)) {
     // Replace existing section
