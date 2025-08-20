@@ -427,7 +427,7 @@ export class Redactor {
 
   /**
    * Creates a new Redactor instance.
-   * 
+   *
    * @param options - Configuration options for the redactor
    * @param options.enabled - Enable redaction (default: true)
    * @param options.preset - Redaction preset level (default: 'standard')

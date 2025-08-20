@@ -560,7 +560,7 @@ export class AsyncLogger {
       success,
       bufferStats: success ? undefined : this.getBufferStatsLazy(),
     };
-    
+
     // If buffer add failed and fallbackToSync is enabled, process immediately
     if (!success && this.fallbackToSync) {
       try {
@@ -571,7 +571,7 @@ export class AsyncLogger {
         return result;
       }
     }
-    
+
     return result;
   }
 

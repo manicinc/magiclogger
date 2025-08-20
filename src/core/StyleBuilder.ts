@@ -246,7 +246,7 @@ export class StyleBuilder {
     const createBuilder = (next: ColorName[], precomputedKey?: string): StyleBuilderCallable => {
       // Use cache when possible
       const cacheKey = precomputedKey ?? (next.length ? next.join(',') : '');
-      
+
       // Skip cache lookup for empty key
       if (cacheKey) {
         const cached = StyleBuilder.styleCache.get(cacheKey);

@@ -172,7 +172,7 @@ export interface LoggerOptions {
    * - 'async': Always asynchronous (uses internal AsyncLogger)
    * - 'auto': Smart detection based on environment
    * - 'balanced': Micro-async buffer with sync fallback
-   * 
+   *
    * @default 'sync'
    */
   mode?: 'sync' | 'async' | 'auto' | 'balanced';
@@ -182,7 +182,7 @@ export interface LoggerOptions {
    * - 'features': Prioritize rich styling and features (sync)
    * - 'speed': Prioritize throughput (async)
    * - 'balanced': Balance between features and speed
-   * 
+   *
    * @default 'balanced'
    */
   performance?: 'features' | 'speed' | 'balanced';
@@ -190,7 +190,7 @@ export interface LoggerOptions {
   /**
    * Fallback to synchronous logging when async buffers are full.
    * Only applies when mode is 'async' or 'balanced'.
-   * 
+   *
    * @default true
    */
   fallbackToSync?: boolean;

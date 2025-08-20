@@ -165,7 +165,6 @@ export type {
 // COMPATIBILITY FUNCTIONS
 // ==========================================
 
-
 /**
  * Console enhancement for adding custom log methods.
  * Import individually for better tree-shaking: 'magiclogger/compatibility/console'
@@ -220,24 +219,35 @@ export { createPinoCompatible } from './compatibility/loggers/PinoCompatibleLogg
  * });
  * ```
  */
-export function createLogger(options: {
-  async?: boolean;
-  onFlush?: (entries: LogEntry[]) => Promise<void>;
-  buffer?: { size?: number; flushInterval?: number; flushSize?: number };
-  redactor?: any;
-  rateLimiter?: any;
-  sampler?: any;
-  queueManager?: any;
-} & Partial<LoggerOptions> = {}): Logger | AsyncLogger {
-  const { async: useAsync = true, onFlush, buffer, redactor, rateLimiter, sampler, queueManager, ...loggerOptions } = options;
+export function createLogger(
+  options: {
+    async?: boolean;
+    onFlush?: (entries: LogEntry[]) => Promise<void>;
+    buffer?: { size?: number; flushInterval?: number; flushSize?: number };
+    redactor?: any;
+    rateLimiter?: any;
+    sampler?: any;
+    queueManager?: any;
+  } & Partial<LoggerOptions> = {}
+): Logger | AsyncLogger {
+  const {
+    async: useAsync = true,
+    onFlush,
+    buffer,
+    redactor,
+    rateLimiter,
+    sampler,
+    queueManager,
+    ...loggerOptions
+  } = options;
 
   if (useAsync) {
     if (!onFlush) {
       // Provide helpful error message
       throw new Error(
         'createLogger(): async mode requires onFlush handler. ' +
-        'Either provide onFlush or set async: false for synchronous logging. ' +
-        'See docs for transport setup: https://docs.magiclogger.dev/transports'
+          'Either provide onFlush or set async: false for synchronous logging. ' +
+          'See docs for transport setup: https://docs.magiclogger.dev/transports'
       );
     }
 
@@ -245,7 +255,7 @@ export function createLogger(options: {
       buffer: buffer || { size: 8192, flushInterval: 100 },
       onFlush,
       redactor,
-      rateLimiter, 
+      rateLimiter,
       sampler,
       queueManager,
       fallbackToSync: true, // Graceful degradation
@@ -324,10 +334,10 @@ export function createAsyncLogger(options: AsyncLoggerOptions): AsyncLogger {
 /**
  * Creates a minimal, high-performance AsyncLogger with no operational utilities.
  * Optimized for maximum throughput - only ring buffer and flushing.
- * 
- * @param {object} options - Minimal async logger options  
+ *
+ * @param {object} options - Minimal async logger options
  * @returns {AsyncLogger} High-performance async logger
- * 
+ *
  * @example
  * ```typescript
  * const fastLogger = createFastAsyncLogger({
@@ -336,7 +346,7 @@ export function createAsyncLogger(options: AsyncLoggerOptions): AsyncLogger {
  *     await transport.sendBatchFast(entries);
  *   }
  * });
- * 
+ *
  * // Minimal overhead - no utilities, no complex AddResult objects
  * fastLogger.info('High throughput logging');
  * ```
@@ -344,7 +354,7 @@ export function createAsyncLogger(options: AsyncLoggerOptions): AsyncLogger {
 export function createFastAsyncLogger(options: {
   buffer?: {
     size?: number;
-    flushInterval?: number; 
+    flushInterval?: number;
     flushSize?: number;
   };
   onFlush: (entries: LogEntry[]) => void | Promise<void>;
@@ -353,7 +363,7 @@ export function createFastAsyncLogger(options: {
   const optimizedOptions: AsyncLoggerOptions = {
     buffer: {
       size: options.buffer?.size || 16384,
-      flushInterval: options.buffer?.flushInterval || 50, 
+      flushInterval: options.buffer?.flushInterval || 50,
       flushSize: options.buffer?.flushSize || 2000,
     },
     onFlush: options.onFlush,
@@ -397,23 +407,25 @@ export function createFastAsyncLogger(options: {
  * const logger = createPerformantLogger({ target: 'auto' });
  *
  * // Explicit performance choice
- * const prodLogger = createPerformantLogger({ 
+ * const prodLogger = createPerformantLogger({
  *   target: 'production',  // Uses AsyncLogger
  *   onFlush: async (entries) => await transport.sendBatch(entries)
  * });
  *
- * const devLogger = createPerformantLogger({ 
+ * const devLogger = createPerformantLogger({
  *   target: 'development' // Uses sync Logger
  * });
  * ```
  */
-export function createPerformantLogger(options: {
-  target?: 'auto' | 'development' | 'production';
-  mode?: 'sync' | 'async';
-  onFlush?: (entries: LogEntry[]) => Promise<void>;
-  logger?: Partial<LoggerOptions>;
-  async?: Partial<AsyncLoggerOptions>;
-} = {}): Logger | AsyncLogger {
+export function createPerformantLogger(
+  options: {
+    target?: 'auto' | 'development' | 'production';
+    mode?: 'sync' | 'async';
+    onFlush?: (entries: LogEntry[]) => Promise<void>;
+    logger?: Partial<LoggerOptions>;
+    async?: Partial<AsyncLoggerOptions>;
+  } = {}
+): Logger | AsyncLogger {
   const {
     target = 'auto',
     mode,
@@ -443,7 +455,7 @@ export function createPerformantLogger(options: {
 
   // Smart detection based on target
   let useAsync = false;
-  
+
   if (target === 'production') {
     useAsync = true;
   } else if (target === 'development') {
@@ -453,7 +465,7 @@ export function createPerformantLogger(options: {
     const isProduction = process.env.NODE_ENV === 'production';
     const isInteractive = process.stdout && process.stdout.isTTY;
     const isTesting = process.env.NODE_ENV === 'test' || process.env.CI;
-    
+
     // Use async in production or non-interactive environments
     // Use sync for development, testing, or interactive shells
     useAsync = isProduction && !isInteractive && !isTesting;

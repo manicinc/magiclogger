@@ -620,9 +620,7 @@ export class Logger {
   }
 
   /** Normalize variadic args to a single message string plus optional meta */
-  private normalizeArgs(
-    args: unknown[]
-  ): {
+  private normalizeArgs(args: unknown[]): {
     message: string;
     meta?: LogEntryMeta;
   } {
