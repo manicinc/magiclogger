@@ -219,7 +219,7 @@ describe('AsyncLogger', () => {
       const promise = asyncLogger.logCritical('error', 'Critical error');
       jest.runAllTimers();
 
-      await expect(promise).rejects.toThrow('Logger is closing');
+      await expect(promise).rejects.toThrow('Failed to log after 10 attempts');
     });
 
     it('should throw error after max attempts', async () => {
