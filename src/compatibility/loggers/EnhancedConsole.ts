@@ -4,7 +4,8 @@ import { Logger } from '../../Logger';
 import type { ColorName } from '../../types/colors';
 import type { StylePreset } from '../../types/preset';
 import { Colorizer } from '../../core/Colorizer';
-import type { LoggerOptions } from '../../types';
+// Import LoggerOptions directly to avoid circular re-export chunking warnings
+import type { LoggerOptions } from '../../types/logger';
 
 /**
  * Options for enhancing the console

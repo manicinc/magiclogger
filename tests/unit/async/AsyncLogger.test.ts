@@ -31,7 +31,7 @@ describe('AsyncLogger', () => {
 
     // Mock AsyncBuffer instance
     mockAsyncBuffer = {
-      add: jest.fn().mockReturnValue({ success: true }),
+      add: jest.fn().mockReturnValue(true), // Performance optimized: returns boolean, not AddResult
       flush: jest.fn(),
       flushAndWait: jest.fn().mockResolvedValue(undefined),
       close: jest.fn().mockResolvedValue(undefined),
@@ -131,55 +131,44 @@ describe('AsyncLogger', () => {
     });
 
     it('should return success result when buffer accepts entry', () => {
-      mockAsyncBuffer.add.mockReturnValue({
-        success: true,
-        bufferStats: { size: 1, capacity: 8192, utilization: 0.0001 },
-      });
+      mockAsyncBuffer.add.mockReturnValue(true); // Fast path returns boolean
 
       const result = asyncLogger.info('Test message');
 
       expect(result.success).toBe(true);
-      expect(result.bufferStats).toBeDefined();
+      // Fast path doesn't include buffer stats when successful
+      expect(result.bufferStats).toBeUndefined();
       expect(mockCreateEntry).toHaveBeenCalledWith('info', 'Test message', undefined);
     });
 
     it('should return failure result when buffer is full', () => {
-      mockAsyncBuffer.add.mockReturnValue({
-        success: false,
-        reason: 'buffer_full',
-        bufferStats: { size: 8192, capacity: 8192, utilization: 1.0 },
+      mockAsyncBuffer.add.mockReturnValue(false); // Fast path returns false on failure
+      mockAsyncBuffer.getStats.mockReturnValue({
+        size: 8192,
+        capacity: 8192,
+        utilization: 1.0,
       });
 
       const result = asyncLogger.info('Test message');
 
       expect(result.success).toBe(false);
-      expect(result.reason).toBe('buffer_full');
+      // Fast path provides buffer stats lazily when failed
       expect(result.bufferStats?.utilization).toBe(1.0);
     });
 
-    it('should handle dropped entries with reason', () => {
-      mockAsyncBuffer.add.mockReturnValue({
-        success: true,
-        reason: 'dropped',
-        dropped: {
-          id: 'dropped-entry',
-          level: 'info',
-          message: 'Old message',
-          timestamp: new Date().toISOString(),
-          timestampMs: Date.now(),
-        },
-        bufferStats: { size: 8192, capacity: 8192, utilization: 1.0 },
-      });
+    it('should handle successful buffer add in fast path', () => {
+      mockAsyncBuffer.add.mockReturnValue(true); // Fast path success
 
       const result = asyncLogger.warn('New message');
 
       expect(result.success).toBe(true);
-      expect(result.reason).toBe('dropped');
-      expect(result.dropped).toBeDefined();
+      // Fast path doesn't provide extra metadata when successful
+      expect(result.reason).toBeUndefined();
+      expect(result.dropped).toBeUndefined();
     });
 
     it('should work with all log levels', () => {
-      mockAsyncBuffer.add.mockReturnValue({ success: true });
+      mockAsyncBuffer.add.mockReturnValue(true); // Fast path returns boolean
 
       const methods = ['info', 'warn', 'error', 'debug', 'success'] as const;
 
@@ -202,7 +191,7 @@ describe('AsyncLogger', () => {
     });
 
     it('should succeed when buffer accepts entry on first try', async () => {
-      mockAsyncBuffer.add.mockReturnValue({ success: true });
+      mockAsyncBuffer.add.mockReturnValue(true); // Fast path success
 
       const promise = asyncLogger.logCritical('error', 'Critical error');
       jest.runAllTimers();
@@ -213,9 +202,9 @@ describe('AsyncLogger', () => {
 
     it('should retry and eventually succeed', async () => {
       mockAsyncBuffer.add
-        .mockReturnValueOnce({ success: false, reason: 'buffer_full' })
-        .mockReturnValueOnce({ success: false, reason: 'buffer_full' })
-        .mockReturnValueOnce({ success: true });
+        .mockReturnValueOnce(false)
+        .mockReturnValueOnce(false)
+        .mockReturnValueOnce(true);
 
       const promise = asyncLogger.logCritical('error', 'Critical error');
       jest.runAllTimers();
@@ -225,7 +214,10 @@ describe('AsyncLogger', () => {
     });
 
     it('should throw error if buffer is closing', async () => {
-      mockAsyncBuffer.add.mockReturnValue({ success: false, reason: 'closing' });
+      mockAsyncBuffer.add.mockReturnValue({
+        success: false,
+        reason: 'closing'
+      });
 
       const promise = asyncLogger.logCritical('error', 'Critical error');
       jest.runAllTimers();
@@ -234,7 +226,7 @@ describe('AsyncLogger', () => {
     });
 
     it('should throw error after max attempts', async () => {
-      mockAsyncBuffer.add.mockReturnValue({ success: false, reason: 'buffer_full' });
+  mockAsyncBuffer.add.mockReturnValue(false);
 
       const promise = asyncLogger.logCritical('error', 'Critical error');
       jest.runAllTimers();

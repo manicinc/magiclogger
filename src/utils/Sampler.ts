@@ -86,6 +86,7 @@ export class Sampler {
    *
    * @param {SamplerOptions} options - Sampling configuration
    */
+  constructor();
   constructor(options: SamplerOptions);
   constructor(options?: SamplerOptions) {
     const o: SamplerOptions = options ?? { rate: 1.0, strategy: 'random' };
@@ -262,10 +263,23 @@ export class Sampler {
  * Create a sampler with preset configuration.
  */
 export function createSamplerPreset(preset: 'development' | 'staging' | 'production'): Sampler {
-  const presets: Record<string, SamplerOptions> = {
-    development: { rate: 1.0, strategy: 'random' },
-    staging: { rate: 0.5, strategy: 'deterministic' },
-    production: { rate: 0.1, strategy: 'adaptive', targetRate: 1000, minRate: 0.001, maxRate: 0.1 },
-  };
-  return new Sampler(presets[preset] || presets.production);
+  // Use switch to avoid element-access on Record which can yield `undefined`
+  // under `noUncheckedIndexedAccess`, ensuring a definite SamplerOptions.
+  switch (preset) {
+    case 'development':
+      return new Sampler({ rate: 1.0, strategy: 'random' });
+    case 'staging':
+      return new Sampler({ rate: 0.5, strategy: 'deterministic' });
+    case 'production':
+      return new Sampler({
+        rate: 0.1,
+        strategy: 'adaptive',
+        targetRate: 1000,
+        minRate: 0.001,
+        maxRate: 0.1,
+      });
+    default:
+      // Fallback for exhaustive checking safety; default to development behavior
+      return new Sampler({ rate: 1.0, strategy: 'random' });
+  }
 }

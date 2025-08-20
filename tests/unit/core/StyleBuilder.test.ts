@@ -451,6 +451,8 @@ describe('StyleBuilder', () => {
 
   describe('Performance', () => {
     it('should handle rapid style creation efficiently', () => {
+      // Clear cache for consistent test results
+      (StyleBuilder as any).clearCache();
       const builder = new StyleBuilder();
       const start = Date.now();
 

@@ -1,8 +1,8 @@
 # MagicLogger
 
 <p align="center">
-    <img src="website/static/img/magiclogger-primary-no-subtitle-transparent-4x.png" alt="Magiclogger" width="520"/> <img src="https://img.shields.io/badge/core_gzip-37kb-brightgreen.svg" alt="core_gzip"> <img src="https://img.shields.io/badge/core_console_gzip-37kb-brightgreen.svg" alt="core_console_gzip"><br/>
-    <img src="https://img.shields.io/badge/core_transports_gzip-45kb-brightgreen.svg" alt="core_transports_gzip"> <img src="https://img.shields.io/badge/compat_gzip-44kb-brightgreen.svg" alt="compat_gzip">
+    <img src="website/static/img/magiclogger-primary-no-subtitle-transparent-4x.png" alt="Magiclogger" width="520"/> <img src="https://img.shields.io/badge/core_gzip-47kb-brightgreen.svg" alt="core_gzip"> <img src="https://img.shields.io/badge/core_console_gzip-47kb-brightgreen.svg" alt="core_console_gzip"><br/>
+    <img src="https://img.shields.io/badge/core_transports_gzip-55kb-brightgreen.svg" alt="core_transports_gzip"> <img src="https://img.shields.io/badge/compat_gzip-45kb-brightgreen.svg" alt="compat_gzip">
 </p>
 <p align="center">
   <!-- Top row: static + coverage badges -->
@@ -64,11 +64,12 @@
 
 ## Enterprise-Ready Logging with Style
 
-**MagicLogger** transforms boring console logs into vibrant, organized output while providing production-ready async logging with explicit backpressure handling. Beautiful styling meets enterprise-grade operational features.
+**MagicLogger** is a colorful logging library in TypeScript with multiple APIs and flexible logging options to balance both performance, style, stability.
 
 ```typescript
-import { Logger, createAsyncLogger } from 'magiclogger';
+import { Logger, createAsyncLogger, createPerformantLogger } from 'magiclogger';
 
+// Standard Logger - synchronous by default for predictable behavior
 const logger = new Logger({ useColors: true });
 
 // Beautiful styled output - three powerful APIs
@@ -84,7 +85,11 @@ logger.table([
   { service: 'DB', status: 'degraded', uptime: '95.2%' }
 ]);
 
+// Smart performance-aware logger (auto-detects environment)
+const smartLogger = createPerformantLogger({ target: 'auto' });
+
 // Production AsyncLogger with integrated operational utilities
+// Choose async when you need maximum throughput (13x faster)
 const asyncLogger = createAsyncLogger({
   buffer: { size: 8192, flushInterval: 100 },
   redactor: { preset: 'strict' },                    // Auto-redact PII
@@ -100,6 +105,8 @@ if (!result.success) {
   // Handle backpressure explicitly
 }
 ```
+
+Note: In current performance tests, MagicLogger is ~2x slower than Winston's built-in styling which is synchronous, but with its async implementation (comparable to Pino) MagicLogger's throughput is ~5x higher.
 
 ---
 
@@ -214,6 +221,49 @@ try {
 if (asyncLogger.isBackpressured()) {
   console.warn('Logger under pressure, throttling application');
 }
+```
+
+### Graceful Shutdown (AsyncLogger)
+
+AsyncLogger requires proper shutdown to prevent log loss:
+
+```javascript
+// REQUIRED: Setup shutdown handlers
+process.on('SIGTERM', async () => {
+  console.log('Shutting down...');
+  await asyncLogger.flushAndWait(); // Ensure all logs are sent
+  await asyncLogger.close();
+  process.exit(0);
+});
+
+process.on('uncaughtException', async (error) => {
+  await asyncLogger.logCritical('error', 'Uncaught exception', { error });
+  await asyncLogger.flushAndWait();
+  process.exit(1);
+});
+
+// Express.js example
+app.get('/shutdown', async (req, res) => {
+  res.send('Shutting down...');
+  await asyncLogger.flushAndWait();
+  server.close();
+});
+
+// Kubernetes graceful shutdown
+process.on('SIGTERM', async () => {
+  console.log('SIGTERM received, starting graceful shutdown');
+  
+  // Stop accepting new requests
+  server.close(() => {
+    console.log('HTTP server closed');
+  });
+  
+  // Flush all pending logs
+  await asyncLogger.flushAndWait();
+  console.log('All logs flushed');
+  
+  process.exit(0);
+});
 ```
 
 ### Unified API - Same Utilities Work in Both Loggers
@@ -860,6 +910,45 @@ logger.on('memory_pressure', ({ usage }) => {
 
 ## ⚡ Performance
 
+### Sync vs Async: Choosing the Right Mode
+
+**Default (Synchronous) Logger:**
+- ✅ Immediate output - see logs instantly
+- ✅ No log loss on crash
+- ✅ Simple debugging
+- ⚠️ Blocks on I/O (7,586 ops/sec)
+- **Best for**: Development, debugging, CLIs, moderate traffic
+
+**AsyncLogger:**
+- ✅ Non-blocking (103,327 ops/sec - **13x faster**)
+- ✅ Automatic batching
+- ✅ Explicit backpressure handling
+- ⚠️ Requires shutdown handling
+- ⚠️ Potential log loss on ungraceful exit
+- **Best for**: Production services, high-throughput applications
+
+**Quick Decision Guide:**
+```javascript
+// Development or need immediate feedback?
+const logger = new Logger();
+
+// Production service with high volume?
+const logger = createAsyncLogger({ 
+  onFlush: async (entries) => await transport.sendBatch(entries)
+});
+
+// Want smart detection?
+const logger = createPerformantLogger({ target: 'auto' });
+
+// Need both? Use hybrid approach:
+const logger = new Logger({
+  transports: [
+    new ConsoleTransport(),           // Sync for errors
+    new HTTPTransport({ batch: true }) // Async for remote logging
+  ]
+});
+```
+
 MagicLogger's performance varies by use case. For synchronous logging, other libraries excel, but MagicLogger's async implementation delivers superior throughput for high-volume scenarios.
 
 ### Benchmark Results
@@ -869,45 +958,72 @@ MagicLogger's performance varies by use case. For synchronous logging, other lib
 <!-- PERF_TABLE_START -->
 | Logger | Iterations | Time (ms) | Ops/sec |
 |--------|------------:|----------:|--------:|
-| Bunyan (Sync, Styled) | 100,000 | 2955.6 | 33,834 |
-| Winston (Sync, Styled) | 100,000 | 3104.1 | 32,215 |
-| Winston (Sync, Plain) | 100,000 | 3427.2 | 29,179 |
-| Bunyan (Sync, Plain) | 100,000 | 3574.7 | 27,974 |
-| Pino (Sync, Plain) | 100,000 | 3632.4 | 27,530 |
-| Pino (Sync, Styled) | 100,000 | 3802.0 | 26,302 |
-| MagicLogger (Sync, Plain) | 100,000 | 12321.0 | 8,116 |
-| MagicLogger (Sync, Styled) | 100,000 | 13182.6 | 7,586 |
-| MagicLogger (Async, Plain) | 100,000 | 967.8 | 103,327 |
-| MagicLogger (Async, Styled) | 100,000 | 1347.3 | 74,225 |
-| Pino (Async, Styled) | 100,000 | 1492.7 | 66,994 |
-| Pino (Async, Plain) | 100,000 | 2628.9 | 38,038 |
-| Winston (Async, Styled) | 100,000 | 2648.0 | 37,765 |
-| Winston (Async, Plain) | 100,000 | 2681.5 | 37,293 |
+| Winston (Sync, Styled) | 100,000 | 789.5 | 126,663 |
+| Winston (Sync, Plain) | 100,000 | 1213.1 | 82,430 |
+| Bunyan (Sync, Styled) | 100,000 | 1218.1 | 82,092 |
+| Bunyan (Sync, Plain) | 100,000 | 1270.6 | 78,703 |
+| Pino (Sync, Plain) | 100,000 | 1516.7 | 65,931 |
+| Pino (Sync, Styled) | 100,000 | 1573.9 | 63,537 |
+| MagicLogger (Sync, Plain) | 100,000 | 2375.6 | 42,094 |
+| MagicLogger (Sync, Styled) | 100,000 | 3122.6 | 32,025 |
+| MagicLogger (Async, Plain) | 100,000 | 545.5 | 183,322 |
+| MagicLogger (Async, Styled) | 100,000 | 724.4 | 138,050 |
+| Pino (Async, Styled) | 100,000 | 751.2 | 133,112 |
+| Pino (Async, Plain) | 100,000 | 1090.6 | 91,696 |
+| Winston (Async, Plain) | 100,000 | 1517.2 | 65,911 |
+| Winston (Async, Styled) | 100,000 | 1841.5 | 54,304 |
+
+### Winners
+- Sync Plain: Winston (Sync, Plain) (82,430 ops/sec) — MagicLogger: 42,094 ops/sec
+- Sync Styled: Winston (Sync, Styled) (126,663 ops/sec) — MagicLogger: 32,025 ops/sec
+- Async Plain: MagicLogger (Async, Plain) (183,322 ops/sec)
+- Async Styled: MagicLogger (Async, Styled) (138,050 ops/sec)
+
+=== KEY COMPARISONS ===
+
+Synchronous Styled Performance:
+  MagicLogger (Sync, Styled): 32,025 ops/sec
+  Winston (Sync, Styled): 126,663 ops/sec
+  → MagicLogger is 3.96x slower
+
+Asynchronous Styled Performance:
+  MagicLogger (Async, Styled): 138,050 ops/sec
+  Pino (Async, Styled): 133,112 ops/sec
+  → MagicLogger is 1.04x faster
+
+Note: External libraries' "Styled" cases use chalk for coloring (chalk + library) for fair comparison.
+
+*Generated via scripts/performance/perf-bench.mjs*
 <!-- PERF_TABLE_END -->
+*Table generated by `scripts/performance/perf-bench.ts`. External libraries' "Styled" cases use chalk for coloring (chalk + library) for fair comparison.*
+
 
 ### Performance Insights
 
-**Synchronous Performance:**
-- **Winners**: Bunyan (33,834 ops/sec styled), Winston (32,215 ops/sec styled)
-- **MagicLogger**: 7,586 ops/sec styled - optimized for features over raw speed
-- **Trade-off**: Rich styling and visual elements come with performance cost
-
-**Asynchronous Performance:**
-- **Winner**: MagicLogger leads with 103,327 ops/sec (plain) and 74,225 ops/sec (styled)
-- **Advantage**: Ring buffer and async architecture excel in high-volume scenarios
-- **Use case**: Ideal for production environments with burst logging
+<!-- All performance insights and winners are now auto-generated below. See the Benchmark Results and Winners section for authoritative, up-to-date results. -->
 
 ### When to Choose Each Mode
 
-**Sync Mode**: Development, debugging, interactive applications
-- Rich visual output with tables, progress bars, headers
-- Immediate console feedback
-- Perfect for human-readable logs
+**Use Synchronous (default Logger):**
+- Development and debugging
+- CLI tools and scripts
+- Test environments
+- When log order must match execution order
+- Applications with < 1000 logs/second
 
-**Async Mode**: Production, high-throughput, batch processing
-- 10x+ performance improvement
-- Non-blocking operation
-- Configurable buffering and batching
+**Use Asynchronous (AsyncLogger):**
+- Production microservices
+- High-throughput applications (> 1000 logs/second)
+- When blocking I/O is unacceptable
+- Batch processing systems
+- When you can handle graceful shutdown
+
+**Hybrid Approach:**
+```javascript
+// Critical logs sync, bulk logs async
+logger.error('CRITICAL: Database down'); // Goes to ConsoleTransport (sync)
+logger.info('Request processed'); // Goes to HTTPTransport (batched)
+```
 
 ### Bundle Sizes (gzipped)
 
@@ -1093,6 +1209,74 @@ MIT © Manic.agency
 </p>
 
 ## 📦 Build Output Sizes
+
+| File | Format | Raw Size | Gzip |
+|------|--------|----------|------|
+| `index.cjs` | CJS | 8.56 kB | 2.06 kB |
+| `index.js` | ESM | 5.44 kB | 1.75 kB |
+| `index.d.ts` | Types | 127 kB | 25.3 kB |
+
+### Reference bundle sizes (gzip)
+
+| Scenario | Size |
+|----------|------|
+| core (esm, gzip) | 48.3 kB |
+| core + console (esm, gzip) | 48.3 kB |
+| core + all core transports (esm, gzip) | 56.6 kB |
+| all compatibility layers (esm, gzip) | 45.8 kB |
+
+*Generated via `scripts/analyze-build.js`.*
+
+| File | Format | Raw Size | Gzip |
+|------|--------|----------|------|
+| `index.cjs` | CJS | 7.66 kB | 1.77 kB |
+| `index.js` | ESM | 4.59 kB | 1.47 kB |
+| `index.d.ts` | Types | 125 kB | 24.9 kB |
+
+### Reference bundle sizes (gzip)
+
+| Scenario | Size |
+|----------|------|
+| core (esm, gzip) | 48.1 kB |
+| core + console (esm, gzip) | 48.1 kB |
+| core + all core transports (esm, gzip) | 56.5 kB |
+| all compatibility layers (esm, gzip) | 45.8 kB |
+
+*Generated via `scripts/analyze-build.js`.*
+
+| File | Format | Raw Size | Gzip |
+|------|--------|----------|------|
+| `index.cjs` | CJS | 7.66 kB | 1.77 kB |
+| `index.js` | ESM | 4.59 kB | 1.47 kB |
+| `index.d.ts` | Types | 125 kB | 24.9 kB |
+
+### Reference bundle sizes (gzip)
+
+| Scenario | Size |
+|----------|------|
+| core (esm, gzip) | 48.1 kB |
+| core + console (esm, gzip) | 48.1 kB |
+| core + all core transports (esm, gzip) | 56.5 kB |
+| all compatibility layers (esm, gzip) | 45.8 kB |
+
+*Generated via `scripts/analyze-build.js`.*
+
+| File | Format | Raw Size | Gzip |
+|------|--------|----------|------|
+| `index.cjs` | CJS | 6.57 kB | 1.52 kB |
+| `index.js` | ESM | 3.59 kB | 1.23 kB |
+| `index.d.ts` | Types | 124 kB | 24.6 kB |
+
+### Reference bundle sizes (gzip)
+
+| Scenario | Size |
+|----------|------|
+| core (esm, gzip) | 47.8 kB |
+| core + console (esm, gzip) | 47.8 kB |
+| core + all core transports (esm, gzip) | 56.2 kB |
+| all compatibility layers (esm, gzip) | 45.8 kB |
+
+*Generated via `scripts/analyze-build.js`.*
 
 | File | Format | Raw Size | Gzip |
 |------|--------|----------|------|
