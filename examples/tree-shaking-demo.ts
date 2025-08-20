@@ -7,13 +7,25 @@
  * Each import is separate to ensure only needed code is bundled.
  */
 
+// Core imports (align to local src to keep class identity consistent)
+import { Logger } from '../src/index';
+import type { LogEntry, LoggerOptions } from '../src/index';
+
+// Transport imports (align to local src to keep type identity consistent)
+import { Transport } from '../src/transports/base';
+import { ConsoleTransport } from '../src/transports/console';
+import { FileTransport } from '../src/transports/file';
+
+// Compatibility layer imports (align to local src)
+import { createWinstonCompatible } from '../src/compatibility/winston';
+import { createBunyanCompatible } from '../src/compatibility/bunyan';
+import { createPinoCompatible } from '../src/compatibility/pino';
+import { enhanceConsole } from '../src/compatibility/console';
+
 // ============================================
 // EXAMPLE 1: Minimal Logger (Smallest Bundle)
 // ============================================
 
-import { Logger } from 'magiclogger';
-
-// Without any transports, logs go nowhere (but the API still works)
 const minimalLogger = new Logger();
 minimalLogger.info('This log goes nowhere without transports');
 
@@ -21,17 +33,14 @@ minimalLogger.info('This log goes nowhere without transports');
 // EXAMPLE 2: Console-Only Logger
 // ============================================
 
-import { ConsoleTransport } from 'magiclogger/transports/console';
-
-const consoleLogger = new Logger({
-  transports: [
-    new ConsoleTransport({
-      name: 'console',
-      level: 'debug',
-      useColors: true,
-    }),
-  ],
-});
+const consoleLogger = new Logger();
+consoleLogger.addTransport(
+  new ConsoleTransport({
+    name: 'console',
+    level: 'debug',
+    useColors: true,
+  })
+);
 
 consoleLogger.info('This appears in the console with colors');
 consoleLogger.debug('Debug messages are visible');
@@ -41,22 +50,21 @@ consoleLogger.error('Errors stand out', new Error('Example error'));
 // EXAMPLE 3: File Logging
 // ============================================
 
-import { FileTransport } from 'magiclogger/transports/file';
-
 const fileLogger = new Logger({
   id: 'app-logger',
   tags: ['production'],
-  transports: [
-    new ConsoleTransport({ name: 'console' }),
-    new FileTransport({
-      name: 'file',
-      filepath: './logs/app.log',
-      level: 'info',
-      maxFileSize: 10485760, // 10MB
-      maxFiles: 5,
-    }),
-  ],
 });
+
+fileLogger.addTransport(new ConsoleTransport({ name: 'console' }));
+fileLogger.addTransport(
+  new FileTransport({
+    name: 'file',
+    filepath: './logs/app.log',
+    level: 'info',
+    maxFileSize: 10485760, // 10MB
+    maxFiles: 5,
+  })
+);
 
 fileLogger.info('This goes to both console and file');
 fileLogger.debug('This only goes to console (file level is info)');
@@ -65,8 +73,6 @@ fileLogger.debug('This only goes to console (file level is info)');
 // EXAMPLE 4: Winston Compatibility
 // ============================================
 
-import { createWinstonCompatible } from 'magiclogger/compatibility/winston';
-
 const winstonLogger = createWinstonCompatible({
   level: 'info',
   defaultMeta: { service: 'user-service' },
@@ -74,8 +80,9 @@ const winstonLogger = createWinstonCompatible({
 });
 
 // Winston-style API
-winstonLogger.info('User logged in', { userId: 12345 });
-winstonLogger.error('Database error', new Error('Connection failed'));
+// Winston meta/rest args are typed as unknown[] in this demo build
+winstonLogger.info('User logged in', [{ userId: 12345 }]);
+winstonLogger.error('Database error', [new Error('Connection failed')]);
 
 // Winston child loggers
 const requestLogger = winstonLogger.child({ requestId: 'abc-123' });
@@ -85,7 +92,7 @@ requestLogger.info('Processing request');
 // EXAMPLE 5: Dynamic Transport Loading
 // ============================================
 
-async function setupProductionLogging() {
+async function setupProductionLogging(): Promise<Logger> {
   const logger = new Logger({
     id: 'production-app',
     context: { environment: 'production' },
@@ -93,20 +100,22 @@ async function setupProductionLogging() {
 
   // Always use console in development
   if (process.env.NODE_ENV !== 'production') {
-    logger.addTransport(new ConsoleTransport({ name: 'console' }));
+    await logger.addTransport(new ConsoleTransport({ name: 'console' }));
   }
 
   // Conditionally load heavy transports
   if (process.env.USE_S3_LOGS === 'true') {
     // This import only happens if needed (tree-shaking!)
-    const { S3Transport } = await import('magiclogger/transports/s3');
+  const { S3Transport } = await import('../src/transports/s3');
 
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const bucket = process.env.LOG_BUCKET!;
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const region = process.env.AWS_REGION!;
+    const bucket = process.env.LOG_BUCKET;
+    const region = process.env.AWS_REGION;
 
-    logger.addTransport(
+    if (!bucket || !region) {
+      throw new Error('S3 logging enabled but LOG_BUCKET or AWS_REGION not set');
+    }
+
+    await logger.addTransport(
       new S3Transport({
         name: 's3',
         bucket,
@@ -119,12 +128,15 @@ async function setupProductionLogging() {
 
   if (process.env.USE_MONGODB_LOGS === 'true') {
     // MongoDB transport only loaded when needed
-    const { MongoDBTransport } = await import('magiclogger/transports/mongodb');
+  const { MongoDBTransport } = await import('../src/transports/mongodb');
 
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const uri = process.env.MONGODB_URI!;
+    const uri = process.env.MONGODB_URI;
 
-    logger.addTransport(
+    if (!uri) {
+      throw new Error('MongoDB logging enabled but MONGODB_URI not set');
+    }
+
+    await logger.addTransport(
       new MongoDBTransport({
         name: 'mongodb',
         uri,
@@ -140,11 +152,6 @@ async function setupProductionLogging() {
 // ============================================
 // EXAMPLE 6: Multiple Compatibility Layers
 // ============================================
-
-// Each import is separate for tree-shaking
-import { createBunyanCompatible } from 'magiclogger/compatibility/bunyan';
-import { createPinoCompatible } from 'magiclogger/compatibility/pino';
-import { enhanceConsole } from 'magiclogger/compatibility/console';
 
 // Bunyan-style logger
 const bunyanLogger = createBunyanCompatible({
@@ -162,39 +169,45 @@ const pinoLogger = createPinoCompatible({
 
 pinoLogger.info('Fast logging with Pino API');
 
-// Enhanced console
-const { restoreConsole } = enhanceConsole();
-console.success('✨ Console is now enhanced!');
-console.header('Section Title');
+// Enhanced console (can be toggled)
+let restoreConsole: (() => void) | null = null;
 
-// Restore original console when done
-// restoreConsole();
+if (process.env.ENHANCE_CONSOLE === 'true') {
+  const result = enhanceConsole();
+  restoreConsole = result.restoreConsole;
+  
+  console.success('✨ Console is now enhanced!');
+  console.header('Section Title');
+}
 
 // ============================================
 // EXAMPLE 7: Custom Transports
 // ============================================
 
-import { Transport } from 'magiclogger/transports/base';
-import type { LogEntry } from 'magiclogger';
-
 class CustomTransport extends Transport {
   protected async doInit(): Promise<void> {
     // Initialize the transport
+    console.log('[CUSTOM] Transport initialized');
   }
 
   protected async doLog(entry: LogEntry): Promise<void> {
     // Your custom logging logic here
-    console.log(`[CUSTOM] ${entry.level}: ${entry.message}`);
+    const timestamp = new Date().toISOString();
+    console.log(`[CUSTOM] ${timestamp} ${entry.level.toUpperCase()}: ${entry.message}`);
+    
+    if (entry.context) {
+      console.log('[CUSTOM] Context:', JSON.stringify(entry.context, null, 2));
+    }
   }
 
   protected async doClose(): Promise<void> {
     // Clean up resources
+    console.log('[CUSTOM] Transport closed');
   }
 }
 
-const customLogger = new Logger({
-  transports: [new CustomTransport({ name: 'custom' })],
-});
+const customLogger = new Logger();
+customLogger.addTransport(new CustomTransport({ name: 'custom' }));
 
 customLogger.info('This uses our custom transport');
 
@@ -215,60 +228,175 @@ customLogger.info('This uses our custom transport');
  * - Winston full:                    ~180KB
  * - Bunyan full:                     ~45KB
  * - Pino full:                       ~35KB
+ * 
+ * Tips for optimal bundle size:
+ * - Only import what you need
+ * - Use dynamic imports for heavy transports
+ * - Avoid importing all compatibility layers
+ * - Consider lazy-loading transports
  */
 
 // ============================================
 // EXAMPLE 9: TypeScript Types
 // ============================================
 
-import type { LoggerOptions } from 'magiclogger';
-import type { ConsoleTransportOptions } from 'magiclogger/transports/console';
-
-// Type-safe configuration
 const config: LoggerOptions = {
   id: 'typed-logger',
-  tags: ['typescript'],
+  tags: ['typescript', 'demo'],
   verbose: true,
+  context: {
+    app: 'tree-shaking-demo',
+    version: '1.0.0',
+  },
 };
 
-const transportConfig: ConsoleTransportOptions = {
-  name: 'typed-console',
-  level: 'debug',
-  useColors: true,
-};
+const typedLogger = new Logger(config);
+typedLogger.addTransport(
+  new ConsoleTransport({
+    name: 'typed-console',
+    level: 'debug',
+    useColors: true,
+  })
+);
 
-const typedLogger = new Logger({
-  ...config,
-  transports: [new ConsoleTransport(transportConfig)],
-});
-
-// ============================================
-// EXAMPLE 10: Dynamic Loading Demo
-// ============================================
-
-// Use the dynamic loading function
-async function runDynamicDemo() {
-  const productionLogger = await setupProductionLogging();
-  productionLogger.info('Production logging configured');
+// Type-safe logging with metadata
+interface UserAction {
+  userId: number;
+  action: string;
+  timestamp: Date;
 }
 
-// Use the typed logger
-typedLogger.info('Type-safe logging example');
+const userAction: UserAction = {
+  userId: 123,
+  action: 'login',
+  timestamp: new Date(),
+};
+
+typedLogger.info('User action occurred', userAction);
 
 // ============================================
-// EXAMPLE 11: Cleanup
+// EXAMPLE 10: Error Handling
 // ============================================
 
-// Always close loggers in production for graceful shutdown
-process.on('SIGTERM', async () => {
-  await fileLogger.close();
-  await customLogger.close();
-  restoreConsole(); // Restore original console
+const errorLogger = new Logger({ id: 'error-handler' });
+errorLogger.addTransport(
+  new ConsoleTransport({
+    name: 'error-console',
+    level: 'error',
+    useColors: true,
+  })
+);
+
+// Structured error logging
+try {
+  throw new Error('Something went wrong');
+} catch (error) {
+  errorLogger.error('Operation failed', error, {
+    context: 'example-10',
+    severity: 'high',
+  });
+}
+
+// ============================================
+// EXAMPLE 11: Graceful Shutdown
+// ============================================
+
+// Track all loggers for cleanup
+const activeLoggers = [
+  consoleLogger,
+  fileLogger,
+  customLogger,
+  typedLogger,
+  errorLogger,
+];
+
+// Graceful shutdown handler
+async function shutdown(signal: string): Promise<void> {
+  console.log(`\nReceived ${signal}, shutting down gracefully...`);
+  
+  // Close all loggers
+  await Promise.all(activeLoggers.map(logger => logger.close()));
+  
+  // Restore original console if enhanced
+  if (restoreConsole) {
+    restoreConsole();
+  }
+  
+  console.log('Shutdown complete');
   process.exit(0);
-});
+}
 
-// Run the dynamic demo
-runDynamicDemo().catch(console.error);
+// Register shutdown handlers
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
 
-// Export for use in other modules
-export { consoleLogger, fileLogger, winstonLogger };
+// ============================================
+// EXAMPLE 12: Production Setup
+// ============================================
+
+async function initializeLogging(): Promise<void> {
+  try {
+    // Setup production logging with dynamic transports
+    const productionLogger = await setupProductionLogging();
+    productionLogger.info('Production logging initialized', {
+      transports: productionLogger.listTransports(),
+      environment: process.env.NODE_ENV,
+    });
+    
+    // Add to active loggers for cleanup
+    activeLoggers.push(productionLogger);
+    
+  // Export for global use without non-top-level imports
+  (globalThis as unknown as { logger?: typeof productionLogger }).logger = productionLogger;
+    
+  } catch (error) {
+    console.error('Failed to initialize logging:', error);
+    process.exit(1);
+  }
+}
+
+// ============================================
+// Module Exports
+// ============================================
+
+// Export commonly used loggers
+export {
+  consoleLogger,
+  fileLogger,
+  winstonLogger,
+  bunyanLogger,
+  pinoLogger,
+  customLogger,
+  typedLogger,
+  errorLogger,
+};
+
+// Export utility functions
+export {
+  setupProductionLogging,
+  initializeLogging,
+  shutdown,
+};
+
+// Export custom transport for extension
+export { CustomTransport };
+
+// Export types for TypeScript users
+export type { LogEntry, LoggerOptions };
+
+// Initialize if running directly
+if (require.main === module) {
+  console.log('🚀 MagicLogger Tree-Shaking Demo');
+  console.log('=====================================\n');
+  
+  // Run initialization
+  initializeLogging().catch(console.error);
+  
+  // Demo logs
+  setTimeout(() => {
+    consoleLogger.info('Demo: Console logging works');
+    fileLogger.warn('Demo: File logging active');
+    winstonLogger.info('Demo: Winston compatibility', { demo: true });
+    customLogger.debug('Demo: Custom transport example');
+  }, 100);
+}

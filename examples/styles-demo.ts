@@ -5,9 +5,9 @@
  * in the current terminal environment.
  */
 
-import { Logger, COLORS } from 'magiclogger';
+import { createSyncLogger, COLORS } from 'magiclogger';
 
-const logger = new Logger({ useColors: true });
+const logger = createSyncLogger({ useColors: true });
 
 // Helper function to test ANSI codes directly
 function testRawANSI() {

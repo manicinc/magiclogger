@@ -1,4 +1,4 @@
-import { Logger } from 'magiclogger';
+import { createSyncLogger } from 'magiclogger';
 import * as fs from 'fs';
 import type { ColorName, ThemeDefinition } from 'magiclogger';
 import { getTheme, listThemes } from 'magiclogger/theme';
@@ -30,7 +30,7 @@ for (const themeName of availableThemes) {
   const theme = getTheme(themeName);
   if (!theme) continue;
 
-  const logger = new Logger({ verbose: true });
+  const logger = createSyncLogger({ verbose: true });
 
   for (const level of Object.keys(theme)) {
     const colors = theme[level as keyof ThemeDefinition] as ColorName[];
@@ -70,7 +70,7 @@ if (Object.keys(manualThemes).length > 0) {
   for (const themeName of Object.keys(manualThemes)) {
     console.log(`\n>>> Theme: ${themeName.toUpperCase()}`);
 
-    const logger = new Logger({ verbose: true });
+  const logger = createSyncLogger({ verbose: true });
     const theme = manualThemes[themeName];
 
     for (const level of Object.keys(theme)) {

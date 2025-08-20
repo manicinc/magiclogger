@@ -3,7 +3,7 @@
 // Or compile with tsc and then run with node
 
 import {
-  Logger,
+  createSyncLogger,
   type ColorName,
   type LogLevel,
   type StylePreset,
@@ -20,8 +20,8 @@ const options: LoggerOptions = {
   theme: 'dark', // Use a predefined theme
 };
 
-// Create a type-safe logger instance
-const logger = new Logger(options);
+// Create a type-safe logger instance (sync for interactive demo)
+const logger = createSyncLogger(options);
 
 // Winston-compatible logger
 const winstonLogger = createWinstonCompatible({ verbose: true });

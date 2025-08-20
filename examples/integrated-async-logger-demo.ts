@@ -10,9 +10,9 @@
 
 import {
   // Core logging
-  Logger,
   AsyncLogger,
   createAsyncLogger,
+  createSyncLogger,
 
   // Operational utilities
   QueueManager,
@@ -262,16 +262,15 @@ async function demonstrateIntegratedAsyncLogger() {
   console.log('\n🔗 5. Seamless Logger Integration');
 
   // Demonstrate that regular Logger can also use the utilities
-  const regularLogger = new Logger({
+  const regularLogger = createSyncLogger({
     id: 'integrated-logger',
 
     // Same utility integration!
     redactor: { preset: 'standard' },
     rateLimiter: { max: 50, window: 30000 },
     sampler: { rate: 1.0 }, // No sampling for regular logger
-
-    transports: [new ConsoleTransport({})],
   });
+  regularLogger.addTransport(new ConsoleTransport({}));
 
   console.log('📝 Regular logger with integrated utilities:');
   regularLogger.info('Regular log with email: jane@company.com and card: 5555-5555-5555-4444');

@@ -10,8 +10,7 @@
  *   - TypeScript: npx ts-node examples/animated-demo.ts
  */
 
-import { Logger, COLORS, type ColorName, type StylePreset } from 'magiclogger';
-import { ANSI } from 'magiclogger/constants';
+import { createSyncLogger, COLORS, type ColorName, type StylePreset, type Logger, ANSI } from 'magiclogger';
 
 // Helper function to pause execution
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
@@ -1039,7 +1038,7 @@ console.log(rainbowText('✨ MagicLogger - Beautiful terminal styling ✨'));
  */
 async function runAnimatedDemo(): Promise<void> {
   // Create a logger with colors enabled
-  const logger = new Logger({
+  const logger = createSyncLogger({
     useColors: true,
     verbose: true,
   });

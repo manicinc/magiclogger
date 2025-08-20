@@ -404,20 +404,20 @@ export function createFastAsyncLogger(options: {
  * @example
  * ```typescript
  * // Auto-selects based on NODE_ENV and TTY
- * const logger = createPerformantLogger({ target: 'auto' });
+ * const logger = createSmartLogger({ target: 'auto' });
  *
  * // Explicit performance choice
- * const prodLogger = createPerformantLogger({
+ * const prodLogger = createSmartLogger({
  *   target: 'production',  // Uses AsyncLogger
  *   onFlush: async (entries) => await transport.sendBatch(entries)
  * });
  *
- * const devLogger = createPerformantLogger({
+ * const devLogger = createSmartLogger({
  *   target: 'development' // Uses sync Logger
  * });
  * ```
  */
-export function createPerformantLogger(
+export function createSmartLogger(
   options: {
     target?: 'auto' | 'development' | 'production';
     mode?: 'sync' | 'async';
@@ -485,6 +485,11 @@ export function createPerformantLogger(
     });
   }
 }
+
+/**
+ * @deprecated Use createSmartLogger instead. Will be removed in v1.0.0.
+ */
+export const createPerformantLogger = createSmartLogger;
 
 // ==========================================
 // ENHANCED ASYNC TYPES EXPORTS
