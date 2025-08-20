@@ -214,10 +214,7 @@ describe('AsyncLogger', () => {
     });
 
     it('should throw error if buffer is closing', async () => {
-      mockAsyncBuffer.add.mockReturnValue({
-        success: false,
-        reason: 'closing'
-      });
+      mockAsyncBuffer.add.mockReturnValue(false);
 
       const promise = asyncLogger.logCritical('error', 'Critical error');
       jest.runAllTimers();
@@ -226,7 +223,7 @@ describe('AsyncLogger', () => {
     });
 
     it('should throw error after max attempts', async () => {
-  mockAsyncBuffer.add.mockReturnValue(false);
+      mockAsyncBuffer.add.mockReturnValue(false);
 
       const promise = asyncLogger.logCritical('error', 'Critical error');
       jest.runAllTimers();
