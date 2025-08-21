@@ -10,7 +10,14 @@
  *   - TypeScript: npx ts-node examples/animated-demo.ts
  */
 
-import { createSyncLogger, COLORS, type ColorName, type StylePreset, type Logger, ANSI } from 'magiclogger';
+import {
+  createSyncLogger,
+  COLORS,
+  type ColorName,
+  type StylePreset,
+  type Logger,
+  ANSI,
+} from '../dist/index.js';
 
 // Helper function to pause execution
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));

@@ -1,4 +1,5 @@
 #!/usr/bin/env tsx
+// cspell:words Backpressured
 
 /**
  * MagicLogger Integrated Async Logger Demo
@@ -27,10 +28,11 @@ import {
   // Types
   type LogEntry,
   type AddResult,
-} from '../src/index';
+} from '../dist/index.js';
 
-// Console transport for demonstration
-import { ConsoleTransport } from '../src/transports/console';
+// Console transport for demonstration - import from transports to ensure type compatibility
+// Import transport directly from its module to ensure a single Transport base
+import { ConsoleTransport } from '../dist/transports.js';
 
 async function demonstrateIntegratedAsyncLogger() {
   // Touch symbols so lint doesn't flag demo-only imports as unused

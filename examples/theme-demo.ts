@@ -1,7 +1,7 @@
-import { createSyncLogger } from 'magiclogger';
+import { createSyncLogger } from '../dist/index.js';
 import * as fs from 'fs';
-import type { ColorName, ThemeDefinition } from 'magiclogger';
-import { getTheme, listThemes } from 'magiclogger/theme';
+import type { ColorName, ThemeDefinition } from '../dist/index.js';
+import { getTheme, listThemes } from '../dist/theme/theme.js';
 
 import { fileURLToPath } from 'url';
 import path from 'path';
@@ -70,7 +70,7 @@ if (Object.keys(manualThemes).length > 0) {
   for (const themeName of Object.keys(manualThemes)) {
     console.log(`\n>>> Theme: ${themeName.toUpperCase()}`);
 
-  const logger = createSyncLogger({ verbose: true });
+    const logger = createSyncLogger({ verbose: true });
     const theme = manualThemes[themeName];
 
     for (const level of Object.keys(theme)) {

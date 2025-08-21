@@ -5,7 +5,7 @@
  * with powerful formatting and visualization capabilities.
  */
 
-import { enhanceConsole } from 'magiclogger';
+import { enhanceConsole } from '../dist/index.js';
 
 // Show default console behavior before enhancement
 console.log('\n=== STANDARD CONSOLE (BEFORE ENHANCEMENT) ===');

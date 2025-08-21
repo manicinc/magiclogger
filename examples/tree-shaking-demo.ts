@@ -7,20 +7,20 @@
  * Each import is separate to ensure only needed code is bundled.
  */
 
-// Core imports (align to local src to keep class identity consistent)
-import { Logger } from '../src/index';
-import type { LogEntry, LoggerOptions } from '../src/index';
+// Core imports - import from main index
+import { Logger } from '../dist/index.js';
+import type { LogEntry, LoggerOptions } from '../dist/index.js';
 
-// Transport imports (align to local src to keep type identity consistent)
-import { Transport } from '../src/transports/base';
-import { ConsoleTransport } from '../src/transports/console';
-import { FileTransport } from '../src/transports/file';
+// Import transports from the single compiled transports entry to share the same base class instance
+import { Transport } from '../dist/transports.js';
+import { ConsoleTransport } from '../dist/transports.js';
+import { FileTransport } from '../dist/transports.js';
 
-// Compatibility layer imports (align to local src)
-import { createWinstonCompatible } from '../src/compatibility/winston';
-import { createBunyanCompatible } from '../src/compatibility/bunyan';
-import { createPinoCompatible } from '../src/compatibility/pino';
-import { enhanceConsole } from '../src/compatibility/console';
+// Compatibility layer imports (align to local dist)
+import { createWinstonCompatible } from '../dist/compatibility/winston.js';
+import { createBunyanCompatible } from '../dist/compatibility/bunyan.js';
+import { createPinoCompatible } from '../dist/compatibility/pino.js';
+import { enhanceConsole } from '../dist/compatibility/console.js';
 
 // ============================================
 // EXAMPLE 1: Minimal Logger (Smallest Bundle)
@@ -80,9 +80,9 @@ const winstonLogger = createWinstonCompatible({
 });
 
 // Winston-style API
-// Winston meta/rest args are typed as unknown[] in this demo build
-winstonLogger.info('User logged in', [{ userId: 12345 }]);
-winstonLogger.error('Database error', [new Error('Connection failed')]);
+// Note: winston compatibility layer accepts variadic args
+winstonLogger.info('User logged in');
+winstonLogger.error('Database error');
 
 // Winston child loggers
 const requestLogger = winstonLogger.child({ requestId: 'abc-123' });
@@ -106,7 +106,7 @@ async function setupProductionLogging(): Promise<Logger> {
   // Conditionally load heavy transports
   if (process.env.USE_S3_LOGS === 'true') {
     // This import only happens if needed (tree-shaking!)
-  const { S3Transport } = await import('../src/transports/s3');
+    const { S3Transport } = await import('../dist/transports.js');
 
     const bucket = process.env.LOG_BUCKET;
     const region = process.env.AWS_REGION;
@@ -128,7 +128,7 @@ async function setupProductionLogging(): Promise<Logger> {
 
   if (process.env.USE_MONGODB_LOGS === 'true') {
     // MongoDB transport only loaded when needed
-  const { MongoDBTransport } = await import('../src/transports/mongodb');
+    const { MongoDBTransport } = await import('../dist/transports.js');
 
     const uri = process.env.MONGODB_URI;
 
@@ -175,7 +175,7 @@ let restoreConsole: (() => void) | null = null;
 if (process.env.ENHANCE_CONSOLE === 'true') {
   const result = enhanceConsole();
   restoreConsole = result.restoreConsole;
-  
+
   console.success('✨ Console is now enhanced!');
   console.header('Section Title');
 }
@@ -194,7 +194,7 @@ class CustomTransport extends Transport {
     // Your custom logging logic here
     const timestamp = new Date().toISOString();
     console.log(`[CUSTOM] ${timestamp} ${entry.level.toUpperCase()}: ${entry.message}`);
-    
+
     if (entry.context) {
       console.log('[CUSTOM] Context:', JSON.stringify(entry.context, null, 2));
     }
@@ -228,7 +228,7 @@ customLogger.info('This uses our custom transport');
  * - Winston full:                    ~180KB
  * - Bunyan full:                     ~45KB
  * - Pino full:                       ~35KB
- * 
+ *
  * Tips for optimal bundle size:
  * - Only import what you need
  * - Use dynamic imports for heavy transports
@@ -302,26 +302,20 @@ try {
 // ============================================
 
 // Track all loggers for cleanup
-const activeLoggers = [
-  consoleLogger,
-  fileLogger,
-  customLogger,
-  typedLogger,
-  errorLogger,
-];
+const activeLoggers = [consoleLogger, fileLogger, customLogger, typedLogger, errorLogger];
 
 // Graceful shutdown handler
 async function shutdown(signal: string): Promise<void> {
   console.log(`\nReceived ${signal}, shutting down gracefully...`);
-  
+
   // Close all loggers
   await Promise.all(activeLoggers.map(logger => logger.close()));
-  
+
   // Restore original console if enhanced
   if (restoreConsole) {
     restoreConsole();
   }
-  
+
   console.log('Shutdown complete');
   process.exit(0);
 }
@@ -342,13 +336,12 @@ async function initializeLogging(): Promise<void> {
       transports: productionLogger.listTransports(),
       environment: process.env.NODE_ENV,
     });
-    
+
     // Add to active loggers for cleanup
     activeLoggers.push(productionLogger);
-    
-  // Export for global use without non-top-level imports
-  (globalThis as unknown as { logger?: typeof productionLogger }).logger = productionLogger;
-    
+
+    // Export for global use without non-top-level imports
+    (globalThis as unknown as { logger?: typeof productionLogger }).logger = productionLogger;
   } catch (error) {
     console.error('Failed to initialize logging:', error);
     process.exit(1);
@@ -372,11 +365,7 @@ export {
 };
 
 // Export utility functions
-export {
-  setupProductionLogging,
-  initializeLogging,
-  shutdown,
-};
+export { setupProductionLogging, initializeLogging, shutdown };
 
 // Export custom transport for extension
 export { CustomTransport };
@@ -388,15 +377,15 @@ export type { LogEntry, LoggerOptions };
 if (require.main === module) {
   console.log('🚀 MagicLogger Tree-Shaking Demo');
   console.log('=====================================\n');
-  
+
   // Run initialization
   initializeLogging().catch(console.error);
-  
+
   // Demo logs
   setTimeout(() => {
     consoleLogger.info('Demo: Console logging works');
     fileLogger.warn('Demo: File logging active');
-    winstonLogger.info('Demo: Winston compatibility', { demo: true });
+    winstonLogger.info('Demo: Winston compatibility');
     customLogger.debug('Demo: Custom transport example');
   }, 100);
 }

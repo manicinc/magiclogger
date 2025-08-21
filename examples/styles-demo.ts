@@ -5,7 +5,7 @@
  * in the current terminal environment.
  */
 
-import { createSyncLogger, COLORS } from 'magiclogger';
+import { createSyncLogger, COLORS } from '../dist/index.js';
 
 const logger = createSyncLogger({ useColors: true });
 

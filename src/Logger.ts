@@ -3,7 +3,7 @@
 import { NodeLogger } from './core/NodeLogger';
 import { BrowserLogger } from './core/BrowserLogger';
 import { TransportManager } from './transports/base/TransportManager';
-import { Transport } from './transports/base/Transport';
+import type { Transport } from './types/transport';
 import { Colorizer } from './core/Colorizer';
 import { Formatter } from './core/Formatter';
 import { StyleBuilder } from './core/StyleBuilder';

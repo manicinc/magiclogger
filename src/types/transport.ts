@@ -1102,6 +1102,34 @@ export interface Transport {
   shouldLog(entry: LogEntry): boolean;
 
   /**
+   * Check if transport is currently enabled.
+   * Matches class Transport API for structural typing.
+   */
+  isEnabled?(): boolean;
+
+  /**
+   * Get the transport name.
+   * Matches class Transport API for structural typing.
+   */
+  getName?(): string;
+
+  /**
+   * Whether this transport supports batching (optional).
+   */
+  supportsBatching?(): boolean;
+
+  /**
+   * Optional health check method.
+   */
+  isHealthy?(): Promise<boolean>;
+
+  /** Enable this transport (optional). */
+  enable?(): void;
+
+  /** Disable this transport (optional). */
+  disable?(): void;
+
+  /**
    * Get transport statistics.
    */
   getStats?(): TransportStats;
@@ -1112,6 +1140,12 @@ export interface Transport {
   on?(event: keyof TransportEvents, listener: (...args: unknown[]) => void): this;
   off?(event: keyof TransportEvents, listener: (...args: unknown[]) => void): this;
   emit?(event: keyof TransportEvents, ...args: unknown[]): boolean;
+  /** Optional event helpers common on Node.js EventEmitter */
+  once?(event: keyof TransportEvents, listener: (...args: unknown[]) => void): this;
+  removeListener?(event: keyof TransportEvents, listener: (...args: unknown[]) => void): this;
+
+  /** Reset transport statistics (optional, but used by manager when available). */
+  resetStats?(): void;
 }
 
 /**
