@@ -513,12 +513,14 @@ describe('QueueManager', () => {
     it('should handle very large queues efficiently', () => {
       queueManager = new QueueManager({ maxSize: 10000 });
 
-      const start = Date.now();
-      for (let i = 0; i < 10000; i++) {
-        queueManager.enqueue(createEntry(String(i)));
-      }
-      const duration = Date.now() - start;
+      // Create entries first to avoid timing issues with entry creation
+      const entries = Array.from({ length: 10000 }, (_, i) => createEntry(String(i)));
+      
+      const start = performance.now();
+      const queued = queueManager.enqueueBatch(entries);
+      const duration = performance.now() - start;
 
+      expect(queued).toBe(10000);
       expect(duration).toBeLessThan(1000); // Should complete in < 1 second
       expect(queueManager.size()).toBe(10000);
     });

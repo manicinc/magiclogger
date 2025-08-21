@@ -24,14 +24,6 @@ export default defineConfig(options => {
     'transports/postgresql': 'src/transports/postgresql.ts',
     'transports/base': 'src/transports/index.ts', // registry + base classes
 
-    // Compatibility layers
-    'compatibility/index': 'src/compatibility/index.ts',
-    'compatibility/winston': 'src/compatibility/winston.ts',
-    'compatibility/bunyan': 'src/compatibility/bunyan.ts',
-    'compatibility/pino': 'src/compatibility/pino.ts',
-    'compatibility/console': 'src/compatibility/console.ts',
-    'compatibility/base': 'src/compatibility/base.ts',
-
     // Theme system
     'theme/theme': 'src/theme/theme.ts',
 
@@ -53,6 +45,7 @@ export default defineConfig(options => {
     'utils/rate-limiter': 'src/utils/RateLimiter.ts',
     'utils/redactor': 'src/utils/Redactor.ts',
     'utils/queue-manager': 'src/utils/QueueManager.ts',
+    'utils/enhanced-console': 'src/utils/EnhancedConsole.ts',
   } as const;
 
   return {

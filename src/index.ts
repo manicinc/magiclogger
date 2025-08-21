@@ -126,6 +126,13 @@ export type {
 export { Sampler, createSamplerPreset } from './utils/Sampler';
 export type { SamplerOptions, SamplingStrategy } from './utils/Sampler';
 
+/**
+ * Enhanced console functionality for upgrading the global console.
+ * Tree-shakeable: Only imported when needed.
+ */
+export { EnhancedConsole, enhanceConsole } from './utils/EnhancedConsole';
+export type { EnhanceConsoleOptions } from './utils/EnhancedConsole';
+
 // ==========================================
 // TRANSPORT TYPES ONLY
 // ==========================================
@@ -161,33 +168,6 @@ export type {
   S3TransportOptions,
 } from './types/transport';
 
-// ==========================================
-// COMPATIBILITY FUNCTIONS
-// ==========================================
-
-/**
- * Console enhancement for adding custom log methods.
- * Import individually for better tree-shaking: 'magiclogger/compatibility/console'
- */
-export { enhanceConsole } from './compatibility/loggers/EnhancedConsole';
-
-/**
- * Winston-compatible logger creation.
- * Import individually for better tree-shaking: 'magiclogger/compatibility/winston'
- */
-export { createWinstonCompatible } from './compatibility/loggers/WinstonCompatibleLogger';
-
-/**
- * Bunyan-compatible logger creation.
- * Import individually for better tree-shaking: 'magiclogger/compatibility/bunyan'
- */
-export { createBunyanCompatible } from './compatibility/loggers/BunyanCompatibleLogger';
-
-/**
- * Pino-compatible logger creation.
- * Import individually for better tree-shaking: 'magiclogger/compatibility/pino'
- */
-export { createPinoCompatible } from './compatibility/loggers/PinoCompatibleLogger';
 
 // ==========================================
 // CONVENIENCE FUNCTIONS
@@ -576,13 +556,7 @@ export type { TransportManagerOptions } from './types/transport';
  *    import { FileTransport } from 'magiclogger/transports/file';
  *    ```
  *
- * 2. Import compatibility layers individually:
- *    ```typescript
- *    import { createWinstonCompatible } from 'magiclogger/compatibility/winston';
- *    import { createPinoCompatible } from 'magiclogger/compatibility/pino';
- *    ```
- *
- * 3. Import core utilities individually (if needed):
+ * 2. Import core utilities individually (if needed):
  *    ```typescript
  *    import { ContextManager } from 'magiclogger/core/context-manager';
  *    import { TagManager } from 'magiclogger/core/tag-manager';

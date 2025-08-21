@@ -126,19 +126,6 @@ async function measureAllScenarios() {
       { path: './dist/transports/http.js', symbols: ['HTTPTransport'] },
     ],
     
-    // Compatibility layers (individual)
-    'Winston Compatibility': [
-      { path: './dist/compatibility/winston.js' },
-    ],
-    'Pino Compatibility': [
-      { path: './dist/compatibility/pino.js' },
-    ],
-    'Bunyan Compatibility': [
-      { path: './dist/compatibility/bunyan.js' },
-    ],
-    'All Compatibility': [
-      { path: './dist/compatibility/index.js' },
-    ],
     
     // Utilities (tree-shakeable)
     'Utils: Sampler Only': [
@@ -216,7 +203,6 @@ async function injectIntoReadme(table) {
   const coreGz = allMeasurements['Core (bare minimum)'] || 0;
   const coreConsoleGz = allMeasurements['Core + Console Transport'] || 0;
   const coreTransportsGz = allMeasurements['Core + All Basic Transports'] || 0;
-  const compatAllGz = allMeasurements['All Compatibility'] || 0;
 
   // UPDATE BADGES - Do this in ONE operation on the badges block
   // to avoid multiple regex passes fucking things up
@@ -231,8 +217,7 @@ async function injectIntoReadme(table) {
     const badges = [
       { label: 'core_gzip', bytes: coreGz },
       { label: 'core_console_gzip', bytes: coreConsoleGz },
-      { label: 'core_transports_gzip', bytes: coreTransportsGz },
-      { label: 'compat_gzip', bytes: compatAllGz }
+      { label: 'core_transports_gzip', bytes: coreTransportsGz }
     ];
     
     for (const { label, bytes } of badges) {
@@ -275,15 +260,6 @@ async function injectIntoReadme(table) {
     .map(([name, size]) => `| ${name} | ${prettyBytes(size)} |`)
     .join('\n');
   
-  // Build compatibility table
-  const compatScenarios = [
-    ['Winston Compatibility', allMeasurements['Winston Compatibility']],
-    ['Pino Compatibility', allMeasurements['Pino Compatibility']],
-    ['Bunyan Compatibility', allMeasurements['Bunyan Compatibility']],
-    ['All Compatibility', allMeasurements['All Compatibility']],
-  ].filter(([_, size]) => size)
-    .map(([name, size]) => `| ${name} | ${prettyBytes(size)} |`)
-    .join('\n');
   
   // Build utilities table
   const utilScenarios = [
@@ -304,9 +280,6 @@ async function injectIntoReadme(table) {
     scenarioBlocks += `\n\n### Individual Transport Sizes (gzipped)\n\n| Transport | Size |\n|-----------|------|\n${transportScenarios}`;
   }
   
-  if (compatScenarios) {
-    scenarioBlocks += `\n\n### Compatibility Layer Sizes (gzipped)\n\n| Compatibility | Size |\n|---------------|------|\n${compatScenarios}`;
-  }
   
   if (utilScenarios) {
     scenarioBlocks += `\n\n### Utility Sizes (gzipped)\n\n| Utility | Size |\n|---------|------|\n${utilScenarios}`;

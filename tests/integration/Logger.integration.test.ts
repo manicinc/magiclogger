@@ -1,4 +1,4 @@
-import { enhanceConsole } from '../../src/compatibility'; // Adjust path if needed
+import { enhanceConsole } from '../../src/utils/EnhancedConsole';
 
 describe('enhanceConsole integration', () => {
   it('runs the demo script correctly', () => {

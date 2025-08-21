@@ -245,90 +245,6 @@
         "default": "./dist/transports/base.cjs"
       }
     },
-    "./compatibility": {
-      "browser": {
-        "types": "./dist/compatibility/index.d.ts",
-        "default": "./dist/compatibility/index.js"
-      },
-      "import": {
-        "types": "./dist/compatibility/index.d.ts",
-        "default": "./dist/compatibility/index.js"
-      },
-      "require": {
-        "types": "./dist/compatibility/index.d.cts",
-        "default": "./dist/compatibility/index.cjs"
-      }
-    },
-    "./compatibility/winston": {
-      "browser": {
-        "types": "./dist/compatibility/winston.d.ts",
-        "default": "./dist/compatibility/winston.js"
-      },
-      "import": {
-        "types": "./dist/compatibility/winston.d.ts",
-        "default": "./dist/compatibility/winston.js"
-      },
-      "require": {
-        "types": "./dist/compatibility/winston.d.cts",
-        "default": "./dist/compatibility/winston.cjs"
-      }
-    },
-    "./compatibility/bunyan": {
-      "browser": {
-        "types": "./dist/compatibility/bunyan.d.ts",
-        "default": "./dist/compatibility/bunyan.js"
-      },
-      "import": {
-        "types": "./dist/compatibility/bunyan.d.ts",
-        "default": "./dist/compatibility/bunyan.js"
-      },
-      "require": {
-        "types": "./dist/compatibility/bunyan.d.cts",
-        "default": "./dist/compatibility/bunyan.cjs"
-      }
-    },
-    "./compatibility/pino": {
-      "browser": {
-        "types": "./dist/compatibility/pino.d.ts",
-        "default": "./dist/compatibility/pino.js"
-      },
-      "import": {
-        "types": "./dist/compatibility/pino.d.ts",
-        "default": "./dist/compatibility/pino.js"
-      },
-      "require": {
-        "types": "./dist/compatibility/pino.d.cts",
-        "default": "./dist/compatibility/pino.cjs"
-      }
-    },
-    "./compatibility/console": {
-      "browser": {
-        "types": "./dist/compatibility/console.d.ts",
-        "default": "./dist/compatibility/console.js"
-      },
-      "import": {
-        "types": "./dist/compatibility/console.d.ts",
-        "default": "./dist/compatibility/console.js"
-      },
-      "require": {
-        "types": "./dist/compatibility/console.d.cts",
-        "default": "./dist/compatibility/console.cjs"
-      }
-    },
-    "./compatibility/base": {
-      "browser": {
-        "types": "./dist/compatibility/base.d.ts",
-        "default": "./dist/compatibility/base.js"
-      },
-      "import": {
-        "types": "./dist/compatibility/base.d.ts",
-        "default": "./dist/compatibility/base.js"
-      },
-      "require": {
-        "types": "./dist/compatibility/base.d.cts",
-        "default": "./dist/compatibility/base.cjs"
-      }
-    },
     "./theme": {
       "browser": {
         "types": "./dist/theme/theme.d.ts",
@@ -514,9 +430,6 @@
     "tree-shakeable",
     "zero-dependency",
     "typescript",
-    "winston",
-    "bunyan",
-    "pino",
     "structured-logging",
     "transports",
     "browser",

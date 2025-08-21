@@ -1,11 +1,10 @@
-// File: src/compatibility/loggers/EnhancedConsole.ts
+// File: src/utils/EnhancedConsole.ts
 
-import { Logger } from '../../Logger';
-import type { ColorName } from '../../types/colors';
-import type { StylePreset } from '../../types/preset';
-import { Colorizer } from '../../core/Colorizer';
-// Import LoggerOptions directly to avoid circular re-export chunking warnings
-import type { LoggerOptions } from '../../types/logger';
+import { Logger } from '../Logger';
+import type { ColorName } from '../types/colors';
+import type { StylePreset } from '../types/preset';
+import { Colorizer } from '../core/Colorizer';
+import type { LoggerOptions } from '../types/logger';
 
 /**
  * Options for enhancing the console

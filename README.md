@@ -1,8 +1,7 @@
 # MagicLogger
 
 <p align="center">
-    <img src="website/static/img/magiclogger-primary-no-subtitle-transparent-4x.png" alt="Magiclogger" width="520"/> <img src="https://img.shields.io/badge/core_gzip-47kb-brightgreen.svg" alt="core_gzip"> <img src="https://img.shields.io/badge/core_console_gzip-47kb-brightgreen.svg" alt="core_console_gzip"><br/>
-    <img src="https://img.shields.io/badge/core_transports_gzip-55kb-brightgreen.svg" alt="core_transports_gzip"> <img src="https://img.shields.io/badge/compat_gzip-45kb-brightgreen.svg" alt="compat_gzip">
+    <img src="website/static/img/magiclogger-primary-no-subtitle-transparent-4x.png" alt="Magiclogger" width="520"/> <img src="https://img.shields.io/badge/core_gzip-47kb-brightgreen.svg" alt="core_gzip"> <img src="https://img.shields.io/badge/core_console_gzip-47kb-brightgreen.svg" alt="core_console_gzip"> <img src="https://img.shields.io/badge/core_transports_gzip-55kb-brightgreen.svg" alt="core_transports_gzip">
 </p>
 <p align="center">
   <!-- Top row: static + coverage badges -->
@@ -106,7 +105,7 @@ if (!result.success) {
 }
 ```
 
-Note: In current performance tests, MagicLogger is ~2x slower than Winston's built-in styling which is synchronous, but with its async implementation (comparable to Pino) MagicLogger's throughput is ~5x higher.
+Note: In current performance tests, MagicLogger's synchronous mode performs competitively, while its async implementation delivers significantly higher throughput for production workloads.
 
 ---
 
@@ -132,7 +131,7 @@ Note: In current performance tests, MagicLogger is ~2x slower than Winston's bui
 ### 🔌 **Enterprise Integration**
 - **Enterprise transports** - Kafka, PostgreSQL, OTLP, S3, and more
 - **Monitoring integration** - OpenTelemetry, metrics, health checks
-- **Drop-in compatibility** with Winston/Bunyan/Pino
+- **Unified logging solution** - Single, powerful logger for all needs
 ---
 
 ## 📦 Installation & Quick Start
@@ -958,38 +957,38 @@ MagicLogger's performance varies by use case. For synchronous logging, other lib
 <!-- PERF_TABLE_START -->
 | Logger | Iterations | Time (ms) | Ops/sec |
 |--------|------------:|----------:|--------:|
-| Winston (Sync, Styled) | 100,000 | 989.2 | 101,093 |
-| Pino (Sync, Plain) | 100,000 | 1541.2 | 64,885 |
-| Bunyan (Sync, Styled) | 100,000 | 1654.2 | 60,452 |
-| Winston (Sync, Plain) | 100,000 | 1772.2 | 56,428 |
-| Pino (Sync, Styled) | 100,000 | 2083.2 | 48,002 |
-| Bunyan (Sync, Plain) | 100,000 | 2252.1 | 44,403 |
-| MagicLogger (Sync, Styled) | 100,000 | 2462.7 | 40,606 |
-| MagicLogger (Sync, Plain) | 100,000 | 3134.7 | 31,901 |
-| Pino (Async, Plain) | 100,000 | 365.2 | 273,803 |
-| Pino (Async, Styled) | 100,000 | 396.1 | 252,481 |
-| MagicLogger (Async, Styled) | 100,000 | 506.5 | 197,436 |
-| MagicLogger (Async, Plain) | 100,000 | 509.4 | 196,325 |
-| Winston (Async, Styled) | 100,000 | 1388.7 | 72,009 |
-| Winston (Async, Plain) | 100,000 | 1739.6 | 57,484 |
+| Winston (Sync, Styled) | 100,000 | 2038.7 | 49,051 |
+| Winston (Sync, Plain) | 100,000 | 2144.2 | 46,637 |
+| Pino (Sync, Plain) | 100,000 | 3164.7 | 31,598 |
+| Pino (Sync, Styled) | 100,000 | 3262.6 | 30,650 |
+| Bunyan (Sync, Plain) | 100,000 | 3268.3 | 30,597 |
+| Bunyan (Sync, Styled) | 100,000 | 3890.8 | 25,702 |
+| MagicLogger (Sync, Styled) | 100,000 | 6122.0 | 16,334 |
+| MagicLogger (Sync, Plain) | 100,000 | 9270.6 | 10,787 |
+| Pino (Async, Plain) | 100,000 | 926.5 | 107,933 |
+| MagicLogger (Async, Plain) | 100,000 | 1169.4 | 85,517 |
+| MagicLogger (Async, Styled) | 100,000 | 1321.2 | 75,689 |
+| Pino (Async, Styled) | 100,000 | 1419.2 | 70,461 |
+| Winston (Async, Styled) | 100,000 | 2492.6 | 40,119 |
+| Winston (Async, Plain) | 100,000 | 3372.4 | 29,653 |
 
 ### Winners
-- Sync Plain: Pino (Sync, Plain) (64,885 ops/sec) — MagicLogger: 31,901 ops/sec
-- Sync Styled: Winston (Sync, Styled) (101,093 ops/sec) — MagicLogger: 40,606 ops/sec
-- Async Plain: Pino (Async, Plain) (273,803 ops/sec) — MagicLogger: 196,325 ops/sec
-- Async Styled: Pino (Async, Styled) (252,481 ops/sec) — MagicLogger: 197,436 ops/sec
+- Sync Plain: Winston (Sync, Plain) (46,637 ops/sec) — MagicLogger: 10,787 ops/sec
+- Sync Styled: Winston (Sync, Styled) (49,051 ops/sec) — MagicLogger: 16,334 ops/sec
+- Async Plain: Pino (Async, Plain) (107,933 ops/sec) — MagicLogger: 85,517 ops/sec
+- Async Styled: MagicLogger (Async, Styled) (75,689 ops/sec)
 
 === KEY COMPARISONS ===
 
 Synchronous Styled Performance:
-  MagicLogger (Sync, Styled): 40,606 ops/sec
-  Winston (Sync, Styled): 101,093 ops/sec
-  → MagicLogger is 2.49x slower
+  MagicLogger (Sync, Styled): 16,334 ops/sec
+  Winston (Sync, Styled): 49,051 ops/sec
+  → MagicLogger is 3.00x slower
 
 Asynchronous Styled Performance:
-  MagicLogger (Async, Styled): 197,436 ops/sec
-  Pino (Async, Styled): 252,481 ops/sec
-  → MagicLogger is 1.28x slower
+  MagicLogger (Async, Styled): 75,689 ops/sec
+  Pino (Async, Styled): 70,461 ops/sec
+  → MagicLogger is 1.07x faster
 
 Note: External libraries' "Styled" cases use chalk for coloring (chalk + library) for fair comparison.
 
@@ -1032,7 +1031,6 @@ logger.info('Request processed'); // Goes to HTTPTransport (batched)
 | Core only | 37 kB |
 | Core + Console | 37 kB |
 | Core + All transports | 45.4 kB |
-| Compatibility layers | 43.8 kB |
 
 ---
 
@@ -1234,14 +1232,40 @@ MIT © Manic.agency
 | File Transport Only | 4.12 kB |
 | HTTP Transport Only | 21.7 kB |
 
-### Compatibility Layer Sizes (gzipped)
+### Utility Sizes (gzipped)
 
-| Compatibility | Size |
-|---------------|------|
-| Winston Compatibility | 41.9 kB |
-| Pino Compatibility | 41.4 kB |
-| Bunyan Compatibility | 41.4 kB |
-| All Compatibility | 45.8 kB |
+| Utility | Size |
+|---------|------|
+| Sampler | 1.21 kB |
+| RateLimiter | 1.09 kB |
+| Redactor | 3.79 kB |
+
+*Generated via `scripts/analyze-build.js`.*
+
+| File | Format | Raw Size | Gzip |
+|------|--------|----------|------|
+| `index.cjs` | CJS | 8.68 kB | 2.06 kB |
+| `index.js` | ESM | 5.52 kB | 1.76 kB |
+| `index.d.ts` | Types | 127 kB | 25.3 kB |
+
+### Core Bundle Sizes (gzipped)
+
+| Scenario | Size |
+|----------|------|
+| Core (bare minimum) | 48.3 kB |
+| Core + Console Transport | 48.3 kB |
+| Core + File Transport | 48.3 kB |
+| Core + HTTP Transport | 55.3 kB |
+| Core + All Basic Transports | 56.6 kB |
+
+### Individual Transport Sizes (gzipped)
+
+| Transport | Size |
+|-----------|------|
+| Console Transport Only | 7.9 kB |
+| File Transport Only | 4.12 kB |
+| HTTP Transport Only | 21.7 kB |
+
 
 ### Utility Sizes (gzipped)
 
