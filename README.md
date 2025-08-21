@@ -1,7 +1,7 @@
 # MagicLogger
 
 <p align="center">
-    <img src="website/static/img/magiclogger-primary-no-subtitle-transparent-4x.png" alt="Magiclogger" width="520"/> <img src="https://img.shields.io/badge/core_gzip-47kb-brightgreen.svg" alt="core_gzip"> <img src="https://img.shields.io/badge/core_console_gzip-47kb-brightgreen.svg" alt="core_console_gzip"> <img src="https://img.shields.io/badge/core_transports_gzip-55kb-brightgreen.svg" alt="core_transports_gzip">
+    <img src="website/static/img/magiclogger-primary-no-subtitle-transparent-4x.png" alt="Magiclogger" width="520"/> <img src="https://img.shields.io/badge/core_gzip-48kb-brightgreen.svg" alt="core_gzip"> <img src="https://img.shields.io/badge/core_console_gzip-48kb-brightgreen.svg" alt="core_console_gzip"> <img src="https://img.shields.io/badge/core_transports_gzip-57kb-brightgreen.svg" alt="core_transports_gzip">
 </p>
 <p align="center">
   <!-- Top row: static + coverage badges -->
@@ -17,7 +17,7 @@
   - [Module Formats](#module-formats)
   - [Basic Usage](#basic-usage)
   - [AsyncLogger with Operational Utilities](#asynclogger-with-operational-utilities)
-  - [Unified API - Same Utilities Work in Both Loggers](#unified-api---same-utilities-work-in-both-loggers)
+  - [Unified Easy API with Sensible Defaults](#unified-easy-api-with-sensible-defaults)
 - [Three Powerful Styling APIs](#three-powerful-styling-apis)
   - [1. Chainable Style API](#1-chainable-style-api-loggers)
   - [2. Template Literal API](#2-template-literal-api-loggerfmt)
@@ -34,6 +34,11 @@
   - [Progress Bars](#progress-bars)
   - [Tables](#tables)
   - [Object Diffs](#object-diffs)
+- [MagicLog Schema & OpenTelemetry Compatibility](#-magiclog-schema--opentelemetry-compatibility)
+  - [Why MagicLog Schema?](#why-magiclog-schema)
+  - [Using MagicLog with OpenTelemetry](#using-magiclog-with-opentelemetry)
+  - [Schema Documentation](#schema-documentation)
+  - [Real-World Example: Distributed Tracing](#real-world-example-distributed-tracing)
 - [Enterprise Transports](#enterprise-transports)
   - [Core Transports](#core-transports)
   - [Database & Storage](#database--storage)
@@ -68,8 +73,8 @@
 ```typescript
 import { Logger, createAsyncLogger, createSmartLogger } from 'magiclogger';
 
-// Standard Logger - synchronous by default for predictable behavior
-const logger = new Logger({ useColors: true });
+// Standard Logger - includes console output by default!
+const logger = new Logger();  // That's it! Logs to console automatically
 
 // Beautiful styled output - three powerful APIs
 logger.info('<green.bold>✅ Server started:</> <cyan>http://localhost:3000</>');
@@ -84,29 +89,31 @@ logger.table([
   { service: 'DB', status: 'degraded', uptime: '95.2%' }
 ]);
 
-// Smart performance-aware logger (auto-detects environment)
-const smartLogger = createSmartLogger({ target: 'auto' });
+// Smart logger - auto-detects best mode (default is 'auto')
+const smartLogger = createSmartLogger();  // Sync in dev, async in production!
 
-// Production AsyncLogger with integrated operational utilities
-// Choose async when you need maximum throughput (13x faster)
-const asyncLogger = createAsyncLogger({
-  buffer: { size: 8192, flushInterval: 100 },
-  redactor: { preset: 'strict' },                    // Auto-redact PII
-  rateLimiter: { max: 1000, window: 60000 },        // Rate limiting  
-  sampler: { rate: 0.1, strategy: 'adaptive' },     // Adaptive sampling
-  onFlush: async (entries) => await transport.sendBatch(entries)
+// AsyncLogger - fast by default, console output included!
+const asyncLogger = createAsyncLogger();  // Zero config, maximum performance!
+
+// Production: Add utilities only when needed (opt-in)
+const prodLogger = createAsyncLogger({
+  redactor: { preset: 'strict' },            // Optional: Auto-redact PII
+  rateLimiter: { max: 1000, window: 60000 }, // Optional: Rate limiting  
+  sampler: { rate: 0.1 },                    // Optional: Sample 10% of logs
+  onFlush: async (entries) => {
+    await sendToElasticsearch(entries);      // Additional transport
+  }
 });
 
 // Explicit backpressure handling - never silently drop logs
-const result = asyncLogger.info('User data:', { ssn: '123-45-6789', email: 'user@example.com' });
+const result = prodLogger.info('User data:', { ssn: '123-45-6789', email: 'user@example.com' });
 if (!result.success) {
   console.warn(`Log dropped: ${result.reason}`);
   // Handle backpressure explicitly
 }
 ```
 
-Note: In current performance tests, MagicLogger's synchronous mode performs competitively, while its async implementation delivers significantly higher throughput for production workloads.
-
+Note: MagicLogger's sync performance is competitive (~39k ops/sec) and perfect for secure failsafe logging, while its async mode excels for high-throughput scenarios (65k ops/sec plain, 54k ops/sec styled). See [async](./docs/ASYNC_INTEGRATION.md) docs and [performance results](./scripts/performance/benchmark-results.md).
 ---
 
 ## Features
@@ -119,19 +126,17 @@ Note: In current performance tests, MagicLogger's synchronous mode performs comp
 ### ⚡ **High Performance & Efficiency**
 - **Perfect tree-shaking** - only pay for what you use
 - **Zero overhead** sync logging by default
-- **AsyncLogger with explicit backpressure** - production-ready async logging
+- **AsyncLogger with explicit backpressure** - production-ready [async logging](./docs/ASYNC_INTEGRATION.md); never silently drop logs
 - **Unified import API** - seamless Logger and AsyncLogger experience
 
 ### 🛡️ **Production-Ready Security & Operations**
 - **Integrated utilities** - rate limiting, PII redaction, sampling, queue management
-- **Explicit backpressure handling** - never silently drop logs
 - **PII protection** with comprehensive redaction patterns
 - **Sampling & rate limiting** to control costs and volume
 
 ### 🔌 **Enterprise Integration**
 - **Enterprise transports** - Kafka, PostgreSQL, OTLP, S3, and more
 - **Monitoring integration** - OpenTelemetry, metrics, health checks
-- **Unified logging solution** - Single, powerful logger for all needs
 ---
 
 ## 📦 Installation & Quick Start
@@ -150,6 +155,38 @@ import { Logger } from 'magiclogger';
 
 // CommonJS  
 const { Logger } = require('magiclogger');
+```
+
+### Quick Start - Choose Your Style
+
+#### Simple Synchronous (Best for Development)
+```typescript
+import { Logger } from 'magiclogger';
+
+const logger = new Logger();  // Console output by default!
+logger.info('Application started');
+logger.error('Database connection failed');
+
+// Disable console if needed
+const quietLogger = new Logger({ useConsole: false });
+```
+
+#### High-Performance Async (Best for Production)
+```typescript
+import { createAsyncLogger } from 'magiclogger';
+
+// Works immediately - logs to console by default!
+const logger = createAsyncLogger();
+
+logger.info('Request processed', { duration: 45 });
+logger.error('Payment failed', { orderId: 123 });
+
+// Add custom transport (console still works)
+const prodLogger = createAsyncLogger({
+  onFlush: async (entries) => {
+    await writeToFile(entries);  // Additional destination
+  }
+});
 ```
 
 ### Basic Usage
@@ -172,54 +209,97 @@ logger.log('Warning message', 'warn');
 logger.log('Error message', 'error');
 ```
 
-### AsyncLogger with Operational Utilities
+### Smart Logger - Auto-Detection Mode
 
-For high-performance async logging with built-in operational capabilities:
+The `createSmartLogger` function automatically chooses the best logging mode based on your environment:
 
 ```typescript
-import { 
-  createAsyncLogger, 
-  Redactor, 
-  RateLimiter 
-} from 'magiclogger';
+import { createSmartLogger } from 'magiclogger';
 
-// Simple configuration with integrated utilities
-const asyncLogger = createAsyncLogger({
-  buffer: { size: 8192, flushInterval: 100 },
-  
-  // Built-in operational utilities
-  redactor: { preset: 'strict' },                    // Auto-redact PII
-  rateLimiter: { max: 1000, window: 60000 },        // Rate limiting
-  sampler: { rate: 0.1, strategy: 'adaptive' },     // 10% adaptive sampling
-  
-  // Observability
-  onMetrics: (metrics) => {
-    console.log(`Metric: ${metrics.type}, Count: ${metrics.count}`);
-  },
-  
+// Zero config - automatically picks the best mode!
+const logger = createSmartLogger();
+// Development (TTY/interactive): Uses sync Logger for immediate feedback
+// Production/CI: Uses AsyncLogger for maximum performance
+
+// You can see what mode it chose
+console.log(logger instanceof AsyncLogger ? 'Using async' : 'Using sync');
+
+// Override auto-detection if needed
+const prodLogger = createSmartLogger({ target: 'production' }); // Force async
+const devLogger = createSmartLogger({ target: 'development' });  // Force sync
+const customLogger = createSmartLogger({ mode: 'async' });       // Explicit mode
+
+// Add custom transports (console always included)
+const logger = createSmartLogger({
   onFlush: async (entries) => {
-    await transport.sendBatch(entries); // Your transport logic
+    await sendToCloudWatch(entries);
+  }
+});
+```
+
+**Auto-detection logic:**
+- **Production** (`NODE_ENV=production`): Uses AsyncLogger
+- **CI/Testing** (`CI=true` or `NODE_ENV=test`): Uses sync Logger
+- **Interactive terminal** (TTY): Uses sync Logger for immediate output
+- **Non-interactive/background**: Uses AsyncLogger for performance
+
+### High-Performance Async Logging (Like Pino)
+
+For production workloads requiring maximum throughput with sensible defaults:
+
+```typescript
+import { createAsyncLogger } from 'magiclogger';
+
+// Zero config - fast and works immediately!
+const logger = createAsyncLogger();
+
+logger.info('Server started', { port: 3000 });      // Goes to console
+logger.error('Database connection failed', { error: err });
+
+// Default configuration (optimized for performance):
+// - Console output (always!)
+// - 16KB ring buffer (16384 entries) - larger for better throughput
+// - Auto-flush every 50ms or 2000 entries - faster batching
+// - No utilities by default - maximum speed
+// - Graceful backpressure handling
+
+// Tune buffer for your workload
+const tunedLogger = createAsyncLogger({
+  buffer: { size: 32768, flushInterval: 25 }  // Even faster!
+});
+
+// Add transport when needed
+const customLogger = createAsyncLogger({
+  onFlush: async (entries) => {
+    await sendToS3(entries);  // Replace or extend console output
+  }
+});
+```
+
+For production with operational utilities:
+
+```typescript
+import { createAsyncLogger } from 'magiclogger';
+
+// Production with opt-in utilities (only add what you need)
+const logger = createAsyncLogger({
+  // Only add utilities you actually need:
+  redactor: { preset: 'strict' },            // IF you need PII redaction
+  rateLimiter: { max: 1000, window: 60000 }, // IF you need rate limiting
+  sampler: { rate: 0.1 },                    // IF you need sampling
+  
+  // Custom transport
+  onFlush: async (entries) => {
+    await sendToDatadog(entries);
   }
 });
 
-// Explicit backpressure handling - never lose visibility into failures
-const result = asyncLogger.info('User login', { email: 'user@example.com' });
-if (!result.success) {
-  console.warn(`Log dropped: ${result.reason}`);
-}
-
-// Critical logging with retry mechanism
-try {
-  await asyncLogger.logCritical('error', 'System failure detected!');
-} catch (error) {
-  // Critical log failed after retries
-  alerting.sendAlert('Logger failure', error);
-}
-
-// Backpressure monitoring
-if (asyncLogger.isBackpressured()) {
-  console.warn('Logger under pressure, throttling application');
-}
+// Most apps just need this:
+const simpleLogger = createAsyncLogger({
+  onFlush: async (entries) => {
+    await writeToFile(entries);  // That's it!
+  }
+});
 ```
 
 ### Graceful Shutdown (AsyncLogger)
@@ -265,20 +345,35 @@ process.on('SIGTERM', async () => {
 });
 ```
 
-### Unified API - Same Utilities Work in Both Loggers
+### Unified Easy API with Sensible Defaults
+
+All loggers include console output by default - no configuration needed!
 
 ```typescript
-// Regular Logger with integrated utilities
-const logger = new Logger({
-  redactor: { preset: 'standard' },
-  rateLimiter: { max: 100, window: 30000 },
-  sampler: { rate: 1.0 }, // No sampling for regular logger
-  
-  transports: [new ConsoleTransport()]
+import { Logger, createAsyncLogger, createSmartLogger } from 'magiclogger';
+
+// All of these work immediately with zero config:
+const logger = new Logger();                    // Sync logger → console
+const asyncLogger = createAsyncLogger();        // Async logger → console  
+const smartLogger = createSmartLogger();        // Auto mode → console
+
+// They all just work!
+logger.info('Hello from sync logger');
+asyncLogger.info('Hello from async logger');
+smartLogger.info('Hello from smart logger');
+
+// Add utilities when needed (works with all logger types)
+const prodLogger = new Logger({
+  redactor: { preset: 'strict' },           // PII redaction
+  rateLimiter: { max: 100, window: 30000 }, // Rate limiting
+  // Console transport is still included automatically!
 });
 
-logger.info('This is automatically redacted and rate limited');
-// Both sync and async loggers support the same operational utilities!
+// Disable console only if you really need to
+const silentLogger = new Logger({ 
+  useConsole: false,  // No console output
+  transports: [customTransport]  // Use only custom transports
+});
 ```
 
 ---
@@ -585,6 +680,124 @@ logger.diff('State change', oldState, newState);
 //   users: 100 → 150 (+50)
 //   revenue: 5000 → 7500 (+2500)
 // + plan: "pro"
+```
+
+---
+
+## 📐 MagicLog Schema & OpenTelemetry Compatibility
+
+MagicLogger uses the **MagicLog Schema** - an open-source, standardized logging format designed for maximum interoperability and observability. The schema provides a unified structure that seamlessly maps to OpenTelemetry's log data model while maintaining simplicity for direct use.
+
+### Why MagicLog Schema?
+
+#### 🔄 **Native OpenTelemetry Compatibility**
+The MagicLog schema is designed to map 1:1 with OpenTelemetry's log data model, ensuring zero-friction integration with modern observability stacks:
+
+```typescript
+// MagicLog entry structure
+interface LogEntry {
+  // Core fields - directly map to OTLP
+  id: string;                    // → OTLP: attributes["log.id"]
+  timestamp: string;              // → OTLP: timeUnixNano
+  level: LogLevel;                // → OTLP: severityNumber/severityText
+  message: string;                // → OTLP: body (with ANSI)
+  plainMessage?: string;          // → OTLP: body (clean text for backends)
+  
+  // Distributed tracing - native W3C Trace Context support
+  trace?: {
+    traceId: string;              // → OTLP: traceId (root level)
+    spanId: string;               // → OTLP: spanId (root level)
+    parentSpanId?: string;        // → OTLP: attributes["trace.parent_span_id"]
+    traceFlags?: string;          // → OTLP: attributes["trace.flags"]
+    traceState?: string;          // → OTLP: attributes["trace.state"]
+  };
+  
+  // Service context
+  service?: string;               // → OTLP: resource.attributes["service.name"]
+  environment?: string;           // → OTLP: attributes["deployment.environment"]
+  
+  // Structured context & metadata
+  context?: Record<string, any>;  // → OTLP: attributes (typed)
+  metadata?: {
+    hostname?: string;            // → OTLP: attributes["host.name"]
+    pid?: number;                 // → OTLP: attributes["process.pid"]
+    resources?: ResourceMetrics;  // → OTLP: process.runtime.* metrics
+  };
+}
+```
+
+#### 🎯 **Benefits of MagicLog Schema**
+
+1. **Zero-Cost Abstraction**: The schema adds no overhead while providing rich structure
+2. **Backward Compatible**: Works with existing logging infrastructure
+3. **Forward Compatible**: Ready for OpenTelemetry adoption without code changes
+4. **Type-Safe**: Full TypeScript definitions for compile-time safety
+5. **Transport Agnostic**: Same schema works for files, databases, or OTLP endpoints
+
+### Using MagicLog with OpenTelemetry
+
+```typescript
+import { createAsyncLogger } from 'magiclogger';
+import { OTLPTransport } from 'magiclogger/transports';
+
+// Direct OTLP export with automatic schema mapping
+const logger = createAsyncLogger({
+  onFlush: async (entries) => {
+    // Entries are already in MagicLog schema format
+    // OTLPTransport handles the mapping automatically
+    await otlpTransport.sendBatch(entries);
+  }
+});
+
+// Configure OTLP transport with native mapping
+const otlpTransport = new OTLPTransport({
+  endpoint: 'http://localhost:4318',
+  serviceName: 'my-service',
+  includeTraceContext: true  // Auto-propagate W3C trace context
+});
+
+// Log with automatic trace correlation
+logger.info('Order processed', {
+  orderId: '12345',
+  userId: 'user-789',
+  // Trace context automatically included if available
+});
+```
+
+### Schema Documentation
+
+For complete schema documentation and integration guides:
+- 📖 [MagicLog Schema Specification](./docs/SCHEMA.md)
+- 🔗 [OpenTelemetry Integration Guide](./docs/OTLP_INTEGRATION.md)
+- 🏗️ [Transport Implementation Guide](./docs/TRANSPORT_GUIDE.md)
+
+### Real-World Example: Distributed Tracing
+
+```typescript
+// MagicLog automatically captures and propagates trace context
+const logger = new Logger({
+  transports: [
+    new OTLPTransport({ 
+      endpoint: 'http://otel-collector:4318',
+      serviceName: 'payment-service'
+    })
+  ]
+});
+
+// In your application
+app.post('/payment', async (req, res) => {
+  // Extract W3C trace context from headers
+  const traceContext = extractTraceContext(req.headers);
+  
+  // Log with distributed trace correlation
+  logger.info('Payment request received', {
+    amount: req.body.amount,
+    currency: req.body.currency,
+    trace: traceContext  // Automatically propagated to OTLP
+  });
+  
+  // Your logs now appear correlated in Jaeger, Grafana, DataDog, etc.
+});
 ```
 
 ---
@@ -915,11 +1128,12 @@ logger.on('memory_pressure', ({ usage }) => {
 - ✅ Immediate output - see logs instantly
 - ✅ No log loss on crash
 - ✅ Simple debugging
-- ⚠️ Blocks on I/O (7,586 ops/sec)
+- ⚠️ Blocks on I/O (~39,000 ops/sec plain, ~22,000 ops/sec styled)
 - **Best for**: Development, debugging, CLIs, moderate traffic
 
 **AsyncLogger:**
-- ✅ Non-blocking (103,327 ops/sec - **13x faster**)
+- ✅ Non-blocking (~65,000 ops/sec plain, ~54,000 ops/sec styled)
+- ✅ 1.7x faster than sync for plain, 2.5x faster for styled output
 - ✅ Automatic batching
 - ✅ Explicit backpressure handling
 - ⚠️ Requires shutdown handling
@@ -948,7 +1162,7 @@ const logger = new Logger({
 });
 ```
 
-MagicLogger's performance varies by use case. For synchronous logging, other libraries excel, but MagicLogger's async implementation delivers superior throughput for high-volume scenarios.
+MagicLogger's sync performance is competitive with Winston and Bunyan. Its async implementation leads the pack, outperforming Pino, Winston, and Bunyan in async scenarios.
 
 ### Benchmark Results
 
@@ -957,38 +1171,38 @@ MagicLogger's performance varies by use case. For synchronous logging, other lib
 <!-- PERF_TABLE_START -->
 | Logger | Iterations | Time (ms) | Ops/sec |
 |--------|------------:|----------:|--------:|
-| Winston (Sync, Styled) | 100,000 | 2038.7 | 49,051 |
-| Winston (Sync, Plain) | 100,000 | 2144.2 | 46,637 |
-| Pino (Sync, Plain) | 100,000 | 3164.7 | 31,598 |
-| Pino (Sync, Styled) | 100,000 | 3262.6 | 30,650 |
-| Bunyan (Sync, Plain) | 100,000 | 3268.3 | 30,597 |
-| Bunyan (Sync, Styled) | 100,000 | 3890.8 | 25,702 |
-| MagicLogger (Sync, Styled) | 100,000 | 6122.0 | 16,334 |
-| MagicLogger (Sync, Plain) | 100,000 | 9270.6 | 10,787 |
-| Pino (Async, Plain) | 100,000 | 926.5 | 107,933 |
-| MagicLogger (Async, Plain) | 100,000 | 1169.4 | 85,517 |
-| MagicLogger (Async, Styled) | 100,000 | 1321.2 | 75,689 |
-| Pino (Async, Styled) | 100,000 | 1419.2 | 70,461 |
-| Winston (Async, Styled) | 100,000 | 2492.6 | 40,119 |
-| Winston (Async, Plain) | 100,000 | 3372.4 | 29,653 |
+| Pino (Sync, Styled) | 100,000 | 2252.1 | 44,404 |
+| Pino (Sync, Plain) | 100,000 | 2534.3 | 39,458 |
+| MagicLogger (Sync, Plain) | 100,000 | 2561.4 | 39,041 |
+| Bunyan (Sync, Styled) | 100,000 | 3183.6 | 31,411 |
+| Winston (Sync, Styled) | 100,000 | 4075.0 | 24,540 |
+| Winston (Sync, Plain) | 100,000 | 4288.4 | 23,319 |
+| Bunyan (Sync, Plain) | 100,000 | 4503.6 | 22,204 |
+| MagicLogger (Sync, Styled) | 100,000 | 4610.1 | 21,692 |
+| MagicLogger (Async, Plain) | 100,000 | 1518.7 | 65,844 |
+| MagicLogger (Async, Styled) | 100,000 | 1831.7 | 54,593 |
+| Pino (Async, Styled) | 100,000 | 2316.8 | 43,163 |
+| Pino (Async, Plain) | 100,000 | 2321.3 | 43,080 |
+| Winston (Async, Styled) | 100,000 | 2328.2 | 42,952 |
+| Winston (Async, Plain) | 100,000 | 3177.0 | 31,476 |
 
 ### Winners
-- Sync Plain: Winston (Sync, Plain) (46,637 ops/sec) — MagicLogger: 10,787 ops/sec
-- Sync Styled: Winston (Sync, Styled) (49,051 ops/sec) — MagicLogger: 16,334 ops/sec
-- Async Plain: Pino (Async, Plain) (107,933 ops/sec) — MagicLogger: 85,517 ops/sec
-- Async Styled: MagicLogger (Async, Styled) (75,689 ops/sec)
+- Sync Plain: Pino (Sync, Plain) (39,458 ops/sec) — MagicLogger: 39,041 ops/sec
+- Sync Styled: Pino (Sync, Styled) (44,404 ops/sec) — MagicLogger: 21,692 ops/sec
+- Async Plain: MagicLogger (Async, Plain) (65,844 ops/sec)
+- Async Styled: MagicLogger (Async, Styled) (54,593 ops/sec)
 
 === KEY COMPARISONS ===
 
 Synchronous Styled Performance:
-  MagicLogger (Sync, Styled): 16,334 ops/sec
-  Winston (Sync, Styled): 49,051 ops/sec
-  → MagicLogger is 3.00x slower
+  MagicLogger (Sync, Styled): 21,692 ops/sec
+  Pino (Sync, Styled): 44,404 ops/sec
+  → MagicLogger is 2.05x slower
 
 Asynchronous Styled Performance:
-  MagicLogger (Async, Styled): 75,689 ops/sec
-  Pino (Async, Styled): 70,461 ops/sec
-  → MagicLogger is 1.07x faster
+  MagicLogger (Async, Styled): 54,593 ops/sec
+  Pino (Async, Styled): 43,163 ops/sec
+  → MagicLogger is 1.26x faster
 
 Note: External libraries' "Styled" cases use chalk for coloring (chalk + library) for fair comparison.
 
@@ -1028,9 +1242,9 @@ logger.info('Request processed'); // Goes to HTTPTransport (batched)
 
 | Scenario | Size |
 |----------|------|
-| Core only | 37 kB |
-| Core + Console | 37 kB |
-| Core + All transports | 45.4 kB |
+| Core only | 48.3 kB |
+| Core + Console | 48.3 kB |
+| Core + All transports | 56.6 kB |
 
 ---
 
@@ -1241,40 +1455,3 @@ MIT © Manic.agency
 | Redactor | 3.79 kB |
 
 *Generated via `scripts/analyze-build.js`.*
-
-| File | Format | Raw Size | Gzip |
-|------|--------|----------|------|
-| `index.cjs` | CJS | 8.68 kB | 2.06 kB |
-| `index.js` | ESM | 5.52 kB | 1.76 kB |
-| `index.d.ts` | Types | 127 kB | 25.3 kB |
-
-### Core Bundle Sizes (gzipped)
-
-| Scenario | Size |
-|----------|------|
-| Core (bare minimum) | 48.3 kB |
-| Core + Console Transport | 48.3 kB |
-| Core + File Transport | 48.3 kB |
-| Core + HTTP Transport | 55.3 kB |
-| Core + All Basic Transports | 56.6 kB |
-
-### Individual Transport Sizes (gzipped)
-
-| Transport | Size |
-|-----------|------|
-| Console Transport Only | 7.9 kB |
-| File Transport Only | 4.12 kB |
-| HTTP Transport Only | 21.7 kB |
-
-
-### Utility Sizes (gzipped)
-
-| Utility | Size |
-|---------|------|
-| Sampler | 1.21 kB |
-| RateLimiter | 1.09 kB |
-| Redactor | 3.79 kB |
-
-*Generated via `scripts/analyze-build.js`.*
-
-*This section will be automatically updated by the analyze-build script*

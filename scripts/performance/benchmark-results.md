@@ -2,7 +2,7 @@ Setting up loggers...
 Running benchmarks...
 
 === SYNCHRONOUS OPERATIONS ===
-2025-08-21T15:09:41.560Z [INFO] User authentication successful
+2025-08-21T17:52:12.133Z [INFO] User authentication successful
 
 === ASYNCHRONOUS OPERATIONS ===
 
@@ -10,38 +10,38 @@ Verification: Counter stream received 0 writes
 <!-- PERF_TABLE_START -->
 | Logger | Iterations | Time (ms) | Ops/sec |
 |--------|------------:|----------:|--------:|
-| Winston (Sync, Styled) | 100,000 | 2038.7 | 49,051 |
-| Winston (Sync, Plain) | 100,000 | 2144.2 | 46,637 |
-| Pino (Sync, Plain) | 100,000 | 3164.7 | 31,598 |
-| Pino (Sync, Styled) | 100,000 | 3262.6 | 30,650 |
-| Bunyan (Sync, Plain) | 100,000 | 3268.3 | 30,597 |
-| Bunyan (Sync, Styled) | 100,000 | 3890.8 | 25,702 |
-| MagicLogger (Sync, Styled) | 100,000 | 6122.0 | 16,334 |
-| MagicLogger (Sync, Plain) | 100,000 | 9270.6 | 10,787 |
-| Pino (Async, Plain) | 100,000 | 926.5 | 107,933 |
-| MagicLogger (Async, Plain) | 100,000 | 1169.4 | 85,517 |
-| MagicLogger (Async, Styled) | 100,000 | 1321.2 | 75,689 |
-| Pino (Async, Styled) | 100,000 | 1419.2 | 70,461 |
-| Winston (Async, Styled) | 100,000 | 2492.6 | 40,119 |
-| Winston (Async, Plain) | 100,000 | 3372.4 | 29,653 |
+| Pino (Sync, Styled) | 100,000 | 2252.1 | 44,404 |
+| Pino (Sync, Plain) | 100,000 | 2534.3 | 39,458 |
+| MagicLogger (Sync, Plain) | 100,000 | 2561.4 | 39,041 |
+| Bunyan (Sync, Styled) | 100,000 | 3183.6 | 31,411 |
+| Winston (Sync, Styled) | 100,000 | 4075.0 | 24,540 |
+| Winston (Sync, Plain) | 100,000 | 4288.4 | 23,319 |
+| Bunyan (Sync, Plain) | 100,000 | 4503.6 | 22,204 |
+| MagicLogger (Sync, Styled) | 100,000 | 4610.1 | 21,692 |
+| MagicLogger (Async, Plain) | 100,000 | 1518.7 | 65,844 |
+| MagicLogger (Async, Styled) | 100,000 | 1831.7 | 54,593 |
+| Pino (Async, Styled) | 100,000 | 2316.8 | 43,163 |
+| Pino (Async, Plain) | 100,000 | 2321.3 | 43,080 |
+| Winston (Async, Styled) | 100,000 | 2328.2 | 42,952 |
+| Winston (Async, Plain) | 100,000 | 3177.0 | 31,476 |
 
 ### Winners
-- Sync Plain: Winston (Sync, Plain) (46,637 ops/sec) — MagicLogger: 10,787 ops/sec
-- Sync Styled: Winston (Sync, Styled) (49,051 ops/sec) — MagicLogger: 16,334 ops/sec
-- Async Plain: Pino (Async, Plain) (107,933 ops/sec) — MagicLogger: 85,517 ops/sec
-- Async Styled: MagicLogger (Async, Styled) (75,689 ops/sec)
+- Sync Plain: Pino (Sync, Plain) (39,458 ops/sec) — MagicLogger: 39,041 ops/sec
+- Sync Styled: Pino (Sync, Styled) (44,404 ops/sec) — MagicLogger: 21,692 ops/sec
+- Async Plain: MagicLogger (Async, Plain) (65,844 ops/sec)
+- Async Styled: MagicLogger (Async, Styled) (54,593 ops/sec)
 
 === KEY COMPARISONS ===
 
 Synchronous Styled Performance:
-  MagicLogger (Sync, Styled): 16,334 ops/sec
-  Winston (Sync, Styled): 49,051 ops/sec
-  → MagicLogger is 3.00x slower
+  MagicLogger (Sync, Styled): 21,692 ops/sec
+  Pino (Sync, Styled): 44,404 ops/sec
+  → MagicLogger is 2.05x slower
 
 Asynchronous Styled Performance:
-  MagicLogger (Async, Styled): 75,689 ops/sec
-  Pino (Async, Styled): 70,461 ops/sec
-  → MagicLogger is 1.07x faster
+  MagicLogger (Async, Styled): 54,593 ops/sec
+  Pino (Async, Styled): 43,163 ops/sec
+  → MagicLogger is 1.26x faster
 
 Note: External libraries' "Styled" cases use chalk for coloring (chalk + library) for fair comparison.
 

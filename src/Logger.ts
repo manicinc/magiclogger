@@ -156,6 +156,15 @@ export interface ExtendedLoggerOptions extends LoggerOptions {
    * @default false
    */
   useDefaultTransports?: boolean;
+  
+  /**
+   * Whether to use console transport by default.
+   * Set to false to disable automatic console output.
+   * @type {boolean}
+   * @default true
+   */
+  useConsole?: boolean;
+  
   /** Controls how non-string args are printed in variadic calls. */
   prettyPrint?: 'inspect' | 'json';
   /** When true and verbose, append compact meta summary to console output. */
@@ -277,7 +286,9 @@ export class Logger {
     // Validate and normalize options
     this.options = this.validateOptions(this.options);
 
-    this.useLegacyOutput = this.options.useLegacyOutput ?? false;
+    // Default to legacy output (console) unless explicitly disabled or transports provided
+    this.useLegacyOutput = this.options.useLegacyOutput ?? 
+                           (this.options.useConsole !== false && !this.options.transports);
     this.idGenerator = this.options.idGenerator ?? this.defaultIdGenerator;
 
     // Initialize legacy logger instance based on environment
@@ -391,11 +402,11 @@ export class Logger {
       this.options.transports.forEach(transport => {
         this.addTransport(transport);
       });
-    } else if (this.options.useDefaultTransports) {
-      // Only create default transports if explicitly requested
-      this.createDefaultTransportsAsync();
+      // Disable legacy output when using explicit transports
+      this.useLegacyOutput = false;
     }
-    // If neither, no transports are added (tree-shakeable)
+    // If no transports provided, we use legacy output (which goes to console)
+    // This is already set in the constructor
   }
 
   /**

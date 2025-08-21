@@ -16,11 +16,11 @@ import { Transport } from '../dist/transports.js';
 import { ConsoleTransport } from '../dist/transports.js';
 import { FileTransport } from '../dist/transports.js';
 
-// Compatibility layer imports (align to local dist)
-import { createWinstonCompatible } from '../dist/compatibility/winston.js';
-import { createBunyanCompatible } from '../dist/compatibility/bunyan.js';
-import { createPinoCompatible } from '../dist/compatibility/pino.js';
-import { enhanceConsole } from '../dist/compatibility/console.js';
+// Compatibility layer imports (commented out - not implemented yet)
+// import { createWinstonCompatible } from '../dist/compatibility/winston.js';
+// import { createBunyanCompatible } from '../dist/compatibility/bunyan.js';
+// import { createPinoCompatible } from '../dist/compatibility/pino.js';
+// import { enhanceConsole } from '../dist/compatibility/console.js';
 
 // ============================================
 // EXAMPLE 1: Minimal Logger (Smallest Bundle)

@@ -109,6 +109,18 @@ export class TransportManager extends EventEmitter {
       lastError?: Error;
     }
   > = new Map();
+  
+  /**
+   * Transport lifecycle states.
+   * @private
+   */
+  private transportStates: Map<string, 'initializing' | 'active' | 'paused' | 'closing' | 'closed'> = new Map();
+  
+  /**
+   * Flag indicating manager is closing.
+   * @private
+   */
+  private isClosing = false;
 
   /**
    * Global transport filters.
@@ -160,11 +172,6 @@ export class TransportManager extends EventEmitter {
     logBuffer: LogEntry[];
   } | null = null;
 
-  /**
-   * Indicates if manager is closing.
-   * @private
-   */
-  private isClosing = false;
 
   /**
    * Health check interval in ms.
@@ -486,13 +493,22 @@ export class TransportManager extends EventEmitter {
       throw new Error(`Transport '${name}' already exists`);
     }
 
+    // Set initial state
+    this.transportStates.set(name, 'initializing');
+    
     this.setupTransportHandlers(transport);
 
     if (typeof transport.init === 'function') {
-      await transport.init();
+      try {
+        await transport.init();
+      } catch (error) {
+        this.transportStates.set(name, 'closed');
+        throw error;
+      }
     }
 
     this.transports.set(name, transport);
+    this.transportStates.set(name, 'active');
 
     this.performanceData.set(name, {
       count: 0,
@@ -1056,6 +1072,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Close all transports and clean up.
+   * Ensures graceful shutdown with proper state transitions.
    *
    * @returns {Promise<void>} Resolves when closed
    */
@@ -1081,12 +1098,27 @@ export class TransportManager extends EventEmitter {
     // Stop health monitoring
     this.stopHealthMonitoring();
 
-    // Close all transports
-    const promises = Array.from(this.transports.values()).map(async transport => {
+    // Mark all transports as closing
+    for (const name of this.transports.keys()) {
+      this.transportStates.set(name, 'closing');
+    }
+
+    // Close all transports with proper state tracking
+    const promises = Array.from(this.transports.entries()).map(async ([name, transport]) => {
       try {
+        // Flush if transport supports it
+        if (typeof transport.flush === 'function') {
+          await transport.flush();
+        }
+        
+        // Close transport
         await transport.close();
+        
+        // Mark as closed
+        this.transportStates.set(name, 'closed');
       } catch (error) {
-        console.error(`Error closing transport '${transport.name}':`, error);
+        console.error(`Error closing transport '${name}':`, error);
+        this.transportStates.set(name, 'closed'); // Mark as closed even on error
       }
     });
 
@@ -1096,6 +1128,7 @@ export class TransportManager extends EventEmitter {
     this.transports.clear();
     this.performanceData.clear();
     this.transportPriorities.clear();
+    this.transportStates.clear();
 
     this.initialized = false;
     this.emit('closed');
