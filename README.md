@@ -66,9 +66,9 @@
 - [License](#license)
 - [Build Output Sizes](#build-output-sizes)
 
-## Enterprise-Ready Logging with Style
+## Enterprise-Ready Structured JSON Logging with Style
 
-**MagicLogger** is a colorful logging library in TypeScript with multiple APIs and flexible logging options to balance both performance, style, stability.
+**MagicLogger** outputs structured JSON following the **[MagicLog Schema](#-magiclog-schema---structured-json-logging-format)** - a standardized format that's instantly queryable in any log aggregator while maintaining beautiful console output. Every log is both human-readable AND machine-parseable.
 
 ```typescript
 import { Logger, createAsyncLogger, createSmartLogger } from 'magiclogger';
@@ -118,25 +118,34 @@ Note: MagicLogger's sync performance is competitive (~39k ops/sec) and perfect f
 
 ## Features
 
+### 📊 **MagicLog Schema - Structured JSON Output**
+- **Every log is queryable JSON** - works instantly with Elasticsearch, Datadog, Splunk
+- **OpenTelemetry native** - 1:1 mapping to OTLP format, zero friction
+- **Built-in trace correlation** - automatic distributed tracing support
+- **Full context preservation** - never lose metadata or stack traces
+
 ### 🎨 **Beautiful Styling & Visualization**
 - **Three styling APIs** - chainable, template literals, and inline syntax
 - **Rich colors & themes** with automatic terminal detection
 - **Visual elements** - tables, progress bars, headers, diffs
+- **Dual output** - styled for console, clean JSON for aggregators
 
 ### ⚡ **High Performance & Efficiency**
 - **Perfect tree-shaking** - only pay for what you use
-- **Zero overhead** sync logging by default
-- **AsyncLogger with explicit backpressure** - production-ready [async logging](./docs/ASYNC_INTEGRATION.md); never silently drop logs
-- **Unified import API** - seamless Logger and AsyncLogger experience
+- **Zero config, instant start** - all loggers work out of the box
+- **Fast async by default** - optimized buffer sizes, opt-in utilities
+- **Smart mode** - auto-detects best performance mode for your environment
 
 ### 🛡️ **Production-Ready Security & Operations**
 - **Integrated utilities** - rate limiting, PII redaction, sampling, queue management
 - **PII protection** with comprehensive redaction patterns
-- **Sampling & rate limiting** to control costs and volume
+- **Backpressure handling** - never silently drop logs
+- **Graceful shutdown** - ensure all logs are flushed
 
 ### 🔌 **Enterprise Integration**
 - **Enterprise transports** - Kafka, PostgreSQL, OTLP, S3, and more
 - **Monitoring integration** - OpenTelemetry, metrics, health checks
+- **W3C Trace Context** - automatic correlation across microservices
 ---
 
 ## 📦 Installation & Quick Start
@@ -469,56 +478,96 @@ logger.success('<green.bold>✓</> Deployment to <blue>production</> complete');
 
 ---
 
-## 🧱 Structured Logging
+## 🧱 Structured Logging - MagicLog Schema JSON Output
 
-MagicLogger emits consistent JSON to transports.
+Every MagicLogger call outputs structured JSON following the **[MagicLog Schema](#-magiclog-schema---structured-json-logging-format)** - a standardized format for modern observability.
 
-### Input → Output Examples
+### What You Write → What Gets Logged
 
 ```typescript
-const logger = new Logger({ id: 'api', tags: ['service'] });
+const logger = new Logger({ 
+  id: 'api-service',
+  service: 'auth-api',
+  environment: 'production' 
+});
 
-// 1. Metadata object
-logger.info('User login', { userId: 'u_123', ip: '203.0.113.10' });
-
-// 2. Error instance  
-logger.error('Payment failed', new Error('Card declined'));
-
-// 3. Mixed metadata and error
-logger.error('DB query failed', {
-  error: new Error('timeout'),
-  query: 'SELECT * FROM users WHERE id = ?'
+// Simple log with metadata
+logger.info('User authenticated', { 
+  userId: 'u_123', 
+  method: 'OAuth',
+  provider: 'google' 
 });
 ```
 
-**Resulting JSON structure:**
+**Outputs this MagicLog Schema JSON:**
 
 ```json
 {
-  "id": "1733938475123-abc123xyz",              
-  "timestamp": "2025-08-14T12:34:35.123Z",       
-  "timestampMs": 1765769675123,                   
-  "level": "info",                               
-  "message": "User login",                       
-  "plainMessage": "User login",                  
-  "loggerId": "api",                             
-  "tags": ["service"],                  
-  "context": { "userId": "u_123", "ip": "203.0.113.10" },
+  "id": "1733938475123-abc123xyz",
+  "timestamp": "2025-08-14T12:34:35.123Z",
+  "timestampMs": 1765769675123,
+  "level": "info",
+  "message": "User authenticated",
+  "plainMessage": "User authenticated",
+  "service": "auth-api",
+  "environment": "production",
+  "loggerId": "api-service",
+  "context": { 
+    "userId": "u_123",
+    "method": "OAuth",
+    "provider": "google"
+  },
   "metadata": {
-    "hostname": "my-host",                       
-    "pid": 1234,                                  
-    "platform": "linux",                         
-    "nodeVersion": "v18.20.8"                    
+    "hostname": "api-server-01",
+    "pid": 12345,
+    "platform": "linux",
+    "nodeVersion": "v20.10.0"
+  },
+  "trace": {
+    "traceId": "0af7651916cd43dd8448eb211c80319c",
+    "spanId": "b7ad6b7169203331"
   }
 }
 ```
 
+### Error Logging with Full Stack Traces
+
+```typescript
+// Structured error logging
+logger.error('Payment failed', new Error('Card declined'));
+```
+
+**Outputs:**
+
+```json
+{
+  "level": "error",
+  "message": "Payment failed", 
+  "error": {
+    "name": "Error",
+    "message": "Card declined",
+    "stack": "Error: Card declined\n    at processPayment (payment.js:45:11)\n    at async handleRequest (api.js:123:5)"
+  },
+  "timestamp": "2025-08-14T12:34:35.123Z",
+  // ... rest of MagicLog schema fields
+}
+```
+
+### Why MagicLog Schema Matters
+
+✅ **Instantly searchable** in Elasticsearch, Datadog, Splunk  
+✅ **Automatic correlation** via trace IDs across microservices  
+✅ **Never lose context** - all metadata preserved  
+✅ **OpenTelemetry ready** - direct OTLP compatibility  
+✅ **Performance tracking** - built-in resource metrics  
+
 **Key Fields:**
-- `message`: Final styled string for console
-- `plainMessage`: ANSI-free version for non-TTY transports
-- `context`: Your metadata object
-- `metadata`: Automatic platform info (hostname, PID, etc.)
-- `error`: Structured error with name, message, and stack
+- `message`: Styled string for console (with ANSI colors)
+- `plainMessage`: Clean text for log aggregators
+- `context`: Your custom metadata
+- `metadata`: Automatic system info (hostname, PID, platform)
+- `trace`: Distributed tracing context (W3C Trace Context)
+- `error`: Structured error with stack trace
 
 ---
 
@@ -684,14 +733,110 @@ logger.diff('State change', oldState, newState);
 
 ---
 
-## 📐 MagicLog Schema & OpenTelemetry Compatibility
+## 📐 MagicLog Schema - Structured JSON Logging Format
 
-MagicLogger uses the **MagicLog Schema** - an open-source, standardized logging format designed for maximum interoperability and observability. The schema provides a unified structure that seamlessly maps to OpenTelemetry's log data model while maintaining simplicity for direct use.
+MagicLogger uses the **MagicLog Schema** - an open-source, standardized JSON logging format that's both human-readable and machine-parseable. Every log is a structured JSON object that works seamlessly with log aggregators, observability platforms, and OpenTelemetry.
 
-### Why MagicLog Schema?
+### What Does a MagicLog Entry Look Like?
+
+Every log message becomes a rich JSON object:
+
+```typescript
+logger.info('User authenticated', { 
+  userId: 'user-123', 
+  method: '2FA',
+  duration: 245 
+});
+```
+
+**Outputs this structured JSON:**
+
+```json
+{
+  "id": "1704067200000-abc123xyz",
+  "timestamp": "2024-01-01T00:00:00.000Z",
+  "timestampMs": 1704067200000,
+  "level": "info",
+  "message": "User authenticated",
+  "plainMessage": "User authenticated",
+  "context": {
+    "userId": "user-123",
+    "method": "2FA",
+    "duration": 245
+  },
+  "metadata": {
+    "hostname": "api-server-01",
+    "pid": 12345,
+    "platform": "linux",
+    "nodeVersion": "v20.10.0"
+  },
+  "trace": {
+    "traceId": "0af7651916cd43dd8448eb211c80319c",
+    "spanId": "b7ad6b7169203331"
+  },
+  "service": "auth-service",
+  "environment": "production"
+}
+```
+
+### Why Is MagicLog Schema Powerful?
+
+#### ✅ **Benefits Over Plain Text Logs**
+
+| Plain Text Logs | MagicLog Schema |
+|-----------------|-----------------|
+| `[INFO] User logged in` | Full structured data with context |
+| Hard to parse | Native JSON - instantly queryable |
+| No correlation | Built-in trace IDs for distributed systems |
+| Lost context | Preserves all metadata |
+| Manual formatting | Automatic structure |
+
+#### 🎯 **Real-World Advantages**
+
+1. **Instant Querying** - Search logs in Elasticsearch/Datadog/Splunk:
+   ```sql
+   SELECT * FROM logs 
+   WHERE level = 'error' 
+   AND context.userId = 'user-123'
+   AND timestampMs > 1704067200000
+   ```
+
+2. **Distributed Tracing** - Automatic correlation across microservices:
+   ```json
+   {
+     "trace": {
+       "traceId": "0af7651916cd43dd8448eb211c80319c",
+       "spanId": "b7ad6b7169203331"
+     }
+   }
+   ```
+
+3. **Performance Metrics** - Built-in resource tracking:
+   ```json
+   {
+     "metadata": {
+       "resources": {
+         "memory": { "heapUsed": 60000000, "heapTotal": 80000000 },
+         "cpu": { "user": 1234567, "system": 234567 }
+       }
+     }
+   }
+   ```
+
+4. **Error Tracking** - Structured error objects:
+   ```json
+   {
+     "level": "error",
+     "error": {
+       "name": "ValidationError",
+       "message": "Invalid email format",
+       "stack": "ValidationError: Invalid email format\n    at validateEmail..."
+     }
+   }
+   ```
 
 #### 🔄 **Native OpenTelemetry Compatibility**
-The MagicLog schema is designed to map 1:1 with OpenTelemetry's log data model, ensuring zero-friction integration with modern observability stacks:
+The MagicLog schema maps 1:1 with OpenTelemetry's log data model:
 
 ```typescript
 // MagicLog entry structure
