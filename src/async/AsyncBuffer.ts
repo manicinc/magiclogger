@@ -627,8 +627,8 @@ export class AsyncBuffer {
       }
     }, this.flushInterval);
 
-    // Ensure timer doesn't prevent process exit
-    if (this.flushTimer && this.flushTimer.unref) {
+    // Ensure timer doesn't prevent process exit in production, but keep it referenced in tests
+    if (this.flushTimer && this.flushTimer.unref && process.env.NODE_ENV !== 'test') {
       this.flushTimer.unref();
     }
   }

@@ -57,17 +57,27 @@ describe('Logger with file-loaded theme', () => {
     });
   });
 
-  it('should use loaded theme colors for info logs', () => {
-    const spy = jest.spyOn(Printer, 'print').mockImplementation(jest.fn());
+  it('should use loaded theme colors for info logs', async () => {
+    const consoleSpy = jest.spyOn(console, 'info').mockImplementation(() => {});
     logger.info('Theme-based info log');
-    expect(spy).toHaveBeenCalled();
-    spy.mockRestore();
+    
+    // Wait for async transport
+    await new Promise(resolve => setTimeout(resolve, 50));
+    
+    // Should have logged through console transport (structured JSON)
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('"message":"Theme-based info log"'));
+    consoleSpy.mockRestore();
   });
 
-  it('should use loaded theme for header styling', () => {
-    const spy = jest.spyOn(Printer, 'print').mockImplementation(jest.fn());
+  it('should use loaded theme for header styling', async () => {
+    const consoleSpy = jest.spyOn(console, 'info').mockImplementation(() => {});
     logger.header('File Theme Header');
-    expect(spy).toHaveBeenCalled();
-    spy.mockRestore();
+    
+    // Wait for async transport
+    await new Promise(resolve => setTimeout(resolve, 50));
+    
+    // Should have logged header through console transport with ANSI styling (brightWhite, bgGreen, bold)
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('"message":"\\u001b[97m\\u001b[42m\\u001b[1mFile Theme Header\\u001b[0m"'));
+    consoleSpy.mockRestore();
   });
 });

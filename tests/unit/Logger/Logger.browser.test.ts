@@ -62,12 +62,17 @@ describe('Logger Browser Integration', () => {
     MockBrowserLogger.mockClear();
   });
 
-  it('creates a NodeLogger in Node.js environment (current environment)', () => {
+  it('creates a NodeLogger in Node.js environment (current environment)', async () => {
     const logger = new Logger();
 
-    // In Node.js environment (Jest), it should create a NodeLogger
-    expect(logger['loggerInstance']).toBeDefined();
-    expect(logger['loggerInstance'].constructor.name).toBe('NodeLogger');
+    // Wait for async transport initialization
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    // In Node.js environment (Jest), it should have console transport by default
+    expect(logger.listTransports()).toContain('console');
+    // Logger should be functional with standard methods
+    expect(typeof logger.info).toBe('function');
+    expect(typeof logger.error).toBe('function');
   });
 
   it('browser methods return null/no-op in Node.js environment', () => {

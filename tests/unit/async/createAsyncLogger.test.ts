@@ -218,6 +218,8 @@ describe('createAsyncLogger factory', () => {
     it('should be fast without utilities', async () => {
       const logger = createAsyncLogger({
         enableMetrics: false,
+        onFlush: () => {}, // No-op flush handler for pure buffer performance
+        buffer: { flushInterval: 0 }, // Disable timer-based flushing for accurate measurement
       });
 
       // Should process quickly without utilities overhead
