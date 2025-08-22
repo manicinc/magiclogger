@@ -96,13 +96,18 @@ interface OTLPLogRecord {
     kvlistValue?: {
       values: Array<{
         key: string;
-        value: { stringValue?: string; intValue?: string; boolValue?: boolean };
+        value: {
+          stringValue?: string;
+          intValue?: string;
+          boolValue?: boolean;
+          doubleValue?: number;
+        };
       }>;
     };
   };
   attributes: Array<{
     key: string;
-    value: { stringValue?: string; intValue?: string; boolValue?: boolean };
+    value: { stringValue?: string; intValue?: string; boolValue?: boolean; doubleValue?: number };
   }>;
   droppedAttributesCount?: number;
   flags?: number;
@@ -116,7 +121,7 @@ interface OTLPLogRecord {
 interface OTLPResource {
   attributes: Array<{
     key: string;
-    value: { stringValue?: string; intValue?: string; boolValue?: boolean };
+    value: { stringValue?: string; intValue?: string; boolValue?: boolean; doubleValue?: number };
   }>;
   droppedAttributesCount?: number;
 }
@@ -419,13 +424,13 @@ export class OTLPTransport extends BatchingTransport {
     };
 
     // === MagicLog Schema Core Fields ===
-    
+
     // Add unique log ID
     record.attributes.push({
       key: 'log.id',
       value: { stringValue: entry.id },
     });
-    
+
     // Add schema version for compatibility
     if (entry.schemaVersion) {
       record.attributes.push({
@@ -441,7 +446,7 @@ export class OTLPTransport extends BatchingTransport {
         value: { stringValue: entry.loggerId },
       });
     }
-    
+
     // Add service name (maps to resource but also as attribute for filtering)
     if (entry.service) {
       record.attributes.push({
@@ -449,7 +454,7 @@ export class OTLPTransport extends BatchingTransport {
         value: { stringValue: entry.service },
       });
     }
-    
+
     // Add environment
     if (entry.environment) {
       record.attributes.push({
@@ -473,7 +478,7 @@ export class OTLPTransport extends BatchingTransport {
         if (key === 'traceId' || key === 'spanId' || key === 'parentSpanId') {
           continue;
         }
-        
+
         if (typeof value === 'string') {
           record.attributes.push({ key, value: { stringValue: value } });
         } else if (typeof value === 'number') {
@@ -504,7 +509,7 @@ export class OTLPTransport extends BatchingTransport {
     }
 
     // === Distributed Tracing (MagicLog Schema) ===
-    
+
     // First check if entry already has trace context (from ObservabilityMiddleware)
     if (entry.trace) {
       if (entry.trace.traceId) {
@@ -533,7 +538,7 @@ export class OTLPTransport extends BatchingTransport {
           value: { stringValue: entry.trace.traceState },
         });
       }
-    } 
+    }
     // Also check metadata.trace for backward compatibility
     else if (entry.metadata?.trace) {
       if (entry.metadata.trace.traceId) {
@@ -551,7 +556,7 @@ export class OTLPTransport extends BatchingTransport {
         record.spanId = traceContext.spanId;
       }
     }
-    
+
     // === Runtime Metadata ===
     if (entry.metadata) {
       // Add hostname
@@ -561,7 +566,7 @@ export class OTLPTransport extends BatchingTransport {
           value: { stringValue: entry.metadata.hostname },
         });
       }
-      
+
       // Add process info
       if (entry.metadata.pid) {
         record.attributes.push({
@@ -569,23 +574,35 @@ export class OTLPTransport extends BatchingTransport {
           value: { intValue: entry.metadata.pid.toString() },
         });
       }
-      
+
       // Add resource metrics if available
       if (entry.metadata.resources) {
         if (entry.metadata.resources.memory) {
           record.attributes.push(
-            { key: 'process.runtime.memory.heap_used', value: { intValue: entry.metadata.resources.memory.heapUsed.toString() } },
-            { key: 'process.runtime.memory.heap_total', value: { intValue: entry.metadata.resources.memory.heapTotal.toString() } }
+            {
+              key: 'process.runtime.memory.heap_used',
+              value: { intValue: entry.metadata.resources.memory.heapUsed.toString() },
+            },
+            {
+              key: 'process.runtime.memory.heap_total',
+              value: { intValue: entry.metadata.resources.memory.heapTotal.toString() },
+            }
           );
         }
         if (entry.metadata.resources.cpu) {
           record.attributes.push(
-            { key: 'process.runtime.cpu.user', value: { intValue: entry.metadata.resources.cpu.user.toString() } },
-            { key: 'process.runtime.cpu.system', value: { intValue: entry.metadata.resources.cpu.system.toString() } }
+            {
+              key: 'process.runtime.cpu.user',
+              value: { intValue: entry.metadata.resources.cpu.user.toString() },
+            },
+            {
+              key: 'process.runtime.cpu.system',
+              value: { intValue: entry.metadata.resources.cpu.system.toString() },
+            }
           );
         }
       }
-      
+
       // Add health metrics if available
       if (entry.metadata.health) {
         if (entry.metadata.health.uptime) {

@@ -123,55 +123,6 @@ export type LogMetadata = Record<string, unknown>;
 export type LogEntryMeta = LogMetadata | Error | { error?: Error; [key: string]: unknown };
 
 /**
- * Extended logger options that include transport configuration.
- * Extends the base LoggerOptions with transport-specific settings.
- *
- * @interface ExtendedLoggerOptions
- * @extends {LoggerOptions}
- */
-export interface ExtendedLoggerOptions extends LoggerOptions {
-  /**
-   * Array of transports to use for logging.
-   * @type {Transport[]}
-   * @default []
-   */
-  transports?: Transport[];
-
-  /**
-   * Whether to use legacy console/file output in addition to transports.
-   * @type {boolean}
-   * @default false
-   */
-  useLegacyOutput?: boolean;
-
-  /**
-   * Custom ID generator function for log entries.
-   * @type {IdGenerator}
-   */
-  idGenerator?: IdGenerator;
-
-  /**
-   * Whether to automatically create default transports.
-   * @type {boolean}
-   * @default false
-   */
-  useDefaultTransports?: boolean;
-  
-  /**
-   * Whether to use console transport by default.
-   * Set to false to disable automatic console output.
-   * @type {boolean}
-   * @default true
-   */
-  useConsole?: boolean;
-  
-  /** Controls how non-string args are printed in variadic calls. */
-  prettyPrint?: 'inspect' | 'json';
-  /** When true and verbose, append compact meta summary to console output. */
-  printMetaInDebug?: boolean;
-}
-
-/**
  * Main Logger class that provides a unified logging interface.
  *
  * This class automatically detects the runtime environment (Node.js or Browser)
@@ -215,7 +166,7 @@ export class Logger {
    * @private
    * @readonly
    */
-  private readonly options: ExtendedLoggerOptions;
+  private readonly options: LoggerOptions;
 
   /**
    * Function for generating unique IDs for log entries.
@@ -223,13 +174,6 @@ export class Logger {
    * @readonly
    */
   private readonly idGenerator: IdGenerator;
-
-  /**
-   * Whether to use legacy output methods in addition to transports.
-   * @private
-   * @readonly
-   */
-  private readonly useLegacyOutput: boolean;
 
   /**
    * Formatter instance for text formatting and styling.
@@ -265,11 +209,7 @@ export class Logger {
    * @param {boolean} [writeToDisk] - Whether to write to disk (backward compatibility)
    * @param {boolean} [useColors] - Whether to use colors (backward compatibility)
    */
-  constructor(
-    options: ExtendedLoggerOptions | boolean = {},
-    writeToDisk?: boolean,
-    useColors?: boolean
-  ) {
+  constructor(options: LoggerOptions | boolean = {}, writeToDisk?: boolean, useColors?: boolean) {
     // Handle backward compatibility with boolean constructor
     if (typeof options === 'boolean') {
       const verbose = options;
@@ -286,9 +226,6 @@ export class Logger {
     // Validate and normalize options
     this.options = this.validateOptions(this.options);
 
-    // Default to legacy output (console) unless explicitly disabled or transports provided
-    this.useLegacyOutput = this.options.useLegacyOutput ?? 
-                           (this.options.useConsole !== false && !this.options.transports);
     this.idGenerator = this.options.idGenerator ?? this.defaultIdGenerator;
 
     // Initialize legacy logger instance based on environment
@@ -323,7 +260,7 @@ export class Logger {
    * Processes constructor options and environment variables.
    * @private
    */
-  private processOptions(options: ExtendedLoggerOptions): ExtendedLoggerOptions {
+  private processOptions(options: LoggerOptions): LoggerOptions {
     const processed = { ...options };
 
     // Read environment variables if properties are not explicitly set
@@ -362,7 +299,7 @@ export class Logger {
    * Validates and normalizes logger options.
    * @private
    */
-  private validateOptions(options: ExtendedLoggerOptions): ExtendedLoggerOptions {
+  private validateOptions(options: LoggerOptions): LoggerOptions {
     const validated = { ...options };
 
     // Validate logRetentionDays - must be at least 1
@@ -402,52 +339,35 @@ export class Logger {
       this.options.transports.forEach(transport => {
         this.addTransport(transport);
       });
-      // Disable legacy output when using explicit transports
-      this.useLegacyOutput = false;
+    } else if (this.options.useConsole !== false) {
+      // Create default console transport using MagicLog schema
+      this.createDefaultConsoleTransport();
     }
-    // If no transports provided, we use legacy output (which goes to console)
-    // This is already set in the constructor
   }
 
   /**
-   * Asynchronously creates and adds default transports.
+   * Creates default console transport asynchronously.
    * @private
    */
-  private async createDefaultTransportsAsync(): Promise<void> {
-    try {
-      // Dynamically import console transport
-      const { ConsoleTransport } = await import(
-        './transports/base/implementations/ConsoleTransport'
-      );
-
-      const consoleTransport = new ConsoleTransport({
-        name: 'default-console',
-        enabled: true,
-        level: this.options.verbose ? 'debug' : 'info',
-        useColors: this.options.useColors ?? true,
-      });
-
-      await this.addTransport(consoleTransport);
-
-      // Add file transport if writeToDisk is enabled (Node.js only)
-      if (this.options.writeToDisk && typeof window === 'undefined') {
-        const { FileTransport } = await import('./transports/base/implementations/FileTransport');
-
-        const fileTransport = new FileTransport({
-          name: 'default-file',
+  private createDefaultConsoleTransport(): void {
+    // Load console transport asynchronously to avoid bundling issues
+    import('./transports/base/implementations/ConsoleTransport')
+      .then(({ ConsoleTransport }) => {
+        const consoleTransport = new ConsoleTransport({
+          name: 'console',
           enabled: true,
           level: this.options.verbose ? 'debug' : 'info',
-          filepath: this.options.logDir || './logs',
-          isDirectory: true,
-          retentionDays: this.options.logRetentionDays,
+          useColors: this.options.useColors ?? true,
         });
 
-        await this.addTransport(fileTransport);
-      }
-    } catch (error) {
-      // If dynamic import fails, log warning but continue
-      console.warn('[Logger] Failed to create default transports:', error);
-    }
+        this.transportManager.registerTransport(consoleTransport).catch(error => {
+          console.warn('[Logger] Failed to register console transport:', error);
+        });
+      })
+      .catch(() => {
+        // Fallback: console transport not available (shouldn't happen)
+        console.warn('[Logger] Console transport not available');
+      });
   }
 
   /**
@@ -867,9 +787,9 @@ export class Logger {
       });
     }
 
-    // Use legacy output if enabled or no transports configured
-    if (this.useLegacyOutput || this.transportManager.getTransportNames().length === 0) {
-      this.loggerInstance.log(msg, level);
+    // Fallback to simple console if no transports (shouldn't happen with default console transport)
+    if (this.transportManager.getTransportNames().length === 0) {
+      console.log(`[${level.toUpperCase()}] ${msg}`);
     }
   }
 
@@ -1065,12 +985,18 @@ export class Logger {
    * @deprecated Use standard log methods with transports for better control
    */
   public custom(msg: string, colors: ColorName[] = ['white'], prefix = 'LOG'): void {
-    if (this.useLegacyOutput) {
-      this.loggerInstance.custom(msg, colors, prefix);
+    // Apply colors to the message using the style builder
+    let styledMessage = msg;
+    if (colors.length > 0) {
+      // Use TextStyler utility for proper color application
+      styledMessage = TextStyler.styleParts([[msg, ...colors]], this.useColors);
     }
 
-    // Convert to standard log
-    this.log(msg, prefix.toLowerCase() as LogLevel);
+    // Route through standard log system using MagicLog schema
+    this.log(`${prefix}: ${styledMessage}`, 'info', {
+      customColors: colors,
+      customPrefix: prefix,
+    });
   }
 
   /**
@@ -1079,9 +1005,8 @@ export class Logger {
    * @deprecated Use standard log methods for better consistency
    */
   public styled(msg: string, preset: StylePreset): void {
-    if (this.useLegacyOutput) {
-      this.loggerInstance.styled(msg, preset);
-    }
+    // Route through standard log system using MagicLog schema
+    this.log(msg, 'info');
 
     // Convert preset to level if possible
     const levelMap: Record<StylePreset, LogLevel> = {
@@ -1151,11 +1076,8 @@ export class Logger {
     if (typeof url === 'string' && /[A-Za-z]:\\/.test(url)) {
       url = url.replace(/\\/g, '/');
     }
-    if (this.useLegacyOutput) {
-      this.loggerInstance.link(url, description);
-    } else {
-      this.info(`${description || url}: ${url}`);
-    }
+    // Always use MagicLog schema
+    this.log(`[Link] ${description || url}: ${url}`, 'info', { url, linkDescription: description });
   }
 
   /**

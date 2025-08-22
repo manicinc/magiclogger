@@ -149,6 +149,31 @@ export interface LoggerOptions {
   useLocalStorage?: boolean;
 
   /**
+   * Array of transports to use for logging.
+   * @type {Transport[]}
+   * @default []
+   */
+  transports?: any[]; // Use any[] to avoid circular imports
+
+  /**
+   * Custom ID generator function for log entries.
+   */
+  idGenerator?: () => string;
+
+  /**
+   * Whether to automatically create default transports.
+   * @default false
+   */
+  useDefaultTransports?: boolean;
+
+  /**
+   * Whether to use console transport by default.
+   * Set to false to disable automatic console output.
+   * @default true
+   */
+  useConsole?: boolean;
+
+  /**
    * Pretty-printing mode for non-string variadic args.
    * 'inspect' uses util.inspect in Node (with colors when enabled);
    * 'json' uses JSON.stringify; default is 'inspect'.
