@@ -17,8 +17,13 @@ describe('createSmartLogger API', () => {
     expect(logger).toBeInstanceOf(Logger);
   });
 
-  it('should return an AsyncLogger when mode is "async"', () => {
+  it('should return an AsyncLogger when mode is "async"', async () => {
     const logger = createSmartLogger({ mode: 'async', onFlush: async () => void 0 });
     expect(logger).toBeInstanceOf(AsyncLogger);
+
+    // Clean up the async logger to prevent timer leaks
+    if (logger instanceof AsyncLogger) {
+      await logger.close();
+    }
   });
 });

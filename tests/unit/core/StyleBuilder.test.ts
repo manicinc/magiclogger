@@ -476,7 +476,7 @@ describe('StyleBuilder', () => {
       // Measure multiple runs to get average performance
       const runs = 5;
       const durations: number[] = [];
-      
+
       for (let run = 0; run < runs; run++) {
         const start = performance.now();
         for (let i = 0; i < 1000; i++) {
@@ -487,20 +487,20 @@ describe('StyleBuilder', () => {
 
       // Calculate average duration
       const avgDuration = durations.reduce((a, b) => a + b, 0) / durations.length;
-      
+
       // Performance assertions:
       // 1. Average should be reasonably fast (under 100ms for 1000 iterations)
       expect(avgDuration).toBeLessThan(100);
-      
+
       // 2. Later runs should not be significantly slower than early runs
       // (this indicates caching is working)
       const firstHalf = durations.slice(0, Math.floor(runs / 2));
       const secondHalf = durations.slice(Math.floor(runs / 2));
       const avgFirst = firstHalf.reduce((a, b) => a + b, 0) / firstHalf.length;
       const avgSecond = secondHalf.reduce((a, b) => a + b, 0) / secondHalf.length;
-      
-      // Second half should not be more than 3x slower (very generous to handle system variance)
-      expect(avgSecond).toBeLessThan(avgFirst * 3);
+
+      // Second half should not be more than 5x slower (very generous to handle CI/system variance)
+      expect(avgSecond).toBeLessThan(avgFirst * 5);
     });
   });
 

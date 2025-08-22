@@ -48,8 +48,6 @@ if (typeof process !== 'undefined' && typeof require !== 'undefined') {
  */
 export type IdGenerator = () => string;
 
-
-
 /**
  * Metadata type for log entries.
  * Can contain any key-value pairs for additional context.
@@ -293,10 +291,10 @@ export class Logger {
    */
   private initializeTheme(): void {
     this.themeManager = new ThemeManager();
-    
+
     // Resolve theme based on options
     let resolvedTheme: ThemeDefinition | undefined;
-    
+
     // 1. Check if explicit theme is provided
     if (this.options.theme) {
       if (typeof this.options.theme === 'string') {
@@ -305,7 +303,7 @@ export class Logger {
         resolvedTheme = this.options.theme as ThemeDefinition;
       }
     }
-    
+
     // 2. If no explicit theme, check themeByTag mapping
     if (!resolvedTheme && this.options.themeByTag && this.options.tags) {
       for (const tag of this.options.tags) {
@@ -319,7 +317,7 @@ export class Logger {
         }
       }
     }
-    
+
     // 3. If still no theme found and we have tags, check if any tag matches a theme name
     if (!resolvedTheme && this.options.tags) {
       for (const tag of this.options.tags) {
@@ -329,7 +327,7 @@ export class Logger {
         }
       }
     }
-    
+
     // 4. Set the resolved theme if found
     if (resolvedTheme) {
       this.themeManager.setTheme(resolvedTheme);
@@ -1040,7 +1038,7 @@ export class Logger {
       const currentTheme = this.getTheme();
       headerColors = currentTheme.header || ['brightWhite', 'bgBlue', 'bold'];
     }
-    
+
     // Apply styling and log as info with header metadata
     const styledTitle = TextStyler.styleParts([[title, ...headerColors]], this.useColors);
     this.log(styledTitle, 'info', { type: 'header', originalColors: headerColors });
@@ -1063,7 +1061,7 @@ export class Logger {
     const header = keys.join(' | ');
     const styledHeader = TextStyler.styleParts([[header, ...headerColor]], this.useColors);
     this.log(styledHeader, 'info', { type: 'table-header' });
-    
+
     data.forEach((row, index) => {
       const rowText = keys.map(key => String(row[key] || '')).join(' | ');
       this.log(rowText, 'info', { type: 'table-row', rowIndex: index });
@@ -1088,12 +1086,12 @@ export class Logger {
     const bar = completeChar.repeat(filledLength) + incompleteChar.repeat(emptyLength);
     const percentage = Math.round(clampedProgress * 100);
     const progressText = `[${bar}] ${percentage}%`;
-    
-    this.log(progressText, 'info', { 
-      type: 'progress-bar', 
-      progress: clampedProgress, 
+
+    this.log(progressText, 'info', {
+      type: 'progress-bar',
+      progress: clampedProgress,
       percentage,
-      clear 
+      clear,
     });
   }
 
@@ -1258,7 +1256,7 @@ export class Logger {
         validated[key] = value as ColorName[];
       }
     }
-    
+
     // Update internal options
     (this.options as { theme: Record<string, ColorName[]> }).theme = validated;
   }
@@ -1275,7 +1273,7 @@ export class Logger {
         return currentTheme as Record<string, ColorName[]>;
       }
     }
-    
+
     // Fallback to theme from options
     return this.theme;
   }
@@ -1287,24 +1285,24 @@ export class Logger {
   public child(options: Partial<LoggerOptions>): Logger {
     // Merge options with parent options, handling tags specially
     const mergedOptions = { ...this.options, ...options };
-    
+
     // Merge tags arrays if both parent and child have tags
     if (this.options.tags && options.tags) {
       mergedOptions.tags = [...this.options.tags, ...options.tags];
     }
-    
+
     // Merge themeByTag mappings if both parent and child have them
     if (this.options.themeByTag && options.themeByTag) {
       mergedOptions.themeByTag = { ...this.options.themeByTag, ...options.themeByTag };
     }
-    
+
     // Create new child logger
     const childLogger = new Logger(mergedOptions);
-    
+
     // Share transport manager with parent
     (childLogger as unknown as { transportManager: TransportManager }).transportManager =
       this.transportManager;
-    
+
     return childLogger;
   }
 
@@ -1463,7 +1461,7 @@ export class Logger {
    * @public
    * @deprecated Use file transports instead
    */
-  public setLogDir(dir: string, reinitialize = false): void {
+  public setLogDir(dir: string, _reinitialize = false): void {
     // Update options for compatibility
     (this.options as { logDir: string }).logDir = dir;
     console.warn('[Logger] setLogDir() is deprecated. Use file transports instead.');
@@ -1483,7 +1481,7 @@ export class Logger {
    * @public
    * @deprecated Use file transports instead
    */
-  public setLogRetentionDays(days: number, cleanNow = false): void {
+  public setLogRetentionDays(days: number, _cleanNow = false): void {
     // Update options for compatibility
     (this.options as { logRetentionDays: number }).logRetentionDays = days;
     console.warn('[Logger] setLogRetentionDays() is deprecated. Use file transports instead.');
@@ -1528,7 +1526,7 @@ export class Logger {
    * @public
    * @deprecated Use browser transports instead
    */
-  public downloadLogs(filename = 'logs.txt'): void {
+  public downloadLogs(_filename = 'logs.txt'): void {
     console.warn('[Logger] downloadLogs() is deprecated. Use browser transports instead.');
   }
 
@@ -1537,7 +1535,7 @@ export class Logger {
    * @public
    * @deprecated Use browser transports instead
    */
-  public setStorageEnabled(enabled: boolean): void {
+  public setStorageEnabled(_enabled: boolean): void {
     console.warn('[Logger] setStorageEnabled() is deprecated. Use browser transports instead.');
   }
 
