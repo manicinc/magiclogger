@@ -1,3 +1,8 @@
+---
+id: terminal_support
+title: Terminal_support
+---
+
 # Terminal Support and Capability Detection
 
 Magiclogger includes advanced terminal capability detection to ensure your logs look great in any environment. This document explains how terminal detection works and how to leverage it in your applications.

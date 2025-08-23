@@ -1,3 +1,8 @@
+---
+id: development
+title: Development
+---
+
 # Development Guide for Magiclogger
 
 ## Project Overview

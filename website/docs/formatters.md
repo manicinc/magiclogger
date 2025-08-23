@@ -1,3 +1,8 @@
+---
+id: formatters
+title: Formatters
+---
+
 # Formatters
 
 Comprehensive guide to MagicLogger output formatters. These control how each log entry is serialized before being written by a transport.

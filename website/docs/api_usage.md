@@ -1,3 +1,8 @@
+---
+id: api_usage
+title: Api_usage
+---
+
 # MagicLogger API Documentation
 
 A comprehensive guide to using the MagicLogger API with transports, context, and rich formatting.

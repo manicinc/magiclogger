@@ -1,3 +1,8 @@
+---
+id: git_workflow
+title: Git_workflow
+---
+
 # Git Workflow & Commit Standards
 
 This document outlines the Git workflow and commit standards for the Magiclogger project.

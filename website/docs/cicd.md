@@ -1,3 +1,8 @@
+---
+id: cicd
+title: Cicd
+---
+
 # CI/CD Setup
 
 Magiclogger uses GitHub Actions for continuous integration and (tag‑driven) delivery. This document explains the pipeline, required secrets, and how to promote code from `dev` to `master` and then to an npm release.

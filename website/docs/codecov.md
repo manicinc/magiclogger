@@ -1,3 +1,8 @@
+---
+id: codecov
+title: Codecov
+---
+
 # Codecov Integration (Optional)
 
 Magic Logger supports optional integration with [Codecov](https://codecov.io/) for tracking code coverage metrics over time. This document explains how to set up and use this integration.

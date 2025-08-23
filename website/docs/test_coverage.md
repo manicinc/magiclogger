@@ -1,3 +1,8 @@
+---
+id: test_coverage
+title: Test_coverage
+---
+
 # Test Coverage Report
 
 Magiclogger maintains high test coverage to ensure reliability and stability.

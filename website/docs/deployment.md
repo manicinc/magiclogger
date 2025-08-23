@@ -1,3 +1,8 @@
+---
+id: deployment
+title: Deployment
+---
+
 # Deployment & Release Guide
 
 This document explains how to publish a new version of `magiclogger` to npm, update GitHub release notes, and manage required credentials.

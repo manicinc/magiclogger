@@ -1,3 +1,8 @@
+---
+id: contributing
+title: Contributing
+---
+
 # Contributing to Magiclogger
 
 Thank you for your interest in contributing to Magiclogger! This document provides guidelines and instructions for contributing to this project.

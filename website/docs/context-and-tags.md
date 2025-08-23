@@ -1,3 +1,8 @@
+---
+id: context-and-tags
+title: Context and tags
+---
+
 # Context and Tags in MagicLogger
 
 This guide covers how to effectively use context and tags in MagicLogger for structured logging, filtering, and log organization.

@@ -1,3 +1,8 @@
+---
+id: MAGICLOG_SCHEMA
+title: MAGICLOG_SCHEMA
+---
+
 # MagicLog Schema Specification
 
 ## Overview

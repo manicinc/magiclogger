@@ -1,3 +1,8 @@
+---
+id: architecture
+title: Architecture
+---
+
 # MagicLogger - Comprehensive Architecture Documentation
 
 ## Table of Contents
@@ -5,20 +10,19 @@
 1. [Executive Summary](#executive-summary)
 2. [System Architecture Overview](#system-architecture-overview)
 3. [Core Design Principles](#core-design-principles)
-4. [MagicLog Schema](#magiclog-schema)
-5. [Component Architecture](#component-architecture)
-6. [Data Flow Architecture](#data-flow-architecture)
-7. [Performance Architecture](#performance-architecture)
-8. [Module Specifications](#module-specifications)
-9. [Transport System Architecture](#transport-system-architecture)
-10. [Asynchronous Processing Architecture](#asynchronous-processing-architecture)
-11. [Memory Management Strategy](#memory-management-strategy)
-12. [API Design Philosophy](#api-design-philosophy)
-13. [Extension and Plugin Architecture](#extension-and-plugin-architecture)
-14. [Compatibility Layer Design](#compatibility-layer-design)
-15. [Security Considerations](#security-considerations)
-16. [Implementation Roadmap](#implementation-roadmap)
-17. [Complete Implementation Guide](#complete-implementation-guide)
+4. [Component Architecture](#component-architecture)
+5. [Data Flow Architecture](#data-flow-architecture)
+6. [Performance Architecture](#performance-architecture)
+7. [Module Specifications](#module-specifications)
+8. [Transport System Architecture](#transport-system-architecture)
+9. [Asynchronous Processing Architecture](#asynchronous-processing-architecture)
+10. [Memory Management Strategy](#memory-management-strategy)
+11. [API Design Philosophy](#api-design-philosophy)
+12. [Extension and Plugin Architecture](#extension-and-plugin-architecture)
+13. [Compatibility Layer Design](#compatibility-layer-design)
+14. [Security Considerations](#security-considerations)
+15. [Implementation Roadmap](#implementation-roadmap)
+16. [Complete Implementation Guide](#complete-implementation-guide)
 
 ## Executive Summary
 
@@ -29,15 +33,15 @@ MagicLogger represents a paradigm shift in JavaScript logging infrastructure, de
 The architecture is built on four foundational pillars:
 
 1. **Async-First Performance**: Default asynchronous logging provides maximum throughput (13x faster) with robust ring buffer and backpressure handling
-2. **MagicLog Schema Standard**: Publishes and maintains an open-source schema that preserves styling across languages, enabling visual consistency from source to dashboard
+2. **Synchronous Reliability**: Optional synchronous mode for security audits, development, and scenarios requiring immediate guarantees
 3. **Transport Agnosticism**: A unified transport interface allows logs to flow to any destination without coupling the core logger to specific implementations  
-4. **Cross-Language Compatibility**: The MagicLog schema enables seamless integration across programming languages and platforms with preserved visual formatting
+4. **Cross-Language Compatibility**: MagicLog schema enables seamless integration across programming languages and platforms
 
 ## System Architecture Overview
 
 ### Architectural Layers
 
-The MagicLogger architecture consists of four distinct layers, each with clearly defined responsibilities and interfaces:
+The MagicLogger architecture consists of five distinct layers, each with clearly defined responsibilities and interfaces:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -47,10 +51,14 @@ The MagicLogger architecture consists of four distinct layers, each with clearly
                                   │
                                   ▼
 ┌─────────────────────────────────────────────────────────────────┐
+│                      Compatibility Layer                         │
+│    (Winston/Bunyan/Pino adapters - fully tree-shakeable)       │
+└─────────────────────────────────────────────────────────────────┘
+                                  │
+                                  ▼
+┌─────────────────────────────────────────────────────────────────┐
 │                          API Layer                               │
 │      (Logger class, method signatures, configuration)            │
-│         Minimal: new Logger() - no transports at all            │
-│         Default: createLogger() - console included              │
 └─────────────────────────────────────────────────────────────────┘
                                   │
                     ┌─────────────┴─────────────┐
@@ -82,20 +90,22 @@ The system employs a push-based event flow where log entries originate from the 
         ├─► logger.info("User login", { userId: 123 })
         │
         ▼
-[Logger Instance Type Decision]
+[Logger Instance]
         │
-        ├─► SyncLogger (NEW)              ├─► AsyncLogger
-        │   Zero promises                 │   Buffered throughput
-        │   Direct writes                 │   Batch processing
-        │                                 │
-        ▼                                 ▼
-[Create LogEntry]                    [Create LogEntry]
-        │                                 │
-        ├─► Direct dispatch              ├─► Buffer.add(entry)
-        │   to SyncTransport             │   Background flush
-        │                                 │
-        ▼                                 ▼
-[SyncTransport.logSync()]           [Transport.log() async]
+        ├─► Create LogEntry {
+        │     id: "1234567890-abc",
+        │     timestamp: "2024-01-20T10:30:00Z",
+        │     level: "info",
+        │     message: "User login",
+        │     context: { userId: 123 }
+        │   }
+        │
+        ├─► Decision: Sync or Async?
+        │
+        ├─► [Sync Path]                    ├─► [Async Path]
+        │      │                           │      │
+        │      ▼                           │      ▼
+        │   Direct dispatch               │   Buffer.add(entry)
         │      │                           │      │
         │      ▼                           │      ▼
         │   TransportManager               │   [Later: Batch Flush]
@@ -108,55 +118,6 @@ The system employs a push-based event flow where log entries originate from the 
         ▼                                  ▼
     [Output]                          [Output]
 ```
-
-## MagicLog Schema
-
-MagicLogger publishes and maintains the **[MagicLog Schema](./MAGICLOG_SCHEMA.md)**, an open-source standardized logging format that enables unprecedented interoperability across languages and platforms.
-
-### Schema Philosophy
-
-The MagicLog Schema is designed with these core principles:
-
-1. **Style Preservation**: Unlike traditional formats, MagicLog preserves ANSI styling in the `message` field while providing a clean `plainMessage` for searching
-2. **Language Agnostic**: The schema can be implemented in any language, ensuring logs from Python, Go, Rust, etc. can be perfectly rendered by Node.js dashboards
-3. **Visual Semantics**: Colors carry meaning (red=error, yellow=warning) that persists across your entire stack
-4. **Backward Compatible**: New fields can be added without breaking existing implementations
-
-### Cross-Language Style Reconstruction
-
-The schema's unique dual-message approach enables revolutionary capabilities:
-
-```json
-{
-  "message": "\u001b[31mERROR:\u001b[39m Database connection failed",  // Preserved styling
-  "plainMessage": "ERROR: Database connection failed",                // Searchable text
-  "level": "error",
-  "service": "api-gateway",
-  "language": "python",  // Source language
-  "styleMap": {          // Optional: Structured style information
-    "spans": [
-      { "start": 0, "end": 6, "styles": ["red", "bold"] },
-      { "start": 7, "end": 30, "styles": [] }
-    ]
-  }
-}
-```
-
-This means:
-- A Python service can log with rich formatting
-- The logs flow to Elasticsearch preserving the styling
-- A Node.js dashboard can perfectly recreate the visual formatting
-- A Go CLI tool can render the logs with original colors
-- Grafana can choose to display styled or plain based on context
-
-### Implementation Benefits
-
-1. **Unified Observability**: One schema across all services regardless of language
-2. **Rich Debugging**: Visual cues persist through your entire logging pipeline
-3. **Smart Dashboards**: UIs can dynamically choose how to render based on context
-4. **Future Proof**: New platforms can adopt the schema and immediately interoperate
-
-The MagicLog Schema is maintained as an open standard. Contributions and implementations in other languages are welcome. See the [full specification](./MAGICLOG_SCHEMA.md) for complete details.
 
 ## Core Design Principles
 
@@ -171,21 +132,15 @@ Every architectural decision prioritizes runtime performance, particularly for t
 
 ### 2. Pay-As-You-Go Architecture
 
-Features have zero cost when not used. Console transport is NOT included by default in the Logger class:
+Features have zero cost when not used:
 
 ```typescript
-// Truly minimal bundle - no transports at all (33KB)
+// Minimal bundle - only core logger and console transport
 import { Logger } from 'magiclogger';
-const logger = new Logger(); // No output unless you add transports
+import { ConsoleTransport } from 'magiclogger/transports';
 
-// With explicit console transport
-import { Logger } from 'magiclogger';
-import { ConsoleTransport } from 'magiclogger/transports/console';
-const logger = new Logger({ transports: [new ConsoleTransport()] });
-
-// Default with console included (backward compatible)
-import { createLogger } from 'magiclogger';
-const logger = createLogger(); // Console output included by default
+// vs full feature set
+import { Logger, HTTPTransport, S3Transport, AsyncBuffer } from 'magiclogger';
 ```
 
 The build system ensures unused code is eliminated through:
@@ -497,183 +452,101 @@ Final Context (Merged)
 
 ### Asynchronous vs Synchronous Design Philosophy
 
-MagicLogger provides two distinct logging implementations, each optimized for different use cases. Understanding the trade-offs is crucial for choosing the right approach.
+MagicLogger defaults to asynchronous logging to align with modern application architectures and performance requirements. This design prioritizes:
 
-#### AsyncLogger (Default - High Throughput)
-
-The AsyncLogger provides maximum throughput via buffering and batching:
-
-**Design Principles:**
-1. **Performance First**: 13x throughput advantage over sync with promises
+1. **Performance First**: 13x throughput advantage for modern applications
 2. **Production Ready**: Robust ring buffer with explicit backpressure handling
 3. **Graceful Degradation**: Fallback to sync mode on critical errors
 4. **Modern Applications**: Designed for microservices and high-volume systems
 
-**Architectural Trade-offs:**
-
-| Aspect | Benefit | Trade-off | Mitigation |
-|--------|---------|-----------|------------|
-| **Non-blocking I/O** | Never freezes event loop | 50-100ms output delay | Configurable flush interval |
-| **Ring Buffer** | Zero allocations, no GC | Uses memory upfront | Configurable size (8KB default) |
-| **Batch Processing** | Fewer syscalls, efficient I/O | Logs arrive in groups | Natural for aggregation systems |
-| **Microtask Flushing** | No promise overhead | Complex error handling | Robust error boundaries |
-| **Explicit Backpressure** | Know when dropping logs | Must handle AddResult | Fallback strategies available |
-
-**When Async Excels:**
-- Production web services (99% of use cases)
-- High-throughput applications
-- Microservices architectures
-- Applications with network I/O
-- Long-running processes
-
-**When Async Struggles:**
-- CLI tools needing instant feedback
-- Debugging race conditions
-- Audit logs requiring guaranteed delivery
-- Short-lived scripts that exit quickly
-
-#### SyncLogger (NEW - Zero Overhead)
-
-The SyncLogger provides Pino-level synchronous performance by eliminating all async operations:
-
-```typescript
-// SyncLogger architecture - zero promises, direct writes
-class SyncLogger {
-  private transports: ISyncTransport[];
-  
-  logSync(level: LogLevel, message: string): void {
-    const entry = this.createLogEntry(level, message);
-    // Direct synchronous dispatch - no promises
-    for (const transport of this.transports) {
-      transport.logSync(entry);  // Immediate write
-    }
-  }
-}
-
-// Usage
-import { SyncLogger } from 'magiclogger/sync';
-const logger = new SyncLogger({ transports: [new SyncConsoleTransport()] });
-logger.info('Instant output');  // No promises, no async overhead
-```
-
-**Architectural Trade-offs:**
-
-| Aspect | Benefit | Trade-off | Mitigation |
-|--------|---------|-----------|------------|
-| **Direct Writes** | Zero overhead, instant output | Blocks event loop | Use only for CLIs/debugging |
-| **No Buffering** | No memory usage | Every log is a syscall | OS buffers help somewhat |
-| **Simple Stack Traces** | Easy debugging | No async complexity | Perfect for development |
-| **Guaranteed Delivery** | No log loss | Can't handle bursts | Rate limit at app level |
-| **Limited Transports** | Fast and simple | No network I/O | Use AsyncLogger for remote |
-
-**Performance Characteristics:**
-- **SyncLogger**: ~220,000 ops/sec (matches Pino sync mode)
-- **AsyncLogger**: ~130,000 ops/sec (with batching benefits)
-- **Logger (old)**: ~27,000 ops/sec (async overhead on sync path)
-
-**When SyncLogger Excels:**
-- CLI tools requiring immediate user feedback
-- Security audit logs with legal requirements
-- Debugging race conditions and timing issues
-- Performance benchmarking and testing
-- Short-lived scripts and build tools
-
-**When SyncLogger Struggles:**
-- Production web services (blocks event loop)
-- High-throughput applications (too many syscalls)
-- Network transports (no async support)
-- Long-running processes (no batching)
+The synchronous option (`createSyncLogger`) exists for specific scenarios:
+- Security audits and compliance requirements
+- Development and debugging environments  
+- Legacy applications that can't handle async complexity
+- CLI tools and scripts requiring immediate feedback
 
 
 ### Memory Management
 
-The system employs several strategies to minimize memory allocation and avoid promises in the hot path:
+The system employs several strategies to minimize memory allocation:
 
-#### Zero-Allocation Ring Buffer
+#### Object Pooling
 
-The AsyncBuffer uses a pre-allocated ring buffer that avoids object pooling entirely:
+Frequently created objects are pooled:
 
 ```typescript
-// From AsyncBuffer implementation
-export class AsyncBuffer {
-  // Pre-allocated ring buffer - no dynamic allocations
-  private readonly buffer: Array<LogEntry | null>;
+class LogEntryPool {
+  private pool: LogEntry[] = [];
+  private maxSize = 1000;
   
-  constructor(options: AsyncBufferOptions) {
-    // Pre-allocate entire buffer at startup
-    this.buffer = new Array(this.capacity).fill(null);
+  acquire(): LogEntry {
+    if (this.pool.length > 0) {
+      return this.pool.pop()!;
+    }
+    return this.createNew();
   }
   
-  // Add without promises or allocations
-  add(entry: LogEntry): AddResult {
-    // Direct array assignment - no new objects
-    this.buffer[this.writePos] = entry;
+  release(entry: LogEntry): void {
+    if (this.pool.length < this.maxSize) {
+      this.reset(entry);
+      this.pool.push(entry);
+    }
+  }
+  
+  private reset(entry: LogEntry): void {
+    entry.context = undefined;
+    entry.error = undefined;
+    entry.tags = undefined;
+    // Reset to default state
+  }
+}
+```
+
+#### Ring Buffer
+
+The async buffer pre-allocates memory:
+
+```typescript
+class RingBuffer<T> {
+  private buffer: Array<T | undefined>;
+  private capacity: number;
+  private writePos = 0;
+  private readPos = 0;
+  private size = 0;
+  
+  constructor(capacity: number) {
+    this.capacity = capacity;
+    this.buffer = new Array(capacity);
+  }
+  
+  push(item: T): boolean {
+    if (this.size === this.capacity) {
+      // Overwrite oldest
+      this.readPos = (this.readPos + 1) % this.capacity;
+    } else {
+      this.size++;
+    }
+    
+    this.buffer[this.writePos] = item;
     this.writePos = (this.writePos + 1) % this.capacity;
-    
-    // Return simple result object (can be reused)
-    return { success: true };
-  }
-}
-```
-
-This approach is superior to object pooling because:
-- **No pool management overhead** - No acquire/release cycles
-- **Truly zero allocations** - Reuses array slots directly
-- **No GC pressure** - Objects stay in buffer until flushed
-- **Cache-friendly** - Sequential memory access pattern
-
-#### Microtasks vs Promises: Performance Deep Dive
-
-**Why Promises are Heavy:**
-1. **Object allocation** - Each Promise creates a new object on the heap
-2. **Microtask scheduling** - Promises always schedule microtasks, even for sync values
-3. **Closure capture** - Promise chains capture surrounding scope
-4. **Error handling overhead** - Built-in try/catch mechanics for every operation
-
-**How AsyncLogger Avoids Promise Overhead:**
-
-```typescript
-// ❌ BAD: Promise-based approach (heavy)
-class BadAsyncLogger {
-  async log(message: string): Promise<void> {
-    // Creates Promise object
-    return this.buffer.add(message).then(() => {
-      // Another Promise + microtask
-      return this.maybeFlush();
-    });
-  }
-}
-
-// ✅ GOOD: MagicLogger approach (lightweight)
-class AsyncLogger {
-  log(message: string): AddResult {
-    // Direct synchronous call - no Promise
-    const result = this.buffer.add(entry);
-    
-    // Check flush conditions inline
-    if (this.shouldFlush()) {
-      // Schedule flush via timer, not Promise
-      this.scheduleFlush();
-    }
-    
-    // Return simple object, not Promise
-    return result;
+    return true;
   }
   
-  private scheduleFlush(): void {
-    // Use setImmediate/setTimeout, not Promise
-    if (!this.flushScheduled) {
-      this.flushScheduled = true;
-      setImmediate(() => this.performFlush());
+  drain(): T[] {
+    const items: T[] = [];
+    while (this.size > 0) {
+      const item = this.buffer[this.readPos];
+      if (item !== undefined) {
+        items.push(item);
+        this.buffer[this.readPos] = undefined;
+      }
+      this.readPos = (this.readPos + 1) % this.capacity;
+      this.size--;
     }
+    return items;
   }
 }
 ```
-
-**Microtask Behavior:**
-- **Promises** queue microtasks after EVERY operation
-- **MagicLogger** uses timers/setImmediate for batching
-- Result: Fewer event loop iterations, better batching
 
 #### String Building Optimization
 
@@ -1334,162 +1207,94 @@ interface LoggerEvents {
 }
 ```
 
-## Async Implementation: Design Decisions vs Pino
+## Compatibility Layer Design
 
-### Why We Chose Ring Buffers Over Worker Threads
+### Winston Compatibility
 
-When designing MagicLogger's async implementation, we analyzed Pino's evolution from separate processes (v6) to Worker Threads (v7+) and made a deliberate architectural choice to use ring buffers instead.
-
-#### Pino's Journey: Processes → Worker Threads
-
-**Pino v6 (Separate Process):**
-```javascript
-// Required piping to external process
-node app.js | pino-pretty
-```
-- ✅ Complete isolation
-- ⚠️ Complex deployment
-- ⚠️ Lost logs on pipe break
-
-**Pino v7+ (Worker Threads):**
-```javascript
-const transport = pino.transport({
-  target: 'pino-pretty'
-});
-```
-- ✅ Built-in transport
-- ✅ Process isolation
-- ⚠️ Serialization overhead
-- ⚠️ ~10MB per worker
-
-#### MagicLogger's Choice: Ring Buffer + Microtasks
-
-**Our Approach:**
-```javascript
-const logger = createLogger(); // Ring buffer, no workers
-```
-
-**Design Comparison:**
-
-| Criteria | Worker Threads (Pino) | Ring Buffer (MagicLogger) | Trade-off |
-|----------|----------------------|---------------------------|-----------|
-| **Performance** | High throughput | Comparable throughput | Both perform well |
-| **Memory Usage** | Worker thread overhead | Minimal buffer memory | Different approaches |
-| **Startup Time** | Worker spawn time | Instant initialization | MagicLogger faster start |
-| **Debugging** | Cross-thread complexity | Single thread simplicity | MagicLogger simpler |
-| **Isolation** | Complete isolation | Error boundaries | Pino more isolated |
-| **Serialization** | Required for IPC | Direct references | MagicLogger avoids copies |
-| **Architecture** | More complex | Simpler design | Preference dependent |
-
-**The Verdict:** Both approaches achieve excellent performance. We chose ring buffers for simplicity and easier debugging, while Pino chose Worker Threads for better isolation. Neither is inherently superior - they optimize for different priorities.
-
-## Async Implementation: Strengths, Weaknesses, and Mitigations
-
-### Core Async Architecture
-
-The AsyncLogger uses a **ring buffer with timer-based flushing** rather than Promise-based async/await:
+Full API compatibility with Winston:
 
 ```typescript
-// Simplified view of actual implementation
-class AsyncLogger {
-  private buffer: AsyncBuffer;
-  private flushTimer: NodeJS.Timeout | null = null;
+class WinstonCompatibleLogger {
+  private logger: Logger;
   
-  // Synchronous hot path - no promises!
-  log(level: LogLevel, message: string): AddResult {
-    const entry = this.createEntry(level, message);
-    const result = this.buffer.add(entry);
-    
-    // Check if we need to flush
-    if (result.success && this.buffer.size >= this.flushSize) {
-      this.scheduleMicrotaskFlush();
-    }
-    
-    return result; // Simple object, not Promise
+  constructor(options: WinstonOptions) {
+    this.logger = new Logger(this.translateOptions(options));
   }
   
-  private scheduleMicrotaskFlush(): void {
-    if (!this.flushScheduled) {
-      this.flushScheduled = true;
-      // Use setImmediate for next tick execution
-      setImmediate(() => {
-        this.flushScheduled = false;
-        this.flush();
-      });
-    }
+  // Winston methods
+  log(level: string, message: string, ...args: any[]): void {
+    const meta = this.extractMeta(args);
+    this.logger.log(level as LogLevel, message, meta);
+  }
+  
+  info(message: string, ...args: any[]): void {
+    this.log('info', message, ...args);
+  }
+  
+  // Winston-specific features
+  add(transport: any): void {
+    this.logger.addTransport(this.wrapWinstonTransport(transport));
+  }
+  
+  query(options: any): Promise<any> {
+    // Implement Winston query API
   }
 }
 ```
 
-### Strengths ✅
+### Bunyan Compatibility
 
-1. **Zero-allocation hot path** - No promises, no new objects
-2. **Natural batching** - Logs accumulate between event loop ticks
-3. **Explicit backpressure** - Returns AddResult with success/failure
-4. **13x faster than sync** - For high-throughput scenarios
-5. **Graceful degradation** - Can fallback to sync if needed
-
-### Weaknesses & Mitigations ⚠️
-
-#### 1. Potential Log Loss on Crash
-**Risk:** Unflushed logs in buffer during ungraceful shutdown
-
-**Mitigations:**
-- Automatic shutdown handlers for SIGTERM/SIGINT
-- `flushAndWait()` method for critical logs
-- Small flush intervals (default 100ms)
-- Sync fallback for critical paths
+Stream-based API matching Bunyan:
 
 ```typescript
-// Automatic shutdown handling
-process.on('SIGTERM', async () => {
-  await logger.flushAndWait();
-  await logger.close();
-});
-```
-
-#### 2. Memory Pressure
-**Risk:** Buffer consuming memory during high load
-
-**Mitigations:**
-- High/low water marks trigger immediate flush
-- Configurable overflow strategies
-- Metrics for monitoring
-
-```typescript
-const logger = createLogger({
-  buffer: {
-    size: 8192, // Limit buffer size
-    highWaterMark: 0.8, // Flush at 80% full
-  },
-  onHighWater: (stats) => {
-    // Alert on high buffer usage
-    metrics.gauge('logger.buffer.usage', stats.utilization);
+class BunyanCompatibleLogger {
+  private logger: Logger;
+  
+  constructor(options: BunyanOptions) {
+    this.logger = new Logger(this.translateOptions(options));
   }
-});
+  
+  // Bunyan child logger
+  child(fields: Record<string, any>): BunyanCompatibleLogger {
+    return new BunyanCompatibleLogger({
+      ...this.options,
+      fields: { ...this.options.fields, ...fields }
+    });
+  }
+  
+  // Bunyan serializers
+  addSerializers(serializers: Record<string, Function>): void {
+    // Implement serializer support
+  }
+}
 ```
 
-#### 3. Timing Sensitivity
-**Risk:** Logs may arrive out of order in multi-threaded scenarios
+### Pino Compatibility
 
-**Mitigations:**
-- Precise timestamping at entry creation
-- Sequence IDs for ordering
-- Synchronous option for debugging
+Performance-focused API matching Pino:
 
-### When to Use Each Mode
-
-**Async (Default):**
-- Production services
-- High-throughput applications
-- Microservices
-- When performance matters
-
-**Sync (Opt-in):**
-- Debugging race conditions
-- Security audit logs
-- CLI tools
-- When order/immediacy matters more than speed
+```typescript
+class PinoCompatibleLogger {
+  private logger: Logger;
+  
+  constructor(options: PinoOptions) {
+    this.logger = new Logger({
+      ...this.translateOptions(options),
+      async: { enabled: true } // Pino is async by default
+    });
+  }
+  
+  // Pino methods
+  child(bindings: Record<string, any>): PinoCompatibleLogger {
+    // Implement Pino child logger
+  }
+  
+  // Pino prettifier support
+  pretty(): Transform {
+    // Return transform stream for pretty printing
+  }
+}
+```
 
 ## Security Considerations
 

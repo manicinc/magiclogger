@@ -1,3 +1,8 @@
+---
+id: browser_storage
+title: Browser_storage
+---
+
 # Browser Storage in MagicLogger
 
 MagicLogger automatically provides localStorage support when running in browser environments. This guide explains how to use the built-in storage features to persist, retrieve, download, and manage logs in web applications.

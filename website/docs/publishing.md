@@ -1,3 +1,8 @@
+---
+id: publishing
+title: Publishing
+---
+
 # Publishing Workflow for Magiclogger
 
 ## Project Build & Release Ecosystem

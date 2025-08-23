@@ -113,7 +113,7 @@ if (!result.success) {
 }
 ```
 
-Note: MagicLogger's sync performance is competitive (~39k ops/sec) and perfect for secure failsafe logging, while its async mode excels for high-throughput scenarios (65k ops/sec plain, 54k ops/sec styled). See [async](./docs/ASYNC_INTEGRATION.md) docs and [performance results](./scripts/performance/benchmark-results.md).
+Note: MagicLogger's sync performance is competitive (~39k ops/sec) and perfect for secure failsafe logging, while its async mode excels for high-throughput scenarios (65k ops/sec plain, 54k ops/sec styled). See [transports](./docs/transports.md) docs and [performance results](./scripts/performance/benchmark-results.md).
 ---
 
 ## Features
@@ -354,21 +354,21 @@ process.on('SIGTERM', async () => {
 });
 ```
 
-### Unified Easy API with Sensible Defaults
-
-All loggers include console output by default - no configuration needed!
+### Easy API with Sensible Defaults
 
 ```typescript
-import { Logger, createAsyncLogger, createSmartLogger } from 'magiclogger';
+import { Logger, createAsyncLogger, createSyncLogger, createSmartLogger } from 'magiclogger';
 
 // All of these work immediately with zero config:
 const logger = new Logger();                    // Sync logger → console
 const asyncLogger = createAsyncLogger();        // Async logger → console  
+const syncLogger = createSyncLogger();          // Sync logger → console
 const smartLogger = createSmartLogger();        // Auto mode → console
 
 // They all just work!
 logger.info('Hello from sync logger');
 asyncLogger.info('Hello from async logger');
+syncLogger.info('Hello from explicit sync logger');
 smartLogger.info('Hello from smart logger');
 
 // Add utilities when needed (works with all logger types)

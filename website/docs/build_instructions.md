@@ -1,3 +1,8 @@
+---
+id: build_instructions
+title: Build_instructions
+---
+
 # Build and Run Instructions
 
 ## Why Two Module Formats?

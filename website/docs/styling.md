@@ -1,3 +1,8 @@
+---
+id: styling
+title: Styling
+---
+
 # Magiclogger Styling Guide
 
 This guide demonstrates the advanced styling capabilities of Magiclogger to create rich, informative console output for your applications.

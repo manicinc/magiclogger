@@ -15,40 +15,22 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: '🚀 Getting Started',
-      items: [
-        'api_usage',
-        'ASYNC_INTEGRATION',
-      ],
+      items: ['api_usage'],
     },
     {
       type: 'category',
       label: '📋 Architecture',
-      items: [
-        'ARCHITECTURE',
-        'TRANSPORTS',
-        'MAGICLOG_SCHEMA',
-        'PERFORMANCE_ARCHITECTURE',
-        'SYNC_ASYNC_MATRIX',
-      ],
+      items: ['architecture', 'TRANSPORTS', 'MAGICLOG_SCHEMA'],
     },
     {
       type: 'category',
       label: '🔧 Features',
-      items: [
-        'browser_storage',
-        'styling',
-        'formatters',
-        'context-and-tags',
-        'terminal_support',
-      ],
+      items: ['browser_storage', 'styling', 'formatters', 'context-and-tags', 'terminal_support'],
     },
     {
       type: 'category',
       label: '📊 Testing & Quality',
-      items: [
-        'test_coverage',
-        'codecov',
-      ],
+      items: ['test_coverage', 'codecov'],
     },
     {
       type: 'category',
@@ -61,13 +43,6 @@ const sidebars: SidebarsConfig = {
         'publishing',
         'cicd',
         'deployment',
-      ],
-    },
-    {
-      type: 'category',
-      label: '⚡ Performance',
-      items: [
-        'PERFORMANCE_TRADEOFFS',
       ],
     },
   ],
