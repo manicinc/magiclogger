@@ -4,10 +4,10 @@ import { AsyncBuffer, type AddResult } from './AsyncBuffer';
 import type { BufferStats } from './AsyncBuffer';
 import type { LogEntry } from '../types/transport';
 import type { LogLevel } from '../types/logger';
-import { RateLimiter, type RateLimiterOptions } from '../utils/RateLimiter';
-import { Redactor, type RedactorOptions } from '../utils/Redactor';
-import { Sampler, type SamplerOptions } from '../utils/Sampler';
-import { QueueManager, type QueueManagerOptions } from '../utils/QueueManager';
+import { RateLimiter, type RateLimiterOptions } from '../extensions/RateLimiter';
+import { Redactor, type RedactorOptions } from '../extensions/Redactor';
+import { Sampler, type SamplerOptions } from '../extensions/Sampler';
+import { QueueManager, type QueueManagerOptions } from '../extensions/QueueManager';
 
 /**
  * Configuration options for AsyncLogger.
@@ -62,8 +62,8 @@ export interface AsyncLoggerOptions {
    * rateLimiter: { max: 1000, window: 60000, strategy: 'sliding' }
    */
   rateLimiter?:
-    | import('../utils/RateLimiter').RateLimiter
-    | import('../utils/RateLimiter').RateLimiterOptions;
+    | import('../extensions/RateLimiter').RateLimiter
+    | import('../extensions/RateLimiter').RateLimiterOptions;
 
   /**
    * PII and sensitive data redaction configuration.
@@ -72,7 +72,7 @@ export interface AsyncLoggerOptions {
    * @example
    * redactor: { preset: 'strict', auditTrail: true }
    */
-  redactor?: import('../utils/Redactor').Redactor | import('../utils/Redactor').RedactorOptions;
+  redactor?: import('../extensions/Redactor').Redactor | import('../extensions/Redactor').RedactorOptions;
 
   /**
    * Statistical sampling configuration for volume control.
@@ -81,7 +81,7 @@ export interface AsyncLoggerOptions {
    * @example
    * sampler: { rate: 0.1, strategy: 'adaptive' }
    */
-  sampler?: import('../utils/Sampler').Sampler | import('../utils/Sampler').SamplerOptions;
+  sampler?: import('../extensions/Sampler').Sampler | import('../extensions/Sampler').SamplerOptions;
 
   /**
    * Queue management configuration for handling backpressure.
@@ -91,8 +91,8 @@ export interface AsyncLoggerOptions {
    * queueManager: { maxSize: 10000, dropPolicy: 'tail' }
    */
   queueManager?:
-    | import('../utils/QueueManager').QueueManager
-    | import('../utils/QueueManager').QueueManagerOptions;
+    | import('../extensions/QueueManager').QueueManager
+    | import('../extensions/QueueManager').QueueManagerOptions;
 
   /**
    * Fallback to sync logging when buffers are full or unavailable.

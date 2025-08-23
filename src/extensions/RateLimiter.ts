@@ -1,10 +1,10 @@
-// File: src/utils/RateLimiter.ts
+// File: src/extensions/RateLimiter.ts
 
 /**
  * Rate limiting implementations for log throttling.
  * Provides multiple algorithms to prevent log flooding.
  *
- * @module utils/RateLimiter
+ * @module extensions/RateLimiter
  */
 
 import type { LogEntry } from '../types';

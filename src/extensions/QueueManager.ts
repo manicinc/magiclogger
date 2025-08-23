@@ -1,10 +1,10 @@
-// File: src/utils/QueueManager.ts
+// File: src/extensions/QueueManager.ts
 
 /**
  * Queue management system for handling backpressure and overflow.
  * Provides configurable drop policies and prioritization.
  *
- * @module utils/QueueManager
+ * @module extensions/QueueManager
  */
 
 import type { LogEntry } from '../types';

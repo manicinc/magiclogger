@@ -1,8 +1,3 @@
----
-id: architecture
-title: Architecture
----
-
 # MagicLogger - Comprehensive Architecture Documentation
 
 ## Table of Contents
@@ -1145,49 +1140,115 @@ const logger = new Logger()
 
 ## Extension and Plugin Architecture
 
-### Plugin Interface
+### Core vs Extensions Philosophy
 
-Plugins can extend functionality:
+MagicLogger follows a lean core philosophy where the base logger is fast and minimal, with optional extensions for specialized needs:
+
+**Core Features** (always available):
+- Sync and Async loggers
+- Built-in ring buffer (AsyncLogger)
+- Transport system with automatic batching for network transports
+- Styling and theming
+- MagicLog schema output
+
+**Optional Extensions** (opt-in when needed):
+- PII Redaction (`/extensions/Redactor`)
+- Statistical Sampling (`/extensions/Sampler`)
+- Rate Limiting (`/extensions/RateLimiter`)
+- Advanced Queue Management (`/extensions/QueueManager`)
+
+### Extension Interface
+
+Extensions integrate seamlessly with AsyncLogger:
 
 ```typescript
-interface LoggerPlugin {
+// Extensions are located in src/extensions/
+export interface Extension {
   name: string;
   version: string;
   
-  // Lifecycle hooks
-  install?(logger: Logger): void;
-  uninstall?(logger: Logger): void;
+  // Process log entries
+  process?(entry: LogEntry): LogEntry | null;
   
-  // Processing hooks
-  beforeLog?(entry: LogEntry): LogEntry | null;
-  afterLog?(entry: LogEntry): void;
+  // Handle backpressure
+  shouldDrop?(entry: LogEntry): boolean;
   
-  // Additional features
-  methods?: Record<string, Function>;
-  transports?: Transport[];
+  // Metrics and monitoring
+  getStats?(): Record<string, any>;
 }
 ```
 
-### Middleware System
+### AsyncLogger Ring Buffer vs QueueManager Extension
 
-Processing pipeline with middleware:
+**Built-in Ring Buffer** (Core Feature):
+- Fixed-size circular buffer
+- Non-blocking writes
+- Automatic overflow handling
+- Simple drop-tail policy
+- Zero additional dependencies
 
 ```typescript
-abstract class LogMiddleware {
-  abstract process(entry: LogEntry, next: () => void): void;
-}
-
-class TimingMiddleware extends LogMiddleware {
-  process(entry: LogEntry, next: () => void): void {
-    const start = process.hrtime.bigint();
-    next();
-    const duration = Number(process.hrtime.bigint() - start) / 1e6;
-    entry.context = {
-      ...entry.context,
-      duration
-    };
+const logger = createAsyncLogger({
+  buffer: {
+    size: 16384,       // Ring buffer size
+    flushInterval: 50, // Auto-flush interval
+    flushSize: 2000    // Batch size threshold
   }
-}
+});
+```
+
+**QueueManager Extension** (Optional):
+- Advanced drop policies (head, tail, priority, random)
+- Priority queuing
+- Custom overflow handlers
+- Detailed metrics and monitoring
+- For specialized use cases
+
+```typescript
+import { QueueManager } from 'magiclogger/extensions';
+
+const logger = createAsyncLogger({
+  queueManager: new QueueManager({
+    maxSize: 100000,
+    dropPolicy: 'priority',
+    priorityFn: (entry) => entry.level === 'error' ? 1 : 0
+  })
+});
+```
+
+### Using Extensions
+
+Extensions can be composed together:
+
+```typescript
+import { createAsyncLogger } from 'magiclogger';
+import { Redactor, Sampler, RateLimiter } from 'magiclogger/extensions';
+
+const logger = createAsyncLogger({
+  // Extensions are opt-in
+  redactor: new Redactor({ preset: 'strict' }),
+  sampler: new Sampler({ rate: 0.1 }),
+  rateLimiter: new RateLimiter({ max: 1000, window: 60000 }),
+  
+  // Core configuration
+  buffer: { size: 32768 },
+  onFlush: async (entries) => {
+    await transport.sendBatch(entries);
+  }
+});
+```
+
+### Extension Processing Pipeline
+
+Extensions are applied in order:
+
+```typescript
+// Processing order in AsyncLogger:
+// 1. Redactor (sanitize sensitive data)
+// 2. Sampler (statistical sampling)
+// 3. RateLimiter (prevent flooding)
+// 4. QueueManager or Ring Buffer (backpressure)
+// 5. Transport batching (if applicable)
 ```
 
 ### Event System

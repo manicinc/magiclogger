@@ -1,6 +1,6 @@
-// File: tests/unit/utils/Sampler.test.ts
+// File: tests/unit/extensions/Sampler.test.ts
 
-import { Sampler, createSamplerPreset } from '../../../src/utils/Sampler';
+import { Sampler, createSamplerPreset } from '../../../src/extensions/Sampler';
 import type { LogEntry } from '../../../src/types';
 import * as crypto from 'crypto';
 

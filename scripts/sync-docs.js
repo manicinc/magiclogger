@@ -29,6 +29,7 @@ const DOCS_TO_SYNC = [
   'contributing.md',
   'deployment.md',
   'development.md',
+  'documentation-structure.md',
   'formatters.md',
   'git_workflow.md',
   'intro.md',

@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// File: tests/unit/utils/Redactor.test.ts
+// File: tests/unit/extensions/Redactor.test.ts
 
-import { Redactor, createRedactorPreset } from '../../../src/utils/Redactor';
+import { Redactor, createRedactorPreset } from '../../../src/extensions/Redactor';
 import type { LogEntry } from '../../../src/types';
-import type { RedactionPattern } from '../../../src/utils/Redactor';
+import type { RedactionPattern } from '../../../src/extensions/Redactor';
 
 // Mock crypto for consistent tokenization
 jest.mock('crypto', () => ({

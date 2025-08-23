@@ -1,6 +1,6 @@
-// File: tests/unit/utils/QueueManager.test.ts
+// File: tests/unit/extensions/QueueManager.test.ts
 
-import { QueueManager } from '../../../src/utils/QueueManager';
+import { QueueManager } from '../../../src/extensions/QueueManager';
 import type { LogEntry } from '../../../src/types';
 
 describe('QueueManager', () => {

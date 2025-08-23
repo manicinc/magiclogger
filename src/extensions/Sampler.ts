@@ -1,10 +1,10 @@
-// File: src/utils/Sampler.ts
+// File: src/extensions/Sampler.ts
 
 /**
  * Sampling strategies for log volume control.
  * Provides various algorithms for statistical sampling of log entries.
  *
- * @module utils/Sampler
+ * @module extensions/Sampler
  */
 
 import { createHash } from 'crypto';

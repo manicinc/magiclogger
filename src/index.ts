@@ -97,34 +97,34 @@ export { meta, err } from './utils/meta';
  * Queue management for handling backpressure and log overflow.
  * Tree-shakeable: Only imported when needed.
  */
-export { QueueManager } from './utils/QueueManager';
-export type { QueueManagerOptions, QueueStats, DropPolicy } from './utils/QueueManager';
+export { QueueManager } from './extensions/QueueManager';
+export type { QueueManagerOptions, QueueStats, DropPolicy } from './extensions/QueueManager';
 
 /**
  * Rate limiting for log throttling and volume control.
  * Tree-shakeable: Only imported when needed.
  */
-export { RateLimiter } from './utils/RateLimiter';
-export type { RateLimiterOptions, RateLimitStrategy } from './utils/RateLimiter';
+export { RateLimiter } from './extensions/RateLimiter';
+export type { RateLimiterOptions, RateLimitStrategy } from './extensions/RateLimiter';
 
 /**
  * PII and sensitive data redaction system.
  * Tree-shakeable: Only imported when needed.
  */
-export { Redactor, createRedactorPreset } from './utils/Redactor';
+export { Redactor, createRedactorPreset } from './extensions/Redactor';
 export type {
   RedactorOptions,
   RedactionPattern,
   RedactionPreset,
   RedactionStrategy,
-} from './utils/Redactor';
+} from './extensions/Redactor';
 
 /**
  * Statistical sampling for log volume control.
  * Tree-shakeable: Only imported when needed.
  */
-export { Sampler, createSamplerPreset } from './utils/Sampler';
-export type { SamplerOptions, SamplingStrategy } from './utils/Sampler';
+export { Sampler, createSamplerPreset } from './extensions/Sampler';
+export type { SamplerOptions, SamplingStrategy } from './extensions/Sampler';
 
 /**
  * Enhanced console functionality for upgrading the global console.
@@ -203,14 +203,14 @@ export function createLogger(
     async?: boolean;
     onFlush?: (entries: LogEntry[]) => Promise<void>;
     buffer?: { size?: number; flushInterval?: number; flushSize?: number };
-    redactor?: import('./utils/Redactor').Redactor | import('./utils/Redactor').RedactorOptions;
+    redactor?: import('./extensions/Redactor').Redactor | import('./extensions/Redactor').RedactorOptions;
     rateLimiter?:
-      | import('./utils/RateLimiter').RateLimiter
-      | import('./utils/RateLimiter').RateLimiterOptions;
-    sampler?: import('./utils/Sampler').Sampler | import('./utils/Sampler').SamplerOptions;
+      | import('./extensions/RateLimiter').RateLimiter
+      | import('./extensions/RateLimiter').RateLimiterOptions;
+    sampler?: import('./extensions/Sampler').Sampler | import('./extensions/Sampler').SamplerOptions;
     queueManager?:
-      | import('./utils/QueueManager').QueueManager
-      | import('./utils/QueueManager').QueueManagerOptions;
+      | import('./extensions/QueueManager').QueueManager
+      | import('./extensions/QueueManager').QueueManagerOptions;
   } & Partial<LoggerOptions> = {}
 ): Logger | AsyncLogger {
   const {

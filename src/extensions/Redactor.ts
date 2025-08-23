@@ -1,11 +1,11 @@
-// File: src/utils/Redactor.ts
+// File: src/extensions/Redactor.ts
 
 /**
  * PII and sensitive data redaction system.
  * Provides comprehensive detection and redaction of sensitive information
  * with configurable patterns, strategies, and compliance features.
  *
- * @module utils/Redactor
+ * @module extensions/Redactor
  */
 
 import { createHash, randomBytes } from 'crypto';

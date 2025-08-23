@@ -190,6 +190,57 @@ logger.info('Immediate output'); // ~220,000 ops/sec
 
 ### Buffering and Batching
 
+#### Default Batching Behavior
+
+**Important**: Transport batching behavior depends on the transport type and logger:
+
+| Transport Type | Default Behavior | With AsyncLogger | With Sync Logger |
+|---------------|-----------------|------------------|------------------|
+| **Console** | No batching | Receives batches, writes individually | Writes immediately |
+| **File** | No batching | Receives batches, writes individually | Writes immediately |
+| **HTTP** | **Batches automatically** | Receives pre-batched arrays | Batches internally |
+| **WebSocket** | **Batches automatically** | Receives pre-batched arrays | Batches internally |
+| **S3** | **Batches automatically** | Receives pre-batched arrays | Batches internally |
+| **MongoDB** | **Batches automatically** | Receives pre-batched arrays | Batches internally |
+
+**Key Points:**
+- Network transports (HTTP, WebSocket, S3, MongoDB) extend `BatchingTransport` and batch automatically
+- Local transports (Console, File) do NOT batch - they write immediately
+- AsyncLogger uses a ring buffer that flushes periodically - transports still control their own batching
+- **Sync Logger does NOT wait for async transports** - logs are fire-and-forget
+- Each transport independently decides whether to batch, regardless of logger type
+
+#### Controlling Batching
+
+```javascript
+// Disable batching for a network transport
+const httpTransport = new HTTPTransport({
+  url: 'https://api.example.com/logs',
+  batch: false,  // Send each log immediately (not recommended)
+});
+
+// Configure batch settings
+const httpTransport = new HTTPTransport({
+  url: 'https://api.example.com/logs',
+  batch: {
+    enabled: true,      // Default for network transports
+    maxSize: 100,      // Max entries per batch
+    maxTime: 5000,     // Max wait time (ms)
+    maxBytes: 1048576  // Max batch size (1MB)
+  }
+});
+
+// Force batching for console (unusual but possible)
+import { BatchingTransport } from 'magiclogger/transports/base';
+class BatchedConsole extends BatchingTransport {
+  async sendBatch(entries) {
+    entries.forEach(e => console.log(e));
+  }
+}
+```
+
+#### AsyncLogger Ring Buffer
+
 The AsyncLogger's ring buffer provides several advantages:
 
 1. **Zero Allocations**: Pre-allocated buffer avoids GC pressure
@@ -530,6 +581,7 @@ MagicLogger's modular design ensures you only include what you use:
 import { Logger } from 'magiclogger';
 import { ConsoleTransport } from 'magiclogger/transports/console';
 
+// For sync logger with explicit transport
 const logger = new Logger({
   transports: [new ConsoleTransport()]
 });

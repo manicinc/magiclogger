@@ -236,8 +236,8 @@ export interface LoggerOptions {
    * rateLimiter: new RateLimiter({ max: 100, window: 10000 })
    */
   rateLimiter?:
-    | import('../utils/RateLimiter').RateLimiter
-    | import('../utils/RateLimiter').RateLimiterOptions;
+    | import('../extensions/RateLimiter').RateLimiter
+    | import('../extensions/RateLimiter').RateLimiterOptions;
 
   /**
    * PII and sensitive data redaction configuration.
@@ -250,7 +250,7 @@ export interface LoggerOptions {
    * // Using instance
    * redactor: new Redactor({ preset: 'paranoid', auditTrail: true })
    */
-  redactor?: import('../utils/Redactor').Redactor | import('../utils/Redactor').RedactorOptions;
+  redactor?: import('../extensions/Redactor').Redactor | import('../extensions/Redactor').RedactorOptions;
 
   /**
    * Statistical sampling configuration for volume control.
@@ -263,7 +263,7 @@ export interface LoggerOptions {
    * // Using instance
    * sampler: createSamplerPreset('production')
    */
-  sampler?: import('../utils/Sampler').Sampler | import('../utils/Sampler').SamplerOptions;
+  sampler?: import('../extensions/Sampler').Sampler | import('../extensions/Sampler').SamplerOptions;
 
   /**
    * Queue management configuration for handling backpressure.
@@ -277,8 +277,8 @@ export interface LoggerOptions {
    * queueManager: new QueueManager({ maxSize: 5000, dropPolicy: 'priority' })
    */
   queueManager?:
-    | import('../utils/QueueManager').QueueManager
-    | import('../utils/QueueManager').QueueManagerOptions;
+    | import('../extensions/QueueManager').QueueManager
+    | import('../extensions/QueueManager').QueueManagerOptions;
 }
 
 /**

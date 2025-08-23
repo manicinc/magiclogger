@@ -127,15 +127,15 @@ async function measureAllScenarios() {
     ],
     
     
-    // Utilities (tree-shakeable)
-    'Utils: Sampler Only': [
-      { path: './dist/utils/sampler.js', symbols: ['Sampler'] },
+    // Extensions (tree-shakeable)
+    'Extensions: Sampler Only': [
+      { path: './dist/extensions/sampler.js', symbols: ['Sampler'] },
     ],
-    'Utils: RateLimiter Only': [
-      { path: './dist/utils/rate-limiter.js', symbols: ['RateLimiter'] },
+    'Extensions: RateLimiter Only': [
+      { path: './dist/extensions/rate-limiter.js', symbols: ['RateLimiter'] },
     ],
-    'Utils: Redactor Only': [
-      { path: './dist/utils/redactor.js', symbols: ['Redactor'] },
+    'Extensions: Redactor Only': [
+      { path: './dist/extensions/redactor.js', symbols: ['Redactor'] },
     ],
   };
   
@@ -261,11 +261,11 @@ async function injectIntoReadme(table) {
     .join('\n');
   
   
-  // Build utilities table
-  const utilScenarios = [
-    ['Sampler', allMeasurements['Utils: Sampler Only']],
-    ['RateLimiter', allMeasurements['Utils: RateLimiter Only']],
-    ['Redactor', allMeasurements['Utils: Redactor Only']],
+  // Build extensions table
+  const extensionScenarios = [
+    ['Sampler', allMeasurements['Extensions: Sampler Only']],
+    ['RateLimiter', allMeasurements['Extensions: RateLimiter Only']],
+    ['Redactor', allMeasurements['Extensions: Redactor Only']],
   ].filter(([_, size]) => size)
     .map(([name, size]) => `| ${name} | ${prettyBytes(size)} |`)
     .join('\n');
@@ -281,8 +281,8 @@ async function injectIntoReadme(table) {
   }
   
   
-  if (utilScenarios) {
-    scenarioBlocks += `\n\n### Utility Sizes (gzipped)\n\n| Utility | Size |\n|---------|------|\n${utilScenarios}`;
+  if (extensionScenarios) {
+    scenarioBlocks += `\n\n### Extension Sizes (gzipped)\n\n| Extension | Size |\n|-----------|------|\n${extensionScenarios}`;
   }
   
   const newSection = `${sectionHeader}\n\n${table}${scenarioBlocks}\n\n*Generated via \`scripts/analyze-build.js\`.*`;

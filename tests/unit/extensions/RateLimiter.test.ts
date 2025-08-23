@@ -1,6 +1,6 @@
-// File: tests/unit/utils/RateLimiter.test.ts
+// File: tests/unit/extensions/RateLimiter.test.ts
 
-import { RateLimiter } from '../../../src/utils/RateLimiter';
+import { RateLimiter } from '../../../src/extensions/RateLimiter';
 import type { LogEntry } from '../../../src/types';
 
 describe('RateLimiter', () => {

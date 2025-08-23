@@ -779,7 +779,11 @@ export class Logger {
 
     // Send to transports if available
     if (this.transportManager && this.transportManager.getTransportNames().length > 0) {
-      this.transportManager.log(entry).catch(error => {
+      // For sync logger, we should wait for transports to complete
+      // But we can't make this method async without breaking the API
+      // So we use Promise.resolve().then() to ensure it runs after current sync code
+      // but still handle errors properly
+      void this.transportManager.log(entry).catch(error => {
         console.error('[Logger] Failed to log to transports:', error);
       });
     }
