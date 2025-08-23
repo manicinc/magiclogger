@@ -17,6 +17,18 @@ const sidebars: SidebarsConfig = {
       label: '🚀 Getting Started',
       items: [
         'api_usage',
+        'ASYNC_INTEGRATION',
+      ],
+    },
+    {
+      type: 'category',
+      label: '📋 Architecture',
+      items: [
+        'ARCHITECTURE',
+        'TRANSPORTS',
+        'MAGICLOG_SCHEMA',
+        'PERFORMANCE_ARCHITECTURE',
+        'SYNC_ASYNC_MATRIX',
       ],
     },
     {
@@ -25,14 +37,9 @@ const sidebars: SidebarsConfig = {
       items: [
         'browser_storage',
         'styling',
+        'formatters',
+        'context-and-tags',
         'terminal_support',
-      ],
-    },
-    {
-      type: 'category',
-      label: '🔄 Compatibility',
-      items: [
-        'compatibility',
       ],
     },
     {
@@ -53,6 +60,14 @@ const sidebars: SidebarsConfig = {
         'git_workflow',
         'publishing',
         'cicd',
+        'deployment',
+      ],
+    },
+    {
+      type: 'category',
+      label: '⚡ Performance',
+      items: [
+        'PERFORMANCE_TRADEOFFS',
       ],
     },
   ],

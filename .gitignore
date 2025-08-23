@@ -9,6 +9,8 @@ yarn-error.log*
 lerna-debug.log*
 .pnpm-debug.log*
 
+.claude/
+
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
@@ -160,3 +162,7 @@ output/
 
 # Repomix
 repomix-output.txt
+
+# Windows NUL device file (created by accident in benchmarks)
+NUL
+nul
