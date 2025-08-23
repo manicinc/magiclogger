@@ -451,7 +451,7 @@ export class ObservabilityMiddleware extends Middleware {
  * ```
  */
 export function createOTLPObservability(options: {
-  api?: { trace?: unknown };
+  api?: { trace?: { getActiveSpan?: () => any } };
   metricsCollector?: MetricsCollector;
   onMetrics?: (metrics: LogMetrics) => void;
   config?: Partial<ObservabilityMiddlewareOptions>;
@@ -459,7 +459,7 @@ export function createOTLPObservability(options: {
   const getTraceContext = options.api?.trace
     ? (): TraceContext | undefined => {
         try {
-          const span = options.api?.trace?.getActiveSpan();
+          const span = options.api?.trace?.getActiveSpan?.();
           if (!span) return undefined;
 
           const context = span.spanContext();

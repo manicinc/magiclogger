@@ -48,9 +48,7 @@ describe('Default Console Transport', () => {
       };
 
       const logger = new Logger({
-        transports: [
-          mockTransport as unknown as import('../../src/transports/base/BaseTransport').BaseTransport,
-        ],
+        transports: [mockTransport as any],
       });
 
       const transports = logger.listTransports();
