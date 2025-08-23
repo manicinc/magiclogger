@@ -168,7 +168,6 @@ export type {
   S3TransportOptions,
 } from './types/transport';
 
-
 // ==========================================
 // CONVENIENCE FUNCTIONS
 // ==========================================
@@ -205,9 +204,13 @@ export function createLogger(
     onFlush?: (entries: LogEntry[]) => Promise<void>;
     buffer?: { size?: number; flushInterval?: number; flushSize?: number };
     redactor?: import('./utils/Redactor').Redactor | import('./utils/Redactor').RedactorOptions;
-    rateLimiter?: import('./utils/RateLimiter').RateLimiter | import('./utils/RateLimiter').RateLimiterOptions;
+    rateLimiter?:
+      | import('./utils/RateLimiter').RateLimiter
+      | import('./utils/RateLimiter').RateLimiterOptions;
     sampler?: import('./utils/Sampler').Sampler | import('./utils/Sampler').SamplerOptions;
-    queueManager?: import('./utils/QueueManager').QueueManager | import('./utils/QueueManager').QueueManagerOptions;
+    queueManager?:
+      | import('./utils/QueueManager').QueueManager
+      | import('./utils/QueueManager').QueueManagerOptions;
   } & Partial<LoggerOptions> = {}
 ): Logger | AsyncLogger {
   const {
@@ -317,9 +320,9 @@ export function createAsyncLogger(options: Partial<AsyncLoggerOptions> = {}): As
 
   // Performance-optimized defaults
   const defaultBuffer = {
-    size: options.buffer?.size ?? 16384,        // Larger buffer by default (16K)
+    size: options.buffer?.size ?? 16384, // Larger buffer by default (16K)
     flushInterval: options.buffer?.flushInterval ?? 50, // Fast flush (50ms)
-    flushSize: options.buffer?.flushSize ?? 2000,      // Larger batch size
+    flushSize: options.buffer?.flushSize ?? 2000, // Larger batch size
   };
 
   // Merge defaults with user options - utilities are undefined by default (opt-in)
@@ -354,15 +357,17 @@ export function createAsyncLogger(options: Partial<AsyncLoggerOptions> = {}): As
  * @deprecated Use createAsyncLogger() instead - it's fast by default!
  * This function now just calls createAsyncLogger() for backward compatibility.
  */
-export function createFastAsyncLogger(options: {
-  buffer?: {
-    size?: number;
-    flushInterval?: number;
-    flushSize?: number;
-  };
-  onFlush?: (entries: LogEntry[]) => void | Promise<void>;
-  enableMetrics?: boolean;
-} = {}): AsyncLogger {
+export function createFastAsyncLogger(
+  options: {
+    buffer?: {
+      size?: number;
+      flushInterval?: number;
+      flushSize?: number;
+    };
+    onFlush?: (entries: LogEntry[]) => void | Promise<void>;
+    enableMetrics?: boolean;
+  } = {}
+): AsyncLogger {
   return createAsyncLogger(options);
 }
 
@@ -417,11 +422,11 @@ export function createSmartLogger(
   // Default console flush handler
   const DEFAULT_ON_FLUSH = async (entries: LogEntry[]): Promise<void> => {
     const { ConsoleTransport } = await import('./transports/base/implementations/ConsoleTransport');
-    const consoleTransport = new ConsoleTransport({ 
+    const consoleTransport = new ConsoleTransport({
       name: 'smart-console',
-      useColors: true 
+      useColors: true,
     });
-    
+
     for (const entry of entries) {
       await consoleTransport.log(entry);
     }

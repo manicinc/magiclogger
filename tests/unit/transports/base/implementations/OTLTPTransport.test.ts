@@ -270,7 +270,7 @@ describe('OTLPTransport', () => {
 
       for (const testCase of testCases) {
         const entry: LogEntry = {
-        id: 'test-' + Date.now(),
+          id: 'test-' + Date.now(),
           level: testCase.level,
           message: `Test ${testCase.level}`,
           timestamp: new Date().toISOString(),
@@ -483,7 +483,7 @@ describe('OTLPTransport', () => {
         });
 
         const entry: LogEntry = {
-        id: 'test-' + Date.now(),
+          id: 'test-' + Date.now(),
           level: 'info',
           message: 'Browser test',
           timestamp: new Date().toISOString(),
@@ -511,7 +511,7 @@ describe('OTLPTransport', () => {
         });
 
         const entry: LogEntry = {
-        id: 'test-' + Date.now(),
+          id: 'test-' + Date.now(),
           level: 'error',
           message: 'Test error',
           timestamp: new Date().toISOString(),
@@ -537,7 +537,7 @@ describe('OTLPTransport', () => {
         });
 
         const entry: LogEntry = {
-        id: 'test-' + Date.now(),
+          id: 'test-' + Date.now(),
           level: 'error',
           message: 'Test',
           timestamp: new Date().toISOString(),
@@ -569,7 +569,7 @@ describe('OTLPTransport', () => {
         });
 
         const entry: LogEntry = {
-        id: 'test-' + Date.now(),
+          id: 'test-' + Date.now(),
           level: 'info',
           message: 'Node.js test',
           timestamp: new Date().toISOString(),
@@ -591,7 +591,7 @@ describe('OTLPTransport', () => {
         });
 
         const entry: LogEntry = {
-        id: 'test-' + Date.now(),
+          id: 'test-' + Date.now(),
           level: 'info',
           message: 'HTTPS test',
           timestamp: new Date().toISOString(),
@@ -616,7 +616,7 @@ describe('OTLPTransport', () => {
         });
 
         const entry: LogEntry = {
-        id: 'test-' + Date.now(),
+          id: 'test-' + Date.now(),
           level: 'error',
           message: 'Test',
           timestamp: new Date().toISOString(),
@@ -642,7 +642,7 @@ describe('OTLPTransport', () => {
         });
 
         const entry: LogEntry = {
-        id: 'test-' + Date.now(),
+          id: 'test-' + Date.now(),
           level: 'info',
           message: 'Timeout test',
           timestamp: new Date().toISOString(),
@@ -663,7 +663,7 @@ describe('OTLPTransport', () => {
         });
 
         const entry: LogEntry = {
-        id: 'test-' + Date.now(),
+          id: 'test-' + Date.now(),
           level: 'error',
           message: 'Test',
           timestamp: new Date().toISOString(),

@@ -98,12 +98,14 @@ describe('Logger Edge Case & Internal Utility Tests', () => {
     const spy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
 
     const logger = new Logger();
-    
+
     // setFileLogging is now deprecated and just logs a warning
     logger.setFileLogging(true);
 
     // The deprecated method should have warned
-    expect(spy).toHaveBeenCalledWith('[Logger] setFileLogging() is deprecated. Use file transports instead.');
+    expect(spy).toHaveBeenCalledWith(
+      '[Logger] setFileLogging() is deprecated. Use file transports instead.'
+    );
     spy.mockRestore();
   });
 

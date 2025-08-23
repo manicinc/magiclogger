@@ -30,10 +30,10 @@ describe('transports/base index exports', () => {
   it('should export type guard functions', () => {
     expect(BaseTransportExports.isAsyncTransport).toBeDefined();
     expect(typeof BaseTransportExports.isAsyncTransport).toBe('function');
-    
+
     expect(BaseTransportExports.isBatchingTransport).toBeDefined();
     expect(typeof BaseTransportExports.isBatchingTransport).toBe('function');
-    
+
     expect(BaseTransportExports.hasStats).toBeDefined();
     expect(typeof BaseTransportExports.hasStats).toBe('function');
   });
@@ -44,7 +44,7 @@ describe('transports/base index exports', () => {
       const mockTransport = {
         log: jest.fn(),
       };
-      
+
       expect(BaseTransportExports.isAsyncTransport(mockTransport)).toBe(true);
       expect(BaseTransportExports.isAsyncTransport({})).toBe(false);
     });
@@ -55,7 +55,7 @@ describe('transports/base index exports', () => {
         log: jest.fn(),
         logBatch: jest.fn(),
       };
-      
+
       expect(BaseTransportExports.isBatchingTransport(mockBatchingTransport)).toBe(true);
       expect(BaseTransportExports.isBatchingTransport({})).toBe(false);
     });
@@ -70,7 +70,7 @@ describe('transports/base index exports', () => {
           queued: 0,
         })),
       };
-      
+
       expect(BaseTransportExports.hasStats(mockTransportWithStats)).toBe(true);
       expect(BaseTransportExports.hasStats({})).toBe(false);
     });
@@ -80,12 +80,11 @@ describe('transports/base index exports', () => {
     it('should have initialized the global transport registry', () => {
       // The registry should be available globally after import
       const globalObj = typeof globalThis !== 'undefined' ? globalThis : window;
-      
-      if (globalObj) {
-        // Registry might be installed as a symbol or private property
-        // We can't directly test its presence, but we can verify the module loaded
-        expect(BaseTransportExports.TransportRegistry).toBeDefined();
-      }
+
+      // Registry might be installed as a symbol or private property
+      // We can't directly test its presence, but we can verify the module loaded
+      expect(globalObj).toBeDefined();
+      expect(BaseTransportExports.TransportRegistry).toBeDefined();
     });
   });
 });

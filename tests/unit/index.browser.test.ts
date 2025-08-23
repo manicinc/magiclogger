@@ -12,15 +12,27 @@ describe('Browser Entry (index.browser.ts)', () => {
   beforeEach(() => {
     // Mock navigator for browser environment
     global.navigator = {
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-    } as any;
-    
-    consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
-    consoleTimeSpy = jest.spyOn(console, 'time').mockImplementation(() => {});
-    consoleTimeEndSpy = jest.spyOn(console, 'timeEnd').mockImplementation(() => {});
-    consoleGroupSpy = jest.spyOn(console, 'group').mockImplementation(() => {});
-    consoleGroupEndSpy = jest.spyOn(console, 'groupEnd').mockImplementation(() => {});
-    consoleTableSpy = jest.spyOn(console, 'table').mockImplementation(() => {});
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+    } as unknown as Navigator;
+
+    consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {
+      /* ignore */
+    });
+    consoleTimeSpy = jest.spyOn(console, 'time').mockImplementation(() => {
+      /* ignore */
+    });
+    consoleTimeEndSpy = jest.spyOn(console, 'timeEnd').mockImplementation(() => {
+      /* ignore */
+    });
+    consoleGroupSpy = jest.spyOn(console, 'group').mockImplementation(() => {
+      /* ignore */
+    });
+    consoleGroupEndSpy = jest.spyOn(console, 'groupEnd').mockImplementation(() => {
+      /* ignore */
+    });
+    consoleTableSpy = jest.spyOn(console, 'table').mockImplementation(() => {
+      /* ignore */
+    });
     logger = new Logger();
   });
 
@@ -173,11 +185,11 @@ describe('Browser Entry (index.browser.ts)', () => {
     it('should handle performance errors gracefully', () => {
       // Mock console.group to be undefined (like in older browsers)
       const originalGroup = console.group;
-      console.group = undefined as any;
-      
+      console.group = undefined as unknown as typeof console.group;
+
       // Should not throw even when console.group is undefined
       expect(() => logger.performance('Test', {})).not.toThrow();
-      
+
       // Restore
       console.group = originalGroup;
     });
@@ -187,7 +199,7 @@ describe('Browser Entry (index.browser.ts)', () => {
     it('should enable/disable colors', () => {
       logger.setColorsEnabled(false);
       expect(logger.useColors).toBe(false);
-      
+
       logger.setColorsEnabled(true);
       expect(logger.useColors).toBe(true);
     });

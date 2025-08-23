@@ -10,10 +10,7 @@ export {
 } from './Middleware';
 
 // Security middleware
-export {
-  SecurityMiddleware,
-  type SecurityMiddlewareOptions,
-} from './SecurityMiddleware';
+export { SecurityMiddleware, type SecurityMiddlewareOptions } from './SecurityMiddleware';
 
 // Observability middleware
 export {

@@ -17,10 +17,10 @@ export type ConnectionState =
 
 /**
  * MagicLog Schema v1 - Core log entry structure.
- * 
+ *
  * This interface implements the MagicLog Schema specification for
  * cross-language compatibility and seamless observability integration.
- * 
+ *
  * @see https://github.com/magiclogger/magiclog-schema
  */
 export interface LogEntry {
@@ -41,7 +41,7 @@ export interface LogEntry {
    * Unix timestamp in milliseconds for efficient sorting/filtering.
    */
   timestampMs: number;
-  
+
   /**
    * MagicLog schema version for compatibility.
    * @default "v1"
@@ -71,13 +71,13 @@ export interface LogEntry {
    * Useful for multi-logger applications.
    */
   loggerId?: string;
-  
+
   /**
    * Service name for microservice architectures.
    * Maps to service.name in OpenTelemetry.
    */
   service?: string;
-  
+
   /**
    * Deployment environment.
    * @example "development" | "staging" | "production"
@@ -117,7 +117,7 @@ export interface LogEntry {
     platform?: string;
     nodeVersion?: string;
     userAgent?: string;
-    
+
     // Additional metadata for observability
     trace?: {
       traceId?: string;
@@ -126,7 +126,7 @@ export interface LogEntry {
       traceFlags?: string;
       traceState?: string;
     };
-    
+
     // Resource utilization (optional)
     resources?: {
       memory?: {
@@ -141,14 +141,14 @@ export interface LogEntry {
         system: number;
       };
     };
-    
+
     // Health indicators (optional)
     health?: {
       timestamp: number;
       uptime?: number;
       pid?: number;
     };
-    
+
     [key: string]: unknown;
   };
 

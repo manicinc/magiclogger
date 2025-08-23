@@ -147,16 +147,18 @@ describe('NullTransport', () => {
 
       const promises = [];
       for (let i = 0; i < numLogs; i++) {
-        promises.push(transport.log({
-          id: `test-${i}`,
-          timestamp: new Date().toISOString(),
-          timestampMs: Date.now(),
-          level: 'info',
-          message: `Message ${i}`,
-          plainMessage: `Message ${i}`,
-        }));
+        promises.push(
+          transport.log({
+            id: `test-${i}`,
+            timestamp: new Date().toISOString(),
+            timestampMs: Date.now(),
+            level: 'info',
+            message: `Message ${i}`,
+            plainMessage: `Message ${i}`,
+          })
+        );
       }
-      
+
       await Promise.all(promises);
 
       const duration = Date.now() - startTime;

@@ -11,17 +11,17 @@ export interface MetricsCollector {
    * Increment a counter metric.
    */
   increment(name: string, value?: number, tags?: Record<string, string>): void;
-  
+
   /**
    * Record a gauge metric.
    */
   gauge(name: string, value: number, tags?: Record<string, string>): void;
-  
+
   /**
    * Record a histogram metric.
    */
   histogram(name: string, value: number, tags?: Record<string, string>): void;
-  
+
   /**
    * Record timing metric.
    */
@@ -47,57 +47,57 @@ export interface ObservabilityMiddlewareOptions {
    * @default true
    */
   collectMetrics?: boolean;
-  
+
   /**
    * Enable trace context injection for OpenTelemetry.
    * @default true
    */
   injectTraceContext?: boolean;
-  
+
   /**
    * Enable automatic correlation ID generation.
    * @default true
    */
   generateCorrelationId?: boolean;
-  
+
   /**
    * Custom metrics collector implementation.
    */
   metricsCollector?: MetricsCollector;
-  
+
   /**
    * Function to get current trace context (for OpenTelemetry integration).
    */
   getTraceContext?: () => TraceContext | undefined;
-  
+
   /**
    * Enable health check metadata.
    * @default false
    */
   includeHealthMetadata?: boolean;
-  
+
   /**
    * Enable resource utilization tracking.
    * @default false
    */
   trackResourceUsage?: boolean;
-  
+
   /**
    * Callback for metrics events.
    */
   onMetrics?: (metrics: LogMetrics) => void;
-  
+
   /**
    * Callback for slow log detection.
    */
   onSlowLog?: (entry: LogEntry, duration: number) => void;
-  
+
   /**
    * Slow log threshold in milliseconds.
    * @default 100
    */
   slowLogThreshold?: number;
-  
+
   /**
    * Sample rate for detailed metrics (0-1).
    * @default 0.1
@@ -123,7 +123,7 @@ export interface LogMetrics {
 
 /**
  * Observability middleware for monitoring and OpenTelemetry integration.
- * 
+ *
  * This middleware provides:
  * - OpenTelemetry trace context injection
  * - Metrics collection and reporting
@@ -131,15 +131,15 @@ export interface LogMetrics {
  * - Performance monitoring
  * - Resource usage tracking
  * - Health metadata injection
- * 
+ *
  * @class ObservabilityMiddleware
  * @extends {Middleware}
- * 
+ *
  * @example
  * ```typescript
  * // With OpenTelemetry
  * import { trace } from '@opentelemetry/api';
- * 
+ *
  * const observability = new ObservabilityMiddleware({
  *   injectTraceContext: true,
  *   getTraceContext: () => {
@@ -157,20 +157,25 @@ export interface LogMetrics {
  *     metricsBackend.send(metrics);
  *   }
  * });
- * 
+ *
  * logger.addMiddleware(observability);
  * ```
  */
 export class ObservabilityMiddleware extends Middleware {
   readonly name = 'observability';
   readonly priority = 20; // Run early but after security
-  
-  private readonly options: Required<Omit<ObservabilityMiddlewareOptions, 'metricsCollector' | 'getTraceContext' | 'onMetrics' | 'onSlowLog'>>;
+
+  private readonly options: Required<
+    Omit<
+      ObservabilityMiddlewareOptions,
+      'metricsCollector' | 'getTraceContext' | 'onMetrics' | 'onSlowLog'
+    >
+  >;
   private readonly metricsCollector?: MetricsCollector;
   private readonly getTraceContext?: () => TraceContext | undefined;
   private readonly onMetrics?: (metrics: LogMetrics) => void;
   private readonly onSlowLog?: (entry: LogEntry, duration: number) => void;
-  
+
   /**
    * Metrics counters.
    * @private
@@ -181,13 +186,13 @@ export class ObservabilityMiddleware extends Middleware {
     dropped: 0,
     errors: 0,
   };
-  
+
   /**
    * Last CPU usage for delta calculation.
    * @private
    */
   private lastCpuUsage?: NodeJS.CpuUsage;
-  
+
   constructor(options: ObservabilityMiddlewareOptions = {}) {
     super();
     this.options = {
@@ -199,25 +204,25 @@ export class ObservabilityMiddleware extends Middleware {
       slowLogThreshold: options.slowLogThreshold ?? 100,
       metricsSampleRate: options.metricsSampleRate ?? 0.1,
     };
-    
+
     this.metricsCollector = options.metricsCollector;
     this.getTraceContext = options.getTraceContext;
     this.onMetrics = options.onMetrics;
     this.onSlowLog = options.onSlowLog;
-    
+
     // Initialize CPU usage baseline
     if (this.options.trackResourceUsage && typeof process !== 'undefined' && process.cpuUsage) {
       this.lastCpuUsage = process.cpuUsage();
     }
   }
-  
+
   process(entry: LogEntry, context: MiddlewareContext): MiddlewareResult {
     const startTime = this.options.collectMetrics ? performance.now() : 0;
-    
+
     try {
       // Create enriched entry
       const enriched: LogEntry = { ...entry };
-      
+
       // Add OpenTelemetry trace context
       if (this.options.injectTraceContext && this.getTraceContext) {
         const traceContext = this.getTraceContext();
@@ -229,7 +234,7 @@ export class ObservabilityMiddleware extends Middleware {
             traceFlags: traceContext.traceFlags,
             traceState: traceContext.traceState,
           };
-          
+
           // Add trace context to metadata for OTLP transport
           enriched.metadata = {
             ...enriched.metadata,
@@ -242,7 +247,7 @@ export class ObservabilityMiddleware extends Middleware {
           };
         }
       }
-      
+
       // Generate correlation ID if not present
       if (this.options.generateCorrelationId && !enriched.context?.correlationId) {
         enriched.context = {
@@ -250,7 +255,7 @@ export class ObservabilityMiddleware extends Middleware {
           correlationId: this.generateCorrelationId(),
         };
       }
-      
+
       // Add health metadata
       if (this.options.includeHealthMetadata) {
         enriched.metadata = {
@@ -262,7 +267,7 @@ export class ObservabilityMiddleware extends Middleware {
           },
         };
       }
-      
+
       // Track resource usage
       if (this.options.trackResourceUsage && this.shouldSample()) {
         const resourceMetrics = this.collectResourceMetrics();
@@ -271,19 +276,19 @@ export class ObservabilityMiddleware extends Middleware {
           resources: resourceMetrics,
         };
       }
-      
+
       // Collect metrics
       if (this.options.collectMetrics) {
         this.collectLogMetrics(enriched, startTime, context);
       }
-      
+
       return { continue: true, entry: enriched };
     } catch (error) {
       this.metrics.errors++;
       return this.handleError(error as Error, entry, context);
     }
   }
-  
+
   /**
    * Generate a correlation ID.
    * @private
@@ -293,18 +298,18 @@ export class ObservabilityMiddleware extends Middleware {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
       return crypto.randomUUID();
     }
-    
+
     // Fallback to timestamp + random
     return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
-  
+
   /**
    * Collect resource metrics.
    * @private
    */
   private collectResourceMetrics(): Record<string, unknown> {
     const metrics: Record<string, unknown> = {};
-    
+
     if (typeof process !== 'undefined') {
       // Memory usage
       if (process.memoryUsage) {
@@ -317,7 +322,7 @@ export class ObservabilityMiddleware extends Middleware {
           arrayBuffers: memory.arrayBuffers,
         };
       }
-      
+
       // CPU usage
       if (process.cpuUsage && this.lastCpuUsage) {
         const currentCpu = process.cpuUsage(this.lastCpuUsage);
@@ -328,39 +333,39 @@ export class ObservabilityMiddleware extends Middleware {
         this.lastCpuUsage = process.cpuUsage();
       }
     }
-    
+
     return metrics;
   }
-  
+
   /**
    * Collect and report log metrics.
    * @private
    */
   private collectLogMetrics(entry: LogEntry, startTime: number, context: MiddlewareContext): void {
     const processingTime = performance.now() - startTime;
-    
+
     // Update counters
     this.metrics.total++;
     const levelCount = this.metrics.byLevel.get(entry.level) || 0;
     this.metrics.byLevel.set(entry.level, levelCount + 1);
-    
+
     // Report to metrics collector
     if (this.metricsCollector) {
       this.metricsCollector.increment('logs.total', 1, {
         level: entry.level,
         logger: context.loggerId,
       });
-      
+
       this.metricsCollector.histogram('logs.processing_time', processingTime, {
         level: entry.level,
         logger: context.loggerId,
       });
     }
-    
+
     // Check for slow logs
     if (processingTime > this.options.slowLogThreshold) {
       this.onSlowLog?.(entry, processingTime);
-      
+
       if (this.metricsCollector) {
         this.metricsCollector.increment('logs.slow', 1, {
           level: entry.level,
@@ -368,7 +373,7 @@ export class ObservabilityMiddleware extends Middleware {
         });
       }
     }
-    
+
     // Emit metrics event periodically or on sample
     if (this.onMetrics && this.shouldSample()) {
       const metrics: LogMetrics = {
@@ -378,7 +383,7 @@ export class ObservabilityMiddleware extends Middleware {
         processingTime,
         droppedCount: this.metrics.dropped,
       };
-      
+
       // Add resource metrics if available
       if (this.options.trackResourceUsage && typeof process !== 'undefined') {
         if (process.memoryUsage) {
@@ -388,11 +393,11 @@ export class ObservabilityMiddleware extends Middleware {
           metrics.cpuUsage = process.cpuUsage();
         }
       }
-      
+
       this.onMetrics(metrics);
     }
   }
-  
+
   /**
    * Determine if we should sample this log for detailed metrics.
    * @private
@@ -400,7 +405,7 @@ export class ObservabilityMiddleware extends Middleware {
   private shouldSample(): boolean {
     return Math.random() < this.options.metricsSampleRate;
   }
-  
+
   /**
    * Get current metrics snapshot.
    */
@@ -417,7 +422,7 @@ export class ObservabilityMiddleware extends Middleware {
       errors: this.metrics.errors,
     };
   }
-  
+
   /**
    * Reset metrics counters.
    */
@@ -431,45 +436,47 @@ export class ObservabilityMiddleware extends Middleware {
 
 /**
  * OpenTelemetry helper for easy integration.
- * 
+ *
  * @example
  * ```typescript
  * import { trace } from '@opentelemetry/api';
  * import { createOTLPObservability } from 'magiclogger/middleware';
- * 
+ *
  * const observability = createOTLPObservability({
  *   api: { trace },
  *   onMetrics: (metrics) => console.log('Metrics:', metrics)
  * });
- * 
+ *
  * logger.addMiddleware(observability);
  * ```
  */
 export function createOTLPObservability(options: {
-  api?: { trace?: any };
+  api?: { trace?: unknown };
   metricsCollector?: MetricsCollector;
   onMetrics?: (metrics: LogMetrics) => void;
   config?: Partial<ObservabilityMiddlewareOptions>;
 }): ObservabilityMiddleware {
-  const getTraceContext = options.api?.trace ? (): TraceContext | undefined => {
-    try {
-      const span = options.api?.trace?.getActiveSpan();
-      if (!span) return undefined;
-      
-      const context = span.spanContext();
-      if (!context) return undefined;
-      
-      return {
-        traceId: context.traceId,
-        spanId: context.spanId,
-        traceFlags: context.traceFlags?.toString(),
-        traceState: context.traceState?.serialize?.(),
-      };
-    } catch {
-      return undefined;
-    }
-  } : undefined;
-  
+  const getTraceContext = options.api?.trace
+    ? (): TraceContext | undefined => {
+        try {
+          const span = options.api?.trace?.getActiveSpan();
+          if (!span) return undefined;
+
+          const context = span.spanContext();
+          if (!context) return undefined;
+
+          return {
+            traceId: context.traceId,
+            spanId: context.spanId,
+            traceFlags: context.traceFlags?.toString(),
+            traceState: context.traceState?.serialize?.(),
+          };
+        } catch {
+          return undefined;
+        }
+      }
+    : undefined;
+
   return new ObservabilityMiddleware({
     ...options.config,
     getTraceContext,

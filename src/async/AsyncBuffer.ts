@@ -376,7 +376,7 @@ export class AsyncBuffer {
    * Add a log entry to the buffer - fast path.
    * Returns a simple boolean for maximum performance.
    * Use addDetailed() if you need structured error information.
-   * 
+   *
    * IMPORTANT: This method will NEVER silently drop logs without notification.
    * When it returns false, the onDrop callback is always called first.
    */

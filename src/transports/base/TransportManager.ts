@@ -109,13 +109,16 @@ export class TransportManager extends EventEmitter {
       lastError?: Error;
     }
   > = new Map();
-  
+
   /**
    * Transport lifecycle states.
    * @private
    */
-  private transportStates: Map<string, 'initializing' | 'active' | 'paused' | 'closing' | 'closed'> = new Map();
-  
+  private transportStates: Map<
+    string,
+    'initializing' | 'active' | 'paused' | 'closing' | 'closed'
+  > = new Map();
+
   /**
    * Flag indicating manager is closing.
    * @private
@@ -171,7 +174,6 @@ export class TransportManager extends EventEmitter {
     stats: Record<string, unknown>;
     logBuffer: LogEntry[];
   } | null = null;
-
 
   /**
    * Health check interval in ms.
@@ -495,7 +497,7 @@ export class TransportManager extends EventEmitter {
 
     // Set initial state
     this.transportStates.set(name, 'initializing');
-    
+
     this.setupTransportHandlers(transport);
 
     if (typeof transport.init === 'function') {
@@ -1110,10 +1112,10 @@ export class TransportManager extends EventEmitter {
         if (typeof transport.flush === 'function') {
           await transport.flush();
         }
-        
+
         // Close transport
         await transport.close();
-        
+
         // Mark as closed
         this.transportStates.set(name, 'closed');
       } catch (error) {

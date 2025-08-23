@@ -515,7 +515,7 @@ describe('QueueManager', () => {
 
       // Create entries first to avoid timing issues with entry creation
       const entries = Array.from({ length: 10000 }, (_, i) => createEntry(String(i)));
-      
+
       const start = performance.now();
       const queued = queueManager.enqueueBatch(entries);
       const duration = performance.now() - start;

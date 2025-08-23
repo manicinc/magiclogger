@@ -131,17 +131,17 @@ export class QueueManager {
   public enqueueBatch(entries: LogEntry[]): number {
     let queued = 0;
     const wasProcessorSet = this.processor;
-    
+
     // Temporarily disable processor to prevent async operations during batch
     // This avoids triggering processQueue for each individual entry
     if (entries.length > 100) {
       this.processor = undefined;
     }
-    
+
     for (const entry of entries) {
       if (this.enqueue(entry)) queued++;
     }
-    
+
     // Restore processor and trigger processing once
     if (entries.length > 100) {
       this.processor = wasProcessorSet;
@@ -149,7 +149,7 @@ export class QueueManager {
         void this.processQueue();
       }
     }
-    
+
     return queued;
   }
 

@@ -12,7 +12,7 @@ describe('events-compat', () => {
       const listener = jest.fn();
       emitter.on('test', listener);
       emitter.emit('test', 'arg1', 'arg2');
-      
+
       expect(listener).toHaveBeenCalledWith('arg1', 'arg2');
       expect(listener).toHaveBeenCalledTimes(1);
     });
@@ -20,11 +20,11 @@ describe('events-compat', () => {
     it('should support multiple listeners for the same event', () => {
       const listener1 = jest.fn();
       const listener2 = jest.fn();
-      
+
       emitter.on('test', listener1);
       emitter.on('test', listener2);
       emitter.emit('test', 'data');
-      
+
       expect(listener1).toHaveBeenCalledWith('data');
       expect(listener2).toHaveBeenCalledWith('data');
     });
@@ -32,15 +32,17 @@ describe('events-compat', () => {
     it('should support symbol events', () => {
       const sym = Symbol('test');
       const listener = jest.fn();
-      
+
       emitter.on(sym, listener);
       emitter.emit(sym, 'symbolData');
-      
+
       expect(listener).toHaveBeenCalledWith('symbolData');
     });
 
     it('should return true when emit has listeners', () => {
-      emitter.on('test', () => {});
+      emitter.on('test', () => {
+        /* ignore */
+      });
       const result = emitter.emit('test');
       expect(result).toBe(true);
     });
@@ -57,10 +59,10 @@ describe('events-compat', () => {
         throw new Error('Listener error');
       });
       const listener2 = jest.fn();
-      
+
       emitter.on('test', listener1);
       emitter.on('test', listener2);
-      
+
       // Node's EventEmitter will throw, InMemoryEmitter won't
       // We'll just check that both listeners are called
       try {
@@ -78,7 +80,7 @@ describe('events-compat', () => {
       const listener = jest.fn();
       emitter.addListener('test', listener);
       emitter.emit('test', 'data');
-      
+
       expect(listener).toHaveBeenCalledWith('data');
     });
   });
@@ -87,10 +89,10 @@ describe('events-compat', () => {
     it('should trigger listener only once', () => {
       const listener = jest.fn();
       emitter.once('test', listener);
-      
+
       emitter.emit('test', 'first');
       emitter.emit('test', 'second');
-      
+
       expect(listener).toHaveBeenCalledTimes(1);
       expect(listener).toHaveBeenCalledWith('first');
     });
@@ -98,7 +100,7 @@ describe('events-compat', () => {
     it('should remove listener after first call', () => {
       const listener = jest.fn();
       emitter.once('test', listener);
-      
+
       expect(emitter.listenerCount('test')).toBe(1);
       emitter.emit('test');
       expect(emitter.listenerCount('test')).toBe(0);
@@ -109,13 +111,13 @@ describe('events-compat', () => {
     it('should remove specific listener', () => {
       const listener1 = jest.fn();
       const listener2 = jest.fn();
-      
+
       emitter.on('test', listener1);
       emitter.on('test', listener2);
       emitter.off('test', listener1);
-      
+
       emitter.emit('test');
-      
+
       expect(listener1).not.toHaveBeenCalled();
       expect(listener2).toHaveBeenCalled();
     });
@@ -130,7 +132,7 @@ describe('events-compat', () => {
       emitter.on('test', listener);
       emitter.removeListener('test', listener);
       emitter.emit('test');
-      
+
       expect(listener).not.toHaveBeenCalled();
     });
 
@@ -146,16 +148,16 @@ describe('events-compat', () => {
       const listener1 = jest.fn();
       const listener2 = jest.fn();
       const listener3 = jest.fn();
-      
+
       emitter.on('test1', listener1);
       emitter.on('test1', listener2);
       emitter.on('test2', listener3);
-      
+
       emitter.removeAllListeners('test1');
-      
+
       emitter.emit('test1');
       emitter.emit('test2');
-      
+
       expect(listener1).not.toHaveBeenCalled();
       expect(listener2).not.toHaveBeenCalled();
       expect(listener3).toHaveBeenCalled();
@@ -164,15 +166,15 @@ describe('events-compat', () => {
     it('should remove all listeners when no event specified', () => {
       const listener1 = jest.fn();
       const listener2 = jest.fn();
-      
+
       emitter.on('test1', listener1);
       emitter.on('test2', listener2);
-      
+
       emitter.removeAllListeners();
-      
+
       emitter.emit('test1');
       emitter.emit('test2');
-      
+
       expect(listener1).not.toHaveBeenCalled();
       expect(listener2).not.toHaveBeenCalled();
     });
@@ -187,15 +189,15 @@ describe('events-compat', () => {
     it('should get listener count', () => {
       const listener1 = jest.fn();
       const listener2 = jest.fn();
-      
+
       expect(emitter.listenerCount('test')).toBe(0);
-      
+
       emitter.on('test', listener1);
       expect(emitter.listenerCount('test')).toBe(1);
-      
+
       emitter.on('test', listener2);
       expect(emitter.listenerCount('test')).toBe(2);
-      
+
       emitter.off('test', listener1);
       expect(emitter.listenerCount('test')).toBe(1);
     });
@@ -203,10 +205,10 @@ describe('events-compat', () => {
     it('should get listeners array', () => {
       const listener1 = jest.fn();
       const listener2 = jest.fn();
-      
+
       emitter.on('test', listener1);
       emitter.on('test', listener2);
-      
+
       const listeners = emitter.listeners('test');
       expect(listeners).toHaveLength(2);
       expect(listeners).toContain(listener1);
@@ -233,16 +235,13 @@ describe('events-compat', () => {
       const listener1 = jest.fn();
       const listener2 = jest.fn();
       const listener3 = jest.fn();
-      
-      emitter
-        .on('test1', listener1)
-        .once('test2', listener2)
-        .on('test3', listener3);
-      
+
+      emitter.on('test1', listener1).once('test2', listener2).on('test3', listener3);
+
       emitter.emit('test1');
       emitter.emit('test2');
       emitter.emit('test3');
-      
+
       expect(listener1).toHaveBeenCalled();
       expect(listener2).toHaveBeenCalled();
       expect(listener3).toHaveBeenCalled();
@@ -258,20 +257,20 @@ describe('events-compat', () => {
     it('should handle many arguments in emit', () => {
       const listener = jest.fn();
       emitter.on('test', listener);
-      
+
       const args = Array.from({ length: 100 }, (_, i) => i);
       emitter.emit('test', ...args);
-      
+
       expect(listener).toHaveBeenCalledWith(...args);
     });
 
     it('should handle adding same listener multiple times', () => {
       const listener = jest.fn();
-      
+
       emitter.on('test', listener);
       emitter.on('test', listener);
       emitter.emit('test');
-      
+
       // Node's EventEmitter allows duplicates, InMemoryEmitter uses Set which doesn't
       // Just check it was called at least once
       expect(listener).toHaveBeenCalled();
@@ -282,11 +281,11 @@ describe('events-compat', () => {
         emitter.off('test', listener2);
       });
       const listener2 = jest.fn();
-      
+
       emitter.on('test', listener1);
       emitter.on('test', listener2);
       emitter.emit('test');
-      
+
       expect(listener1).toHaveBeenCalled();
       // listener2 might or might not be called depending on iteration order
       // but it shouldn't throw
