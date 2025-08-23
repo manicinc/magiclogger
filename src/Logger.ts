@@ -114,13 +114,6 @@ export type LogEntryMeta = LogMetadata | Error | { error?: Error; [key: string]:
  */
 export class Logger {
   /**
-   * Logger configuration options.
-   * @private
-   * @readonly
-   */
-  private readonly internalOptions: LoggerOptions;
-
-  /**
    * Transport manager for handling multiple log destinations.
    * @private
    */
@@ -198,9 +191,6 @@ export class Logger {
     this.options = this.validateOptions(this.options);
 
     this.idGenerator = this.options.idGenerator ?? this.defaultIdGenerator;
-
-    // Store processed options internally
-    this.internalOptions = this.options;
 
     // Initialize transport manager
     this.transportManager = new TransportManager();
