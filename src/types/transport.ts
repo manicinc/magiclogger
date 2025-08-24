@@ -16,78 +16,100 @@ export type ConnectionState =
   | 'reconnecting';
 
 /**
- * Core log entry structure that flows through the transport system.
- * This interface represents a single log message with all its metadata.
+ * MagicLog Schema v1 - Core log entry structure.
+ *
+ * This interface implements the MagicLog Schema specification for
+ * cross-language compatibility and seamless observability integration.
+ *
+ * @see https://github.com/magiclogger/magiclog-schema
  */
 export interface LogEntry {
+  // === IDENTITY & TIMING ===
   /**
    * Unique identifier for this log entry.
-   * Generated using timestamp + random component for uniqueness.
+   * Format: "timestamp-randomComponent" (e.g., "1733938475123-abc123xyz")
    */
-  id?: string;
+  id: string;
 
   /**
    * ISO 8601 timestamp when the log was created.
-   * @example "2024-01-15T10:30:45.123Z"
+   * @example "2025-08-14T12:34:35.123Z"
    */
   timestamp: string;
 
   /**
-   * Unix timestamp in milliseconds for easier sorting/filtering.
+   * Unix timestamp in milliseconds for efficient sorting/filtering.
    */
   timestampMs: number;
 
   /**
-   * Log level of this entry.
-   * Can be standard levels or custom strings.
+   * MagicLog schema version for compatibility.
+   * @default "v1"
+   */
+  schemaVersion?: 'v1';
+
+  // === CORE CONTENT ===
+  /**
+   * Log level following syslog RFC5424 severity.
    */
   level: LogLevel;
 
   /**
-   * The actual log message content.
+   * The formatted log message (may include ANSI codes).
    */
   message: string;
 
   /**
-   * Optional formatted message with ANSI codes stripped.
-   * Used for transports that don't support terminal colors.
+   * Plain text message with ANSI codes stripped.
+   * Used for structured storage and non-TTY transports.
    */
   plainMessage?: string;
 
+  // === LOGGER CONTEXT ===
   /**
-   * Logger instance ID that created this entry.
-   * Useful for tracking logs from different services/components.
+   * Logger instance identifier.
+   * Useful for multi-logger applications.
    */
   loggerId?: string;
 
   /**
-   * Tags associated with this log entry.
-   * Used for filtering and categorization.
+   * Service name for microservice architectures.
+   * Maps to service.name in OpenTelemetry.
+   */
+  service?: string;
+
+  /**
+   * Deployment environment.
+   * @example "development" | "staging" | "production"
+   */
+  environment?: string;
+
+  /**
+   * Categorization tags for filtering and routing.
    */
   tags?: string[];
 
+  // === STRUCTURED DATA ===
   /**
-   * Additional context data for this specific log entry.
-   * Can contain any structured data relevant to the log.
+   * User-provided structured context data.
+   * Can contain any application-specific data.
    */
   context?: Record<string, unknown>;
 
   /**
-   * Error object if this log entry represents an error.
-   * Includes stack trace and error details.
+   * Structured error information.
    */
-  error?:
-    | Error
-    | {
-        name: string;
-        message: string;
-        stack?: string;
-        code?: string;
-        [key: string]: unknown;
-      };
+  error?: {
+    name: string;
+    message: string;
+    stack?: string;
+    code?: string | number;
+    cause?: unknown;
+  };
 
+  // === RUNTIME METADATA ===
   /**
-   * Environment metadata captured at log time.
+   * Automatically collected runtime information.
    */
   metadata?: {
     hostname?: string;
@@ -95,7 +117,52 @@ export interface LogEntry {
     platform?: string;
     nodeVersion?: string;
     userAgent?: string;
+
+    // Additional metadata for observability
+    trace?: {
+      traceId?: string;
+      spanId?: string;
+      parentSpanId?: string;
+      traceFlags?: string;
+      traceState?: string;
+    };
+
+    // Resource utilization (optional)
+    resources?: {
+      memory?: {
+        rss: number;
+        heapTotal: number;
+        heapUsed: number;
+        external: number;
+        arrayBuffers: number;
+      };
+      cpu?: {
+        user: number;
+        system: number;
+      };
+    };
+
+    // Health indicators (optional)
+    health?: {
+      timestamp: number;
+      uptime?: number;
+      pid?: number;
+    };
+
     [key: string]: unknown;
+  };
+
+  // === DISTRIBUTED TRACING (OpenTelemetry compatible) ===
+  /**
+   * Distributed tracing context.
+   * Follows OpenTelemetry trace context specification.
+   */
+  trace?: {
+    traceId?: string;
+    spanId?: string;
+    parentSpanId?: string;
+    traceFlags?: string;
+    traceState?: string;
   };
 }
 
@@ -1102,6 +1169,34 @@ export interface Transport {
   shouldLog(entry: LogEntry): boolean;
 
   /**
+   * Check if transport is currently enabled.
+   * Matches class Transport API for structural typing.
+   */
+  isEnabled?(): boolean;
+
+  /**
+   * Get the transport name.
+   * Matches class Transport API for structural typing.
+   */
+  getName?(): string;
+
+  /**
+   * Whether this transport supports batching (optional).
+   */
+  supportsBatching?(): boolean;
+
+  /**
+   * Optional health check method.
+   */
+  isHealthy?(): Promise<boolean>;
+
+  /** Enable this transport (optional). */
+  enable?(): void;
+
+  /** Disable this transport (optional). */
+  disable?(): void;
+
+  /**
    * Get transport statistics.
    */
   getStats?(): TransportStats;
@@ -1112,6 +1207,12 @@ export interface Transport {
   on?(event: keyof TransportEvents, listener: (...args: unknown[]) => void): this;
   off?(event: keyof TransportEvents, listener: (...args: unknown[]) => void): this;
   emit?(event: keyof TransportEvents, ...args: unknown[]): boolean;
+  /** Optional event helpers common on Node.js EventEmitter */
+  once?(event: keyof TransportEvents, listener: (...args: unknown[]) => void): this;
+  removeListener?(event: keyof TransportEvents, listener: (...args: unknown[]) => void): this;
+
+  /** Reset transport statistics (optional, but used by manager when available). */
+  resetStats?(): void;
 }
 
 /**

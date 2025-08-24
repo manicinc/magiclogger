@@ -3,13 +3,14 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
+    "sync-docs": "node ../scripts/sync-docs.js",
     "docusaurus": "docusaurus",
-  "start": "docusaurus start --config docusaurus.config.local.ts --port 3000 --no-open",
-    "build": "docusaurus build",
+    "start": "npm run sync-docs && docusaurus start --config docusaurus.config.local.ts --port 3000 --no-open",
+    "build": "npm run sync-docs && docusaurus build",
     "swizzle": "docusaurus swizzle",
     "deploy": "docusaurus deploy",
     "clear": "docusaurus clear",
-  "serve": "docusaurus serve",
+    "serve": "docusaurus serve",
     "write-translations": "docusaurus write-translations",
     "write-heading-ids": "docusaurus write-heading-ids"
   },

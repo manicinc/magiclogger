@@ -2,10 +2,10 @@
 // Usage: node --experimental-modules scripts/esm-example.js
 // Or with Node.js 14+: node scripts/esm-example.js
 
-import { Logger } from '../dist/index.js';
+import { createSyncLogger } from '../dist/index.js';
 
-// Create a new logger instance with configuration
-const logger = new Logger({
+// Create a new logger instance with configuration (sync for interactive demo)
+const logger = createSyncLogger({
   verbose: true,       // Show debug messages
   storeInBrowser: true // This would be ignored in Node.js environment
 });

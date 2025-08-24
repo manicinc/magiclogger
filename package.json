@@ -35,60 +35,74 @@
         "default": "./dist/transports/postgresql.cjs"
       }
     },
-    "./utils/sampler": {
+    "./extensions/sampler": {
       "browser": {
-        "types": "./dist/utils/sampler.d.ts",
-        "default": "./dist/browser/utils/sampler.js"
+        "types": "./dist/extensions/sampler.d.ts",
+        "default": "./dist/browser/extensions/sampler.js"
       },
       "import": {
-        "types": "./dist/utils/sampler.d.ts",
-        "default": "./dist/utils/sampler.js"
+        "types": "./dist/extensions/sampler.d.ts",
+        "default": "./dist/extensions/sampler.js"
       },
       "require": {
-        "types": "./dist/utils/sampler.d.cts",
-        "default": "./dist/utils/sampler.cjs"
+        "types": "./dist/extensions/sampler.d.cts",
+        "default": "./dist/extensions/sampler.cjs"
       }
     },
-    "./utils/rate-limiter": {
+    "./extensions/rate-limiter": {
       "browser": {
-        "types": "./dist/utils/rate-limiter.d.ts",
-        "default": "./dist/browser/utils/rate-limiter.js"
+        "types": "./dist/extensions/rate-limiter.d.ts",
+        "default": "./dist/browser/extensions/rate-limiter.js"
       },
       "import": {
-        "types": "./dist/utils/rate-limiter.d.ts",
-        "default": "./dist/utils/rate-limiter.js"
+        "types": "./dist/extensions/rate-limiter.d.ts",
+        "default": "./dist/extensions/rate-limiter.js"
       },
       "require": {
-        "types": "./dist/utils/rate-limiter.d.cts",
-        "default": "./dist/utils/rate-limiter.cjs"
+        "types": "./dist/extensions/rate-limiter.d.cts",
+        "default": "./dist/extensions/rate-limiter.cjs"
       }
     },
-    "./utils/redactor": {
+    "./extensions/redactor": {
       "browser": {
-        "types": "./dist/utils/redactor.d.ts",
-        "default": "./dist/browser/utils/redactor.js"
+        "types": "./dist/extensions/redactor.d.ts",
+        "default": "./dist/browser/extensions/redactor.js"
       },
       "import": {
-        "types": "./dist/utils/redactor.d.ts",
-        "default": "./dist/utils/redactor.js"
+        "types": "./dist/extensions/redactor.d.ts",
+        "default": "./dist/extensions/redactor.js"
       },
       "require": {
-        "types": "./dist/utils/redactor.d.cts",
-        "default": "./dist/utils/redactor.cjs"
+        "types": "./dist/extensions/redactor.d.cts",
+        "default": "./dist/extensions/redactor.cjs"
       }
     },
-    "./utils/queue-manager": {
+    "./extensions/queue-manager": {
       "browser": {
-        "types": "./dist/utils/queue-manager.d.ts",
-        "default": "./dist/browser/utils/queue-manager.js"
+        "types": "./dist/extensions/queue-manager.d.ts",
+        "default": "./dist/browser/extensions/queue-manager.js"
       },
       "import": {
-        "types": "./dist/utils/queue-manager.d.ts",
-        "default": "./dist/utils/queue-manager.js"
+        "types": "./dist/extensions/queue-manager.d.ts",
+        "default": "./dist/extensions/queue-manager.js"
       },
       "require": {
-        "types": "./dist/utils/queue-manager.d.cts",
-        "default": "./dist/utils/queue-manager.cjs"
+        "types": "./dist/extensions/queue-manager.d.cts",
+        "default": "./dist/extensions/queue-manager.cjs"
+      }
+    },
+    "./extensions": {
+      "browser": {
+        "types": "./dist/extensions/index.d.ts",
+        "default": "./dist/browser/extensions/index.js"
+      },
+      "import": {
+        "types": "./dist/extensions/index.d.ts",
+        "default": "./dist/extensions/index.js"
+      },
+      "require": {
+        "types": "./dist/extensions/index.d.cts",
+        "default": "./dist/extensions/index.cjs"
       }
     },
     "./transports/otlp": {
@@ -243,90 +257,6 @@
       "require": {
         "types": "./dist/transports/base.d.cts",
         "default": "./dist/transports/base.cjs"
-      }
-    },
-    "./compatibility": {
-      "browser": {
-        "types": "./dist/compatibility/index.d.ts",
-        "default": "./dist/compatibility/index.js"
-      },
-      "import": {
-        "types": "./dist/compatibility/index.d.ts",
-        "default": "./dist/compatibility/index.js"
-      },
-      "require": {
-        "types": "./dist/compatibility/index.d.cts",
-        "default": "./dist/compatibility/index.cjs"
-      }
-    },
-    "./compatibility/winston": {
-      "browser": {
-        "types": "./dist/compatibility/winston.d.ts",
-        "default": "./dist/compatibility/winston.js"
-      },
-      "import": {
-        "types": "./dist/compatibility/winston.d.ts",
-        "default": "./dist/compatibility/winston.js"
-      },
-      "require": {
-        "types": "./dist/compatibility/winston.d.cts",
-        "default": "./dist/compatibility/winston.cjs"
-      }
-    },
-    "./compatibility/bunyan": {
-      "browser": {
-        "types": "./dist/compatibility/bunyan.d.ts",
-        "default": "./dist/compatibility/bunyan.js"
-      },
-      "import": {
-        "types": "./dist/compatibility/bunyan.d.ts",
-        "default": "./dist/compatibility/bunyan.js"
-      },
-      "require": {
-        "types": "./dist/compatibility/bunyan.d.cts",
-        "default": "./dist/compatibility/bunyan.cjs"
-      }
-    },
-    "./compatibility/pino": {
-      "browser": {
-        "types": "./dist/compatibility/pino.d.ts",
-        "default": "./dist/compatibility/pino.js"
-      },
-      "import": {
-        "types": "./dist/compatibility/pino.d.ts",
-        "default": "./dist/compatibility/pino.js"
-      },
-      "require": {
-        "types": "./dist/compatibility/pino.d.cts",
-        "default": "./dist/compatibility/pino.cjs"
-      }
-    },
-    "./compatibility/console": {
-      "browser": {
-        "types": "./dist/compatibility/console.d.ts",
-        "default": "./dist/compatibility/console.js"
-      },
-      "import": {
-        "types": "./dist/compatibility/console.d.ts",
-        "default": "./dist/compatibility/console.js"
-      },
-      "require": {
-        "types": "./dist/compatibility/console.d.cts",
-        "default": "./dist/compatibility/console.cjs"
-      }
-    },
-    "./compatibility/base": {
-      "browser": {
-        "types": "./dist/compatibility/base.d.ts",
-        "default": "./dist/compatibility/base.js"
-      },
-      "import": {
-        "types": "./dist/compatibility/base.d.ts",
-        "default": "./dist/compatibility/base.js"
-      },
-      "require": {
-        "types": "./dist/compatibility/base.d.cts",
-        "default": "./dist/compatibility/base.cjs"
       }
     },
     "./theme": {
@@ -514,9 +444,6 @@
     "tree-shakeable",
     "zero-dependency",
     "typescript",
-    "winston",
-    "bunyan",
-    "pino",
     "structured-logging",
     "transports",
     "browser",

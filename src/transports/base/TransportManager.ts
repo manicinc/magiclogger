@@ -1,7 +1,7 @@
 // File: src/transports/base/TransportManager.ts
 
 import { EventEmitter } from 'events';
-import { Transport } from './Transport';
+import type { Transport } from '../../types/transport';
 import { isBrowserEnvironment } from '../../utils/environment';
 import type {
   TransportConfig,
@@ -111,6 +111,21 @@ export class TransportManager extends EventEmitter {
   > = new Map();
 
   /**
+   * Transport lifecycle states.
+   * @private
+   */
+  private transportStates: Map<
+    string,
+    'initializing' | 'active' | 'paused' | 'closing' | 'closed'
+  > = new Map();
+
+  /**
+   * Flag indicating manager is closing.
+   * @private
+   */
+  private isClosing = false;
+
+  /**
    * Global transport filters.
    * @private
    */
@@ -159,12 +174,6 @@ export class TransportManager extends EventEmitter {
     stats: Record<string, unknown>;
     logBuffer: LogEntry[];
   } | null = null;
-
-  /**
-   * Indicates if manager is closing.
-   * @private
-   */
-  private isClosing = false;
 
   /**
    * Health check interval in ms.
@@ -311,7 +320,10 @@ export class TransportManager extends EventEmitter {
     if (this.aggregationManager.targets.length > 0) {
       this.aggregationManager.targets.forEach(targetName => {
         const transport = this.transports.get(targetName);
-        if (transport && transport.isEnabled()) {
+        if (
+          transport &&
+          (typeof transport.isEnabled === 'function' ? transport.isEnabled() : transport.enabled)
+        ) {
           // Synchronously record aggregation for mock transports used in tests
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const maybeLogCalls = (transport as unknown as { logCalls?: unknown }).logCalls;
@@ -319,8 +331,9 @@ export class TransportManager extends EventEmitter {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (maybeLogCalls as any[]).push(aggregationEntry);
           } else {
-            transport.log(aggregationEntry).catch(error => {
-              this.handleError(error, transport, aggregationEntry);
+            // Wrap to handle transports whose log returns void
+            Promise.resolve(transport.log(aggregationEntry)).catch((error: unknown) => {
+              this.handleError(error as Error, transport, aggregationEntry);
             });
           }
         }
@@ -430,7 +443,9 @@ export class TransportManager extends EventEmitter {
     this.setupTransportHandlers(transport);
 
     // Initialize transport
-    await transport.init();
+    if (typeof transport.init === 'function') {
+      await transport.init();
+    }
 
     // Add to transports map
     this.transports.set(name, transport);
@@ -480,13 +495,22 @@ export class TransportManager extends EventEmitter {
       throw new Error(`Transport '${name}' already exists`);
     }
 
+    // Set initial state
+    this.transportStates.set(name, 'initializing');
+
     this.setupTransportHandlers(transport);
 
     if (typeof transport.init === 'function') {
-      await transport.init();
+      try {
+        await transport.init();
+      } catch (error) {
+        this.transportStates.set(name, 'closed');
+        throw error;
+      }
     }
 
     this.transports.set(name, transport);
+    this.transportStates.set(name, 'active');
 
     this.performanceData.set(name, {
       count: 0,
@@ -653,9 +677,11 @@ export class TransportManager extends EventEmitter {
     }
 
     // Get enabled transports that should log this entry
-    const availableTransports = Array.from(this.transports.values()).filter(
-      transport => transport.isEnabled() && transport.shouldLog(transformedEntry)
-    );
+    const availableTransports = Array.from(this.transports.values()).filter(transport => {
+      const enabled =
+        typeof transport.isEnabled === 'function' ? transport.isEnabled() : transport.enabled;
+      return enabled && transport.shouldLog(transformedEntry);
+    });
 
     if (availableTransports.length === 0) {
       this.emit('noTransports', transformedEntry);
@@ -756,18 +782,30 @@ export class TransportManager extends EventEmitter {
     let emittedError: Error | null = null;
     let emittedLogged = false;
 
-    const onError = (err: Error) => {
+    const onError = (...args: unknown[]) => {
+      const err = args[0] as Error;
       emittedError = err;
     };
-    const onLogged = () => {
+    const onLogged = (..._args: unknown[]) => {
       emittedLogged = true;
     };
 
-    transport.once('error', onError);
-    transport.once('logged', onLogged);
+    // Prefer once() when available, otherwise fall back to on()
+    const useOnce = typeof transport.once === 'function';
+    if (useOnce) {
+      const once = transport.once as (
+        event: keyof import('../../types/transport').TransportEvents,
+        listener: (...args: unknown[]) => void
+      ) => typeof transport;
+      once.call(transport, 'error', onError);
+      once.call(transport, 'logged', onLogged);
+    } else if (typeof transport.on === 'function') {
+      transport.on('error', onError);
+      transport.on('logged', onLogged);
+    }
 
     try {
-      const logPromise = transport.log(entry);
+      const logPromise = Promise.resolve(transport.log(entry));
       if (this.defaultTimeout > 0) {
         await this.withTimeout(logPromise, this.defaultTimeout);
       } else {
@@ -796,8 +834,13 @@ export class TransportManager extends EventEmitter {
       }
       throw error;
     } finally {
-      transport.removeListener('error', onError);
-      transport.removeListener('logged', onLogged);
+      if (typeof transport.removeListener === 'function') {
+        transport.removeListener('error', onError);
+        transport.removeListener('logged', onLogged);
+      } else if (typeof transport.off === 'function') {
+        transport.off('error', onError);
+        transport.off('logged', onLogged);
+      }
     }
   }
 
@@ -852,19 +895,23 @@ export class TransportManager extends EventEmitter {
 
     // Get enabled transports that support batching
     const transports = Array.from(this.transports.values()).filter(transport =>
-      transport.isEnabled()
+      typeof transport.isEnabled === 'function' ? transport.isEnabled() : transport.enabled
     );
 
     // Group by batching support
-    const batchingTransports = transports.filter(t => t.supportsBatching());
-    const nonBatchingTransports = transports.filter(t => !t.supportsBatching());
+    const batchingTransports = transports.filter(
+      t => typeof t.supportsBatching === 'function' && t.supportsBatching()
+    );
+    const nonBatchingTransports = transports.filter(
+      t => !(typeof t.supportsBatching === 'function' && t.supportsBatching())
+    );
 
     const promises: Promise<void>[] = [];
 
     // Send to batching transports
     for (const transport of batchingTransports) {
       if (transport.logBatch) {
-        promises.push(transport.logBatch(processedEntries));
+        promises.push(Promise.resolve(transport.logBatch(processedEntries)));
       }
     }
 
@@ -1027,6 +1074,7 @@ export class TransportManager extends EventEmitter {
 
   /**
    * Close all transports and clean up.
+   * Ensures graceful shutdown with proper state transitions.
    *
    * @returns {Promise<void>} Resolves when closed
    */
@@ -1052,12 +1100,27 @@ export class TransportManager extends EventEmitter {
     // Stop health monitoring
     this.stopHealthMonitoring();
 
-    // Close all transports
-    const promises = Array.from(this.transports.values()).map(async transport => {
+    // Mark all transports as closing
+    for (const name of this.transports.keys()) {
+      this.transportStates.set(name, 'closing');
+    }
+
+    // Close all transports with proper state tracking
+    const promises = Array.from(this.transports.entries()).map(async ([name, transport]) => {
       try {
+        // Flush if transport supports it
+        if (typeof transport.flush === 'function') {
+          await transport.flush();
+        }
+
+        // Close transport
         await transport.close();
+
+        // Mark as closed
+        this.transportStates.set(name, 'closed');
       } catch (error) {
-        console.error(`Error closing transport '${transport.name}':`, error);
+        console.error(`Error closing transport '${name}':`, error);
+        this.transportStates.set(name, 'closed'); // Mark as closed even on error
       }
     });
 
@@ -1067,6 +1130,7 @@ export class TransportManager extends EventEmitter {
     this.transports.clear();
     this.performanceData.clear();
     this.transportPriorities.clear();
+    this.transportStates.clear();
 
     this.initialized = false;
     this.emit('closed');
@@ -1118,7 +1182,9 @@ export class TransportManager extends EventEmitter {
 
     for (const [name, transport] of this.transports) {
       const perfData = this.performanceData.get(name);
-      const transportStats = transport.getStats();
+      const transportStats: TransportStats =
+        (typeof transport.getStats === 'function' && transport.getStats()) ||
+        ({ processed: 0, succeeded: 0, failed: 0 } as TransportStats);
 
       stats[name] = {
         ...transportStats,
@@ -1135,7 +1201,9 @@ export class TransportManager extends EventEmitter {
     }
 
     // Add manager stats
-    const enabledTransports = Array.from(this.transports.values()).filter(t => t.isEnabled());
+    const enabledTransports = Array.from(this.transports.values()).filter(t =>
+      typeof t.isEnabled === 'function' ? t.isEnabled() : t.enabled
+    );
     stats._manager = {
       transportCount: this.transports.size,
       activeTransports: enabledTransports.length,
@@ -1152,7 +1220,9 @@ export class TransportManager extends EventEmitter {
   public resetStats(): void {
     // Reset transport stats
     for (const transport of this.transports.values()) {
-      transport.resetStats();
+      if (typeof transport.resetStats === 'function') {
+        transport.resetStats();
+      }
     }
 
     // Reset performance data
@@ -1172,7 +1242,8 @@ export class TransportManager extends EventEmitter {
   public enableTransport(name: string): void {
     const transport = this.transports.get(name);
     if (transport) {
-      transport.enable();
+      if (typeof transport.enable === 'function') transport.enable();
+      else transport.enabled = true;
     }
   }
 
@@ -1184,7 +1255,8 @@ export class TransportManager extends EventEmitter {
   public disableTransport(name: string): void {
     const transport = this.transports.get(name);
     if (transport) {
-      transport.disable();
+      if (typeof transport.disable === 'function') transport.disable();
+      else transport.enabled = false;
     }
   }
 
@@ -1198,7 +1270,9 @@ export class TransportManager extends EventEmitter {
 
     for (const [name, transport] of this.transports) {
       try {
-        health[name] = await transport.isHealthy();
+        health[name] =
+          (typeof transport.isHealthy === 'function' && (await transport.isHealthy())) ??
+          transport.enabled;
       } catch {
         health[name] = false;
       }

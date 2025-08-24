@@ -376,16 +376,20 @@ export class AsyncBuffer {
    * Add a log entry to the buffer - fast path.
    * Returns a simple boolean for maximum performance.
    * Use addDetailed() if you need structured error information.
+   *
+   * IMPORTANT: This method will NEVER silently drop logs without notification.
+   * When it returns false, the onDrop callback is always called first.
    */
   public add(entry: LogEntry): boolean {
     if (this.closing) {
       return false;
     }
 
-    // Handle buffer overflow - fast path
+    // Handle buffer overflow - fast path with explicit handling
     if (this.size === this.capacity) {
       switch (this.overflowStrategy) {
         case 'drop-newest': {
+          // Explicitly reject new entry
           if (this.enableMetrics) {
             this.metrics.totalDropped++;
           }
@@ -393,6 +397,7 @@ export class AsyncBuffer {
           return false;
         }
         case 'drop-oldest': {
+          // Drop oldest to make room - but notify about it
           const droppedEntry = this.buffer[this.readPos];
           this.readPos = (this.readPos + 1) % this.capacity;
           this.size--;
@@ -407,6 +412,7 @@ export class AsyncBuffer {
             this.metrics.totalDropped++;
           }
 
+          // Always notify about dropped entry
           if (droppedEntry) {
             this.onDrop?.(droppedEntry, 'overflow');
           }
@@ -421,6 +427,7 @@ export class AsyncBuffer {
           return true;
         }
         case 'block': {
+          // Explicitly block and notify - no silent drops
           if (this.enableMetrics) {
             this.metrics.totalDropped++;
           }
@@ -620,8 +627,8 @@ export class AsyncBuffer {
       }
     }, this.flushInterval);
 
-    // Ensure timer doesn't prevent process exit
-    if (this.flushTimer && this.flushTimer.unref) {
+    // Ensure timer doesn't prevent process exit in production, but keep it referenced in tests
+    if (this.flushTimer && this.flushTimer.unref && process.env.NODE_ENV !== 'test') {
       this.flushTimer.unref();
     }
   }

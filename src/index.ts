@@ -97,34 +97,41 @@ export { meta, err } from './utils/meta';
  * Queue management for handling backpressure and log overflow.
  * Tree-shakeable: Only imported when needed.
  */
-export { QueueManager } from './utils/QueueManager';
-export type { QueueManagerOptions, QueueStats, DropPolicy } from './utils/QueueManager';
+export { QueueManager } from './extensions/QueueManager';
+export type { QueueManagerOptions, QueueStats, DropPolicy } from './extensions/QueueManager';
 
 /**
  * Rate limiting for log throttling and volume control.
  * Tree-shakeable: Only imported when needed.
  */
-export { RateLimiter } from './utils/RateLimiter';
-export type { RateLimiterOptions, RateLimitStrategy } from './utils/RateLimiter';
+export { RateLimiter } from './extensions/RateLimiter';
+export type { RateLimiterOptions, RateLimitStrategy } from './extensions/RateLimiter';
 
 /**
  * PII and sensitive data redaction system.
  * Tree-shakeable: Only imported when needed.
  */
-export { Redactor, createRedactorPreset } from './utils/Redactor';
+export { Redactor, createRedactorPreset } from './extensions/Redactor';
 export type {
   RedactorOptions,
   RedactionPattern,
   RedactionPreset,
   RedactionStrategy,
-} from './utils/Redactor';
+} from './extensions/Redactor';
 
 /**
  * Statistical sampling for log volume control.
  * Tree-shakeable: Only imported when needed.
  */
-export { Sampler, createSamplerPreset } from './utils/Sampler';
-export type { SamplerOptions, SamplingStrategy } from './utils/Sampler';
+export { Sampler, createSamplerPreset } from './extensions/Sampler';
+export type { SamplerOptions, SamplingStrategy } from './extensions/Sampler';
+
+/**
+ * Enhanced console functionality for upgrading the global console.
+ * Tree-shakeable: Only imported when needed.
+ */
+export { EnhancedConsole, enhanceConsole } from './utils/EnhancedConsole';
+export type { EnhanceConsoleOptions } from './utils/EnhancedConsole';
 
 // ==========================================
 // TRANSPORT TYPES ONLY
@@ -162,34 +169,6 @@ export type {
 } from './types/transport';
 
 // ==========================================
-// COMPATIBILITY FUNCTIONS
-// ==========================================
-
-/**
- * Console enhancement for adding custom log methods.
- * Import individually for better tree-shaking: 'magiclogger/compatibility/console'
- */
-export { enhanceConsole } from './compatibility/loggers/EnhancedConsole';
-
-/**
- * Winston-compatible logger creation.
- * Import individually for better tree-shaking: 'magiclogger/compatibility/winston'
- */
-export { createWinstonCompatible } from './compatibility/loggers/WinstonCompatibleLogger';
-
-/**
- * Bunyan-compatible logger creation.
- * Import individually for better tree-shaking: 'magiclogger/compatibility/bunyan'
- */
-export { createBunyanCompatible } from './compatibility/loggers/BunyanCompatibleLogger';
-
-/**
- * Pino-compatible logger creation.
- * Import individually for better tree-shaking: 'magiclogger/compatibility/pino'
- */
-export { createPinoCompatible } from './compatibility/loggers/PinoCompatibleLogger';
-
-// ==========================================
 // CONVENIENCE FUNCTIONS
 // ==========================================
 
@@ -224,10 +203,14 @@ export function createLogger(
     async?: boolean;
     onFlush?: (entries: LogEntry[]) => Promise<void>;
     buffer?: { size?: number; flushInterval?: number; flushSize?: number };
-    redactor?: any;
-    rateLimiter?: any;
-    sampler?: any;
-    queueManager?: any;
+    redactor?: import('./extensions/Redactor').Redactor | import('./extensions/Redactor').RedactorOptions;
+    rateLimiter?:
+      | import('./extensions/RateLimiter').RateLimiter
+      | import('./extensions/RateLimiter').RateLimiterOptions;
+    sampler?: import('./extensions/Sampler').Sampler | import('./extensions/Sampler').SamplerOptions;
+    queueManager?:
+      | import('./extensions/QueueManager').QueueManager
+      | import('./extensions/QueueManager').QueueManagerOptions;
   } & Partial<LoggerOptions> = {}
 ): Logger | AsyncLogger {
   const {
@@ -292,31 +275,70 @@ export function createSyncLogger(options: Partial<LoggerOptions> = {}): Logger {
 }
 
 /**
- * Creates a new AsyncLogger instance with the given options.
- * Convenience function for creating async loggers with operational utilities.
+ * Creates a high-performance async logger with optional utilities.
+ * Fast by default - utilities are opt-in for when you need them.
  *
- * @param {AsyncLoggerOptions} options - AsyncLogger options
+ * @param {Partial<AsyncLoggerOptions>} options - AsyncLogger options
  * @returns {AsyncLogger} New async logger instance
  *
  * @example
  * ```typescript
- * import { createAsyncLogger, Redactor, RateLimiter } from 'magiclogger';
+ * // Zero config - fast and logs to console!
+ * const logger = createAsyncLogger();
+ * logger.info('Hello world'); // Goes to console
  *
- * const redactor = new Redactor({ preset: 'strict' });
- * const rateLimiter = new RateLimiter({ max: 1000, window: 60000 });
+ * // High throughput with larger buffer
+ * const logger = createAsyncLogger({
+ *   buffer: { size: 32768, flushInterval: 50 }
+ * });
  *
- * const asyncLogger = createAsyncLogger({
- *   buffer: { size: 8192, flushInterval: 100 },
- *   redactor,
- *   rateLimiter,
+ * // With custom transport (console still works)
+ * const logger = createAsyncLogger({
  *   onFlush: async (entries) => {
- *     // Process entries with built-in redaction and rate limiting
- *     await transport.sendBatch(entries);
+ *     await writeToFile(entries); // Additional transport
+ *   }
+ * });
+ *
+ * // Production with opt-in utilities (only when needed)
+ * const logger = createAsyncLogger({
+ *   redactor: { preset: 'strict' },        // Optional: Auto-redact PII
+ *   rateLimiter: { max: 1000, window: 60000 }, // Optional: Rate limiting
+ *   sampler: { rate: 0.1, strategy: 'adaptive' }, // Optional: Sampling
+ *   onFlush: async (entries) => {
+ *     await sendToElasticsearch(entries);
  *   }
  * });
  * ```
  */
-export function createAsyncLogger(options: AsyncLoggerOptions): AsyncLogger {
+export function createAsyncLogger(options: Partial<AsyncLoggerOptions> = {}): AsyncLogger {
+  // Fast default handler - minimal overhead console output
+  const defaultOnFlush = async (entries: LogEntry[]) => {
+    for (const entry of entries) {
+      console.log(`[${entry.level.toUpperCase()}] ${entry.message}`);
+    }
+  };
+
+  // Performance-optimized defaults
+  const defaultBuffer = {
+    size: options.buffer?.size ?? 16384, // Larger buffer by default (16K)
+    flushInterval: options.buffer?.flushInterval ?? 50, // Fast flush (50ms)
+    flushSize: options.buffer?.flushSize ?? 2000, // Larger batch size
+  };
+
+  // Merge defaults with user options - utilities are undefined by default (opt-in)
+  const finalOptions: AsyncLoggerOptions = {
+    buffer: defaultBuffer,
+    onFlush: options.onFlush ?? defaultOnFlush,
+    enableMetrics: options.enableMetrics ?? false,
+    // Utilities are opt-in - only included if explicitly provided
+    redactor: options.redactor,
+    rateLimiter: options.rateLimiter,
+    sampler: options.sampler,
+    queueManager: options.queueManager,
+    fallbackToSync: options.fallbackToSync ?? false,
+    flushOnHighWater: options.flushOnHighWater ?? true,
+  };
+
   // Create a simple log entry factory function
   const createLogEntry = (level: LogLevel, message: string, meta?: Record<string, unknown>) => ({
     id: `async-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -328,96 +350,59 @@ export function createAsyncLogger(options: AsyncLoggerOptions): AsyncLogger {
     context: meta,
   });
 
-  return new AsyncLogger(options, createLogEntry);
+  return new AsyncLogger(finalOptions, createLogEntry);
 }
 
 /**
- * Creates a minimal, high-performance AsyncLogger with no operational utilities.
- * Optimized for maximum throughput - only ring buffer and flushing.
- *
- * @param {object} options - Minimal async logger options
- * @returns {AsyncLogger} High-performance async logger
- *
- * @example
- * ```typescript
- * const fastLogger = createFastAsyncLogger({
- *   buffer: { size: 16384, flushInterval: 50, flushSize: 2000 },
- *   onFlush: async (entries) => {
- *     await transport.sendBatchFast(entries);
- *   }
- * });
- *
- * // Minimal overhead - no utilities, no complex AddResult objects
- * fastLogger.info('High throughput logging');
- * ```
+ * @deprecated Use createAsyncLogger() instead - it's fast by default!
+ * This function now just calls createAsyncLogger() for backward compatibility.
  */
-export function createFastAsyncLogger(options: {
-  buffer?: {
-    size?: number;
-    flushInterval?: number;
-    flushSize?: number;
-  };
-  onFlush: (entries: LogEntry[]) => void | Promise<void>;
-  enableMetrics?: boolean;
-}): AsyncLogger {
-  const optimizedOptions: AsyncLoggerOptions = {
-    buffer: {
-      size: options.buffer?.size || 16384,
-      flushInterval: options.buffer?.flushInterval || 50,
-      flushSize: options.buffer?.flushSize || 2000,
-    },
-    onFlush: options.onFlush,
-    enableMetrics: options.enableMetrics || false,
-    // No utilities for maximum performance
-    rateLimiter: undefined,
-    redactor: undefined,
-    sampler: undefined,
-    queueManager: undefined,
-    fallbackToSync: false,
-    flushOnHighWater: true,
-  };
-
-  // Optimized log entry factory - minimal allocations
-  const createLogEntry = (level: LogLevel, message: string, meta?: Record<string, unknown>) => {
-    const now = Date.now();
-    return {
-      id: `${now}-${Math.random().toString(36).substr(2, 6)}`,
-      level,
-      message,
-      timestamp: new Date(now).toISOString(),
-      timestampMs: now,
-      plainMessage: message,
-      context: meta,
+export function createFastAsyncLogger(
+  options: {
+    buffer?: {
+      size?: number;
+      flushInterval?: number;
+      flushSize?: number;
     };
-  };
-
-  return new AsyncLogger(optimizedOptions, createLogEntry);
+    onFlush?: (entries: LogEntry[]) => void | Promise<void>;
+    enableMetrics?: boolean;
+  } = {}
+): AsyncLogger {
+  return createAsyncLogger(options);
 }
 
 /**
- * Creates a logger with performance-aware defaults based on environment.
- * Smart factory that chooses sync/async based on target environment and usage.
+ * Creates a smart logger that auto-detects the best mode for your environment.
+ * Defaults to 'auto' which picks sync for dev/TTY, async for production.
+ * Always includes console output by default.
  *
  * @param {object} options - Performance-aware logger options
  * @returns {Logger | AsyncLogger} Optimized logger instance
  *
  * @example
  * ```typescript
- * // Auto-selects based on NODE_ENV and TTY
- * const logger = createPerformantLogger({ target: 'auto' });
+ * // Auto mode (default) - smart detection
+ * const logger = createSmartLogger();
+ * // In dev: uses sync Logger for immediate output
+ * // In prod: uses AsyncLogger for performance
  *
- * // Explicit performance choice
- * const prodLogger = createPerformantLogger({
- *   target: 'production',  // Uses AsyncLogger
- *   onFlush: async (entries) => await transport.sendBatch(entries)
+ * // Explicit target
+ * const prodLogger = createSmartLogger({ target: 'production' });
+ * const devLogger = createSmartLogger({ target: 'development' });
+ *
+ * // With custom transport (console still included)
+ * const logger = createSmartLogger({
+ *   onFlush: async (entries) => {
+ *     await sendToDatadog(entries);
+ *   }
  * });
  *
- * const devLogger = createPerformantLogger({
- *   target: 'development' // Uses sync Logger
- * });
+ * // Override detection
+ * const asyncLogger = createSmartLogger({ mode: 'async' });
+ * const syncLogger = createSmartLogger({ mode: 'sync' });
  * ```
  */
-export function createPerformantLogger(
+export function createSmartLogger(
   options: {
     target?: 'auto' | 'development' | 'production';
     mode?: 'sync' | 'async';
@@ -434,11 +419,16 @@ export function createPerformantLogger(
     async: asyncOptions = {},
   } = options;
 
-  // Non-empty default async flush handler to satisfy lint rules
+  // Default console flush handler
   const DEFAULT_ON_FLUSH = async (entries: LogEntry[]): Promise<void> => {
-    // Touch entries length to avoid empty async function lint error
-    if (entries && entries.length > 0) {
-      // no-op
+    const { ConsoleTransport } = await import('./transports/base/implementations/ConsoleTransport');
+    const consoleTransport = new ConsoleTransport({
+      name: 'smart-console',
+      useColors: true,
+    });
+
+    for (const entry of entries) {
+      await consoleTransport.log(entry);
     }
   };
 
@@ -485,6 +475,11 @@ export function createPerformantLogger(
     });
   }
 }
+
+/**
+ * @deprecated Use createSmartLogger instead. Will be removed in v1.0.0.
+ */
+export const createPerformantLogger = createSmartLogger;
 
 // ==========================================
 // ENHANCED ASYNC TYPES EXPORTS
@@ -571,13 +566,7 @@ export type { TransportManagerOptions } from './types/transport';
  *    import { FileTransport } from 'magiclogger/transports/file';
  *    ```
  *
- * 2. Import compatibility layers individually:
- *    ```typescript
- *    import { createWinstonCompatible } from 'magiclogger/compatibility/winston';
- *    import { createPinoCompatible } from 'magiclogger/compatibility/pino';
- *    ```
- *
- * 3. Import core utilities individually (if needed):
+ * 2. Import core utilities individually (if needed):
  *    ```typescript
  *    import { ContextManager } from 'magiclogger/core/context-manager';
  *    import { TagManager } from 'magiclogger/core/tag-manager';

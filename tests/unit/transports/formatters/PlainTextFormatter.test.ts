@@ -57,7 +57,6 @@ describe('PlainTextFormatter', () => {
       message: err.message,
       stack: err.stack,
       code: 'EFAIL',
-      extra: 'data',
     };
     const f = new PlainTextFormatter({
       includeStack: true,

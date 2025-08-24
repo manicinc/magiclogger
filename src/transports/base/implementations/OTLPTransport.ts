@@ -96,13 +96,18 @@ interface OTLPLogRecord {
     kvlistValue?: {
       values: Array<{
         key: string;
-        value: { stringValue?: string; intValue?: string; boolValue?: boolean };
+        value: {
+          stringValue?: string;
+          intValue?: string;
+          boolValue?: boolean;
+          doubleValue?: number;
+        };
       }>;
     };
   };
   attributes: Array<{
     key: string;
-    value: { stringValue?: string; intValue?: string; boolValue?: boolean };
+    value: { stringValue?: string; intValue?: string; boolValue?: boolean; doubleValue?: number };
   }>;
   droppedAttributesCount?: number;
   flags?: number;
@@ -116,7 +121,7 @@ interface OTLPLogRecord {
 interface OTLPResource {
   attributes: Array<{
     key: string;
-    value: { stringValue?: string; intValue?: string; boolValue?: boolean };
+    value: { stringValue?: string; intValue?: string; boolValue?: boolean; doubleValue?: number };
   }>;
   droppedAttributesCount?: number;
 }
@@ -400,9 +405,9 @@ export class OTLPTransport extends BatchingTransport {
   }
 
   /**
-   * Creates an OTLP log record from a log entry.
+   * Creates an OTLP log record from a MagicLog schema entry.
    *
-   * @param {LogEntry} entry - Log entry
+   * @param {LogEntry} entry - Log entry following MagicLog schema
    * @returns {OTLPLogRecord} Log record
    * @private
    */
@@ -412,16 +417,49 @@ export class OTLPTransport extends BatchingTransport {
       severityNumber: this.getSeverityNumber(entry.level),
       severityText: entry.level.toUpperCase(),
       body: {
-        stringValue: entry.message,
+        // Use plain message for structured backends
+        stringValue: entry.plainMessage || entry.message,
       },
       attributes: [],
     };
+
+    // === MagicLog Schema Core Fields ===
+
+    // Add unique log ID
+    record.attributes.push({
+      key: 'log.id',
+      value: { stringValue: entry.id },
+    });
+
+    // Add schema version for compatibility
+    if (entry.schemaVersion) {
+      record.attributes.push({
+        key: 'magiclog.schema_version',
+        value: { stringValue: entry.schemaVersion },
+      });
+    }
 
     // Add logger ID if present
     if (entry.loggerId) {
       record.attributes.push({
         key: 'logger.id',
         value: { stringValue: entry.loggerId },
+      });
+    }
+
+    // Add service name (maps to resource but also as attribute for filtering)
+    if (entry.service) {
+      record.attributes.push({
+        key: 'service.name',
+        value: { stringValue: entry.service },
+      });
+    }
+
+    // Add environment
+    if (entry.environment) {
+      record.attributes.push({
+        key: 'deployment.environment',
+        value: { stringValue: entry.environment },
       });
     }
 
@@ -433,13 +471,23 @@ export class OTLPTransport extends BatchingTransport {
       });
     }
 
-    // Add context attributes
+    // === Structured Context ===
     if (entry.context) {
       for (const [key, value] of Object.entries(entry.context)) {
+        // Skip trace context fields as they're handled separately
+        if (key === 'traceId' || key === 'spanId' || key === 'parentSpanId') {
+          continue;
+        }
+
         if (typeof value === 'string') {
           record.attributes.push({ key, value: { stringValue: value } });
         } else if (typeof value === 'number') {
-          record.attributes.push({ key, value: { intValue: value.toString() } });
+          // Use intValue for integers, doubleValue for floats
+          if (Number.isInteger(value)) {
+            record.attributes.push({ key, value: { intValue: value.toString() } });
+          } else {
+            record.attributes.push({ key, value: { doubleValue: value } });
+          }
         } else if (typeof value === 'boolean') {
           record.attributes.push({ key, value: { boolValue: value } });
         }
@@ -460,12 +508,109 @@ export class OTLPTransport extends BatchingTransport {
       }
     }
 
-    // Add trace context if available
-    if (this.includeTraceContext) {
+    // === Distributed Tracing (MagicLog Schema) ===
+
+    // First check if entry already has trace context (from ObservabilityMiddleware)
+    if (entry.trace) {
+      if (entry.trace.traceId) {
+        record.traceId = entry.trace.traceId;
+      }
+      if (entry.trace.spanId) {
+        record.spanId = entry.trace.spanId;
+      }
+      // Add parent span as attribute
+      if (entry.trace.parentSpanId) {
+        record.attributes.push({
+          key: 'trace.parent_span_id',
+          value: { stringValue: entry.trace.parentSpanId },
+        });
+      }
+      // Add trace flags and state as attributes
+      if (entry.trace.traceFlags) {
+        record.attributes.push({
+          key: 'trace.flags',
+          value: { stringValue: entry.trace.traceFlags },
+        });
+      }
+      if (entry.trace.traceState) {
+        record.attributes.push({
+          key: 'trace.state',
+          value: { stringValue: entry.trace.traceState },
+        });
+      }
+    }
+    // Also check metadata.trace for backward compatibility
+    else if (entry.metadata?.trace) {
+      if (entry.metadata.trace.traceId) {
+        record.traceId = entry.metadata.trace.traceId;
+      }
+      if (entry.metadata.trace.spanId) {
+        record.spanId = entry.metadata.trace.spanId;
+      }
+    }
+    // Fall back to runtime detection if includeTraceContext is enabled
+    else if (this.includeTraceContext) {
       const traceContext = this.getTraceContext();
       if (traceContext) {
         record.traceId = traceContext.traceId;
         record.spanId = traceContext.spanId;
+      }
+    }
+
+    // === Runtime Metadata ===
+    if (entry.metadata) {
+      // Add hostname
+      if (entry.metadata.hostname) {
+        record.attributes.push({
+          key: 'host.name',
+          value: { stringValue: entry.metadata.hostname },
+        });
+      }
+
+      // Add process info
+      if (entry.metadata.pid) {
+        record.attributes.push({
+          key: 'process.pid',
+          value: { intValue: entry.metadata.pid.toString() },
+        });
+      }
+
+      // Add resource metrics if available
+      if (entry.metadata.resources) {
+        if (entry.metadata.resources.memory) {
+          record.attributes.push(
+            {
+              key: 'process.runtime.memory.heap_used',
+              value: { intValue: entry.metadata.resources.memory.heapUsed.toString() },
+            },
+            {
+              key: 'process.runtime.memory.heap_total',
+              value: { intValue: entry.metadata.resources.memory.heapTotal.toString() },
+            }
+          );
+        }
+        if (entry.metadata.resources.cpu) {
+          record.attributes.push(
+            {
+              key: 'process.runtime.cpu.user',
+              value: { intValue: entry.metadata.resources.cpu.user.toString() },
+            },
+            {
+              key: 'process.runtime.cpu.system',
+              value: { intValue: entry.metadata.resources.cpu.system.toString() },
+            }
+          );
+        }
+      }
+
+      // Add health metrics if available
+      if (entry.metadata.health) {
+        if (entry.metadata.health.uptime) {
+          record.attributes.push({
+            key: 'process.uptime',
+            value: { intValue: Math.floor(entry.metadata.health.uptime).toString() },
+          });
+        }
       }
     }
 

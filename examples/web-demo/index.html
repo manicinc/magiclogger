@@ -694,10 +694,10 @@
   <div class="toast" id="toast-notification"></div>
 
   <script type="module">
-    // Replace with proper import once available
-    // import { Logger } from './dist/index.js';
+    // Import the actual MagicLogger from the local dist folder
+    import { createSmart as createLogger } from './dist/browser/index.js';
     
-    // Mock Logger for testing until we have the actual implementation
+    // Wrapper class to maintain the demo interface
     class Logger {
       constructor(options = {}) {
         this.verbose = options.verbose ?? false;
@@ -706,6 +706,14 @@
         this.storageName = options.storageName ?? 'magiclogger-logs';
         this.useLocalStorage = options.useLocalStorage ?? true;
         this.logs = [];
+        
+        // Create the actual magiclogger instance
+        this.logger = createLogger({
+          level: this.verbose ? 'debug' : 'info',
+          theme: 'modern',
+          animations: true,
+          tags: ['web-demo']
+        });
         
         // Load existing logs if storage is enabled
         if (this.storeInBrowser) {
@@ -717,7 +725,27 @@
         const timestamp = new Date().toISOString();
         const logEntry = `[${timestamp}] [${level.toUpperCase()}] ${msg}`;
         
-        console.log(logEntry);
+        // Use the actual magiclogger methods
+        switch (level.toLowerCase()) {
+          case 'info':
+            this.logger.info(msg);
+            break;
+          case 'warn':
+            this.logger.warn(msg);
+            break;
+          case 'error':
+            this.logger.error(msg);
+            break;
+          case 'debug':
+            this.logger.debug(msg);
+            break;
+          case 'success':
+            this.logger.success(msg);
+            break;
+          default:
+            this.logger.log(msg, { level });
+            break;
+        }
         
         // Dispatch event for UI to capture
         const event = new CustomEvent('logger:log', {
@@ -744,16 +772,36 @@
         }
       }
       
-      info(msg) { this.log(msg, 'info'); }
-      warn(msg) { this.log(msg, 'warn'); }
-      error(msg) { this.log(msg, 'error'); }
+      info(msg) { 
+        this.logger.info(msg);
+        this.log(msg, 'info');
+      }
+      warn(msg) { 
+        this.logger.warn(msg);
+        this.log(msg, 'warn');
+      }
+      error(msg) { 
+        this.logger.error(msg);
+        this.log(msg, 'error');
+      }
       debug(msg) { 
         if (this.verbose) {
+          this.logger.debug(msg);
           this.log(msg, 'debug');
         }
       }
-      success(msg) { this.log(msg, 'success'); }
-      custom(msg, colors, prefix) { this.log(msg, prefix || 'custom'); }
+      success(msg) { 
+        this.logger.success(msg);
+        this.log(msg, 'success');
+      }
+      custom(msg, colors, prefix) { 
+        // Use the logger's styled output with custom prefix
+        this.logger.log(msg, { 
+          prefix: prefix || 'CUSTOM',
+          styles: colors || ['cyan']
+        });
+        this.log(msg, prefix || 'custom');
+      }
       
       // Browser storage methods
       loadLogsFromStorage() {

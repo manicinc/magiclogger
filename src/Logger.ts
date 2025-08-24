@@ -1,9 +1,7 @@
 // File: src/Logger.ts
 
-import { NodeLogger } from './core/NodeLogger';
-import { BrowserLogger } from './core/BrowserLogger';
 import { TransportManager } from './transports/base/TransportManager';
-import { Transport } from './transports/base/Transport';
+import type { Transport } from './types/transport';
 import { Colorizer } from './core/Colorizer';
 import { Formatter } from './core/Formatter';
 import { StyleBuilder } from './core/StyleBuilder';
@@ -14,10 +12,10 @@ import type { StylePreset } from './types/preset';
 import type { ColorName } from './types/colors';
 import type { LogEntry } from './types/transport';
 import type { StyledPart, WordStyleMap, TemplateFormatter, IStyleBuilder } from './types/styling';
-import type { LoggerBase } from './core/LoggerBase';
-import { FileManager } from './core/FileManager';
 import { IS_PATH_REGEX } from './constants/paths';
 import { META_WRAPPER, type MetaArg } from './utils/meta';
+import { ThemeManager } from './theme/ThemeManager';
+import type { ThemeDefinition } from './types/theme';
 
 // Conditional imports for Node.js modules
 let path: typeof import('path') | undefined;
@@ -49,40 +47,6 @@ if (typeof process !== 'undefined' && typeof require !== 'undefined') {
  * ```
  */
 export type IdGenerator = () => string;
-
-/**
- * Extended logger instance interface with optional close method.
- * Used internally for type augmentation of logger implementations.
- *
- * @interface ExtendedLoggerInstance
- * @internal
- */
-interface ExtendedLoggerInstance {
-  /**
-   * Optional close method for cleanup operations.
-   * @returns {Promise<void>} Promise that resolves when logger is closed
-   */
-  close?: () => Promise<void>;
-}
-
-/**
- * Extended node logger instance interface for file operations.
- * Adds file management capabilities to the base logger interface.
- *
- * @interface ExtendedNodeLogger
- * @extends {ExtendedLoggerInstance}
- * @internal
- */
-interface ExtendedNodeLogger extends ExtendedLoggerInstance {
-  /** File manager instance for handling log files */
-  fileManager?: FileManager;
-  /** Whether to write logs to disk */
-  writeToDisk?: boolean;
-  /** Directory path for log files */
-  logDir?: string;
-  /** Number of days to retain log files */
-  logRetentionDays?: number;
-}
 
 /**
  * Metadata type for log entries.
@@ -123,46 +87,6 @@ export type LogMetadata = Record<string, unknown>;
 export type LogEntryMeta = LogMetadata | Error | { error?: Error; [key: string]: unknown };
 
 /**
- * Extended logger options that include transport configuration.
- * Extends the base LoggerOptions with transport-specific settings.
- *
- * @interface ExtendedLoggerOptions
- * @extends {LoggerOptions}
- */
-export interface ExtendedLoggerOptions extends LoggerOptions {
-  /**
-   * Array of transports to use for logging.
-   * @type {Transport[]}
-   * @default []
-   */
-  transports?: Transport[];
-
-  /**
-   * Whether to use legacy console/file output in addition to transports.
-   * @type {boolean}
-   * @default false
-   */
-  useLegacyOutput?: boolean;
-
-  /**
-   * Custom ID generator function for log entries.
-   * @type {IdGenerator}
-   */
-  idGenerator?: IdGenerator;
-
-  /**
-   * Whether to automatically create default transports.
-   * @type {boolean}
-   * @default false
-   */
-  useDefaultTransports?: boolean;
-  /** Controls how non-string args are printed in variadic calls. */
-  prettyPrint?: 'inspect' | 'json';
-  /** When true and verbose, append compact meta summary to console output. */
-  printMetaInDebug?: boolean;
-}
-
-/**
  * Main Logger class that provides a unified logging interface.
  *
  * This class automatically detects the runtime environment (Node.js or Browser)
@@ -190,12 +114,6 @@ export interface ExtendedLoggerOptions extends LoggerOptions {
  */
 export class Logger {
   /**
-   * Legacy logger instance for backward compatibility.
-   * @private
-   */
-  private loggerInstance: NodeLogger | BrowserLogger;
-
-  /**
    * Transport manager for handling multiple log destinations.
    * @private
    */
@@ -206,7 +124,7 @@ export class Logger {
    * @private
    * @readonly
    */
-  private readonly options: ExtendedLoggerOptions;
+  private readonly options: LoggerOptions;
 
   /**
    * Function for generating unique IDs for log entries.
@@ -214,13 +132,6 @@ export class Logger {
    * @readonly
    */
   private readonly idGenerator: IdGenerator;
-
-  /**
-   * Whether to use legacy output methods in addition to transports.
-   * @private
-   * @readonly
-   */
-  private readonly useLegacyOutput: boolean;
 
   /**
    * Formatter instance for text formatting and styling.
@@ -249,6 +160,12 @@ export class Logger {
   private nodeUtilInspect?: ((val: unknown, opts?: unknown) => string) | null;
 
   /**
+   * Theme manager instance for handling themes.
+   * @private
+   */
+  private themeManager?: ThemeManager;
+
+  /**
    * Creates a new Logger instance with the specified options.
    *
    * @constructor
@@ -256,11 +173,7 @@ export class Logger {
    * @param {boolean} [writeToDisk] - Whether to write to disk (backward compatibility)
    * @param {boolean} [useColors] - Whether to use colors (backward compatibility)
    */
-  constructor(
-    options: ExtendedLoggerOptions | boolean = {},
-    writeToDisk?: boolean,
-    useColors?: boolean
-  ) {
+  constructor(options: LoggerOptions | boolean = {}, writeToDisk?: boolean, useColors?: boolean) {
     // Handle backward compatibility with boolean constructor
     if (typeof options === 'boolean') {
       const verbose = options;
@@ -277,42 +190,23 @@ export class Logger {
     // Validate and normalize options
     this.options = this.validateOptions(this.options);
 
-    this.useLegacyOutput = this.options.useLegacyOutput ?? false;
     this.idGenerator = this.options.idGenerator ?? this.defaultIdGenerator;
-
-    // Initialize legacy logger instance based on environment
-    if (typeof window !== 'undefined') {
-      this.loggerInstance = new BrowserLogger(this.options);
-    } else {
-      const instance = new NodeLogger(this.options) as unknown as Record<string, unknown> & {
-        constructor?: { name: string };
-      };
-      // If a mock returns a plain object (constructor.name === 'Object'), adjust for tests
-      if (instance && instance.constructor && instance.constructor.name === 'Object') {
-        // Assign a dummy constructor with the expected name so tests can detect NodeLogger
-        Object.defineProperty(instance, 'constructor', {
-          value: function NodeLogger() {
-            /* test shim */
-          },
-          writable: true,
-          configurable: true,
-        });
-      }
-      this.loggerInstance = instance as unknown as NodeLogger;
-    }
 
     // Initialize transport manager
     this.transportManager = new TransportManager();
 
     // Initialize transports
     this.initializeTransports();
+
+    // Initialize theme manager and resolve theme
+    this.initializeTheme();
   }
 
   /**
    * Processes constructor options and environment variables.
    * @private
    */
-  private processOptions(options: ExtendedLoggerOptions): ExtendedLoggerOptions {
+  private processOptions(options: LoggerOptions): LoggerOptions {
     const processed = { ...options };
 
     // Read environment variables if properties are not explicitly set
@@ -351,7 +245,7 @@ export class Logger {
    * Validates and normalizes logger options.
    * @private
    */
-  private validateOptions(options: ExtendedLoggerOptions): ExtendedLoggerOptions {
+  private validateOptions(options: LoggerOptions): LoggerOptions {
     const validated = { ...options };
 
     // Validate logRetentionDays - must be at least 1
@@ -382,6 +276,57 @@ export class Logger {
   }
 
   /**
+   * Initializes theme manager and resolves theme based on configuration.
+   * @private
+   */
+  private initializeTheme(): void {
+    this.themeManager = new ThemeManager();
+
+    // Resolve theme based on options
+    let resolvedTheme: ThemeDefinition | undefined;
+
+    // 1. Check if explicit theme is provided
+    if (this.options.theme) {
+      if (typeof this.options.theme === 'string') {
+        resolvedTheme = this.themeManager.getTheme(this.options.theme);
+      } else {
+        resolvedTheme = this.options.theme as ThemeDefinition;
+      }
+    }
+
+    // 2. If no explicit theme, check themeByTag mapping
+    if (!resolvedTheme && this.options.themeByTag && this.options.tags) {
+      for (const tag of this.options.tags) {
+        const themeName = this.options.themeByTag[tag];
+        if (themeName) {
+          // Check if the specific theme exists in available themes
+          if (this.themeManager.themes[themeName]) {
+            resolvedTheme = this.themeManager.themes[themeName];
+            break;
+          }
+        }
+      }
+    }
+
+    // 3. If still no theme found and we have tags, check if any tag matches a theme name
+    if (!resolvedTheme && this.options.tags) {
+      for (const tag of this.options.tags) {
+        if (this.themeManager.themes[tag]) {
+          resolvedTheme = this.themeManager.themes[tag];
+          break;
+        }
+      }
+    }
+
+    // 4. Set the resolved theme if found
+    if (resolvedTheme) {
+      this.themeManager.setTheme(resolvedTheme);
+      // Update options with resolved theme
+      (this.options as { theme: ThemeDefinition }).theme = resolvedTheme;
+    }
+  }
+
+  /**
    * Initializes transports based on configuration.
    * @private
    */
@@ -391,52 +336,35 @@ export class Logger {
       this.options.transports.forEach(transport => {
         this.addTransport(transport);
       });
-    } else if (this.options.useDefaultTransports) {
-      // Only create default transports if explicitly requested
-      this.createDefaultTransportsAsync();
+    } else if (this.options.useConsole !== false) {
+      // Create default console transport using MagicLog schema
+      this.createDefaultConsoleTransport();
     }
-    // If neither, no transports are added (tree-shakeable)
   }
 
   /**
-   * Asynchronously creates and adds default transports.
+   * Creates default console transport asynchronously.
    * @private
    */
-  private async createDefaultTransportsAsync(): Promise<void> {
-    try {
-      // Dynamically import console transport
-      const { ConsoleTransport } = await import(
-        './transports/base/implementations/ConsoleTransport'
-      );
-
-      const consoleTransport = new ConsoleTransport({
-        name: 'default-console',
-        enabled: true,
-        level: this.options.verbose ? 'debug' : 'info',
-        useColors: this.options.useColors ?? true,
-      });
-
-      await this.addTransport(consoleTransport);
-
-      // Add file transport if writeToDisk is enabled (Node.js only)
-      if (this.options.writeToDisk && typeof window === 'undefined') {
-        const { FileTransport } = await import('./transports/base/implementations/FileTransport');
-
-        const fileTransport = new FileTransport({
-          name: 'default-file',
+  private createDefaultConsoleTransport(): void {
+    // Load console transport asynchronously to avoid bundling issues
+    import('./transports/base/implementations/ConsoleTransport')
+      .then(({ ConsoleTransport }) => {
+        const consoleTransport = new ConsoleTransport({
+          name: 'console',
           enabled: true,
           level: this.options.verbose ? 'debug' : 'info',
-          filepath: this.options.logDir || './logs',
-          isDirectory: true,
-          retentionDays: this.options.logRetentionDays,
+          useColors: this.options.useColors ?? true,
         });
 
-        await this.addTransport(fileTransport);
-      }
-    } catch (error) {
-      // If dynamic import fails, log warning but continue
-      console.warn('[Logger] Failed to create default transports:', error);
-    }
+        this.transportManager.registerTransport(consoleTransport).catch(error => {
+          console.warn('[Logger] Failed to register console transport:', error);
+        });
+      })
+      .catch(() => {
+        // Fallback: console transport not available (shouldn't happen)
+        console.warn('[Logger] Console transport not available');
+      });
   }
 
   /**
@@ -851,14 +779,18 @@ export class Logger {
 
     // Send to transports if available
     if (this.transportManager && this.transportManager.getTransportNames().length > 0) {
-      this.transportManager.log(entry).catch(error => {
+      // For sync logger, we should wait for transports to complete
+      // But we can't make this method async without breaking the API
+      // So we use Promise.resolve().then() to ensure it runs after current sync code
+      // but still handle errors properly
+      void this.transportManager.log(entry).catch(error => {
         console.error('[Logger] Failed to log to transports:', error);
       });
     }
 
-    // Use legacy output if enabled or no transports configured
-    if (this.useLegacyOutput || this.transportManager.getTransportNames().length === 0) {
-      this.loggerInstance.log(msg, level);
+    // Fallback to simple console if no transports (shouldn't happen with default console transport)
+    if (this.transportManager.getTransportNames().length === 0) {
+      console.log(`[${level.toUpperCase()}] ${msg}`);
     }
   }
 
@@ -1036,12 +968,6 @@ export class Logger {
    */
   public async close(): Promise<void> {
     await this.transportManager.close();
-
-    // Close legacy logger if it has a close method
-    const extendedLogger = this.loggerInstance as ExtendedLoggerInstance;
-    if (typeof extendedLogger.close === 'function') {
-      await extendedLogger.close();
-    }
   }
 
   // ============================================================
@@ -1054,12 +980,18 @@ export class Logger {
    * @deprecated Use standard log methods with transports for better control
    */
   public custom(msg: string, colors: ColorName[] = ['white'], prefix = 'LOG'): void {
-    if (this.useLegacyOutput) {
-      this.loggerInstance.custom(msg, colors, prefix);
+    // Apply colors to the message using the style builder
+    let styledMessage = msg;
+    if (colors.length > 0) {
+      // Use TextStyler utility for proper color application
+      styledMessage = TextStyler.styleParts([[msg, ...colors]], this.useColors);
     }
 
-    // Convert to standard log
-    this.log(msg, prefix.toLowerCase() as LogLevel);
+    // Route through standard log system using MagicLog schema
+    this.log(`${prefix}: ${styledMessage}`, 'info', {
+      customColors: colors,
+      customPrefix: prefix,
+    });
   }
 
   /**
@@ -1068,9 +1000,8 @@ export class Logger {
    * @deprecated Use standard log methods for better consistency
    */
   public styled(msg: string, preset: StylePreset): void {
-    if (this.useLegacyOutput) {
-      this.loggerInstance.styled(msg, preset);
-    }
+    // Route through standard log system using MagicLog schema
+    this.log(msg, 'info');
 
     // Convert preset to level if possible
     const levelMap: Record<StylePreset, LogLevel> = {
@@ -1094,9 +1025,17 @@ export class Logger {
    * Prints a section header (legacy method).
    * @public
    */
-  public header(title: string, colors: ColorName[] = ['brightWhite', 'bgBlue', 'bold']): void {
-    // Always use console for visual elements
-    this.loggerInstance.header(title, colors);
+  public header(title: string, colors?: ColorName[]): void {
+    // Use theme header colors if available, otherwise use provided colors or default
+    let headerColors = colors;
+    if (!headerColors) {
+      const currentTheme = this.getTheme();
+      headerColors = currentTheme.header || ['brightWhite', 'bgBlue', 'bold'];
+    }
+
+    // Apply styling and log as info with header metadata
+    const styledTitle = TextStyler.styleParts([[title, ...headerColors]], this.useColors);
+    this.log(styledTitle, 'info', { type: 'header', originalColors: headerColors });
   }
 
   /**
@@ -1111,8 +1050,16 @@ export class Logger {
     if (!Array.isArray(data) || data.length === 0) {
       return;
     }
-    // Always use console for visual elements
-    this.loggerInstance.table(data, headerColor);
+    // Simple table implementation for transport compatibility
+    const keys = Object.keys(data[0] || {});
+    const header = keys.join(' | ');
+    const styledHeader = TextStyler.styleParts([[header, ...headerColor]], this.useColors);
+    this.log(styledHeader, 'info', { type: 'table-header' });
+
+    data.forEach((row, index) => {
+      const rowText = keys.map(key => String(row[key] || '')).join(' | ');
+      this.log(rowText, 'info', { type: 'table-row', rowIndex: index });
+    });
   }
 
   /**
@@ -1126,9 +1073,20 @@ export class Logger {
     incompleteChar = '░',
     clear = false
   ): void {
-    // Always use console for visual elements
-    // clear flag preserves default behavior when omitted (false)
-    this.loggerInstance.progressBar(progress, length, completeChar, incompleteChar, clear);
+    // Simple progress bar implementation for transport compatibility
+    const clampedProgress = Math.max(0, Math.min(1, progress));
+    const filledLength = Math.round(clampedProgress * length);
+    const emptyLength = length - filledLength;
+    const bar = completeChar.repeat(filledLength) + incompleteChar.repeat(emptyLength);
+    const percentage = Math.round(clampedProgress * 100);
+    const progressText = `[${bar}] ${percentage}%`;
+
+    this.log(progressText, 'info', {
+      type: 'progress-bar',
+      progress: clampedProgress,
+      percentage,
+      clear,
+    });
   }
 
   /**
@@ -1140,11 +1098,8 @@ export class Logger {
     if (typeof url === 'string' && /[A-Za-z]:\\/.test(url)) {
       url = url.replace(/\\/g, '/');
     }
-    if (this.useLegacyOutput) {
-      this.loggerInstance.link(url, description);
-    } else {
-      this.info(`${description || url}: ${url}`);
-    }
+    // Always use MagicLog schema
+    this.log(`[Link] ${description || url}: ${url}`, 'info', { url, linkDescription: description });
   }
 
   /**
@@ -1239,7 +1194,8 @@ export class Logger {
    * @public
    */
   public setVerbose(enabled: boolean): void {
-    this.loggerInstance.setVerbose(enabled);
+    // Update internal options
+    (this.options as { verbose: boolean }).verbose = enabled;
 
     // Update transports
     this.transportManager.getTransportNames().forEach((name: string) => {
@@ -1256,7 +1212,8 @@ export class Logger {
    * @public
    */
   public setColorsEnabled(enabled: boolean): void {
-    this.loggerInstance.setColorsEnabled(enabled);
+    // Update internal options
+    (this.options as { useColors: boolean }).useColors = enabled;
 
     // Update style builders
     if (this.styleBuilder) {
@@ -1273,7 +1230,12 @@ export class Logger {
    * @public
    */
   public get theme(): Record<string, ColorName[]> {
-    return (this.loggerInstance as LoggerBase).getTheme();
+    // Return theme from options or default empty theme
+    const themeOption = this.options.theme;
+    if (typeof themeOption === 'object' && themeOption) {
+      return themeOption as Record<string, ColorName[]>;
+    }
+    return {};
   }
 
   /**
@@ -1288,7 +1250,9 @@ export class Logger {
         validated[key] = value as ColorName[];
       }
     }
-    (this.loggerInstance as LoggerBase).setTheme(validated);
+
+    // Update internal options
+    (this.options as { theme: Record<string, ColorName[]> }).theme = validated;
   }
 
   /**
@@ -1296,26 +1260,44 @@ export class Logger {
    * @public
    */
   public getTheme(): Record<string, ColorName[]> {
-    return (this.loggerInstance as LoggerBase).getTheme();
+    // First try to get theme from theme manager
+    if (this.themeManager) {
+      const currentTheme = this.themeManager.getCurrentTheme();
+      if (currentTheme && Object.keys(currentTheme).length > 0) {
+        return currentTheme as Record<string, ColorName[]>;
+      }
+    }
+
+    // Fallback to theme from options
+    return this.theme;
   }
 
   /**
-   * Creates a child logger with merged options (delegates to underlying logger).
+   * Creates a child logger with merged options.
    * @public
    */
   public child(options: Partial<LoggerOptions>): Logger {
-    const base = this.loggerInstance as unknown as {
-      child: (opts: Partial<LoggerOptions>) => LoggerBase;
-    };
-    const childImpl = base.child(options);
-    // Wrap the child implementation in a new Logger facade reusing transports/options
-    const facade = new Logger(this.options);
-    // Replace the internal instance with the concrete child
-    (facade as unknown as { loggerInstance: LoggerBase }).loggerInstance = childImpl as LoggerBase;
-    // Reuse the existing transport manager configuration
-    (facade as unknown as { transportManager: TransportManager }).transportManager =
+    // Merge options with parent options, handling tags specially
+    const mergedOptions = { ...this.options, ...options };
+
+    // Merge tags arrays if both parent and child have tags
+    if (this.options.tags && options.tags) {
+      mergedOptions.tags = [...this.options.tags, ...options.tags];
+    }
+
+    // Merge themeByTag mappings if both parent and child have them
+    if (this.options.themeByTag && options.themeByTag) {
+      mergedOptions.themeByTag = { ...this.options.themeByTag, ...options.themeByTag };
+    }
+
+    // Create new child logger
+    const childLogger = new Logger(mergedOptions);
+
+    // Share transport manager with parent
+    (childLogger as unknown as { transportManager: TransportManager }).transportManager =
       this.transportManager;
-    return facade;
+
+    return childLogger;
   }
 
   // ============================================================
@@ -1327,18 +1309,16 @@ export class Logger {
    * @returns {boolean} Whether verbose mode is enabled
    */
   public get verbose(): boolean {
-    return (this.loggerInstance as LoggerBase).isVerbose();
+    return this.options.verbose ?? false;
   }
 
   /**
-   * Gets the write-to-disk setting (Node.js only).
+   * Gets the write-to-disk setting (deprecated).
    * @returns {boolean} Whether file logging is enabled
+   * @deprecated Use transports instead
    */
   public get writeToDisk(): boolean {
-    if (this.loggerInstance instanceof NodeLogger) {
-      return this.loggerInstance.isWriteToDiskEnabled();
-    }
-    return false;
+    return this.options.writeToDisk ?? false;
   }
 
   /**
@@ -1346,42 +1326,34 @@ export class Logger {
    * @returns {boolean} Whether colors are enabled
    */
   public get useColors(): boolean {
-    return (this.loggerInstance as LoggerBase).areColorsEnabled();
+    return this.options.useColors ?? true;
   }
 
   /**
-   * Gets the log retention days setting (Node.js only).
+   * Gets the log retention days setting (deprecated).
    * @returns {number} Number of days to retain logs
+   * @deprecated Use transports instead
    */
   public get logRetentionDays(): number {
-    if (this.loggerInstance instanceof NodeLogger) {
-      const nodeLogger = this.loggerInstance as unknown as ExtendedNodeLogger;
-      return nodeLogger.logRetentionDays || 30;
-    }
-    return 30;
+    return this.options.logRetentionDays ?? 30;
   }
 
   /**
-   * Gets the log directory path (Node.js only).
+   * Gets the log directory path (deprecated).
    * @returns {string} Log directory path
+   * @deprecated Use transports instead
    */
   public get logDir(): string {
-    if (this.loggerInstance instanceof NodeLogger) {
-      const nodeLogger = this.loggerInstance as unknown as ExtendedNodeLogger;
-      return nodeLogger.logDir || 'logs';
-    }
-    return 'logs';
+    return this.options.logDir ?? 'logs';
   }
 
   /**
-   * Gets the current log file path (Node.js only).
+   * Gets the current log file path (deprecated).
    * @returns {string | null} Current log file path or null
+   * @deprecated Use transports instead
    */
   public get logFile(): string | null {
-    if (this.loggerInstance instanceof NodeLogger) {
-      const nodeLogger = this.loggerInstance as NodeLogger;
-      return nodeLogger.getLogFilePath();
-    }
+    // Legacy compatibility - no longer functional
     return null;
   }
 
@@ -1436,29 +1408,23 @@ export class Logger {
   }
 
   /**
-   * Initializes log file (Node.js only).
+   * Initializes log file (deprecated).
    * @public
+   * @deprecated Use file transports instead
    */
   public initLogFile(): void {
-    if (this.loggerInstance instanceof NodeLogger) {
-      const nodeLogger = this.loggerInstance as unknown as ExtendedNodeLogger;
-      if (nodeLogger.fileManager) {
-        nodeLogger.fileManager.initLogFile().catch((err: Error) => {
-          console.error('Failed to initialize log file:', err);
-          nodeLogger.writeToDisk = false;
-        });
-      }
-    }
+    // Legacy method - no longer functional with transport system
+    console.warn('[Logger] initLogFile() is deprecated. Use file transports instead.');
   }
 
   /**
-   * Cleans up old log files (Node.js only).
+   * Cleans up old log files (deprecated).
    * @public
+   * @deprecated Use file transports instead
    */
   public cleanupOldLogs(): void {
-    if (this.loggerInstance instanceof NodeLogger) {
-      this.loggerInstance.cleanupOldLogs();
-    }
+    // Legacy method - no longer functional with transport system
+    console.warn('[Logger] cleanupOldLogs() is deprecated. Use file transports instead.');
   }
 
   // ============================================================
@@ -1466,258 +1432,64 @@ export class Logger {
   // ============================================================
 
   /**
-   * Gets the current log file path (Node.js only).
+   * Gets the current log file path (deprecated).
    * @public
+   * @deprecated Use file transports instead
    */
   public getPath(): string | null {
-    if (this.loggerInstance instanceof NodeLogger) {
-      const nodeLogger = this.loggerInstance as NodeLogger;
-      return nodeLogger.getLogFilePath();
-    }
+    // Legacy method - no longer functional with transport system
     return null;
   }
 
   /**
-   * Gets the current log directory (Node.js only).
+   * Gets the current log directory (deprecated).
    * @public
+   * @deprecated Use file transports instead
    */
   public getLogDir(): string {
-    type MaybeNodeLike = {
-      getLogDirectory?: () => string;
-      logDir?: string;
-    };
-    const inst = this.loggerInstance as unknown as MaybeNodeLike;
-    try {
-      if (inst && typeof inst.getLogDirectory === 'function') {
-        return inst.getLogDirectory();
-      }
-      if (inst && typeof inst.logDir === 'string') {
-        return inst.logDir;
-      }
-    } catch {
-      /* ignore */
-    }
-    return 'logs';
+    return this.options.logDir ?? 'logs';
   }
 
   /**
-   * Sets the log directory (Node.js only).
+   * Sets the log directory (deprecated).
    * @public
+   * @deprecated Use file transports instead
    */
-  public setLogDir(dir: string, reinitialize = false): void {
-    // Validate input and provide fallback
-    if (typeof dir !== 'string') {
-      console.warn(`Invalid log directory type: ${typeof dir}. Using default.`);
-      dir = './logs';
-    }
-
-    type MaybeNodeLike = {
-      setLogDirectory?: (d: string, reinit?: boolean) => void;
-      logDir?: string;
-    };
-    const inst = this.loggerInstance as unknown as MaybeNodeLike;
-    if (inst) {
-      // Prefer calling implementation method if available
-      if (typeof inst.setLogDirectory === 'function') {
-        try {
-          inst.setLogDirectory(dir, reinitialize);
-        } catch {
-          /* ignore */
-        }
-      }
-
-      // Ensure a FileManager exists and update its dir
-      const nodeLogger = this.loggerInstance as unknown as ExtendedNodeLogger;
-      if (!nodeLogger.fileManager) {
-        nodeLogger.fileManager = new FileManager(
-          dir,
-          nodeLogger.logRetentionDays || 30
-        ) as ExtendedNodeLogger['fileManager'];
-      } else {
-        try {
-          nodeLogger.fileManager.setLogDir(dir);
-        } catch {
-          /* ignore */
-        }
-      }
-
-      // Keep logDir property in sync so getLogDir() reflects the change
-      try {
-        inst.logDir = dir;
-      } catch {
-        /* ignore */
-      }
-
-      if (reinitialize && nodeLogger.writeToDisk && nodeLogger.fileManager) {
-        try {
-          const fm = nodeLogger.fileManager as unknown as {
-            initLogFile?: () => Promise<string | null>;
-            initLogFileSync?: () => string | null;
-            getLogFile?: () => string | null;
-          } & { logFile?: string | null };
-
-          // Clear any previously cached log file
-          if ('logFile' in fm) {
-            Reflect.set(fm as object, 'logFile', null);
-          }
-
-          let syncResult: string | null | undefined;
-          if (typeof fm.initLogFileSync === 'function') {
-            syncResult = fm.initLogFileSync();
-            nodeLogger.writeToDisk = !!syncResult;
-          }
-          if (!syncResult && typeof fm.initLogFile === 'function') {
-            fm.initLogFile()
-              .then(path => {
-                if (!path) nodeLogger.writeToDisk = false;
-              })
-              .catch((err: Error) => {
-                console.error('Failed to initialize log file:', err);
-                nodeLogger.writeToDisk = false;
-              });
-          }
-        } catch (err) {
-          console.error('Failed to initialize log file:', err);
-          nodeLogger.writeToDisk = false;
-        }
-      }
-    }
+  public setLogDir(dir: string, _reinitialize = false): void {
+    // Update options for compatibility
+    (this.options as { logDir: string }).logDir = dir;
+    console.warn('[Logger] setLogDir() is deprecated. Use file transports instead.');
   }
 
   /**
-   * Gets the log retention period in days (Node.js only).
+   * Gets the log retention period in days (deprecated).
    * @public
+   * @deprecated Use file transports instead
    */
   public getLogRetentionDays(): number {
-    if (this.loggerInstance instanceof NodeLogger) {
-      const nodeLogger = this.loggerInstance as NodeLogger;
-      return nodeLogger.getLogRetentionDays();
-    }
-    return 30;
+    return this.options.logRetentionDays ?? 30;
   }
 
   /**
-   * Sets the log retention period in days (Node.js only).
+   * Sets the log retention period in days (deprecated).
    * @public
+   * @deprecated Use file transports instead
    */
-  public setLogRetentionDays(days: number, cleanNow = false): void {
-    // Validate days parameter
-    let validDays = 1;
-    if (typeof days === 'number' && isFinite(days) && days > 0) {
-      validDays = Math.max(1, Math.floor(days));
-    }
-
-    if (validDays !== days && days !== undefined) {
-      console.warn(`[Logger] Invalid logRetentionDays: ${days}. Using: ${validDays}`);
-    }
-
-    if (this.loggerInstance instanceof NodeLogger) {
-      const nodeLogger = this.loggerInstance as NodeLogger;
-      nodeLogger.setLogRetentionDays(validDays, false);
-
-      if (cleanNow) {
-        this.cleanupOldLogs();
-      }
-    }
+  public setLogRetentionDays(days: number, _cleanNow = false): void {
+    // Update options for compatibility
+    (this.options as { logRetentionDays: number }).logRetentionDays = days;
+    console.warn('[Logger] setLogRetentionDays() is deprecated. Use file transports instead.');
   }
 
   /**
-   * Enables or disables file logging (Node.js only).
+   * Enables or disables file logging (deprecated).
    * @public
+   * @deprecated Use file transports instead
    */
   public setFileLogging(enabled: boolean): void {
-    if (this.loggerInstance instanceof NodeLogger) {
-      const nodeLogger = this.loggerInstance as unknown as ExtendedNodeLogger;
-      if (!enabled) {
-        nodeLogger.writeToDisk = false;
-        if (nodeLogger.fileManager) {
-          try {
-            Reflect.set(nodeLogger.fileManager as object, 'logFile', null);
-          } catch {
-            /* ignore */
-          }
-        }
-        return;
-      }
-
-      nodeLogger.writeToDisk = false;
-
-      if (enabled) {
-        if (!nodeLogger.fileManager) {
-          nodeLogger.fileManager = new FileManager(
-            nodeLogger.logDir || 'logs',
-            nodeLogger.logRetentionDays || 30
-          ) as ExtendedNodeLogger['fileManager'];
-        }
-
-        if (nodeLogger.fileManager) {
-          const fm = nodeLogger.fileManager as unknown as {
-            initLogFileSync?: () => string | null;
-            initLogFile?: () => Promise<string | null>;
-          };
-          try {
-            // Clear cached file
-            try {
-              Reflect.set(fm as object, 'logFile', null);
-            } catch {
-              /* ignore */
-            }
-
-            let syncResult: string | null | undefined;
-            if (typeof fm.initLogFileSync === 'function') {
-              syncResult = fm.initLogFileSync();
-              nodeLogger.writeToDisk = !!syncResult;
-            }
-            if (!syncResult && typeof fm.initLogFile === 'function') {
-              fm.initLogFile()
-                .then(path => {
-                  if (path) nodeLogger.writeToDisk = true;
-                })
-                .catch((err: Error) => {
-                  if (!nodeLogger.writeToDisk) {
-                    console.error('Failed to initialize log file:', err);
-                    nodeLogger.writeToDisk = false;
-                  }
-                });
-            }
-            if (
-              syncResult === undefined &&
-              typeof fm.initLogFileSync !== 'function' &&
-              typeof fm.initLogFile !== 'function'
-            ) {
-              nodeLogger.writeToDisk = true;
-            }
-          } catch (err) {
-            console.error('Failed to initialize log file:', err);
-            nodeLogger.writeToDisk = false;
-          }
-        }
-      }
-      return;
-    }
-
-    // Fallback path for tests
-    const anyLogger = this.loggerInstance as unknown as {
-      fileManager?: { initLogFileSync?: () => void; initLogFile?: () => Promise<void> };
-    };
-    if (enabled && anyLogger?.fileManager) {
-      const fm: { initLogFileSync?: () => void; initLogFile?: () => Promise<void> } =
-        anyLogger.fileManager as {
-          initLogFileSync?: () => void;
-          initLogFile?: () => Promise<void>;
-        };
-      try {
-        if (typeof fm.initLogFile === 'function') {
-          fm.initLogFile().catch((err: Error) => {
-            console.error('Failed to initialize log file:', err);
-          });
-        } else if (typeof fm.initLogFileSync === 'function') {
-          fm.initLogFileSync();
-        }
-      } catch (err) {
-        console.error('Failed to initialize log file:', err);
-      }
-    }
+    // Update options for compatibility
+    (this.options as { writeToDisk: boolean }).writeToDisk = enabled;
+    console.warn('[Logger] setFileLogging() is deprecated. Use file transports instead.');
   }
 
   // ============================================================
@@ -1725,44 +1497,40 @@ export class Logger {
   // ============================================================
 
   /**
-   * Gets all stored logs from browser storage (browser only).
+   * Gets all stored logs from browser storage (deprecated).
    * @public
+   * @deprecated Use browser transports instead
    */
   public getLogs(): string[] | null {
-    if (typeof window !== 'undefined' && this.loggerInstance instanceof BrowserLogger) {
-      return (this.loggerInstance as BrowserLogger).getLogs();
-    }
+    console.warn('[Logger] getLogs() is deprecated. Use browser transports instead.');
     return null;
   }
 
   /**
-   * Clears all stored logs from browser storage (browser only).
+   * Clears all stored logs from browser storage (deprecated).
    * @public
+   * @deprecated Use browser transports instead
    */
   public clearLogs(): void {
-    if (typeof window !== 'undefined' && this.loggerInstance instanceof BrowserLogger) {
-      (this.loggerInstance as BrowserLogger).clearLogs();
-    }
+    console.warn('[Logger] clearLogs() is deprecated. Use browser transports instead.');
   }
 
   /**
-   * Downloads stored logs as a text file (browser only).
+   * Downloads stored logs as a text file (deprecated).
    * @public
+   * @deprecated Use browser transports instead
    */
-  public downloadLogs(filename = 'logs.txt'): void {
-    if (typeof window !== 'undefined' && this.loggerInstance instanceof BrowserLogger) {
-      (this.loggerInstance as BrowserLogger).downloadLogs(filename);
-    }
+  public downloadLogs(_filename = 'logs.txt'): void {
+    console.warn('[Logger] downloadLogs() is deprecated. Use browser transports instead.');
   }
 
   /**
-   * Enables or disables browser storage (browser only).
+   * Enables or disables browser storage (deprecated).
    * @public
+   * @deprecated Use browser transports instead
    */
-  public setStorageEnabled(enabled: boolean): void {
-    if (typeof window !== 'undefined' && this.loggerInstance instanceof BrowserLogger) {
-      (this.loggerInstance as BrowserLogger).setStorageEnabled(enabled);
-    }
+  public setStorageEnabled(_enabled: boolean): void {
+    console.warn('[Logger] setStorageEnabled() is deprecated. Use browser transports instead.');
   }
 
   // ============================================================

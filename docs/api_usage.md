@@ -47,6 +47,8 @@ npm install axios form-data
 
 ## Getting Started
 
+### Synchronous Logger (Development/Simple Use Cases)
+
 ```typescript
 import { Logger } from 'magiclogger';
 
@@ -65,6 +67,48 @@ const logger = new Logger({
 
 // Basic logging
 logger.info('Application started');
+```
+
+### High-Performance Async Logger (Production)
+
+```typescript
+import { createAsyncLogger } from 'magiclogger';
+
+// Simple async logger with sensible defaults (like Pino)
+const logger = createAsyncLogger({
+  onFlush: async (entries) => {
+    // Send batched entries to your destination
+    await sendToElasticsearch(entries);
+  }
+});
+
+// Use it just like sync logger
+logger.info('Request received', { userId: 123 });
+logger.error('Database error', { error: err });
+
+// Default configuration includes:
+// - 8KB ring buffer (8192 entries)
+// - Auto-flush every 100ms or 1000 entries
+// - Graceful backpressure handling
+// - Returns AddResult for monitoring (never silently drops logs)
+
+// Production with utilities
+const prodLogger = createAsyncLogger({
+  buffer: { size: 16384, flushInterval: 50 },
+  redactor: { preset: 'strict' },           // Auto-redact PII
+  rateLimiter: { max: 1000, window: 60000 }, // Prevent flooding
+  sampler: { rate: 0.1 },                    // Sample 10% in production
+  onFlush: async (entries) => {
+    await transport.sendBatch(entries);
+  }
+});
+
+// Graceful shutdown (important!)
+process.on('SIGTERM', async () => {
+  await logger.flushAndWait();
+  await logger.close();
+  process.exit(0);
+});
 ```
 
 ## Tree-Shakeable Transport Imports

@@ -24,14 +24,6 @@ export default defineConfig(options => {
     'transports/postgresql': 'src/transports/postgresql.ts',
     'transports/base': 'src/transports/index.ts', // registry + base classes
 
-    // Compatibility layers
-    'compatibility/index': 'src/compatibility/index.ts',
-    'compatibility/winston': 'src/compatibility/winston.ts',
-    'compatibility/bunyan': 'src/compatibility/bunyan.ts',
-    'compatibility/pino': 'src/compatibility/pino.ts',
-    'compatibility/console': 'src/compatibility/console.ts',
-    'compatibility/base': 'src/compatibility/base.ts',
-
     // Theme system
     'theme/theme': 'src/theme/theme.ts',
 
@@ -48,11 +40,15 @@ export default defineConfig(options => {
     // Types runtime stubs (optional – most are type-only, small cost)
     'types/index': 'src/types/index.ts',
 
-    // Utils (tree-shakeable, optional)
-    'utils/sampler': 'src/utils/Sampler.ts',
-    'utils/rate-limiter': 'src/utils/RateLimiter.ts',
-    'utils/redactor': 'src/utils/Redactor.ts',
-    'utils/queue-manager': 'src/utils/QueueManager.ts',
+    // Extensions (tree-shakeable, optional)
+    'extensions/index': 'src/extensions/index.ts',
+    'extensions/sampler': 'src/extensions/Sampler.ts',
+    'extensions/rate-limiter': 'src/extensions/RateLimiter.ts',
+    'extensions/redactor': 'src/extensions/Redactor.ts',
+    'extensions/queue-manager': 'src/extensions/QueueManager.ts',
+    
+    // Utils (core utilities)
+    'utils/enhanced-console': 'src/utils/EnhancedConsole.ts',
   } as const;
 
   return {
@@ -65,10 +61,11 @@ export default defineConfig(options => {
         './src/index.ts',
         './src/types/index.ts',
         './src/transports/postgresql.ts',
-        './src/utils/Sampler.ts',
-        './src/utils/RateLimiter.ts',
-        './src/utils/Redactor.ts',
-        './src/utils/QueueManager.ts',
+        './src/extensions/index.ts',
+        './src/extensions/Sampler.ts',
+        './src/extensions/RateLimiter.ts',
+        './src/extensions/Redactor.ts',
+        './src/extensions/QueueManager.ts',
       ],
       resolve: true,
       options: {

@@ -26,6 +26,61 @@ Magiclogger CI currently does:
 
 It does **not** auto-publish on merge to `master`; publishing only happens when a semver tag (`vX.Y.Z`) is pushed.
 
+## Documentation Structure
+
+### Single Source of Truth
+
+MagicLogger maintains documentation in a single location to avoid duplication and inconsistencies:
+
+- **Source**: All documentation lives in `docs/` folder
+- **Website**: Docusaurus site in `website/` folder
+- **Sync**: Documentation is synced from `docs/` to `website/docs/` at build time
+
+### How It Works
+
+1. **Local Development**:
+   ```bash
+   # Edit docs in docs/ folder
+   vim docs/my-doc.md
+   
+   # Test locally with auto-sync
+   cd website
+   npm run start  # Automatically runs sync-docs first
+   ```
+
+2. **CI/CD Build**:
+   - GitHub Actions automatically syncs docs before building
+   - The `docs.yml` workflow runs `node scripts/sync-docs.js`
+   - Builds and deploys to GitHub Pages
+
+3. **Why This Approach**:
+   - Single source of truth in `docs/`
+   - No manual copying or duplication
+   - `website/docs/` is gitignored (except tutorials)
+   - Automatic frontmatter injection for Docusaurus
+
+### Adding New Documentation
+
+1. Create doc in `docs/` folder:
+   ```bash
+   echo "# My New Feature" > docs/my-feature.md
+   ```
+
+2. Add to sync list in `scripts/sync-docs.js`:
+   ```javascript
+   const DOCS_TO_SYNC = [
+     // ... existing docs
+     'my-feature.md',
+   ];
+   ```
+
+3. Update sidebar if needed in `website/sidebars.ts`
+
+4. Test locally:
+   ```bash
+   cd website && npm run start
+   ```
+
 ## Workflow Files
 
 The pipeline is defined in these workflow files:
