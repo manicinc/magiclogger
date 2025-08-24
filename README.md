@@ -1,7 +1,8 @@
 # MagicLogger
 
 <p align="center">
-    <img src="website/static/img/magiclogger-primary-no-subtitle-transparent-4x.png" alt="Magiclogger" width="520"/> <img src="https://img.shields.io/badge/core_gzip-32kb-brightgreen.svg" alt="core_gzip"> <img src="https://img.shields.io/badge/core_console_gzip-32kb-brightgreen.svg" alt="core_console_gzip"> <img src="https://img.shields.io/badge/core_transports_gzip-44kb-brightgreen.svg" alt="core_transports_gzip">
+    <img src="website/static/img/magiclogger-primary-no-subtitle-transparent-4x.png" alt="Magiclogger" width="520"/>
+    <img src="https://img.shields.io/badge/core_gzip-32kb-brightgreen.svg" alt="core_gzip"> <img src="https://img.shields.io/badge/core_console_gzip-32kb-brightgreen.svg" alt="core_console_gzip"> <img src="https://img.shields.io/badge/core_transports_gzip-44kb-brightgreen.svg" alt="core_transports_gzip">
 </p>
 <p align="center">
   <!-- Top row: static + coverage badges -->
@@ -41,7 +42,6 @@
   - [Why MagicLog Schema?](#why-magiclog-schema)
   - [Using MagicLog with OpenTelemetry](#using-magiclog-with-opentelemetry)
   - [Schema Documentation](#schema-documentation)
-  - [Real-World Example: Distributed Tracing](#real-world-example-distributed-tracing)
 - [Core Features](#core-features)
   - [Sync & Async Loggers](#sync--async-loggers)
   - [Transport System](#transport-system)
@@ -64,10 +64,11 @@
   - [Performance Insights](#performance-insights)
   - [When to Choose Each Mode](#when-to-choose-each-mode)
   - [Bundle Sizes](#bundle-sizes-gzipped)
-- [Real-World Examples](#real-world-examples)
+- [Practical Examples](#real-world-examples)
   - [Express.js Middleware](#expressjs-middleware)
   - [Deployment Pipeline](#deployment-pipeline)
   - [Production Configuration](#production-configuration)
+  - [Distributed Tracing](#distributed-tracing)
 - [Configuration Reference](#configuration-reference)
   - [Logger Options](#logger-options)
 - [Contributing](#contributing)
@@ -917,13 +918,16 @@ logger.info('Order processed', {
 ### Schema Documentation
 
 For complete schema documentation and integration guides:
-- 📖 [MagicLog Schema Specification](./docs/SCHEMA.md)
-- 🔗 [OpenTelemetry Integration Guide](./docs/OTLP_INTEGRATION.md)
-- 🏗️ [Transport Implementation Guide](./docs/TRANSPORT_GUIDE.md)
+- 📖 [MagicLog Schema Specification](./docs/MAGICLOG_SCHEMA.md)
+- 🏗️ [Transport Implementation Guide](./docs/transports.md)
 
 ### Real-World Example: Distributed Tracing
 
 ```typescript
+import { Logger } from 'magiclogger';
+import { OTLPTransport } from 'magiclogger/transports/otlp';
+import { extractTraceContext } from 'magiclogger/utils/trace-context';
+
 // MagicLog automatically captures and propagates trace context
 const logger = new Logger({
   transports: [
@@ -936,7 +940,7 @@ const logger = new Logger({
 
 // In your application
 app.post('/payment', async (req, res) => {
-  // Extract W3C trace context from headers
+  // Extract W3C trace context from headers using built-in helper
   const traceContext = extractTraceContext(req.headers);
   
   // Log with distributed trace correlation
@@ -948,6 +952,31 @@ app.post('/payment', async (req, res) => {
   
   // Your logs now appear correlated in Jaeger, Grafana, DataDog, etc.
 });
+```
+
+#### W3C Trace Context Support
+
+MagicLogger includes built-in utilities for W3C Trace Context extraction:
+
+```typescript
+import { 
+  extractTraceContext, 
+  createTraceparent,
+  generateTraceId,
+  generateSpanId 
+} from 'magiclogger/utils/trace-context';
+
+// Extract from incoming request headers
+const trace = extractTraceContext(req.headers);
+// Returns: { traceId, spanId, traceFlags, traceState, sampled }
+
+// Create traceparent header for outgoing requests
+const traceparent = createTraceparent(trace);
+// Returns: "00-traceId-spanId-01"
+
+// Generate new IDs for root spans
+const newTraceId = generateTraceId();  // 32 hex chars
+const newSpanId = generateSpanId();    // 16 hex chars
 ```
 
 ---
@@ -1541,7 +1570,7 @@ Note: External libraries' "Styled" cases use chalk for coloring (chalk + library
 
 ---
 
-## 🎯 Real-World Examples
+## 🎯 Practrical Examples
 
 ### Express.js Middleware
 

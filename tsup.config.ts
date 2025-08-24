@@ -49,6 +49,7 @@ export default defineConfig(options => {
     
     // Utils (core utilities)
     'utils/enhanced-console': 'src/utils/EnhancedConsole.ts',
+    'utils/trace-context': 'src/utils/trace-context.ts',
   } as const;
 
   return {

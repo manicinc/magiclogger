@@ -105,6 +105,20 @@
         "default": "./dist/extensions/index.cjs"
       }
     },
+    "./utils/trace-context": {
+      "browser": {
+        "types": "./dist/utils/trace-context.d.ts",
+        "default": "./dist/browser/utils/trace-context.js"
+      },
+      "import": {
+        "types": "./dist/utils/trace-context.d.ts",
+        "default": "./dist/utils/trace-context.js"
+      },
+      "require": {
+        "types": "./dist/utils/trace-context.d.cts",
+        "default": "./dist/utils/trace-context.cjs"
+      }
+    },
     "./transports/otlp": {
       "browser": {
         "types": "./dist/transports/otlp.d.ts",
