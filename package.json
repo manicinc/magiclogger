@@ -387,6 +387,16 @@
         "default": "./dist/async/AsyncBuffer.cjs"
       }
     },
+    "./sync": {
+      "import": {
+        "types": "./dist/sync/logger.d.ts",
+        "default": "./dist/sync/logger.js"
+      },
+      "require": {
+        "types": "./dist/sync/logger.d.cts",
+        "default": "./dist/sync/logger.cjs"
+      }
+    },
     "./package.json": "./package.json"
   },
   "sideEffects": false,

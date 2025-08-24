@@ -21,3 +21,12 @@ export {
   type TraceContext,
   type LogMetrics,
 } from './ObservabilityMiddleware';
+
+// Trace context middleware
+export {
+  TraceContextMiddleware,
+  createExpressTraceMiddleware,
+  createKoaTraceMiddleware,
+  createFastifyTraceMiddleware,
+  type TraceContextMiddlewareOptions,
+} from './TraceContextMiddleware';

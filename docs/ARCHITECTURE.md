@@ -10,14 +10,15 @@
 6. [Performance Architecture](#performance-architecture)
 7. [Module Specifications](#module-specifications)
 8. [Transport System Architecture](#transport-system-architecture)
-9. [Asynchronous Processing Architecture](#asynchronous-processing-architecture)
-10. [Memory Management Strategy](#memory-management-strategy)
-11. [API Design Philosophy](#api-design-philosophy)
-12. [Extension and Plugin Architecture](#extension-and-plugin-architecture)
-13. [Compatibility Layer Design](#compatibility-layer-design)
-14. [Security Considerations](#security-considerations)
-15. [Implementation Roadmap](#implementation-roadmap)
-16. [Complete Implementation Guide](#complete-implementation-guide)
+9. [Distributed Tracing Architecture](#distributed-tracing-architecture)
+10. [Asynchronous Processing Architecture](#asynchronous-processing-architecture)
+11. [Memory Management Strategy](#memory-management-strategy)
+12. [API Design Philosophy](#api-design-philosophy)
+13. [Extension and Plugin Architecture](#extension-and-plugin-architecture)
+14. [Compatibility Layer Design](#compatibility-layer-design)
+15. [Security Considerations](#security-considerations)
+16. [Implementation Roadmap](#implementation-roadmap)
+17. [Complete Implementation Guide](#complete-implementation-guide)
 
 ## Executive Summary
 
@@ -30,7 +31,7 @@ The architecture is built on four foundational pillars:
 1. **Async-First Performance**: Default asynchronous logging provides maximum throughput (13x faster) with robust ring buffer and backpressure handling
 2. **Synchronous Reliability**: Optional synchronous mode for security audits, development, and scenarios requiring immediate guarantees
 3. **Transport Agnosticism**: A unified transport interface allows logs to flow to any destination without coupling the core logger to specific implementations  
-4. **Cross-Language Compatibility**: MagicLog schema enables seamless integration across programming languages and platforms
+4. **Cross-Language Compatibility**: MAGIC schema enables seamless integration across programming languages and platforms
 
 ## System Architecture Overview
 
@@ -861,6 +862,163 @@ class ResilientTransport extends Transport {
 }
 ```
 
+## Distributed Tracing Architecture
+
+### Overview
+
+MagicLogger implements automatic W3C Trace Context extraction and propagation to enable distributed tracing across microservices. The architecture provides zero-configuration trace correlation while allowing custom implementations.
+
+### Architecture Components
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     Incoming HTTP Request                        │
+│                  (with traceparent/tracestate headers)          │
+└─────────────────────────────────────────────────────────────────┘
+                                  │
+                                  ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    TraceContextMiddleware                        │
+│  • Extracts W3C headers (traceparent, tracestate)              │
+│  • Validates trace ID and span ID format                       │
+│  • Parses sampling flags                                        │
+└─────────────────────────────────────────────────────────────────┘
+                                  │
+                                  ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      AsyncLocalStorage                           │
+│  • Stores trace context for current execution                  │
+│  • Propagates through async operations                         │
+│  • Framework-agnostic context storage                          │
+└─────────────────────────────────────────────────────────────────┘
+                                  │
+                                  ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      Logger Middleware                           │
+│  • Automatically injects trace context into logs               │
+│  • No manual passing required                                  │
+│  • Works across nested function calls                          │
+└─────────────────────────────────────────────────────────────────┘
+                                  │
+                                  ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                         Log Entry                                │
+│  {                                                              │
+│    "message": "...",                                           │
+│    "trace": {                                                  │
+│      "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",           │
+│      "spanId": "00f067aa0ba902b7",                            │
+│      "traceFlags": "01",                                       │
+│      "sampled": true                                           │
+│    }                                                           │
+│  }                                                             │
+└─────────────────────────────────────────────────────────────────┘
+                                  │
+                                  ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Transport Layer (OTLP, HTTP, etc)            │
+│  • Automatically forwards trace context                        │
+│  • Maps to OpenTelemetry format                                │
+│  • Preserves correlation across services                      │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Trace Context Extraction Strategy
+
+The middleware follows a priority-based extraction strategy:
+
+1. **Custom Extraction Function** (if provided)
+   ```typescript
+   extractContext: (entry) => customLogic(entry)
+   ```
+
+2. **AsyncLocalStorage** (automatic propagation)
+   ```typescript
+   asyncLocalStorage.getStore()?.traceContext
+   ```
+
+3. **HTTP Headers** (W3C standard)
+   ```typescript
+   extractTraceContext(headers)
+   ```
+
+4. **Generate New** (for root spans)
+   ```typescript
+   { traceId: generateTraceId(), spanId: generateSpanId() }
+   ```
+
+### W3C Trace Context Format
+
+#### Traceparent Header
+Format: `version-trace-id-parent-id-trace-flags`
+Example: `00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01`
+
+- **version**: Always "00" for current spec
+- **trace-id**: 32 hex characters (128 bits)
+- **parent-id**: 16 hex characters (64 bits)  
+- **trace-flags**: 2 hex characters (8 bits, 01 = sampled)
+
+#### Tracestate Header
+Vendor-specific key-value pairs for proprietary data
+Example: `vendor1=value1,vendor2=value2`
+
+### Framework Integration Architecture
+
+```typescript
+// Express Integration
+class ExpressTraceMiddleware {
+  constructor(private storage: AsyncLocalStorage) {}
+  
+  middleware = (req, res, next) => {
+    const trace = extractTraceContext(req.headers);
+    this.storage.run({ req, trace }, next);
+  };
+}
+
+// Logger Integration
+class TraceContextMiddleware extends Middleware {
+  process(entry: LogEntry): LogEntry {
+    const trace = this.storage.getStore()?.trace;
+    return { ...entry, trace };
+  }
+}
+```
+
+### OpenTelemetry Compatibility
+
+MagicLogger's trace context is fully compatible with OpenTelemetry:
+
+```typescript
+// Direct mapping to OTLP format
+{
+  "resourceLogs": [{
+    "scopeLogs": [{
+      "logRecords": [{
+        "traceId": entry.trace.traceId,      // Direct pass-through
+        "spanId": entry.trace.spanId,        // Direct pass-through
+        "flags": entry.trace.traceFlags,     // Direct pass-through
+        "body": { "stringValue": entry.message },
+        "attributes": entry.metadata
+      }]
+    }]
+  }]
+}
+```
+
+### Performance Considerations
+
+1. **Zero-Allocation Design**: Trace context is passed by reference
+2. **Lazy Extraction**: Headers parsed only when needed
+3. **Cache-Friendly**: Frequently accessed fields co-located
+4. **Async-Safe**: Uses AsyncLocalStorage for context propagation
+
+### Security Considerations
+
+1. **Header Validation**: Strict format validation prevents injection
+2. **Size Limits**: Headers limited to prevent DoS
+3. **No PII**: Trace IDs are random, contain no user data
+4. **Sampling Control**: Respect upstream sampling decisions
+
 ## Asynchronous Processing Architecture
 
 ### Ring Buffer Implementation
@@ -1149,7 +1307,7 @@ MagicLogger follows a lean core philosophy where the base logger is fast and min
 - Built-in ring buffer (AsyncLogger)
 - Transport system with automatic batching for network transports
 - Styling and theming
-- MagicLog schema output
+- MAGIC schema output
 
 **Optional Extensions** (opt-in when needed):
 - PII Redaction (`/extensions/Redactor`)

@@ -1,8 +1,8 @@
-# MagicLog Schema Specification
+# MAGIC Schema Specification
 
 ## Overview
 
-The **MagicLog Schema** is an open, standardized format for structured log entries that enables seamless integration across different programming languages, platforms, and observability tools. This schema serves as the canonical format for all MagicLogger implementations and provides the foundation for a unified, cross-language logging ecosystem.
+The **MAGIC Schema** (MAgicLogger Generic Interface for Consistency) is an open, standardized format for structured log entries that enables seamless integration across different programming languages, platforms, and observability tools. This schema serves as the canonical format for all MagicLogger implementations and provides the foundation for a unified, cross-language logging ecosystem.
 
 ## Design Principles
 
@@ -15,7 +15,7 @@ The **MagicLog Schema** is an open, standardized format for structured log entri
 ## Schema Definition v1
 
 ```typescript
-interface MagicLogEntry {
+interface MAGICLogEntry {
   // === IDENTITY & TIMING ===
   id: string                           // Unique identifier: "1733938475123-abc123xyz"
   timestamp: string                    // ISO 8601: "2025-08-14T12:34:35.123Z"
@@ -198,7 +198,7 @@ const logger = createLogger({
   service: "api-gateway",
   environment: "production",
   tags: ["http", "auth"],
-  onFlush: async (entries: MagicLogEntry[]) => {
+  onFlush: async (entries: MAGICLogEntry[]) => {
     await transport.sendBatch(entries);
   }
 });
@@ -254,7 +254,7 @@ func main() {
 
 ## Redaction & Privacy
 
-The MagicLog schema includes built-in privacy controls that work consistently across all implementations:
+The MAGIC schema includes built-in privacy controls that work consistently across all implementations:
 
 ### Pattern-Based Redaction
 
@@ -376,14 +376,14 @@ npm run test:cross-language
 
 ### Ecosystem Roadmap
 
-- **MagicLog Dashboard**: Universal log analysis platform
+- **MAGIC Dashboard**: Universal log analysis platform
 - **Query Language**: SQL-like syntax for cross-service log queries
 - **Alerting Engine**: Smart alerting based on log patterns
 - **Metrics Extraction**: Automatic SLI/SLO metrics from logs
 
 ## Contributing
 
-The MagicLog schema is an open standard. Contributions and feedback are welcome:
+The MAGIC schema is an open standard. Contributions and feedback are welcome:
 
 1. **Schema Changes**: Propose changes via GitHub issues
 2. **Implementation Guidelines**: Help define best practices
@@ -392,4 +392,4 @@ The MagicLog schema is an open standard. Contributions and feedback are welcome:
 
 ## License
 
-The MagicLog schema specification is released under MIT license, ensuring broad adoption and compatibility across the ecosystem.
+The MAGIC schema specification is released under MIT license, ensuring broad adoption and compatibility across the ecosystem.

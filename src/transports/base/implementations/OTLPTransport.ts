@@ -405,9 +405,9 @@ export class OTLPTransport extends BatchingTransport {
   }
 
   /**
-   * Creates an OTLP log record from a MagicLog schema entry.
+   * Creates an OTLP log record from a MAGIC schema entry.
    *
-   * @param {LogEntry} entry - Log entry following MagicLog schema
+   * @param {LogEntry} entry - Log entry following MAGIC schema
    * @returns {OTLPLogRecord} Log record
    * @private
    */
@@ -423,7 +423,7 @@ export class OTLPTransport extends BatchingTransport {
       attributes: [],
     };
 
-    // === MagicLog Schema Core Fields ===
+    // === MAGIC Schema Core Fields ===
 
     // Add unique log ID
     record.attributes.push({
@@ -508,7 +508,7 @@ export class OTLPTransport extends BatchingTransport {
       }
     }
 
-    // === Distributed Tracing (MagicLog Schema) ===
+    // === Distributed Tracing (MAGIC Schema) ===
 
     // First check if entry already has trace context (from ObservabilityMiddleware)
     if (entry.trace) {

@@ -36,6 +36,9 @@ export default defineConfig(options => {
     // Async utilities
     'async/logger': 'src/async/AsyncLogger.ts',
     'async/buffer': 'src/async/AsyncBuffer.ts',
+    
+    // Sync utilities
+    'sync/logger': 'src/sync/SyncLogger.ts',
 
     // Types runtime stubs (optional – most are type-only, small cost)
     'types/index': 'src/types/index.ts',
@@ -46,7 +49,7 @@ export default defineConfig(options => {
     'extensions/rate-limiter': 'src/extensions/RateLimiter.ts',
     'extensions/redactor': 'src/extensions/Redactor.ts',
     'extensions/queue-manager': 'src/extensions/QueueManager.ts',
-    
+
     // Utils (core utilities)
     'utils/enhanced-console': 'src/utils/EnhancedConsole.ts',
     'utils/trace-context': 'src/utils/trace-context.ts',

@@ -12,7 +12,7 @@ sidebar_label: Transports
 - [Architecture](#architecture)
   - [Async-First Design](#async-first-design)
   - [Transport Pipeline](#transport-pipeline)
-  - [MagicLog Schema](#magiclog-schema)
+  - [MAGIC Schema](#magic-schema)
 - [Core Concepts](#core-concepts)
   - [Async vs Sync Transports](#async-vs-sync-transports)
   - [Buffering and Batching](#buffering-and-batching)
@@ -88,9 +88,9 @@ Application Code
    • Each processes batches independently
 ```
 
-### MagicLog Schema
+### MAGIC Schema
 
-All transports work with the standardized **MagicLog Schema** - an open JSON format that preserves styling information across your entire stack:
+All transports work with the standardized **MAGIC Schema** - an open JSON format that preserves styling information across your entire stack:
 
 ```json
 {
@@ -840,7 +840,7 @@ const logger = createLogger({
 2. **Transport Architecture**: MagicLogger uses async buffers, Pino uses Worker Threads
 3. **Backpressure**: MagicLogger provides explicit AddResult, Pino may silently drop
 4. **Bundle Size**: MagicLogger is more modular with better tree-shaking
-5. **Schema**: MagicLogger uses the open MagicLog Schema format
+5. **Schema**: MagicLogger uses the open MAGIC Schema format
 
 ### Migration Strategy
 

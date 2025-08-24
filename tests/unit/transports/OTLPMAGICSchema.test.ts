@@ -1,4 +1,4 @@
-// File: tests/unit/transports/OTLPMagicLogSchema.test.ts
+// File: tests/unit/transports/OTLPMAGICSchema.test.ts
 
 // Jest is configured globally, no imports needed for describe, it, expect
 const vi = { fn: jest.fn, restoreAllMocks: jest.restoreAllMocks };
@@ -6,10 +6,10 @@ import { OTLPTransport } from '../../../src/transports/base/implementations/OTLP
 import type { LogEntry } from '../../../src/types/transport';
 
 /**
- * Tests for OTLP Transport's MagicLog Schema compliance.
- * Ensures proper mapping of MagicLog fields to OTLP format.
+ * Tests for OTLP Transport's MAGIC Schema compliance.
+ * Ensures proper mapping of MAGIC fields to OTLP format.
  */
-describe('OTLP Transport - MagicLog Schema Integration', () => {
+describe('OTLP Transport - MAGIC Schema Integration', () => {
   let transport: OTLPTransport;
   let mockFetch: ReturnType<typeof vi.fn>;
 
@@ -39,7 +39,7 @@ describe('OTLP Transport - MagicLog Schema Integration', () => {
     vi.restoreAllMocks();
   });
 
-  describe('MagicLog Core Fields Mapping', () => {
+  describe('MAGIC Core Fields Mapping', () => {
     it('should map ID and schema version', async () => {
       const entry: LogEntry = {
         id: '1704067200000-abc123xyz',
@@ -411,7 +411,7 @@ describe('OTLP Transport - MagicLog Schema Integration', () => {
   });
 
   describe('Severity Mapping', () => {
-    it('should map MagicLog levels to OTLP severity numbers', async () => {
+    it('should map MAGIC levels to OTLP severity numbers', async () => {
       const levelMappings = [
         { level: 'trace', severityNumber: 1 },
         { level: 'debug', severityNumber: 5 },

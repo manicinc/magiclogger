@@ -16,9 +16,9 @@ export type ConnectionState =
   | 'reconnecting';
 
 /**
- * MagicLog Schema v1 - Core log entry structure.
+ * MAGIC Schema v1 - Core log entry structure.
  *
- * This interface implements the MagicLog Schema specification for
+ * This interface implements the MAGIC Schema specification for
  * cross-language compatibility and seamless observability integration.
  *
  * @see https://github.com/magiclogger/magiclog-schema
@@ -43,7 +43,7 @@ export interface LogEntry {
   timestampMs: number;
 
   /**
-   * MagicLog schema version for compatibility.
+   * MAGIC schema version for compatibility.
    * @default "v1"
    */
   schemaVersion?: 'v1';

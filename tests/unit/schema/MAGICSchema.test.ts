@@ -1,13 +1,13 @@
-// File: tests/unit/schema/MagicLogSchema.test.ts
+// File: tests/unit/schema/MAGICSchema.test.ts
 
 // Jest is configured globally, no imports needed for describe, it, expect
 import type { LogEntry } from '../../../src/types/transport';
 
 /**
- * Tests for MagicLog Schema v1 compliance.
+ * Tests for MAGIC Schema v1 compliance.
  * Ensures all log entries conform to the standardized schema.
  */
-describe('MagicLog Schema v1 Compliance', () => {
+describe('MAGIC Schema v1 Compliance', () => {
   describe('Required Fields', () => {
     it('should have all required identity and timing fields', () => {
       const entry: LogEntry = {

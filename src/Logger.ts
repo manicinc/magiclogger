@@ -337,7 +337,7 @@ export class Logger {
         this.addTransport(transport);
       });
     } else if (this.options.useConsole !== false) {
-      // Create default console transport using MagicLog schema
+      // Create default console transport using MAGIC schema
       this.createDefaultConsoleTransport();
     }
   }
@@ -987,7 +987,7 @@ export class Logger {
       styledMessage = TextStyler.styleParts([[msg, ...colors]], this.useColors);
     }
 
-    // Route through standard log system using MagicLog schema
+    // Route through standard log system using MAGIC schema
     this.log(`${prefix}: ${styledMessage}`, 'info', {
       customColors: colors,
       customPrefix: prefix,
@@ -1000,7 +1000,7 @@ export class Logger {
    * @deprecated Use standard log methods for better consistency
    */
   public styled(msg: string, preset: StylePreset): void {
-    // Route through standard log system using MagicLog schema
+    // Route through standard log system using MAGIC schema
     this.log(msg, 'info');
 
     // Convert preset to level if possible
@@ -1098,7 +1098,7 @@ export class Logger {
     if (typeof url === 'string' && /[A-Za-z]:\\/.test(url)) {
       url = url.replace(/\\/g, '/');
     }
-    // Always use MagicLog schema
+    // Always use MAGIC schema
     this.log(`[Link] ${description || url}: ${url}`, 'info', { url, linkDescription: description });
   }
 

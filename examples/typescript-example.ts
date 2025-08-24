@@ -1,108 +1,187 @@
-// TypeScript Example
-// Usage: npx tsx scripts/typescript-example.ts
-// Or compile with tsc and then run with node
+/**
+ * @fileoverview TypeScript example demonstrating MagicLogger's async-first API.
+ * 
+ * Usage: npx tsx examples/typescript-example.ts
+ * Or compile with: tsc examples/typescript-example.ts
+ */
 
 import {
+  Logger,
+  SyncLogger,
+  createLogger,
   createSyncLogger,
-  type ColorName,
-  type LogLevel,
-  type StylePreset,
   type LoggerOptions,
-  createWinstonCompatible,
+  type LogLevel,
+  type ColorName,
+  type StylePreset,
 } from '../dist/index.js';
 
-// Type-safe logger options
-const options: LoggerOptions = {
-  verbose: true, // Show debug messages
-  writeToDisk: true,
-  logDir: './typed-logs', // Custom log directory
-  logRetentionDays: 7, // Keep logs for 7 days
-  theme: 'dark', // Use a predefined theme
+// ==========================================
+// Async Logger (Default) - High Performance
+// ==========================================
+
+console.log('\n=== ASYNC LOGGER (Default) ===\n');
+
+// Create async logger with default settings
+const asyncLogger = new Logger();
+
+// Log some messages (console output is immediate)
+asyncLogger.info('Async logger initialized');
+asyncLogger.success('Console output is immediate');
+asyncLogger.warn('File/network writes are batched');
+
+// With custom configuration
+const customAsyncLogger = createLogger({
+  buffer: {
+    size: 32768,         // Larger buffer for high throughput
+    flushInterval: 100,  // Flush every 100ms
+    flushSize: 1000,     // Or when 1000 logs accumulate
+  },
+  onFlush: async (entries) => {
+    console.log(`[FLUSH] Batching ${entries.length} log entries`);
+    // In production: await writeToFile(entries);
+    // In production: await sendToElasticsearch(entries);
+  },
+});
+
+customAsyncLogger.info('Custom async logger with batch processing');
+customAsyncLogger.debug('High throughput logging');
+
+// ==========================================
+// Sync Logger - Guaranteed Delivery
+// ==========================================
+
+console.log('\n=== SYNC LOGGER - Blocking I/O ===\n');
+
+// Create sync logger for audit trail
+const auditLogger = new SyncLogger({
+  file: './audit.log',
+  forceFlush: true,     // fsync after each write
+  useConsole: true,     // Also log to console
+});
+
+auditLogger.info('Sync logger initialized - blocking I/O');
+auditLogger.warn('Each log blocks until written to disk');
+auditLogger.error('Perfect for audit logs and debugging');
+
+// ==========================================
+// Type-Safe Styling
+// ==========================================
+
+console.log('\n=== STYLING APIS ===\n');
+
+const logger = new Logger();
+
+// Angle bracket syntax
+logger.info('<green.bold>SUCCESS:</> Server started on <cyan>port 3000</>');
+logger.error('<red>ERROR:</> Connection to <yellow>database</> failed');
+
+// Template literal API
+logger.info(logger.fmt`@blue{Processing} @cyan.underline{data.json} @dim{(2.3MB)}`);
+
+// Chainable style API
+const styled = logger.s.red.bold('CRITICAL:') + ' ' + 
+               logger.s.yellow('System memory at ') + 
+               logger.s.red.bold('92%');
+logger.info(styled);
+
+// ==========================================
+// Structured Logging with MagicLog Schema
+// ==========================================
+
+console.log('\n=== STRUCTURED LOGGING ===\n');
+
+// Logs are automatically structured JSON
+logger.info('User authenticated', {
+  userId: 'user-123',
+  method: '2FA',
+  duration: 245,
+  tags: ['security', 'auth'],
+});
+
+logger.error('Payment failed', new Error('Card declined'), {
+  orderId: 'ord-456',
+  amount: 99.99,
+  currency: 'USD',
+});
+
+// ==========================================
+// Visual Elements
+// ==========================================
+
+console.log('\n=== VISUAL ELEMENTS ===\n');
+
+logger.header('DEPLOYMENT STATUS');
+logger.separator('=', 50);
+
+// Progress bar
+for (let i = 0; i <= 100; i += 25) {
+  logger.progressBar(i, 40, '█', '░');
+}
+
+// Table
+logger.table([
+  { service: 'API', status: 'healthy', cpu: '12%', memory: '234MB' },
+  { service: 'Database', status: 'healthy', cpu: '45%', memory: '1.2GB' },
+  { service: 'Cache', status: 'degraded', cpu: '78%', memory: '512MB' },
+]);
+
+// ==========================================
+// Production Configuration
+// ==========================================
+
+console.log('\n=== PRODUCTION CONFIGURATION ===\n');
+
+// High-performance production logger
+const prodLogger = new Logger({
+  // Optional extensions
+  redactor: { preset: 'strict' },            // Auto-redact PII
+  rateLimiter: { max: 1000, window: 60000 }, // 1000 logs/minute
+  sampler: { rate: 0.1 },                    // Sample 10% in high volume
+  
+  // Buffer configuration
+  buffer: {
+    size: 100000,        // Large buffer for traffic spikes
+    flushInterval: 100,  // Batch every 100ms
+    flushSize: 5000,     // Or at 5000 entries
+  },
+  
+  // Batch processing handler
+  onFlush: async (entries) => {
+    // Simulate batch writes
+    console.log(`[PRODUCTION] Would batch write ${entries.length} entries`);
+  },
+});
+
+prodLogger.info('Production logger configured');
+prodLogger.debug('This might be sampled out');
+prodLogger.info('user@example.com logged in', { email: 'user@example.com' }); // PII will be redacted
+
+// ==========================================
+// Type Safety Examples
+// ==========================================
+
+console.log('\n=== TYPE SAFETY ===\n');
+
+// Type-safe log levels
+const level: LogLevel = 'info';
+logger.log('Type-safe log level', level);
+
+// Type-safe colors
+const colors: ColorName[] = ['blue', 'bold'];
+logger.header('TYPE SAFETY DEMO', colors);
+
+// Type-safe configuration
+const config: LoggerOptions = {
+  verbose: true,
+  useColors: true,
+  theme: 'ocean',
 };
 
-// Create a type-safe logger instance (sync for interactive demo)
-const logger = createSyncLogger(options);
+const typedLogger = createLogger(config);
+typedLogger.success('Fully type-safe logger created');
 
-// Winston-compatible logger
-const winstonLogger = createWinstonCompatible({ verbose: true });
+// Cleanup
+auditLogger.close();
 
-// Type-safe variable declarations
-const logLevel: LogLevel = 'info';
-const customColors: ColorName[] = ['blue', 'bold'];
-const stylePreset: StylePreset = 'important';
-
-// Basic usage examples
-logger.header('TYPESCRIPT LOGGER EXAMPLE');
-
-// Universal log method with type-safe levels
-logger.log('Standard info message', logLevel);
-logger.log('Warning message example', 'warn');
-logger.log('Error message example', 'error');
-logger.log('Debug information', 'debug');
-logger.log('Success message example', 'success');
-
-// Level-specific methods
-logger.info('Application starting with TypeScript import...');
-logger.warn('Resource usage at 90%');
-logger.error('Connection failed to database');
-logger.debug('Authentication token details');
-logger.success('Operation completed successfully');
-
-// Custom styling with type safety
-logger.header('TYPE-SAFE STYLING');
-logger.custom('Database migration starting...', customColors, 'DB');
-logger.styled('Critical system notification', stylePreset);
-
-// Creating a type-safe custom theme
-interface ThemeConfig {
-  [key: string]: ColorName[];
-}
-
-const customTheme: ThemeConfig = {
-  info: ['cyan', 'bold'],
-  error: ['brightRed', 'bold'],
-  success: ['green', 'bold'],
-  header: ['brightWhite', 'bgBlue', 'bold'],
-};
-
-// Apply custom theme
-logger.setTheme(customTheme);
-logger.info('Using a custom theme with TypeScript type safety!');
-
-// Winston-compatible interface example
-logger.header('WINSTON-COMPATIBLE EXAMPLE');
-winstonLogger.info('Server started');
-winstonLogger.warn('Connection pool nearing capacity');
-winstonLogger.error('Database connection failed: ' + new Error('Connection timeout').message);
-
-// Demonstrate runtime type checking
-function logWithLevel(message: string, level: LogLevel): void {
-  logger.log(message, level);
-}
-
-// Valid log level
-logWithLevel('This uses a valid log level', 'info');
-
-// This would cause a TypeScript error if uncommented:
-// logWithLevel('This would cause a type error', 'invalid-level');
-
-// Visual elements
-logger.header('PROGRESS EXAMPLE');
-logger.progressBar(50); // 50% complete
-
-// Table example with typed data
-interface User {
-  id: number;
-  name: string;
-  role: string;
-}
-
-const users: User[] = [
-  { id: 1, name: 'Alice', role: 'Admin' },
-  { id: 2, name: 'Bob', role: 'User' },
-  { id: 3, name: 'Charlie', role: 'Moderator' },
-];
-
-logger.table(users as unknown as Record<string, unknown>[]);
-
-console.log('\nTypeScript example complete!');
+console.log('\n=== DEMO COMPLETE ===\n');
