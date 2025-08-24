@@ -250,7 +250,9 @@ export interface LoggerOptions {
    * // Using instance
    * redactor: new Redactor({ preset: 'paranoid', auditTrail: true })
    */
-  redactor?: import('../extensions/Redactor').Redactor | import('../extensions/Redactor').RedactorOptions;
+  redactor?:
+    | import('../extensions/Redactor').Redactor
+    | import('../extensions/Redactor').RedactorOptions;
 
   /**
    * Statistical sampling configuration for volume control.
@@ -263,7 +265,9 @@ export interface LoggerOptions {
    * // Using instance
    * sampler: createSamplerPreset('production')
    */
-  sampler?: import('../extensions/Sampler').Sampler | import('../extensions/Sampler').SamplerOptions;
+  sampler?:
+    | import('../extensions/Sampler').Sampler
+    | import('../extensions/Sampler').SamplerOptions;
 
   /**
    * Queue management configuration for handling backpressure.
