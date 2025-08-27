@@ -1,15 +1,15 @@
 /**
  * @fileoverview Lightweight, tree-shakeable schema validation for MagicLogger.
- * 
+ *
  * This module provides runtime validation for log contexts and tags without
  * heavy dependencies. It's designed to be lazily imported and fully tree-shakeable.
- * 
+ *
  * @module validation/SchemaValidator
  */
 
 /**
  * Represents a validation error with details about what failed.
- * 
+ *
  * @interface ValidationError
  */
 export interface ValidationError {
@@ -25,7 +25,7 @@ export interface ValidationError {
 
 /**
  * Result of a schema validation operation.
- * 
+ *
  * @interface ValidationResult
  */
 export interface ValidationResult {
@@ -39,7 +39,7 @@ export interface ValidationResult {
 
 /**
  * Base type for all schema definitions.
- * 
+ *
  * @interface Schema
  */
 export interface Schema {
@@ -61,7 +61,7 @@ export interface Schema {
 
 /**
  * String schema with string-specific validations.
- * 
+ *
  * @interface StringSchema
  * @extends {Schema}
  */
@@ -87,7 +87,7 @@ export interface StringSchema extends Schema {
 
 /**
  * Number schema with numeric validations.
- * 
+ *
  * @interface NumberSchema
  * @extends {Schema}
  */
@@ -109,7 +109,7 @@ export interface NumberSchema extends Schema {
 
 /**
  * Boolean schema.
- * 
+ *
  * @interface BooleanSchema
  * @extends {Schema}
  */
@@ -121,7 +121,7 @@ export interface BooleanSchema extends Schema {
 
 /**
  * Object schema with nested field definitions.
- * 
+ *
  * @interface ObjectSchema
  * @extends {Schema}
  */
@@ -141,7 +141,7 @@ export interface ObjectSchema extends Schema {
 
 /**
  * Array schema with item validation.
- * 
+ *
  * @interface ArraySchema
  * @extends {Schema}
  */
@@ -159,7 +159,7 @@ export interface ArraySchema extends Schema {
 
 /**
  * Union schema - value must match one of the schemas.
- * 
+ *
  * @interface UnionSchema
  * @extends {Schema}
  */
@@ -171,7 +171,7 @@ export interface UnionSchema extends Schema {
 
 /**
  * Literal schema - exact value match.
- * 
+ *
  * @interface LiteralSchema
  * @extends {Schema}
  */
@@ -183,7 +183,7 @@ export interface LiteralSchema extends Schema {
 
 /**
  * Enum schema - value must be one of the allowed values.
- * 
+ *
  * @interface EnumSchema
  * @extends {Schema}
  */
@@ -196,26 +196,26 @@ export interface EnumSchema extends Schema {
 /**
  * Any schema type union.
  */
-export type AnySchema = 
-  | StringSchema 
-  | NumberSchema 
-  | BooleanSchema 
-  | ObjectSchema 
-  | ArraySchema 
-  | UnionSchema 
-  | LiteralSchema 
-  | EnumSchema 
+export type AnySchema =
+  | StringSchema
+  | NumberSchema
+  | BooleanSchema
+  | ObjectSchema
+  | ArraySchema
+  | UnionSchema
+  | LiteralSchema
+  | EnumSchema
   | Schema;
 
 /**
  * Main schema validator class.
- * 
+ *
  * @class SchemaValidator
- * 
+ *
  * @example
  * ```typescript
  * const validator = new SchemaValidator();
- * 
+ *
  * const userSchema: ObjectSchema = {
  *   type: 'object',
  *   properties: {
@@ -229,7 +229,7 @@ export type AnySchema =
  *   },
  *   required: ['id', 'email']
  * };
- * 
+ *
  * const result = validator.validate(data, userSchema);
  * if (!result.valid) {
  *   console.error('Validation errors:', result.errors);
@@ -243,7 +243,7 @@ export class SchemaValidator {
 
   /**
    * Validates data against a schema.
-   * 
+   *
    * @param {unknown} data - The data to validate
    * @param {AnySchema} schema - The schema to validate against
    * @returns {ValidationResult} The validation result
@@ -251,28 +251,30 @@ export class SchemaValidator {
   public validate(data: unknown, schema: AnySchema): ValidationResult {
     this.errors = [];
     this.currentPath = [];
-    
+
     try {
       const validatedData = this.validateValue(data, schema);
       return {
         valid: this.errors.length === 0,
         errors: this.errors.length > 0 ? this.errors : undefined,
-        data: validatedData
+        data: validatedData,
       };
     } catch (error) {
       return {
         valid: false,
-        errors: [{
-          path: this.getCurrentPath(),
-          message: error instanceof Error ? error.message : 'Unknown validation error'
-        }]
+        errors: [
+          {
+            path: this.getCurrentPath(),
+            message: error instanceof Error ? error.message : 'Unknown validation error',
+          },
+        ],
       };
     }
   }
 
   /**
    * Validates a single value against a schema.
-   * 
+   *
    * @private
    * @param {unknown} value - The value to validate
    * @param {AnySchema} schema - The schema to validate against
@@ -302,7 +304,7 @@ export class SchemaValidator {
 
     // Type-specific validation
     let result: unknown = value;
-    
+
     switch (schema.type) {
       case 'string':
         result = this.validateString(value, schema as StringSchema);
@@ -353,7 +355,7 @@ export class SchemaValidator {
 
   /**
    * Validates a string value.
-   * 
+   *
    * @private
    */
   private validateString(value: unknown, schema: StringSchema): string | undefined {
@@ -399,7 +401,7 @@ export class SchemaValidator {
 
   /**
    * Validates string formats.
-   * 
+   *
    * @private
    */
   private validateFormat(value: string, format: string): boolean {
@@ -411,7 +413,7 @@ export class SchemaValidator {
       time: /^\d{2}:\d{2}(:\d{2})?$/,
       datetime: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/,
       ipv4: /^(\d{1,3}\.){3}\d{1,3}$/,
-      ipv6: /^([0-9a-f]{1,4}:){7}[0-9a-f]{1,4}$/i
+      ipv6: /^([0-9a-f]{1,4}:){7}[0-9a-f]{1,4}$/i,
     };
 
     return formats[format]?.test(value) ?? true;
@@ -419,7 +421,7 @@ export class SchemaValidator {
 
   /**
    * Validates a number value.
-   * 
+   *
    * @private
    */
   private validateNumber(value: unknown, schema: NumberSchema): number | undefined {
@@ -457,7 +459,7 @@ export class SchemaValidator {
 
   /**
    * Validates a boolean value.
-   * 
+   *
    * @private
    */
   private validateBoolean(value: unknown, schema: BooleanSchema): boolean | undefined {
@@ -475,10 +477,13 @@ export class SchemaValidator {
 
   /**
    * Validates an object value.
-   * 
+   *
    * @private
    */
-  private validateObject(value: unknown, schema: ObjectSchema): Record<string, unknown> | undefined {
+  private validateObject(
+    value: unknown,
+    schema: ObjectSchema
+  ): Record<string, unknown> | undefined {
     if (typeof value !== 'object' || value === null || Array.isArray(value)) {
       this.addError(`Expected object, got ${Array.isArray(value) ? 'array' : typeof value}`);
       return undefined;
@@ -490,8 +495,13 @@ export class SchemaValidator {
     const hasAdditionalProps = schema.additionalProperties !== undefined;
 
     // Fast path: if no schema validation needed, return object as-is
-    if (!hasProperties && !schema.required && !hasAdditionalProps && 
-        schema.minProperties === undefined && schema.maxProperties === undefined) {
+    if (
+      !hasProperties &&
+      !schema.required &&
+      !hasAdditionalProps &&
+      schema.minProperties === undefined &&
+      schema.maxProperties === undefined
+    ) {
       return { ...obj };
     }
 
@@ -519,9 +529,10 @@ export class SchemaValidator {
 
     // Handle additional properties (optimized)
     if (hasProperties || hasAdditionalProps) {
-      const definedKeys = hasProperties && schema.properties ? new Set(Object.keys(schema.properties)) : new Set();
+      const definedKeys =
+        hasProperties && schema.properties ? new Set(Object.keys(schema.properties)) : new Set();
       const objKeys = Object.keys(obj);
-      
+
       for (let i = 0; i < objKeys.length; i++) {
         const key = objKeys[i];
         if (!definedKeys.has(key)) {
@@ -559,7 +570,7 @@ export class SchemaValidator {
 
   /**
    * Validates an array value.
-   * 
+   *
    * @private
    */
   private validateArray(value: unknown, schema: ArraySchema): unknown[] | undefined {
@@ -580,7 +591,7 @@ export class SchemaValidator {
     if (schema.items) {
       // Pre-size array for performance
       result.length = len;
-      
+
       for (let i = 0; i < len; i++) {
         this.currentPath.push(String(i));
         result[i] = this.validateValue(value[i], schema.items);
@@ -605,18 +616,18 @@ export class SchemaValidator {
     if (schema.uniqueItems && len > 1) {
       const seen = new Set();
       let hasDuplicates = false;
-      
+
       for (let i = 0; i < len; i++) {
         const item = result[i];
-        const key = (typeof item === 'object' && item !== null) ? JSON.stringify(item) : item;
-        
+        const key = typeof item === 'object' && item !== null ? JSON.stringify(item) : item;
+
         if (seen.has(key)) {
           hasDuplicates = true;
           break;
         }
         seen.add(key);
       }
-      
+
       if (hasDuplicates) {
         this.addError('Array items must be unique');
       }
@@ -627,12 +638,12 @@ export class SchemaValidator {
 
   /**
    * Validates a union type.
-   * 
+   *
    * @private
    */
   private validateUnion(value: unknown, schema: UnionSchema): unknown {
     const originalErrors = [...this.errors];
-    
+
     for (const subSchema of schema.schemas) {
       this.errors = [];
       const result = this.validateValue(value, subSchema);
@@ -649,12 +660,14 @@ export class SchemaValidator {
 
   /**
    * Validates a literal value.
-   * 
+   *
    * @private
    */
   private validateLiteral(value: unknown, schema: LiteralSchema): unknown {
     if (value !== schema.value) {
-      this.addError(`Expected literal value ${JSON.stringify(schema.value)}, got ${JSON.stringify(value)}`);
+      this.addError(
+        `Expected literal value ${JSON.stringify(schema.value)}, got ${JSON.stringify(value)}`
+      );
       return undefined;
     }
     return value;
@@ -662,12 +675,14 @@ export class SchemaValidator {
 
   /**
    * Validates an enum value.
-   * 
+   *
    * @private
    */
   private validateEnum(value: unknown, schema: EnumSchema): unknown {
     if (!schema.values.includes(value)) {
-      this.addError(`Value must be one of: ${schema.values.map(v => JSON.stringify(v)).join(', ')}`);
+      this.addError(
+        `Value must be one of: ${schema.values.map(v => JSON.stringify(v)).join(', ')}`
+      );
       return undefined;
     }
     return value;
@@ -675,7 +690,7 @@ export class SchemaValidator {
 
   /**
    * Adds an error to the error list.
-   * 
+   *
    * @private
    */
   private addError(message: string, value?: unknown, expected?: string): void {
@@ -683,13 +698,13 @@ export class SchemaValidator {
       path: this.getCurrentPath(),
       message,
       value,
-      expected
+      expected,
     });
   }
 
   /**
    * Gets the current validation path as a string.
-   * 
+   *
    * @private
    */
   private getCurrentPath(): string {
@@ -704,7 +719,7 @@ export class SchemaValidator {
 
 /**
  * Factory function to create a string schema.
- * 
+ *
  * @param {Partial<StringSchema>} [options] - String schema options
  * @returns {StringSchema} The string schema
  */
@@ -714,7 +729,7 @@ export function string(options?: Partial<StringSchema>): StringSchema {
 
 /**
  * Factory function to create a number schema.
- * 
+ *
  * @param {Partial<NumberSchema>} [options] - Number schema options
  * @returns {NumberSchema} The number schema
  */
@@ -724,7 +739,7 @@ export function number(options?: Partial<NumberSchema>): NumberSchema {
 
 /**
  * Factory function to create a boolean schema.
- * 
+ *
  * @param {Partial<BooleanSchema>} [options] - Boolean schema options
  * @returns {BooleanSchema} The boolean schema
  */
@@ -734,7 +749,7 @@ export function boolean(options?: Partial<BooleanSchema>): BooleanSchema {
 
 /**
  * Factory function to create an object schema.
- * 
+ *
  * @param {Record<string, AnySchema>} properties - Object properties
  * @param {Partial<ObjectSchema>} [options] - Additional options
  * @returns {ObjectSchema} The object schema
@@ -748,7 +763,7 @@ export function object(
 
 /**
  * Factory function to create an array schema.
- * 
+ *
  * @param {AnySchema} items - Array item schema
  * @param {Partial<ArraySchema>} [options] - Additional options
  * @returns {ArraySchema} The array schema
@@ -759,7 +774,7 @@ export function array(items: AnySchema, options?: Partial<ArraySchema>): ArraySc
 
 /**
  * Factory function to create a union schema.
- * 
+ *
  * @param {AnySchema[]} schemas - Possible schemas
  * @returns {UnionSchema} The union schema
  */
@@ -769,7 +784,7 @@ export function union(...schemas: AnySchema[]): UnionSchema {
 
 /**
  * Factory function to create a literal schema.
- * 
+ *
  * @param {T} value - The literal value
  * @returns {LiteralSchema} The literal schema
  */
@@ -779,7 +794,7 @@ export function literal<T>(value: T): LiteralSchema {
 
 /**
  * Factory function to create an enum schema.
- * 
+ *
  * @param {T[]} values - The enum values
  * @returns {EnumSchema} The enum schema
  */
@@ -789,7 +804,7 @@ export function enumSchema<T>(...values: T[]): EnumSchema {
 
 /**
  * Makes a schema optional.
- * 
+ *
  * @param {T} schema - The schema to make optional
  * @returns {T} The optional schema
  */
@@ -799,7 +814,7 @@ export function optional<T extends AnySchema>(schema: T): T {
 
 /**
  * Makes a schema nullable.
- * 
+ *
  * @param {T} schema - The schema to make nullable
  * @returns {T} The nullable schema
  */

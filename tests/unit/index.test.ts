@@ -21,7 +21,7 @@ describe('Logger module exports', () => {
     it('should export Logger as async logger by default', () => {
       expect(LoggerExports.Logger).toBeDefined();
       expect(typeof LoggerExports.Logger).toBe('function');
-      
+
       // Logger should be the AsyncLogger
       const logger = new LoggerExports.Logger();
       loggersToCleanup.push(logger);
@@ -31,7 +31,7 @@ describe('Logger module exports', () => {
     it('should export SyncLogger for blocking I/O', () => {
       expect(LoggerExports.SyncLogger).toBeDefined();
       expect(typeof LoggerExports.SyncLogger).toBe('function');
-      
+
       const syncLogger = new LoggerExports.SyncLogger();
       expect(LoggerExports.isSyncLogger(syncLogger)).toBe(true);
     });
@@ -41,7 +41,7 @@ describe('Logger module exports', () => {
     it('should export createLogger for async logger', () => {
       expect(LoggerExports.createLogger).toBeDefined();
       expect(typeof LoggerExports.createLogger).toBe('function');
-      
+
       const logger = LoggerExports.createLogger();
       loggersToCleanup.push(logger);
       expect(LoggerExports.isAsyncLogger(logger)).toBe(true);
@@ -50,11 +50,10 @@ describe('Logger module exports', () => {
     it('should export createSyncLogger for sync logger', () => {
       expect(LoggerExports.createSyncLogger).toBeDefined();
       expect(typeof LoggerExports.createSyncLogger).toBe('function');
-      
+
       const logger = LoggerExports.createSyncLogger();
       expect(LoggerExports.isSyncLogger(logger)).toBe(true);
     });
-
   });
 
   describe('Type Guards', () => {
@@ -73,7 +72,7 @@ describe('Logger module exports', () => {
     it('should have default export as factory function', () => {
       expect(LoggerExports.default).toBeDefined();
       expect(typeof LoggerExports.default).toBe('function');
-      
+
       const logger = LoggerExports.default();
       loggersToCleanup.push(logger);
       expect(LoggerExports.isAsyncLogger(logger)).toBe(true);
@@ -160,7 +159,7 @@ describe('Logger module exports', () => {
     it('should have properly structured exports', () => {
       expect(LoggerExports).toBeDefined();
       expect(typeof LoggerExports).toBe('object');
-      
+
       // Verify key exports exist
       const expectedExports = [
         'Logger',
@@ -183,7 +182,7 @@ describe('Logger module exports', () => {
         'Sampler',
         'EnhancedConsole',
       ];
-      
+
       expectedExports.forEach(exportName => {
         const anyExports = LoggerExports as unknown as Record<string, unknown>;
         expect(anyExports[exportName]).toBeDefined();

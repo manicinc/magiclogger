@@ -4,18 +4,14 @@
  * @fileoverview Middleware for automatic W3C trace context extraction and propagation.
  * Automatically extracts trace context from various sources (HTTP headers, AsyncLocalStorage, etc.)
  * and injects it into log entries for distributed tracing correlation.
- * 
+ *
  * @module middleware/TraceContextMiddleware
  */
 
 import { Middleware } from './Middleware';
 import type { LogEntry } from '../types';
 import type { MiddlewareContext, MiddlewareResult } from './Middleware';
-import { 
-  extractTraceContext, 
-  generateTraceId, 
-  generateSpanId,
-} from '../utils/trace-context';
+import { extractTraceContext, generateTraceId, generateSpanId } from '../utils/trace-context';
 import type { W3CTraceContext } from '../utils/trace-context';
 
 export type { W3CTraceContext };
@@ -34,13 +30,14 @@ function isW3CTraceContext(value: unknown): value is W3CTraceContext {
   return (
     typeof value === 'object' &&
     value !== null &&
-    ('traceId' in (value as Record<string, unknown>) || 'spanId' in (value as Record<string, unknown>))
+    ('traceId' in (value as Record<string, unknown>) ||
+      'spanId' in (value as Record<string, unknown>))
   );
 }
 
 /**
  * Options for configuring trace context middleware.
- * 
+ *
  * @interface TraceContextMiddlewareOptions
  */
 export interface TraceContextMiddlewareOptions {
@@ -53,7 +50,7 @@ export interface TraceContextMiddlewareOptions {
   /**
    * Custom function to extract trace context.
    * If provided, this overrides the default extraction logic.
-   * 
+   *
    * @param entry - The log entry being processed
    * @returns The extracted trace context or undefined
    */
@@ -62,7 +59,7 @@ export interface TraceContextMiddlewareOptions {
   /**
    * Function to get HTTP headers for trace extraction.
    * Used when autoExtract is true and no custom extractContext is provided.
-   * 
+   *
    * @returns HTTP headers object or undefined
    */
   getHeaders?: () => Record<string, string | string[] | undefined> | undefined;
@@ -95,25 +92,25 @@ export interface TraceContextMiddlewareOptions {
 
 /**
  * Middleware that automatically extracts and injects W3C trace context into log entries.
- * 
+ *
  * This middleware enables automatic distributed tracing correlation by:
  * 1. Extracting trace context from HTTP headers (for incoming requests)
  * 2. Reading from AsyncLocalStorage (for async context propagation)
  * 3. Using custom extraction logic (if provided)
  * 4. Generating new trace IDs (for root spans if configured)
- * 
+ *
  * @class TraceContextMiddleware
  * @extends {Middleware}
- * 
+ *
  * @example
  * ```typescript
  * // Automatic extraction from Express
  * import express from 'express';
  * import { Logger } from 'magiclogger';
  * import { TraceContextMiddleware } from 'magiclogger/middleware';
- * 
+ *
  * const app = express();
- * 
+ *
  * // Create middleware that extracts from current request
  * const traceMiddleware = new TraceContextMiddleware({
  *   getHeaders: () => {
@@ -122,33 +119,33 @@ export interface TraceContextMiddlewareOptions {
  *     return req?.headers;
  *   }
  * });
- * 
+ *
  * const logger = new Logger({
  *   middleware: [traceMiddleware]
  * });
- * 
+ *
  * // Now all logs automatically include trace context
  * logger.info('Request processed'); // Trace context auto-injected
  * ```
- * 
+ *
  * @example
  * ```typescript
  * // With AsyncLocalStorage for context propagation
  * import { AsyncLocalStorage } from 'async_hooks';
- * 
+ *
  * const traceStorage = new AsyncLocalStorage<W3CTraceContext>();
- * 
+ *
  * const traceMiddleware = new TraceContextMiddleware({
  *   asyncLocalStorage: traceStorage,
  *   generateIfMissing: true // Generate root spans
  * });
- * 
+ *
  * // Run with trace context
  * traceStorage.run(traceContext, () => {
  *   logger.info('Operation started'); // Auto-includes trace
  * });
  * ```
- * 
+ *
  * @example
  * ```typescript
  * // Custom extraction logic
@@ -170,15 +167,15 @@ export interface TraceContextMiddlewareOptions {
 export class TraceContextMiddleware extends Middleware {
   name = 'TraceContext';
   private options: Required<TraceContextMiddlewareOptions>;
-  
+
   /**
    * Creates a new trace context middleware instance.
-   * 
+   *
    * @param {TraceContextMiddlewareOptions} options - Configuration options
    */
   constructor(options: TraceContextMiddlewareOptions = {}) {
     super();
-    
+
     this.options = {
       autoExtract: options.autoExtract ?? true,
       extractContext: options.extractContext,
@@ -192,7 +189,7 @@ export class TraceContextMiddleware extends Middleware {
 
   /**
    * Process log entry to inject trace context.
-   * 
+   *
    * @param {LogEntry} entry - The log entry to process
    * @param {MiddlewareContext} _context - Execution context (unused)
    * @returns {MiddlewareResult} The processed entry with trace context
@@ -204,8 +201,9 @@ export class TraceContextMiddleware extends Middleware {
     }
 
     // Skip if trace context already exists
-  const field = this.options.traceField as string;
-  const existingTrace = ((entry as unknown) as Record<string, unknown>)[field] || entry.metadata?.trace;
+    const field = this.options.traceField as string;
+    const existingTrace =
+      (entry as unknown as Record<string, unknown>)[field] || entry.metadata?.trace;
     if (existingTrace) {
       return { continue: true, entry };
     }
@@ -272,24 +270,24 @@ export class TraceContextMiddleware extends Middleware {
 
 /**
  * Factory function to create trace context middleware for Express.
- * 
+ *
  * @param {any} asyncLocalStorage - AsyncLocalStorage instance containing Express request
  * @returns {TraceContextMiddleware} Configured middleware for Express
- * 
+ *
  * @example
  * ```typescript
  * import { AsyncLocalStorage } from 'async_hooks';
  * import express from 'express';
- * 
+ *
  * const requestStorage = new AsyncLocalStorage<{ req: express.Request }>();
- * 
+ *
  * const app = express();
- * 
+ *
  * // Store request in AsyncLocalStorage
  * app.use((req, res, next) => {
  *   requestStorage.run({ req }, next);
  * });
- * 
+ *
  * // Create logger with automatic trace extraction
  * const logger = new Logger({
  *   middleware: [createExpressTraceMiddleware(requestStorage)]
@@ -301,7 +299,7 @@ export function createExpressTraceMiddleware(
 ): TraceContextMiddleware {
   return new TraceContextMiddleware({
     getHeaders: () => {
-  const store = asyncLocalStorage.getStore();
+      const store = asyncLocalStorage.getStore();
       return store?.req?.headers;
     },
     asyncLocalStorage,
@@ -310,7 +308,7 @@ export function createExpressTraceMiddleware(
 
 /**
  * Factory function to create trace context middleware for Koa.
- * 
+ *
  * @param {any} asyncLocalStorage - AsyncLocalStorage instance containing Koa context
  * @returns {TraceContextMiddleware} Configured middleware for Koa
  */
@@ -319,7 +317,7 @@ export function createKoaTraceMiddleware(
 ): TraceContextMiddleware {
   return new TraceContextMiddleware({
     getHeaders: () => {
-  const store = asyncLocalStorage.getStore();
+      const store = asyncLocalStorage.getStore();
       return store?.ctx?.headers;
     },
     asyncLocalStorage,
@@ -328,7 +326,7 @@ export function createKoaTraceMiddleware(
 
 /**
  * Factory function to create trace context middleware for Fastify.
- * 
+ *
  * @param {any} asyncLocalStorage - AsyncLocalStorage instance containing Fastify request
  * @returns {TraceContextMiddleware} Configured middleware for Fastify
  */
@@ -337,7 +335,7 @@ export function createFastifyTraceMiddleware(
 ): TraceContextMiddleware {
   return new TraceContextMiddleware({
     getHeaders: () => {
-  const store = asyncLocalStorage.getStore();
+      const store = asyncLocalStorage.getStore();
       return store?.request?.headers;
     },
     asyncLocalStorage,

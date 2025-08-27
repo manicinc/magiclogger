@@ -2,7 +2,14 @@
  * @fileoverview Performance benchmarks for schema validation.
  */
 
-import { SchemaValidator, object, string, number, array, optional } from '../../src/validation/SchemaValidator';
+import {
+  SchemaValidator,
+  object,
+  string,
+  number,
+  array,
+  optional,
+} from '../../src/validation/SchemaValidator';
 import { ContextManager } from '../../src/core/ContextManager';
 import { TagManager } from '../../src/core/TagManager';
 
@@ -29,7 +36,7 @@ function benchmark(name: string, fn: () => void, iterations = 10000): BenchmarkR
     iterations,
     totalTime,
     avgTime: totalTime / iterations,
-    opsPerSec: Math.round((iterations / totalTime) * 1000)
+    opsPerSec: Math.round((iterations / totalTime) * 1000),
   };
 }
 
@@ -79,7 +86,7 @@ describe('Schema Validation Performance', () => {
         name: string({ minLength: 1, maxLength: 100 }),
         age: number({ min: 0, max: 150 }),
         email: optional(string({ format: 'email' })),
-        tags: array(string())
+        tags: array(string()),
       });
 
       const data = {
@@ -87,7 +94,7 @@ describe('Schema Validation Performance', () => {
         name: 'John Doe',
         age: 30,
         email: 'john@example.com',
-        tags: ['user', 'premium', 'verified']
+        tags: ['user', 'premium', 'verified'],
       };
 
       const result = benchmark('Complex object validation', () => {
@@ -107,14 +114,14 @@ describe('Schema Validation Performance', () => {
             bio: optional(string()),
             social: object({
               twitter: optional(string()),
-              github: optional(string())
-            })
-          })
+              github: optional(string()),
+            }),
+          }),
         }),
         metadata: object({
           created: number(),
-          updated: number()
-        })
+          updated: number(),
+        }),
       });
 
       const data = {
@@ -125,38 +132,50 @@ describe('Schema Validation Performance', () => {
             bio: 'Developer',
             social: {
               twitter: '@john',
-              github: 'john'
-            }
-          }
+              github: 'john',
+            },
+          },
         },
         metadata: {
           created: Date.now(),
-          updated: Date.now()
-        }
+          updated: Date.now(),
+        },
       };
 
-      const result = benchmark('Nested object validation', () => {
-        validator.validate(data, schema);
-      }, 5000);
+      const result = benchmark(
+        'Nested object validation',
+        () => {
+          validator.validate(data, schema);
+        },
+        5000
+      );
 
       console.log(`Nested object: ${result.opsPerSec.toLocaleString()} ops/sec`);
       expect(result.opsPerSec).toBeGreaterThan(10000); // Should handle 10k+ ops/sec
     });
 
     it('validates arrays efficiently', () => {
-      const schema = array(object({
-        id: number(),
-        value: string()
-      }));
+      const schema = array(
+        object({
+          id: number(),
+          value: string(),
+        })
+      );
 
-      const data = Array(100).fill(null).map((_, i) => ({
-        id: i,
-        value: `value${i}`
-      }));
+      const data = Array(100)
+        .fill(null)
+        .map((_, i) => ({
+          id: i,
+          value: `value${i}`,
+        }));
 
-      const result = benchmark('Large array validation', () => {
-        validator.validate(data, schema);
-      }, 1000);
+      const result = benchmark(
+        'Large array validation',
+        () => {
+          validator.validate(data, schema);
+        },
+        1000
+      );
 
       console.log(`Array (100 items): ${result.opsPerSec.toLocaleString()} ops/sec`);
       expect(result.opsPerSec).toBeGreaterThan(1000); // Should handle 1k+ ops/sec
@@ -170,7 +189,7 @@ describe('Schema Validation Performance', () => {
         userId: string(),
         sessionId: string(),
         requestId: optional(string()),
-        timestamp: number()
+        timestamp: number(),
       });
 
       contextManager.setSchema(schema);
@@ -179,12 +198,16 @@ describe('Schema Validation Performance', () => {
         userId: 'user123',
         sessionId: 'session456',
         requestId: 'req789',
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
 
-      const result = benchmark('ContextManager with schema', () => {
-        contextManager.set(context);
-      }, 5000);
+      const result = benchmark(
+        'ContextManager with schema',
+        () => {
+          contextManager.set(context);
+        },
+        5000
+      );
 
       console.log(`ContextManager: ${result.opsPerSec.toLocaleString()} ops/sec`);
       expect(result.opsPerSec).toBeGreaterThan(5000);
@@ -199,12 +222,16 @@ describe('Schema Validation Performance', () => {
         userId: 'user123',
         sessionId: 'session456',
         requestId: 'req789',
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
 
-      const result = benchmark('ContextManager without schema', () => {
-        contextManager.set(context);
-      }, 5000);
+      const result = benchmark(
+        'ContextManager without schema',
+        () => {
+          contextManager.set(context);
+        },
+        5000
+      );
 
       console.log(`ContextManager (no schema): ${result.opsPerSec.toLocaleString()} ops/sec`);
       expect(result.opsPerSec).toBeGreaterThan(10000);
@@ -218,20 +245,24 @@ describe('Schema Validation Performance', () => {
       const tagManager = new TagManager();
       const schema = object({
         category: string(),
-        priority: number({ min: 1, max: 5 })
+        priority: number({ min: 1, max: 5 }),
       });
 
       tagManager.setSchema(schema);
 
       const tag = {
         category: 'bug',
-        priority: 3
+        priority: 3,
       };
 
-      const result = benchmark('TagManager structured tags', () => {
-        tagManager.add(tag);
-        tagManager.clear(); // Clear to avoid accumulation
-      }, 5000);
+      const result = benchmark(
+        'TagManager structured tags',
+        () => {
+          tagManager.add(tag);
+          tagManager.clear(); // Clear to avoid accumulation
+        },
+        5000
+      );
 
       console.log(`TagManager structured: ${result.opsPerSec.toLocaleString()} ops/sec`);
       expect(result.opsPerSec).toBeGreaterThan(5000);
@@ -242,10 +273,14 @@ describe('Schema Validation Performance', () => {
     it('handles string tags efficiently (baseline)', () => {
       const tagManager = new TagManager();
 
-      const result = benchmark('TagManager string tags', () => {
-        tagManager.add(['tag1', 'tag2', 'tag3']);
-        tagManager.clear();
-      }, 5000);
+      const result = benchmark(
+        'TagManager string tags',
+        () => {
+          tagManager.add(['tag1', 'tag2', 'tag3']);
+          tagManager.clear();
+        },
+        5000
+      );
 
       console.log(`TagManager strings: ${result.opsPerSec.toLocaleString()} ops/sec`);
       expect(result.opsPerSec).toBeGreaterThan(10000);
@@ -258,20 +293,28 @@ describe('Schema Validation Performance', () => {
     it('caches validation results for repeated schemas', () => {
       const schema = object({
         id: string(),
-        value: number()
+        value: number(),
       });
 
       const data = { id: 'test', value: 42 };
 
       // First run - no cache
-      const firstRun = benchmark('First validation', () => {
-        validator.validate(data, schema);
-      }, 1000);
+      const firstRun = benchmark(
+        'First validation',
+        () => {
+          validator.validate(data, schema);
+        },
+        1000
+      );
 
       // Subsequent runs - should be faster if caching works
-      const cachedRun = benchmark('Cached validation', () => {
-        validator.validate(data, schema);
-      }, 10000);
+      const cachedRun = benchmark(
+        'Cached validation',
+        () => {
+          validator.validate(data, schema);
+        },
+        10000
+      );
 
       console.log(`First run: ${firstRun.opsPerSec.toLocaleString()} ops/sec`);
       console.log(`Cached run: ${cachedRun.opsPerSec.toLocaleString()} ops/sec`);
@@ -293,9 +336,13 @@ describe('Schema Validation Performance', () => {
         data = { nested: data };
       }
 
-      const result = benchmark('Deep recursion (20 levels)', () => {
-        validator.validate(data, schema);
-      }, 1000);
+      const result = benchmark(
+        'Deep recursion (20 levels)',
+        () => {
+          validator.validate(data, schema);
+        },
+        1000
+      );
 
       console.log(`Deep recursion: ${result.opsPerSec.toLocaleString()} ops/sec`);
       expect(result.opsPerSec).toBeGreaterThan(1000); // Should still be reasonably fast
@@ -305,19 +352,23 @@ describe('Schema Validation Performance', () => {
       const contextManager = new ContextManager({ enableValidation: false });
       const schema = object({
         id: string(),
-        data: array(number())
+        data: array(number()),
       });
 
       contextManager.setSchema(schema);
 
       const context = {
         id: 'test',
-        data: [1, 2, 3, 4, 5]
+        data: [1, 2, 3, 4, 5],
       };
 
-      const result = benchmark('Disabled validation', () => {
-        contextManager.set(context);
-      }, 10000);
+      const result = benchmark(
+        'Disabled validation',
+        () => {
+          contextManager.set(context);
+        },
+        10000
+      );
 
       console.log(`Disabled validation: ${result.opsPerSec.toLocaleString()} ops/sec`);
       expect(result.opsPerSec).toBeGreaterThan(50000); // Should be very fast when disabled
@@ -330,17 +381,20 @@ describe('Schema Validation Performance', () => {
     it('does not leak memory with repeated validations', () => {
       const schema = object({
         id: string(),
-        data: array(number())
+        data: array(number()),
       });
 
       const initialMemory = process.memoryUsage().heapUsed;
 
       // Run many validations
       for (let i = 0; i < 10000; i++) {
-        validator.validate({
-          id: `id${i}`,
-          data: [1, 2, 3, 4, 5]
-        }, schema);
+        validator.validate(
+          {
+            id: `id${i}`,
+            data: [1, 2, 3, 4, 5],
+          },
+          schema
+        );
       }
 
       // Force garbage collection if available
@@ -352,7 +406,7 @@ describe('Schema Validation Performance', () => {
       const memoryIncrease = finalMemory - initialMemory;
 
       console.log(`Memory increase: ${(memoryIncrease / 1024 / 1024).toFixed(2)} MB`);
-      
+
       // Should not increase by more than 10MB for 10k validations
       expect(memoryIncrease).toBeLessThan(10 * 1024 * 1024);
     });

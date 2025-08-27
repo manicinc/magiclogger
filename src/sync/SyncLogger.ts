@@ -1,10 +1,10 @@
 /**
  * @fileoverview Synchronous logger with blocking I/O for guaranteed delivery.
- * 
+ *
  * Provides immediate, blocking output ensuring logs are written before
  * methods return. Ideal for security auditing, debugging, and scenarios
  * requiring absolute delivery guarantees.
- * 
+ *
  * @module sync/SyncLogger
  */
 
@@ -21,7 +21,7 @@ import { ThemeManager } from '../theme/ThemeManager';
 // Node.js imports for synchronous file operations
 // Import modules at the top for TypeScript
 import * as fsModule from 'fs';
-import * as osModule from 'os';  
+import * as osModule from 'os';
 import * as pathModule from 'path';
 
 // Assign to variables that can be undefined for browser compatibility
@@ -37,25 +37,24 @@ if (typeof window !== 'undefined' && typeof process === 'undefined') {
   path = undefined;
 }
 
-
 type LogEntryMeta = Record<string, unknown>;
 
 /**
  * Synchronous logger with blocking I/O for guaranteed delivery.
- * 
+ *
  * All operations complete before returning, ensuring logs are written
  * immediately. Perfect for security auditing, debugging, and crash-resilient
  * logging at the cost of blocking application execution.
- * 
+ *
  * @class SyncLogger
- * 
+ *
  * @example Basic usage
  * ```typescript
  * const logger = new SyncLogger();
  * logger.info('Step 1');  // Blocks until written
  * logger.info('Step 2');  // Executes after Step 1 completes
  * ```
- * 
+ *
  * @example Audit logging
  * ```typescript
  * const audit = new SyncLogger({
@@ -63,7 +62,7 @@ type LogEntryMeta = Record<string, unknown>;
  *   forceFlush: true,     // fsync after each write
  *   useConsole: false
  * });
- * 
+ *
  * audit.info('User login', { userId: 123 });
  * // Log guaranteed on disk before continuing
  * ```
@@ -80,7 +79,7 @@ export class SyncLogger {
 
   /**
    * Creates a new synchronous logger instance.
-   * 
+   *
    * @constructor
    * @param {LoggerOptions} [options={}] - Configuration options
    * @param {boolean} [options.useColors=true] - Enable colored output
@@ -90,12 +89,12 @@ export class SyncLogger {
    * @param {boolean} [options.forceFlush=true] - Force fsync after each write
    * @param {string} [options.theme] - Theme name for styling
    * @param {Function} [options.onLog] - Custom synchronous handler
-   * 
+   *
    * @remarks
    * All operations are synchronous and block until complete.
    * File output uses sync I/O with optional fsync for durability.
    * Perfect for audit logging and scenarios requiring guaranteed delivery.
-   * 
+   *
    * @example
    * ```typescript
    * const logger = new SyncLogger({
@@ -110,7 +109,7 @@ export class SyncLogger {
       useColors: options.useColors ?? true,
       useConsole: options.useConsole ?? true,
       verbose: options.verbose ?? false,
-      ...options
+      ...options,
     };
 
     // Initialize styling components
@@ -118,11 +117,11 @@ export class SyncLogger {
     this.styleBuilder = new StyleBuilder();
     this.templateParser = new TemplateParser();
     this.themeManager = new ThemeManager();
-    
+
     // Configure Printer with our options
     Printer.configure({
       useColors: this.options.useColors,
-      timestamps: false // We'll handle timestamps in formatting
+      timestamps: false, // We'll handle timestamps in formatting
     });
 
     // Setup file output if requested
@@ -142,11 +141,13 @@ export class SyncLogger {
         // This avoids potential conflicts between file descriptor and appendFileSync
         // this.fileDescriptor = fs.openSync(fileOption, 'a');
       } catch (error) {
-        Printer.print(this.formatter.colorize(`[SyncLogger] Failed to setup log file: ${fileOption}`, ['red']));
+        Printer.print(
+          this.formatter.colorize(`[SyncLogger] Failed to setup log file: ${fileOption}`, ['red'])
+        );
       }
     }
 
-    // Apply theme if provided  
+    // Apply theme if provided
     if (options.theme) {
       if (typeof options.theme === 'string') {
         // Load named theme from available themes
@@ -164,19 +165,19 @@ export class SyncLogger {
 
   /**
    * Core synchronous logging method that blocks until written.
-   * 
+   *
    * @private
    * @param {string} message - The message to log
    * @param {LogLevel} level - Severity level of the log
    * @param {LogEntryMeta} [meta] - Optional structured metadata
-   * 
+   *
    * @remarks
    * Execution order:
    * 1. Parse styling (angle brackets)
    * 2. Write to console (if enabled) - blocks
    * 3. Write to file (if configured) - blocks with fsync
    * 4. Call custom handler (if provided) - blocks
-   * 
+   *
    * All operations complete before method returns.
    */
   private logSync(message: string, level: LogLevel = 'info', meta?: LogEntryMeta): void {
@@ -191,17 +192,21 @@ export class SyncLogger {
 
     // Format the log entry properly using Formatter
     const levelColor = this.getLevelColor(level);
-    const levelPrefix = this.options.useColors 
+    const levelPrefix = this.options.useColors
       ? this.formatter.colorize(`[${level.toUpperCase()}]`, [levelColor])
       : `[${level.toUpperCase()}]`;
-    
+
     // Build formatted message with consistent structure
-    const formattedMessage = `${this.formatter.formatTimestamp(new Date(), 'YYYY-MM-DD HH:mm:ss.SSS')} ${levelPrefix} ${message}`;
-    
+    const formattedMessage = `${this.formatter.formatTimestamp(
+      new Date(),
+      'YYYY-MM-DD HH:mm:ss.SSS'
+    )} ${levelPrefix} ${message}`;
+
     // Add metadata if present
-    const finalMessage = meta && Object.keys(meta).length > 0
-      ? `${formattedMessage} ${this.formatter.format('{meta}', { meta: JSON.stringify(meta) })}`
-      : formattedMessage;
+    const finalMessage =
+      meta && Object.keys(meta).length > 0
+        ? `${formattedMessage} ${this.formatter.format('{meta}', { meta: JSON.stringify(meta) })}`
+        : formattedMessage;
 
     // Write to console using Printer for consistency
     if (this.options.useConsole) {
@@ -215,18 +220,20 @@ export class SyncLogger {
     // Write to file synchronously using appendFileSync for better reliability
     if (this.filePath && fs) {
       const line = JSON.stringify(entry) + '\n';
-      
+
       try {
         // Use appendFileSync for more reliable appending
         // This handles the file operations atomically
         fs.appendFileSync(this.filePath, line, 'utf8');
-        
+
         this._writeCount++;
-        
-        // Note: forceFlush with appendFileSync is implicit - 
+
+        // Note: forceFlush with appendFileSync is implicit -
         // appendFileSync already ensures data is written to disk
       } catch (error) {
-        Printer.print(this.formatter.colorize(`[SyncLogger] Failed to write to log file: ${error}`, ['red']));
+        Printer.print(
+          this.formatter.colorize(`[SyncLogger] Failed to write to log file: ${error}`, ['red'])
+        );
         // Re-throw in tests to make failures visible
         if (process.env.NODE_ENV === 'test') {
           throw error;
@@ -234,7 +241,7 @@ export class SyncLogger {
       }
     }
 
-  // Call custom sync handler if provided
+    // Call custom sync handler if provided
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const onLogHandler = (this.options as any).onLog;
     if (onLogHandler) {
@@ -282,18 +289,17 @@ export class SyncLogger {
       pid: typeof process !== 'undefined' ? process.pid : undefined,
       hostname: os?.hostname?.(),
     };
-    
+
     return entry;
   }
 
-
   /**
    * Strips ANSI escape codes from text.
-   * 
+   *
    * @private
    * @param {string} text - Text potentially containing ANSI codes
    * @returns {string} Plain text with all ANSI codes removed
-   * 
+   *
    * @remarks
    * Uses the centralized Formatter method for consistency.
    * Required for file output to ensure clean JSON logs.
@@ -304,11 +310,11 @@ export class SyncLogger {
 
   /**
    * Maps log levels to their corresponding colors.
-   * 
+   *
    * @private
    * @param {LogLevel} level - The log level
    * @returns {ColorName} The color name for the level
-   * 
+   *
    * @remarks
    * Provides consistent color coding across all log levels.
    * Can be customized via theme configuration.
@@ -320,13 +326,13 @@ export class SyncLogger {
       // Return first color from theme for this level
       return (this.currentTheme[level] as ColorName[])[0] || 'white';
     }
-    
+
     // Check ThemeManager's available themes for level colors
     const defaultTheme = this.themeManager.getTheme('default');
     if (defaultTheme && defaultTheme[level] && Array.isArray(defaultTheme[level])) {
       return (defaultTheme[level] as ColorName[])[0] || 'white';
     }
-    
+
     // Fallback to default colors (these match the standard logger colors)
     const colors: Record<LogLevel, ColorName> = {
       error: 'red',
@@ -337,7 +343,7 @@ export class SyncLogger {
       trace: 'gray',
       fatal: 'red',
       verbose: 'blue',
-      silly: 'magenta'
+      silly: 'magenta',
     };
     return colors[level] || 'white';
   }
@@ -348,15 +354,15 @@ export class SyncLogger {
 
   /**
    * Logs an info-level message synchronously.
-   * 
+   *
    * @public
    * @param {string} message - The message to log
    * @param {LogEntryMeta} [meta] - Optional metadata object
-   * 
+   *
    * @remarks
    * Blocks until the message is written to all outputs.
    * Use for general informational messages.
-   * 
+   *
    * @example
    * ```typescript
    * logger.info('Server started', { port: 3000 });
@@ -369,16 +375,16 @@ export class SyncLogger {
 
   /**
    * Logs an error-level message synchronously with optional Error object.
-   * 
+   *
    * @public
    * @param {string} message - The error message
    * @param {Error | LogEntryMeta} [error] - Error object or metadata
    * @param {LogEntryMeta} [meta] - Additional metadata if error is an Error
-   * 
+   *
    * @remarks
    * Blocks until written. Automatically extracts stack traces from Error objects.
    * Critical for debugging as the error is guaranteed to be logged before continuing.
-   * 
+   *
    * @example
    * ```typescript
    * try {
@@ -396,8 +402,8 @@ export class SyncLogger {
         error: {
           name: error.name,
           message: error.message,
-          stack: error.stack
-        }
+          stack: error.stack,
+        },
       };
       this.logSync(message, 'error', errorMeta);
     } else {
@@ -407,21 +413,21 @@ export class SyncLogger {
 
   /**
    * Logs a warning-level message synchronously.
-   * 
+   *
    * @public
    * @param {string} message - The warning message
    * @param {LogEntryMeta} [meta] - Optional metadata
-   * 
+   *
    * @remarks
    * Blocks until written. Use for potentially problematic situations
    * that don't prevent operation but should be addressed.
-   * 
+   *
    * @example
    * ```typescript
    * if (cacheSize > threshold) {
-   *   logger.warn('Cache size exceeding threshold', { 
-   *     size: cacheSize, 
-   *     threshold 
+   *   logger.warn('Cache size exceeding threshold', {
+   *     size: cacheSize,
+   *     threshold
    *   });
    *   // Warning guaranteed logged before continuing
    * }
@@ -433,21 +439,21 @@ export class SyncLogger {
 
   /**
    * Logs a debug-level message synchronously.
-   * 
+   *
    * @public
    * @param {string} message - The debug message to log
    * @param {LogEntryMeta} [meta] - Optional metadata object
-   * 
+   *
    * @remarks
    * Only outputs when verbose mode is enabled. Blocks until written.
    * Use for detailed diagnostic information during development.
-   * 
+   *
    * @example
    * ```typescript
-   * logger.debug('Processing item', { 
-   *   index: i, 
+   * logger.debug('Processing item', {
+   *   index: i,
    *   value: item,
-   *   timestamp: Date.now() 
+   *   timestamp: Date.now()
    * });
    * // Debug info guaranteed written before next operation
    * ```
@@ -458,21 +464,21 @@ export class SyncLogger {
 
   /**
    * Logs a success-level message synchronously.
-   * 
+   *
    * @public
    * @param {string} message - The success message to log
    * @param {LogEntryMeta} [meta] - Optional metadata object
-   * 
+   *
    * @remarks
    * Blocks until written. Use to indicate successful completion
    * of operations. Typically displayed in green when colors enabled.
-   * 
+   *
    * @example
    * ```typescript
    * await database.connect();
-   * logger.success('Database connected', { 
+   * logger.success('Database connected', {
    *   host: dbHost,
-   *   port: dbPort 
+   *   port: dbPort
    * });
    * // Success guaranteed logged before proceeding
    * ```
@@ -483,21 +489,21 @@ export class SyncLogger {
 
   /**
    * Generic synchronous logging method with custom level.
-   * 
+   *
    * @public
    * @param {string} message - The message to log
    * @param {LogLevel} [level='info'] - The severity level
    * @param {LogEntryMeta} [meta] - Optional metadata object
-   * 
+   *
    * @remarks
    * Blocks until written. Allows specifying any valid log level.
    * Prefer using specific level methods (info, error, etc.) when possible.
-   * 
+   *
    * @example
    * ```typescript
-   * logger.log('Custom message', 'trace', { 
+   * logger.log('Custom message', 'trace', {
    *   module: 'auth',
-   *   action: 'validate' 
+   *   action: 'validate'
    * });
    * // Custom level log guaranteed written
    * ```
@@ -508,15 +514,15 @@ export class SyncLogger {
 
   /**
    * Closes file handles and performs cleanup.
-   * 
+   *
    * @public
-   * 
+   *
    * @remarks
    * Always call this when done logging to:
    * - Close file descriptors
    * - Flush any pending writes
    * - Free system resources
-   * 
+   *
    * @example
    * ```typescript
    * const logger = new SyncLogger({ file: './app.log' });
@@ -534,10 +540,10 @@ export class SyncLogger {
 
   /**
    * Gets the current log file path.
-   * 
+   *
    * @public
    * @returns {string | undefined} The path to the log file, or undefined if not using file output
-   * 
+   *
    * @example
    * ```typescript
    * const logger = new SyncLogger({ file: './app.log' });
@@ -557,21 +563,21 @@ export class SyncLogger {
 
   /**
    * Forces an fsync to ensure all data is written to disk.
-   * 
+   *
    * @public
-   * 
+   *
    * @remarks
    * Usually not needed as SyncLogger flushes after each write by default.
    * Use this if you disabled forceFlush in options but need to ensure
    * a critical log is persisted.
-   * 
+   *
    * @example
    * ```typescript
-   * const logger = new SyncLogger({ 
+   * const logger = new SyncLogger({
    *   file: './app.log',
    *   forceFlush: false  // Disabled for performance
    * });
-   * 
+   *
    * logger.info('Normal log');  // May be buffered by OS
    * logger.error('Critical error');
    * logger.flush();  // Force critical error to disk
@@ -589,14 +595,14 @@ export class SyncLogger {
 
   /**
    * Gets the chainable style builder for formatting text.
-   * 
+   *
    * @public
    * @returns {IStyleBuilder} The style builder instance
-   * 
+   *
    * @remarks
    * Provides fluent API for applying colors and styles to text.
    * Styles are applied synchronously when the chain is executed.
-   * 
+   *
    * @example
    * ```typescript
    * const styled = logger.s.red.bold('Error!');
@@ -610,16 +616,16 @@ export class SyncLogger {
 
   /**
    * Formats text using template literal syntax with embedded styles.
-   * 
+   *
    * @public
    * @param {TemplateStringsArray} strings - Template literal strings
    * @param {...unknown} values - Interpolated values
    * @returns {string} The formatted string with styles applied
-   * 
+   *
    * @remarks
    * Supports @-style tags for styling within template literals.
    * Processing is synchronous and returns formatted string immediately.
-   * 
+   *
    * @example
    * ```typescript
    * const msg = logger.fmt`@red{Error:} ${errorMessage} at @blue{${line}}`;
@@ -633,15 +639,15 @@ export class SyncLogger {
 
   /**
    * Prints a formatted header with separators.
-   * 
+   *
    * @public
    * @param {string} text - The header text to display
    * @param {ColorName[]} [styles] - Optional array of color names to apply
-   * 
+   *
    * @remarks
    * Creates a visually distinct header with separator lines.
    * Output is written synchronously before method returns.
-   * 
+   *
    * @example
    * ```typescript
    * logger.header('Configuration', ['blue', 'bold']);
@@ -654,29 +660,29 @@ export class SyncLogger {
     const separator = '='.repeat(width);
     const padding = Math.max(0, Math.floor((width - text.length) / 2));
     const centeredText = ' '.repeat(padding) + text;
-    
+
     let output = `\n${separator}\n${centeredText}\n${separator}`;
-    
+
     if (styles && this.options.useColors) {
       for (const style of styles) {
         output = Colorizer.applyColors(output, [style], true);
       }
     }
-    
+
     Printer.print(output);
   }
 
   /**
    * Prints a separator line.
-   * 
+   *
    * @public
    * @param {string} [char='-'] - Character to repeat for the separator
    * @param {number} [length=60] - Length of the separator line
-   * 
+   *
    * @remarks
    * Creates visual separation between log sections.
    * Output is written synchronously.
-   * 
+   *
    * @example
    * ```typescript
    * logger.info('Phase 1 complete');
@@ -691,17 +697,17 @@ export class SyncLogger {
 
   /**
    * Displays a text-based progress bar.
-   * 
+   *
    * @public
    * @param {number} percentage - Progress percentage (0-100)
    * @param {number} [width=40] - Width of the progress bar in characters
    * @param {string} [fillChar='█'] - Character for filled portion
    * @param {string} [emptyChar='░'] - Character for empty portion
-   * 
+   *
    * @remarks
    * Renders a visual progress indicator synchronously.
    * Useful for batch operations where each step must complete before continuing.
-   * 
+   *
    * @example
    * ```typescript
    * for (let i = 0; i <= 100; i += 10) {

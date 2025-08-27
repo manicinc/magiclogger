@@ -1,17 +1,17 @@
 /**
  * @fileoverview MagicLogger - High-performance, async-first logging library.
- * 
+ *
  * MagicLogger provides two distinct logging modes:
  * - **Logger** (default): Async with buffering for high performance
  * - **SyncLogger**: True synchronous I/O for guaranteed delivery
- * 
+ *
  * @module magiclogger
  * @example
  * ```typescript
  * // Default async logger - recommended for production
  * import { Logger } from 'magiclogger';
  * const logger = new Logger();
- * 
+ *
  * // Explicit sync logger - for debugging/auditing
  * import { SyncLogger } from 'magiclogger';
  * const syncLogger = new SyncLogger();
@@ -69,29 +69,31 @@ import type { LogLevel } from './types/logger';
 
 /**
  * Creates a logger with configurable behavior.
- * 
+ *
  * @param options - Configuration options
  * @param options.mode - Logger mode: 'async' (default), 'sync', 'auto', or 'balanced'
  * @returns Logger instance
- * 
+ *
  * @example
  * ```typescript
  * // Default async logger for high performance
  * const logger = createLogger();
- * 
+ *
  * // Explicit async mode
  * const asyncLogger = createLogger({ mode: 'async' });
- * 
+ *
  * // Sync logger for debugging or auditing
  * const syncLogger = createLogger({ mode: 'sync' });
- * 
+ *
  * // Auto-detect based on environment
  * const autoLogger = createLogger({ mode: 'auto' });
  * ```
  */
-export function createLogger(options: Partial<FullLoggerOptions & AsyncLoggerOptions> = {}): FullLoggerClass | AsyncLogger | SyncLogger {
+export function createLogger(
+  options: Partial<FullLoggerOptions & AsyncLoggerOptions> = {}
+): FullLoggerClass | AsyncLogger | SyncLogger {
   const mode = options.mode ?? 'async';
-  
+
   // For backward compatibility with tests, return actual AsyncLogger/SyncLogger instances
   if (mode === 'async') {
     // Return AsyncLogger for async mode
@@ -103,10 +105,13 @@ export function createLogger(options: Partial<FullLoggerOptions & AsyncLoggerOpt
     // Auto-detect based on environment
     const isProduction = typeof process !== 'undefined' && process.env?.NODE_ENV === 'production';
     const isInteractive = typeof process !== 'undefined' && process.stdout?.isTTY;
-    const isTesting = typeof process !== 'undefined' && (process.env?.NODE_ENV === 'test' || process.env?.CI);
-    
+    const isTesting =
+      typeof process !== 'undefined' && (process.env?.NODE_ENV === 'test' || process.env?.CI);
+
     const useAsync = isProduction || (!isInteractive && !isTesting);
-    return useAsync ? createAsyncLogger(options as Partial<AsyncLoggerOptions>) : new SyncLogger(options);
+    return useAsync
+      ? createAsyncLogger(options as Partial<AsyncLoggerOptions>)
+      : new SyncLogger(options);
   } else {
     // Default to FullLogger class for balanced mode or unknown
     return new FullLoggerClass(options);
@@ -116,7 +121,7 @@ export function createLogger(options: Partial<FullLoggerOptions & AsyncLoggerOpt
 /**
  * Creates a synchronous logger with blocking I/O.
  * @deprecated Use createLogger({ mode: 'sync' }) instead
- * 
+ *
  * @param options - Configuration options
  * @returns Logger instance in sync mode
  */
@@ -130,7 +135,7 @@ export function createSyncLogger(options: Partial<FullLoggerOptions> = {}): Sync
 
 /**
  * Default export - creates an async logger.
- * 
+ *
  * @example
  * ```typescript
  * import logger from 'magiclogger';
@@ -138,7 +143,9 @@ export function createSyncLogger(options: Partial<FullLoggerOptions> = {}): Sync
  * log.info('Hello world');
  * ```
  */
-export default function magiclogger(options: Partial<FullLoggerOptions & AsyncLoggerOptions> = {}): FullLoggerClass | AsyncLogger | SyncLogger {
+export default function magiclogger(
+  options: Partial<FullLoggerOptions & AsyncLoggerOptions> = {}
+): FullLoggerClass | AsyncLogger | SyncLogger {
   return createLogger(options);
 }
 
@@ -248,16 +255,16 @@ export function isSyncLogger(logger: unknown): logger is SyncLogger {
 /**
  * Creates an async logger with high-performance buffering.
  * @deprecated Use createLogger() which defaults to async
- * 
+ *
  * @param options - Configuration options for async logger
  * @returns AsyncLogger instance
  */
 export function createAsyncLogger(options: Partial<AsyncLoggerOptions> = {}): AsyncLogger {
   // For backward compatibility, create AsyncLogger directly
   const defaultBuffer = {
-  size: options.buffer?.size ?? 16384,
-  flushInterval: options.buffer?.flushInterval ?? 50,
-  flushSize: options.buffer?.flushSize ?? 2000,
+    size: options.buffer?.size ?? 16384,
+    flushInterval: options.buffer?.flushInterval ?? 50,
+    flushSize: options.buffer?.flushSize ?? 2000,
   };
 
   const defaultOnFlush = async (_entries: LogEntry[]) => {
@@ -272,22 +279,25 @@ export function createAsyncLogger(options: Partial<AsyncLoggerOptions> = {}): As
     timestampMs: Date.now(),
     plainMessage:
       typeof message === 'string'
-        ? message.replace(new RegExp(String.fromCharCode(27) + "\\[[0-9;]*m", 'g'), '')
+        ? message.replace(new RegExp(String.fromCharCode(27) + '\\[[0-9;]*m', 'g'), '')
         : String(message),
     context: meta,
   });
 
-  return new AsyncLogger({
-    buffer: defaultBuffer,
-    onFlush: options.onFlush ?? defaultOnFlush,
-  enableMetrics: options.enableMetrics ?? false,
-    redactor: options.redactor,
-    rateLimiter: options.rateLimiter,
-    sampler: options.sampler,
-    queueManager: options.queueManager,
-    fallbackToSync: options.fallbackToSync ?? false,
-    flushOnHighWater: options.flushOnHighWater ?? true,
-  }, createLogEntry);
+  return new AsyncLogger(
+    {
+      buffer: defaultBuffer,
+      onFlush: options.onFlush ?? defaultOnFlush,
+      enableMetrics: options.enableMetrics ?? false,
+      redactor: options.redactor,
+      rateLimiter: options.rateLimiter,
+      sampler: options.sampler,
+      queueManager: options.queueManager,
+      fallbackToSync: options.fallbackToSync ?? false,
+      flushOnHighWater: options.flushOnHighWater ?? true,
+    },
+    createLogEntry
+  );
 }
 
 /**

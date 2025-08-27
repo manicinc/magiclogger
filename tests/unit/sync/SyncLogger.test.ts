@@ -15,8 +15,10 @@ describe('SyncLogger', () => {
   });
 
   beforeEach(() => {
-    printSpy = jest.spyOn(Printer, 'print').mockImplementation(() => { /* noop */ });
-    
+    printSpy = jest.spyOn(Printer, 'print').mockImplementation(() => {
+      /* noop */
+    });
+
     // For SyncLogger tests, we need the real fs, not the mocked one
     // Restore real fs methods that SyncLogger uses
     // Use Object.assign to properly restore the methods
@@ -57,61 +59,66 @@ describe('SyncLogger', () => {
     logger.success('done');
     // At least 4 prints called with level prefixes in message
     expect(printSpy).toHaveBeenCalled();
-    const printed = printSpy.mock.calls.map((c) => String(c[0]));
-    expect(printed.some((m) => m.toUpperCase().includes('[INFO]'))).toBe(true);
-    expect(printed.some((m) => m.toUpperCase().includes('[WARN]'))).toBe(true);
-    expect(printed.some((m) => m.toUpperCase().includes('[DEBUG]'))).toBe(true);
-    expect(printed.some((m) => m.toUpperCase().includes('[SUCCESS]'))).toBe(true);
+    const printed = printSpy.mock.calls.map(c => String(c[0]));
+    expect(printed.some(m => m.toUpperCase().includes('[INFO]'))).toBe(true);
+    expect(printed.some(m => m.toUpperCase().includes('[WARN]'))).toBe(true);
+    expect(printed.some(m => m.toUpperCase().includes('[DEBUG]'))).toBe(true);
+    expect(printed.some(m => m.toUpperCase().includes('[SUCCESS]'))).toBe(true);
   });
 
   it('logs error with Error meta', () => {
     const logger = new SyncLogger({ useConsole: true });
     const err = new Error('boom');
     logger.error('failed', err);
-    const printed = printSpy.mock.calls.map((c) => String(c[0]));
-    expect(printed.some((m) => m.toUpperCase().includes('[ERROR]'))).toBe(true);
+    const printed = printSpy.mock.calls.map(c => String(c[0]));
+    expect(printed.some(m => m.toUpperCase().includes('[ERROR]'))).toBe(true);
   });
 
   it('supports custom log level via log()', () => {
     const logger = new SyncLogger({ useConsole: true });
     logger.log('tracing...', 'trace');
-    const printed = printSpy.mock.calls.map((c) => String(c[0]));
-    expect(printed.some((m) => m.toUpperCase().includes('[TRACE]'))).toBe(true);
+    const printed = printSpy.mock.calls.map(c => String(c[0]));
+    expect(printed.some(m => m.toUpperCase().includes('[TRACE]'))).toBe(true);
   });
 
   it('writes JSON lines to file and flushes/close works', async () => {
-    const tmp = path.join(os.tmpdir(), `synclogger-${Date.now()}-${Math.random().toString(36).slice(2)}.log`);
-    
+    const tmp = path.join(
+      os.tmpdir(),
+      `synclogger-${Date.now()}-${Math.random().toString(36).slice(2)}.log`
+    );
+
     // Create logger and write logs
     const logger = new SyncLogger({ file: tmp, useConsole: false, forceFlush: true });
-    
+
     logger.info('file hello', { a: 1 });
     logger.warn('file warn', { b: 2 });
-    
+
     logger.flush();
-    
+
     // Check write count before closing
     const writeCount = (logger as any).getWriteCount();
     expect(writeCount).toBe(2);
-    
+
     await logger.close(); // Close the file to ensure all data is written
 
     // Read and parse the file
     const content = fs.readFileSync(tmp, 'utf8');
-    
-    
-    const lines = content.trim().split(/\r?\n/).filter(line => line.trim() !== '');
-    
+
+    const lines = content
+      .trim()
+      .split(/\r?\n/)
+      .filter(line => line.trim() !== '');
+
     // Check we got 2 lines
     expect(lines).toHaveLength(2);
-    
+
     // Parse first line (info)
     const first = JSON.parse(lines[0]);
     expect(first.level).toBe('info');
     expect(first.message).toBe('file hello');
     expect(first.plainMessage).toBe('file hello');
     expect(first.meta).toEqual({ a: 1 });
-    
+
     // Parse second line (warn)
     const last = JSON.parse(lines[1]);
     expect(last.level).toBe('warn');
@@ -131,10 +138,13 @@ describe('SyncLogger', () => {
   });
 
   it('provides getFilePath', () => {
-    const tmp = path.join(os.tmpdir(), `synclogger-${Date.now()}-${Math.random().toString(36).slice(2)}.log`);
+    const tmp = path.join(
+      os.tmpdir(),
+      `synclogger-${Date.now()}-${Math.random().toString(36).slice(2)}.log`
+    );
     const logger = new SyncLogger({ file: tmp, useConsole: false });
     expect(logger.getFilePath()).toBe(tmp);
-    
+
     // Only delete the file if it exists (it won't exist unless we write to it)
     if (fs.existsSync(tmp)) {
       fs.unlinkSync(tmp);
@@ -155,9 +165,9 @@ describe('SyncLogger', () => {
     logger.header('CONFIG');
     logger.separator('=', 10);
     logger.progressBar(25, 10);
-    const printed = printSpy.mock.calls.map((c) => String(c[0]));
-    expect(printed.some((m) => m.includes('===='))).toBe(true);
-    expect(printed.some((m) => m.includes('========'))).toBe(true);
-    expect(printed.some((m) => m.includes('[■■■■')) || printed.some((m) => m.includes('['))).toBe(true);
+    const printed = printSpy.mock.calls.map(c => String(c[0]));
+    expect(printed.some(m => m.includes('===='))).toBe(true);
+    expect(printed.some(m => m.includes('========'))).toBe(true);
+    expect(printed.some(m => m.includes('[■■■■')) || printed.some(m => m.includes('['))).toBe(true);
   });
 });

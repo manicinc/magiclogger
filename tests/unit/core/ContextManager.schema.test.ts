@@ -21,64 +21,62 @@ describe('ContextManager Schema Validation', () => {
       const schema = object({
         userId: string(),
         sessionId: string(),
-        requestCount: number()
+        requestCount: number(),
       });
 
       contextManager.setSchema(schema);
-      
+
       // Valid context
       contextManager.set({
         userId: 'user123',
         sessionId: 'session456',
-        requestCount: 5
+        requestCount: 5,
       });
 
       expect(contextManager.get()).toMatchObject({
         userId: 'user123',
         sessionId: 'session456',
-        requestCount: 5
+        requestCount: 5,
       });
     });
 
     it('validates with throw mode', () => {
       const schema = object({
-        userId: string({ format: 'uuid' })
+        userId: string({ format: 'uuid' }),
       });
 
       contextManager.setSchema(schema, 'throw');
 
       expect(() => {
         contextManager.set({
-          userId: 'not-a-uuid'
+          userId: 'not-a-uuid',
         });
       }).toThrow('Context validation failed');
     });
 
     it('validates with warn mode', () => {
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-      
+
       const schema = object({
-        level: number({ min: 1, max: 5 })
+        level: number({ min: 1, max: 5 }),
       });
 
       contextManager.setSchema(schema, 'warn');
 
       contextManager.set({
-        level: 10
+        level: 10,
       });
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[ContextManager]')
-      );
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('[ContextManager]'));
 
       consoleSpy.mockRestore();
     });
 
     it('validates with silent mode', () => {
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-      
+
       const schema = object({
-        required: string()
+        required: string(),
       });
 
       contextManager.setSchema(schema, 'silent');
@@ -88,7 +86,7 @@ describe('ContextManager Schema Validation', () => {
       });
 
       expect(consoleSpy).not.toHaveBeenCalled();
-      
+
       consoleSpy.mockRestore();
     });
   });
@@ -100,10 +98,10 @@ describe('ContextManager Schema Validation', () => {
           id: string(),
           profile: object({
             name: string(),
-            tags: array(string())
-          })
+            tags: array(string()),
+          }),
         }),
-        metadata: optional(object({}, { additionalProperties: true }))
+        metadata: optional(object({}, { additionalProperties: true })),
       });
 
       contextManager.setSchema(schema, 'throw');
@@ -113,9 +111,9 @@ describe('ContextManager Schema Validation', () => {
           id: '123',
           profile: {
             name: 'John',
-            tags: ['admin', 'developer']
-          }
-        }
+            tags: ['admin', 'developer'],
+          },
+        },
       };
 
       contextManager.set(validContext);
@@ -128,30 +126,30 @@ describe('ContextManager Schema Validation', () => {
             id: '123',
             profile: {
               name: 'John',
-              tags: ['admin', 123] // Invalid: number in string array
-            }
-          }
+              tags: ['admin', 123], // Invalid: number in string array
+            },
+          },
         });
       }).toThrow();
     });
 
     it('applies transformations', () => {
       const schema = object({
-        email: string({ 
+        email: string({
           toLowerCase: true,
-          trim: true
+          trim: true,
         }),
         count: {
           type: 'number',
-          transform: (v) => Math.round(v as number)
-        }
+          transform: v => Math.round(v as number),
+        },
       });
 
       contextManager.setSchema(schema);
 
       contextManager.set({
         email: '  USER@EXAMPLE.COM  ',
-        count: 3.7
+        count: 3.7,
       });
 
       const result = contextManager.get();
@@ -163,51 +161,55 @@ describe('ContextManager Schema Validation', () => {
       const schema = object({
         id: string(),
         enabled: { type: 'boolean', default: true },
-        count: { type: 'number', default: 0 }
+        count: { type: 'number', default: 0 },
       });
 
       contextManager.setSchema(schema);
 
       contextManager.set({
-        id: 'test123'
+        id: 'test123',
       });
 
       const result = contextManager.get();
       expect(result).toEqual({
         id: 'test123',
         enabled: true,
-        count: 0
+        count: 0,
       });
     });
   });
 
   describe('Schema validation events', () => {
-    it('emits schemaSet event', (done) => {
-      const schema = object({ id: string() });
+    it('emits schemaSet event', () => {
+      return new Promise<void>(resolve => {
+        const schema = object({ id: string() });
 
-      contextManager.on('schemaSet', (s) => {
-        expect(s).toBe(schema);
-        done();
+        contextManager.on('schemaSet', s => {
+          expect(s).toBe(schema);
+          resolve();
+        });
+
+        contextManager.setSchema(schema);
       });
-
-      contextManager.setSchema(schema);
     });
 
-    it('emits schemaValidationFailed event', (done) => {
-      const schema = object({
-        required: string()
+    it('emits schemaValidationFailed event', () => {
+      return new Promise<void>(resolve => {
+        const schema = object({
+          required: string(),
+        });
+
+        contextManager.setSchema(schema, 'warn');
+
+        contextManager.on('schemaValidationFailed', ({ result, context }) => {
+          expect(result.valid).toBe(false);
+          expect(result.errors).toBeDefined();
+          expect(context).toEqual({ invalid: 'data' });
+          resolve();
+        });
+
+        contextManager.set({ invalid: 'data' });
       });
-
-      contextManager.setSchema(schema, 'warn');
-
-      contextManager.on('schemaValidationFailed', ({ result, context }) => {
-        expect(result.valid).toBe(false);
-        expect(result.errors).toBeDefined();
-        expect(context).toEqual({ invalid: 'data' });
-        done();
-      });
-
-      contextManager.set({ invalid: 'data' });
     });
   });
 
@@ -218,8 +220,8 @@ describe('ContextManager Schema Validation', () => {
         timestamp: number(),
         data: object({
           values: array(number()),
-          metadata: object({}, { additionalProperties: true })
-        })
+          metadata: object({}, { additionalProperties: true }),
+        }),
       });
 
       contextManager.setSchema(schema);
@@ -228,12 +230,14 @@ describe('ContextManager Schema Validation', () => {
         id: 'test',
         timestamp: Date.now(),
         data: {
-          values: Array(100).fill(0).map((_, i) => i),
+          values: Array(100)
+            .fill(0)
+            .map((_, i) => i),
           metadata: {
             source: 'test',
-            version: '1.0.0'
-          }
-        }
+            version: '1.0.0',
+          },
+        },
       };
 
       const iterations = 1000;
@@ -256,25 +260,25 @@ describe('ContextManager Schema Validation', () => {
       contextManager.set({
         anything: 'goes',
         number: 123,
-        nested: { object: true }
+        nested: { object: true },
       });
 
       expect(contextManager.get()).toMatchObject({
         anything: 'goes',
         number: 123,
-        nested: { object: true }
+        nested: { object: true },
       });
     });
 
     it('works with legacy validation rules alongside schema', () => {
       const schema = object({
-        id: string()
+        id: string(),
       });
 
       contextManager.setSchema(schema);
       contextManager.setValidationRules({
         required: ['id'],
-        custom: (ctx) => 'id' in ctx
+        custom: ctx => 'id' in ctx,
       });
 
       contextManager.set({ id: 'test' });

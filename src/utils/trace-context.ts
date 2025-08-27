@@ -2,19 +2,19 @@
 
 /**
  * @fileoverview W3C Trace Context utilities for distributed tracing.
- * 
+ *
  * This module provides utilities for working with W3C Trace Context headers,
  * enabling distributed tracing correlation across microservices and systems.
  * These utilities are used internally by MagicLogger's transport system but
  * can also be used directly for custom trace context handling.
- * 
+ *
  * @module utils/trace-context
  * @see {@link https://www.w3.org/TR/trace-context/ W3C Trace Context Specification}
  */
 
 /**
  * W3C Trace Context structure containing all trace correlation data.
- * 
+ *
  * @interface W3CTraceContext
  * @property {string} traceId - 32 hex character trace identifier
  * @property {string} [spanId] - 16 hex character span identifier
@@ -34,23 +34,23 @@ export interface W3CTraceContext {
 
 /**
  * Extracts W3C Trace Context from HTTP headers.
- * 
+ *
  * This function parses the standard W3C traceparent and tracestate headers
  * used by OpenTelemetry, Jaeger, Zipkin, and other distributed tracing systems.
  * It validates the format according to W3C specifications and returns a
  * structured trace context object.
- * 
+ *
  * **Note:** In most cases, you don't need to call this directly. Use the
  * TraceContextMiddleware for automatic extraction, or configure your transport
  * with autoExtractTrace: true.
  *
  * @param {Record<string, string | string[] | undefined>} headers - HTTP headers object
  * @returns {W3CTraceContext | undefined} Parsed trace context or undefined if not present/invalid
- * 
+ *
  * @example Basic extraction from Express request
  * ```typescript
  * import { extractTraceContext } from 'magiclogger/utils/trace-context';
- * 
+ *
  * app.post('/api/endpoint', (req, res) => {
  *   const traceContext = extractTraceContext(req.headers);
  *   if (traceContext) {
@@ -58,7 +58,7 @@ export interface W3CTraceContext {
  *   }
  * });
  * ```
- * 
+ *
  * @example Using with custom headers
  * ```typescript
  * const headers = {
@@ -68,7 +68,7 @@ export interface W3CTraceContext {
  * const context = extractTraceContext(headers);
  * // Returns: { traceId: '4bf92...', spanId: '00f06...', sampled: true, ... }
  * ```
- * 
+ *
  * @see {@link https://www.w3.org/TR/trace-context/#traceparent-header Traceparent Header}
  * @see {@link https://www.w3.org/TR/trace-context/#tracestate-header Tracestate Header}
  */
@@ -124,13 +124,13 @@ export function extractTraceContext(
 
 /**
  * Creates a W3C traceparent header string from trace context.
- * 
+ *
  * Formats trace context into the standard W3C traceparent header format
  * for propagating trace context to downstream services.
  *
  * @param {W3CTraceContext} context - Trace context object
  * @returns {string} Formatted traceparent header value
- * 
+ *
  * @example Creating header for outgoing HTTP request
  * ```typescript
  * const traceparent = createTraceparent({
@@ -139,7 +139,7 @@ export function extractTraceContext(
  *   sampled: true
  * });
  * // Returns: "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
- * 
+ *
  * // Use in outgoing request
  * fetch(url, {
  *   headers: {
@@ -147,7 +147,7 @@ export function extractTraceContext(
  *   }
  * });
  * ```
- * 
+ *
  * @example Auto-generating span ID if missing
  * ```typescript
  * const traceparent = createTraceparent({
@@ -168,24 +168,24 @@ export function createTraceparent(context: W3CTraceContext): string {
 
 /**
  * Generates a cryptographically random trace ID.
- * 
+ *
  * Creates a 128-bit (32 hex character) trace identifier suitable for
  * starting a new trace or creating root spans. Uses crypto.getRandomValues
  * in browsers or Math.random as fallback.
- * 
+ *
  * @returns {string} A 32 character hexadecimal trace ID
- * 
+ *
  * @example Starting a new trace
  * ```typescript
  * const traceId = generateTraceId();
  * const spanId = generateSpanId();
- * 
+ *
  * const traceContext = {
  *   traceId,
  *   spanId,
  *   sampled: true
  * };
- * 
+ *
  * logger.info('Starting new trace', { trace: traceContext });
  * ```
  */
@@ -209,13 +209,13 @@ export function generateTraceId(): string {
 
 /**
  * Generates a cryptographically random span ID.
- * 
+ *
  * Creates a 64-bit (16 hex character) span identifier for identifying
  * individual operations within a trace. Uses crypto.getRandomValues
  * in browsers or Math.random as fallback.
- * 
+ *
  * @returns {string} A 16 character hexadecimal span ID
- * 
+ *
  * @example Creating a child span
  * ```typescript
  * const childSpan = {
@@ -245,7 +245,7 @@ export function generateSpanId(): string {
 
 /**
  * Gets header value with case-insensitive matching.
- * 
+ *
  * @private
  * @param {Record<string, string | string[] | undefined>} headers - Headers object
  * @param {string} name - Header name to find
@@ -279,7 +279,7 @@ function getHeader(
 
 /**
  * Validates trace ID format according to W3C specification.
- * 
+ *
  * @private
  * @param {string} traceId - Trace ID to validate
  * @returns {boolean} True if valid (32 hex chars, not all zeros)
@@ -295,9 +295,9 @@ function isValidTraceId(traceId: string): boolean {
 
 /**
  * Validates span ID format according to W3C specification.
- * 
+ *
  * @private
- * @param {string} spanId - Span ID to validate  
+ * @param {string} spanId - Span ID to validate
  * @returns {boolean} True if valid (16 hex chars, not all zeros)
  */
 function isValidSpanId(spanId: string): boolean {

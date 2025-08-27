@@ -1,18 +1,23 @@
 /**
  * @fileoverview Tag management system with schema validation for MagicLogger.
- * 
+ *
  * Provides comprehensive tag management including normalization, validation,
  * filtering, and optional schema enforcement for structured tag data.
- * 
+ *
  * @module core/TagManager
  */
 
 import { EventEmitter } from 'events';
 import type { AnySchema, ValidationResult } from '../validation/SchemaValidator';
 
+// Lazy-load the SchemaValidator to keep bundle size small when validation isn't used
+let SchemaValidatorClass:
+  | typeof import('../validation/SchemaValidator').SchemaValidator
+  | undefined;
+
 /**
  * Configuration options for TagManager.
- * 
+ *
  * @interface TagManagerOptions
  */
 export interface TagManagerOptions {
@@ -31,19 +36,19 @@ export interface TagManagerOptions {
   /** Enable tag validation @default true */
   enableValidation?: boolean;
 
-  /** 
+  /**
    * Optional schema for structured tag validation.
    * When provided, tags can be validated as objects.
    */
   schema?: AnySchema;
 
-  /** 
+  /**
    * Validation mode when schema validation fails.
    * @default 'warn'
    */
   schemaValidationMode?: 'throw' | 'warn' | 'silent';
 
-  /** 
+  /**
    * Allow string tags alongside structured tags.
    * @default true
    */
@@ -254,32 +259,32 @@ export interface TagStats {
 
 /**
  * Manages tags for log entries with optional schema validation.
- * 
+ *
  * Provides comprehensive tag management including:
  * - Normalization and validation
  * - Schema enforcement for structured tags
  * - Tag extraction from text
  * - Filtering and matching
  * - Usage statistics
- * 
+ *
  * @class TagManager
  * @extends {EventEmitter}
- * 
+ *
  * @example Basic string tags
  * ```typescript
  * const tagManager = new TagManager({
  *   maxTags: 20,
  *   autoNormalize: true
  * });
- * 
+ *
  * const tags = tagManager.normalize(['API', 'User Login', 'v2.0']);
  * // Result: ['api', 'user-login', 'v2-0']
  * ```
- * 
+ *
  * @example Structured tags with schema validation
  * ```typescript
  * import { object, string, number } from 'magiclogger/validation';
- * 
+ *
  * const tagManager = new TagManager({
  *   schema: object({
  *     category: string({ enum: ['error', 'warning', 'info'] }),
@@ -288,7 +293,7 @@ export interface TagStats {
  *   }),
  *   schemaValidationMode: 'throw'
  * });
- * 
+ *
  * tagManager.add({
  *   category: 'error',
  *   severity: 8,
@@ -335,7 +340,7 @@ export class TagManager extends EventEmitter {
 
   /**
    * Creates a new TagManager instance.
-   * 
+   *
    * @param {TagManagerOptions} options - Configuration options
    * @constructor
    */
@@ -900,14 +905,14 @@ export class TagManager extends EventEmitter {
 
   /**
    * Sets a schema for structured tag validation.
-   * 
+   *
    * @param {AnySchema} schema - Schema definition for tags
    * @param {'throw' | 'warn' | 'silent'} [mode] - Validation mode
-   * 
+   *
    * @example
    * ```typescript
    * import { object, string, number, array } from 'magiclogger/validation';
-   * 
+   *
    * tagManager.setSchema(
    *   object({
    *     category: string({ enum: ['bug', 'feature', 'docs'] }),
@@ -928,7 +933,7 @@ export class TagManager extends EventEmitter {
 
   /**
    * Adds tags with optional schema validation.
-   * 
+   *
    * @param {string | string[] | unknown} tags - Tags to add
    * @returns {boolean} Whether tags were successfully added
    */
@@ -941,7 +946,7 @@ export class TagManager extends EventEmitter {
     // Handle string tags
     const stringTags = this.normalize(tags as string | string[]);
     const validation = this.validate(stringTags);
-    
+
     if (!validation.valid) {
       this.handleValidationError('String tags validation failed', validation);
       return false;
@@ -958,7 +963,7 @@ export class TagManager extends EventEmitter {
 
   /**
    * Adds a structured tag with schema validation.
-   * 
+   *
    * @private
    * @param {unknown} tagData - Structured tag data
    * @returns {boolean} Whether tag was added
@@ -970,7 +975,7 @@ export class TagManager extends EventEmitter {
     }
 
     const result = this.validateWithSchema(tagData);
-    
+
     if (!result.valid) {
       this.handleSchemaValidationError(result, tagData);
       return this.schemaValidationMode !== 'throw';
@@ -983,7 +988,7 @@ export class TagManager extends EventEmitter {
 
   /**
    * Validates data against the configured schema.
-   * 
+   *
    * @private
    * @param {unknown} data - Data to validate
    * @returns {ValidationResult} Validation result
@@ -995,10 +1000,16 @@ export class TagManager extends EventEmitter {
 
     // Lazy load validator
     if (!this.schemaValidator) {
-      // Dynamic import for lazy loading
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { SchemaValidator } = require('../validation/SchemaValidator') as typeof import('../validation/SchemaValidator');
-      this.schemaValidator = new SchemaValidator();
+      if (!SchemaValidatorClass) {
+        // Synchronous require for lazy loading - tree-shaken if never called
+        /* eslint-disable @typescript-eslint/no-var-requires */
+        const module = require('../validation/SchemaValidator');
+        /* eslint-enable @typescript-eslint/no-var-requires */
+        SchemaValidatorClass = module.SchemaValidator;
+      }
+      if (SchemaValidatorClass) {
+        this.schemaValidator = new SchemaValidatorClass();
+      }
     }
 
     // Guard against undefined to satisfy eslint no-non-null-assertion
@@ -1012,7 +1023,7 @@ export class TagManager extends EventEmitter {
 
   /**
    * Handles schema validation errors.
-   * 
+   *
    * @private
    * @param {ValidationResult} result - Validation result
    * @param {unknown} data - Data that failed validation
@@ -1040,7 +1051,7 @@ export class TagManager extends EventEmitter {
 
   /**
    * Handles validation errors for string tags.
-   * 
+   *
    * @private
    * @param {string} message - Error message
    * @param {TagValidationResult} validation - Validation result
@@ -1060,13 +1071,13 @@ export class TagManager extends EventEmitter {
 
   /**
    * Gets all tags (both string and structured).
-   * 
+   *
    * @returns {{ strings: string[], structured: unknown[] }} All tags
    */
   public getAllTags(): { strings: string[]; structured: unknown[] } {
     return {
       strings: Array.from(this.tags),
-      structured: Array.from(this.structuredTags)
+      structured: Array.from(this.structuredTags),
     };
   }
 

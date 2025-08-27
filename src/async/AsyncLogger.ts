@@ -1,9 +1,9 @@
 /**
  * @fileoverview High-performance asynchronous logger with ring buffer.
- * 
+ *
  * Provides non-blocking logging with automatic batching, backpressure handling,
  * and integration with operational utilities like rate limiting and redaction.
- * 
+ *
  * @module async/AsyncLogger
  */
 
@@ -18,7 +18,7 @@ import { QueueManager, type QueueManagerOptions } from '../extensions/QueueManag
 
 /**
  * Configuration options for AsyncLogger.
- * 
+ *
  * @interface AsyncLoggerOptions
  */
 export interface AsyncLoggerOptions {
@@ -130,13 +130,13 @@ export interface AsyncLoggerOptions {
 
 /**
  * High-performance asynchronous logger with ring buffer architecture.
- * 
+ *
  * Designed for maximum throughput with non-blocking operations, automatic
  * batching, and comprehensive backpressure handling. Integrates operational
  * utilities for rate limiting, redaction, and sampling.
- * 
+ *
  * @class AsyncLogger
- * 
+ *
  * @example Basic usage
  * ```typescript
  * const logger = new AsyncLogger({
@@ -145,13 +145,13 @@ export interface AsyncLoggerOptions {
  *     await transport.sendBatch(entries);
  *   }
  * });
- * 
+ *
  * const result = logger.info('User logged in', { userId: 123 });
  * if (!result.success) {
  *   console.warn(`Log dropped: ${result.reason}`);
  * }
  * ```
- * 
+ *
  * @example With operational utilities
  * ```typescript
  * const logger = new AsyncLogger({
@@ -222,7 +222,7 @@ export class AsyncLogger {
 
   /**
    * Creates a new AsyncLogger instance.
-   * 
+   *
    * @param {Partial<AsyncLoggerOptions>} [options] - Configuration options
    * @param {Function} [createEntry] - Function to create log entries
    * @constructor
@@ -231,34 +231,35 @@ export class AsyncLogger {
     options?: Partial<AsyncLoggerOptions>,
     createEntry?: (level: LogLevel, message: string, meta?: Record<string, unknown>) => LogEntry
   ) {
-  const safeOptions: AsyncLoggerOptions = {
+    const safeOptions: AsyncLoggerOptions = {
       buffer: {
-    size: options?.buffer?.size ?? 8192,
-    flushInterval: options?.buffer?.flushInterval ?? 100,
-    flushSize: options?.buffer?.flushSize ?? 1000,
+        size: options?.buffer?.size ?? 8192,
+        flushInterval: options?.buffer?.flushInterval ?? 100,
+        flushSize: options?.buffer?.flushSize ?? 1000,
       },
       onFlush:
         options?.onFlush ??
         ((entries: LogEntry[]) => {
           // Default minimal flush: print messages to console as a single batch
-      try {
+          try {
             for (const e of entries) {
               // Prefer level-appropriate console method
               const line = e.message ?? '';
-        if (e.level === 'error') console.error(line);
-        else if (e.level === 'warn') console.warn(line);
-        else if (e.level === 'debug' && typeof console.debug === 'function') console.debug(line);
-        else console.log(line);
+              if (e.level === 'error') console.error(line);
+              else if (e.level === 'warn') console.warn(line);
+              else if (e.level === 'debug' && typeof console.debug === 'function')
+                console.debug(line);
+              else console.log(line);
             }
           } catch {
             /* noop */
           }
         }),
-    enableMetrics: options?.enableMetrics ?? true,
-    rateLimiter: options?.rateLimiter,
-    redactor: options?.redactor,
-    sampler: options?.sampler,
-    queueManager: options?.queueManager,
+      enableMetrics: options?.enableMetrics ?? true,
+      rateLimiter: options?.rateLimiter,
+      redactor: options?.redactor,
+      sampler: options?.sampler,
+      queueManager: options?.queueManager,
       fallbackToSync: options?.fallbackToSync ?? false,
       flushOnHighWater: options?.flushOnHighWater ?? true,
       onMetrics: options?.onMetrics,
@@ -292,7 +293,7 @@ export class AsyncLogger {
     this.onMetrics = safeOptions.onMetrics;
 
     // Initialize operational utilities
-  this.initializeUtilities(safeOptions);
+    this.initializeUtilities(safeOptions);
 
     // Initialize buffer with flush handler
     this.buffer = new AsyncBuffer({
@@ -310,11 +311,11 @@ export class AsyncLogger {
 
   /**
    * Logs an info-level message.
-   * 
+   *
    * @param {string} message - Log message
    * @param {Record<string, unknown>} [meta] - Optional metadata
    * @returns {AddResult} Result indicating success/failure and reason
-   * 
+   *
    * @example
    * ```typescript
    * const result = logger.info('User action', { userId: 123 });
@@ -330,7 +331,7 @@ export class AsyncLogger {
 
   /**
    * Logs a warning-level message.
-   * 
+   *
    * @param {string} message - Log message
    * @param {Record<string, unknown>} [meta] - Optional metadata
    * @returns {AddResult} Result indicating success/failure
@@ -342,7 +343,7 @@ export class AsyncLogger {
 
   /**
    * Logs an error-level message.
-   * 
+   *
    * @param {string} message - Log message
    * @param {Record<string, unknown>} [meta] - Optional metadata
    * @returns {AddResult} Result indicating success/failure
@@ -354,7 +355,7 @@ export class AsyncLogger {
 
   /**
    * Logs a debug-level message.
-   * 
+   *
    * @param {string} message - Log message
    * @param {Record<string, unknown>} [meta] - Optional metadata
    * @returns {AddResult} Result indicating success/failure
@@ -693,20 +694,33 @@ export class AsyncLogger {
         const ops: Array<void | Promise<void>> = [];
         for (const t of this.transports) {
           try {
-            if (typeof (t as { logBatch?: (e: LogEntry[]) => void | Promise<void> }).logBatch === 'function') {
-              ops.push((t as { logBatch: (e: LogEntry[]) => void | Promise<void> }).logBatch(entries));
+            if (
+              typeof (t as { logBatch?: (e: LogEntry[]) => void | Promise<void> }).logBatch ===
+              'function'
+            ) {
+              ops.push(
+                (t as { logBatch: (e: LogEntry[]) => void | Promise<void> }).logBatch(entries)
+              );
             } else if (typeof t.log === 'function') {
               for (const e of entries) ops.push(t.log(e));
             }
           } catch (err) {
             // eslint-disable-next-line no-console
-            console.warn('[AsyncLogger] Transport error', (t as { name?: string })?.name || 'unknown', err);
+            console.warn(
+              '[AsyncLogger] Transport error',
+              (t as { name?: string })?.name || 'unknown',
+              err
+            );
           }
         }
         // Wait for async transports
         if (ops.some(p => p && typeof (p as Promise<void>).then === 'function')) {
           await Promise.all(
-            ops.map(p => (p && typeof (p as Promise<void>).then === 'function' ? (p as Promise<void>) : Promise.resolve()))
+            ops.map(p =>
+              p && typeof (p as Promise<void>).then === 'function'
+                ? (p as Promise<void>)
+                : Promise.resolve()
+            )
           );
         }
       }

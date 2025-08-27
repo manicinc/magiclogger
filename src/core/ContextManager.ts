@@ -3,6 +3,11 @@
 import { EventEmitter } from 'events';
 import type { AnySchema, ValidationResult } from '../validation/SchemaValidator';
 
+// Lazy-load the SchemaValidator to keep bundle size small when validation isn't used
+let SchemaValidatorClass:
+  | typeof import('../validation/SchemaValidator').SchemaValidator
+  | undefined;
+
 /**
  * Sanitization modes for context values.
  *
@@ -221,7 +226,7 @@ export class ContextManager extends EventEmitter {
   constructor(options: ContextManagerOptions = {}) {
     super();
 
-  this.options = {
+    this.options = {
       maxDepth: options.maxDepth ?? 10,
       maxProperties: options.maxProperties ?? 100,
       sanitizeMode: options.sanitizeMode ?? 'basic',
@@ -230,7 +235,7 @@ export class ContextManager extends EventEmitter {
       enableValidation: options.enableValidation ?? true,
       schema: options.schema,
       schemaValidationMode: options.schemaValidationMode ?? 'warn',
-  };
+    };
 
     this.schema = options.schema;
     this.schemaValidationMode = options.schemaValidationMode ?? 'warn';
@@ -972,14 +977,14 @@ export class ContextManager extends EventEmitter {
 
   /**
    * Sets a schema for context validation.
-   * 
+   *
    * @param {AnySchema} schema - The schema to use for validation
    * @param {'throw' | 'warn' | 'silent'} [mode] - Validation mode
-   * 
+   *
    * @example
    * ```typescript
    * import { object, string, number } from 'magiclogger/validation';
-   * 
+   *
    * contextManager.setSchema(
    *   object({
    *     userId: string({ format: 'uuid' }),
@@ -1000,7 +1005,7 @@ export class ContextManager extends EventEmitter {
 
   /**
    * Validates context against the configured schema.
-   * 
+   *
    * @private
    * @param {Record<string, unknown>} context - Context to validate
    * @returns {ValidationResult} Validation result
@@ -1012,10 +1017,19 @@ export class ContextManager extends EventEmitter {
 
     // Lazy load the validator
     if (!this.schemaValidator) {
-      // Dynamic import for lazy loading
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { SchemaValidator } = require('../validation/SchemaValidator') as typeof import('../validation/SchemaValidator');
-      this.schemaValidator = new SchemaValidator();
+      if (!SchemaValidatorClass) {
+        // Synchronous require for lazy loading - tree-shaken if never called
+        /* eslint-disable @typescript-eslint/no-var-requires */
+        const module = require('../validation/SchemaValidator');
+        /* eslint-enable @typescript-eslint/no-var-requires */
+        SchemaValidatorClass = module.SchemaValidator;
+      }
+      if (SchemaValidatorClass) {
+        this.schemaValidator = new SchemaValidatorClass();
+      } else {
+        // Validation module not available
+        return { valid: true, data: context };
+      }
     }
 
     return this.schemaValidator.validate(context, this.schema);
@@ -1023,7 +1037,7 @@ export class ContextManager extends EventEmitter {
 
   /**
    * Handles schema validation errors based on configured mode.
-   * 
+   *
    * @private
    * @param {ValidationResult} result - Validation result
    * @param {Record<string, unknown>} context - The context that failed validation

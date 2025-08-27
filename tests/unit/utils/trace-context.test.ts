@@ -144,7 +144,7 @@ describe('trace-context utilities', () => {
     it('should work with Express-like headers', () => {
       const expressHeaders = {
         'content-type': 'application/json',
-        'traceparent': '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01',
+        traceparent: '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01',
         'x-custom-header': 'value',
       };
 
@@ -189,9 +189,7 @@ describe('trace-context utilities', () => {
 
       const traceparent = createTraceparent(context);
 
-      expect(traceparent).toMatch(
-        /^00-4bf92f3577b34da6a3ce929d0e0e4736-[0-9a-f]{16}-01$/
-      );
+      expect(traceparent).toMatch(/^00-4bf92f3577b34da6a3ce929d0e0e4736-[0-9a-f]{16}-01$/);
     });
 
     it('should handle not sampled traces', () => {
@@ -258,9 +256,9 @@ describe('trace-context utilities', () => {
         return array;
       });
 
-      global.crypto = ({
+      global.crypto = {
         getRandomValues: mockGetRandomValues,
-      } as unknown) as Crypto;
+      } as unknown as Crypto;
 
       const traceId = generateTraceId();
 
@@ -273,10 +271,10 @@ describe('trace-context utilities', () => {
     it('should fall back to Math.random when crypto is unavailable', () => {
       const originalCrypto = global.crypto;
       const originalRandom = Math.random;
-      
+
       // @ts-expect-error - Intentionally removing crypto for testing fallback
       delete global.crypto;
-      
+
       Math.random = jest.fn(() => 0.5);
 
       const traceId = generateTraceId();
@@ -323,9 +321,9 @@ describe('trace-context utilities', () => {
         return array;
       });
 
-      global.crypto = ({
+      global.crypto = {
         getRandomValues: mockGetRandomValues,
-      } as unknown) as Crypto;
+      } as unknown as Crypto;
 
       const spanId = generateSpanId();
 
@@ -338,10 +336,10 @@ describe('trace-context utilities', () => {
     it('should fall back to Math.random when crypto is unavailable', () => {
       const originalCrypto = global.crypto;
       const originalRandom = Math.random;
-      
+
       // @ts-expect-error - Intentionally removing crypto for testing fallback
       delete global.crypto;
-      
+
       Math.random = jest.fn(() => 0.5);
 
       const spanId = generateSpanId();

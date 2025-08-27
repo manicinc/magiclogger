@@ -20,7 +20,7 @@ describe('TagManager Schema Validation', () => {
     it('handles string tags without schema', () => {
       const result = tagManager.add(['api', 'user', 'v2']);
       expect(result).toBe(true);
-      
+
       const { strings } = tagManager.getAllTags();
       expect(strings).toContain('api');
       expect(strings).toContain('user');
@@ -29,7 +29,7 @@ describe('TagManager Schema Validation', () => {
 
     it('normalizes string tags', () => {
       tagManager.add(['API', 'User Login', 'v2.0']);
-      
+
       const { strings } = tagManager.getAllTags();
       expect(strings).toContain('api');
       expect(strings).toContain('user-login');
@@ -39,14 +39,14 @@ describe('TagManager Schema Validation', () => {
     it('validates string tags', () => {
       tagManager.setValidationRules({
         minLength: 3,
-        pattern: /^[a-z0-9-]+$/
+        pattern: /^[a-z0-9-]+$/,
       });
 
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-      
+
       tagManager.add(['ab']); // Too short
       expect(consoleSpy).toHaveBeenCalled();
-      
+
       consoleSpy.mockRestore();
     });
   });
@@ -56,7 +56,7 @@ describe('TagManager Schema Validation', () => {
       const schema = object({
         category: string({ enum: ['bug', 'feature', 'docs'] }),
         priority: number({ min: 1, max: 5 }),
-        labels: array(string())
+        labels: array(string()),
       });
 
       tagManager.setSchema(schema, 'throw');
@@ -64,11 +64,11 @@ describe('TagManager Schema Validation', () => {
       const validTag = {
         category: 'bug',
         priority: 3,
-        labels: ['urgent', 'regression']
+        labels: ['urgent', 'regression'],
       };
 
       expect(tagManager.add(validTag)).toBe(true);
-      
+
       const { structured } = tagManager.getAllTags();
       expect(structured).toContainEqual(validTag);
     });
@@ -76,7 +76,7 @@ describe('TagManager Schema Validation', () => {
     it('rejects invalid structured tags in throw mode', () => {
       const schema = object({
         type: enumSchema('error', 'warning', 'info'),
-        level: number({ min: 1, max: 10 })
+        level: number({ min: 1, max: 10 }),
       });
 
       tagManager.setSchema(schema, 'throw');
@@ -84,36 +84,34 @@ describe('TagManager Schema Validation', () => {
       expect(() => {
         tagManager.add({
           type: 'debug', // Invalid enum value
-          level: 5
+          level: 5,
         });
       }).toThrow('Tag schema validation failed');
     });
 
     it('warns on invalid tags in warn mode', () => {
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-      
+
       const schema = object({
-        severity: number({ min: 1, max: 5 })
+        severity: number({ min: 1, max: 5 }),
       });
 
       tagManager.setSchema(schema, 'warn');
 
       tagManager.add({
-        severity: 10 // Out of range
+        severity: 10, // Out of range
       });
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[TagManager]')
-      );
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('[TagManager]'));
 
       consoleSpy.mockRestore();
     });
 
     it('silently continues in silent mode', () => {
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-      
+
       const schema = object({
-        required: string()
+        required: string(),
       });
 
       tagManager.setSchema(schema, 'silent');
@@ -130,18 +128,18 @@ describe('TagManager Schema Validation', () => {
     it('handles both string and structured tags', () => {
       const schema = object({
         category: string(),
-        severity: number()
+        severity: number(),
       });
 
       tagManager.setSchema(schema);
 
       // Add string tags
       tagManager.add(['api', 'v2']);
-      
+
       // Add structured tag
       tagManager.add({
         category: 'error',
-        severity: 3
+        severity: 3,
       });
 
       const allTags = tagManager.getAllTags();
@@ -150,18 +148,18 @@ describe('TagManager Schema Validation', () => {
       expect(allTags.structured).toHaveLength(1);
       expect(allTags.structured[0]).toMatchObject({
         category: 'error',
-        severity: 3
+        severity: 3,
       });
     });
 
     it('allows mixed types when configured', () => {
       const schema = object({
-        type: string()
+        type: string(),
       });
 
       tagManager = new TagManager({
         allowMixedTypes: true,
-        schema
+        schema,
       });
 
       expect(tagManager.add('simple-tag')).toBe(true);
@@ -172,66 +170,72 @@ describe('TagManager Schema Validation', () => {
   describe('Schema transformations', () => {
     it('applies transformations to structured tags', () => {
       const schema = object({
-        name: string({ 
+        name: string({
           toLowerCase: true,
-          trim: true
+          trim: true,
         }),
         value: {
           type: 'number',
-          transform: (v) => Math.abs(v as number)
-        }
+          transform: v => Math.abs(v as number),
+        },
       });
 
       tagManager.setSchema(schema);
 
       tagManager.add({
         name: '  ERROR  ',
-        value: -42
+        value: -42,
       });
 
       const { structured } = tagManager.getAllTags();
       expect(structured[0]).toEqual({
         name: 'error',
-        value: 42
+        value: 42,
       });
     });
   });
 
   describe('Events', () => {
-    it('emits schemaSet event', (done) => {
-      const schema = object({ type: string() });
+    it('emits schemaSet event', () => {
+      return new Promise<void>(resolve => {
+        const schema = object({ type: string() });
 
-      tagManager.on('schemaSet', (s) => {
-        expect(s).toBe(schema);
-        done();
+        tagManager.on('schemaSet', s => {
+          expect(s).toBe(schema);
+          resolve();
+        });
+
+        tagManager.setSchema(schema);
       });
-
-      tagManager.setSchema(schema);
     });
 
-    it('emits structuredTagAdded event', (done) => {
-      const schema = object({ id: string() });
-      tagManager.setSchema(schema);
+    it('emits structuredTagAdded event', () => {
+      return new Promise<void>(resolve => {
+        const schema = object({ id: string() });
+        tagManager.setSchema(schema);
 
-      tagManager.on('structuredTagAdded', (tag) => {
-        expect(tag).toEqual({ id: 'test' });
-        done();
+        tagManager.on('structuredTagAdded', tag => {
+          expect(tag).toEqual({ id: 'test' });
+          resolve();
+        });
+
+        tagManager.add({ id: 'test' });
       });
-
-      tagManager.add({ id: 'test' });
     });
 
-    it('emits schemaValidationFailed event', (done) => {
-      const schema = object({ required: string() });
-      tagManager.setSchema(schema, 'warn');
+    it('emits schemaValidationFailed event', () => {
+      return new Promise<void>(resolve => {
+        const schema = object({ required: string() });
+        tagManager.setSchema(schema, 'warn');
 
-      tagManager.on('schemaValidationFailed', ({ result, data }) => {
-        expect(result.valid).toBe(false);
-        expect(data).toEqual({ invalid: true });
-        done();
+        tagManager.on('schemaValidationFailed', ({ result, data }) => {
+          expect(result.valid).toBe(false);
+          expect(data).toEqual({ invalid: true });
+          resolve();
+        });
+
+        tagManager.add({ invalid: true });
       });
-
-      tagManager.add({ invalid: true });
     });
   });
 
@@ -241,7 +245,7 @@ describe('TagManager Schema Validation', () => {
         category: enumSchema('bug', 'feature', 'improvement'),
         priority: number({ min: 1, max: 5 }),
         components: array(string()),
-        metadata: object({}, { additionalProperties: true })
+        metadata: object({}, { additionalProperties: true }),
       });
 
       tagManager.setSchema(schema);
@@ -252,8 +256,8 @@ describe('TagManager Schema Validation', () => {
         components: ['auth', 'api', 'database'],
         metadata: {
           reporter: 'user123',
-          created: Date.now()
-        }
+          created: Date.now(),
+        },
       };
 
       const iterations = 1000;
@@ -273,7 +277,7 @@ describe('TagManager Schema Validation', () => {
     it('handles many tags efficiently', () => {
       const schema = object({
         id: string(),
-        value: number()
+        value: number(),
       });
 
       tagManager.setSchema(schema);
@@ -283,7 +287,7 @@ describe('TagManager Schema Validation', () => {
       for (let i = 0; i < 100; i++) {
         tagManager.add({
           id: `tag${i}`,
-          value: i
+          value: i,
         });
       }
 

@@ -29,7 +29,7 @@ describe('Validation Module Tree-Shaking', () => {
     `;
 
     const bundleSize = await getBundleSize(entryCode);
-    
+
     // Validation module should not be included
     expect(bundleSize).toBeLessThan(50000); // Should be under 50KB
   });
@@ -45,7 +45,7 @@ describe('Validation Module Tree-Shaking', () => {
     `;
 
     const bundleSize = await getBundleSize(entryCode);
-    
+
     // Should include validation but not unused validators
     expect(bundleSize).toBeLessThan(60000); // Should be under 60KB
   });
@@ -57,7 +57,7 @@ describe('Validation Module Tree-Shaking', () => {
       { import: 'number', maxSize: 55000 },
       { import: 'boolean', maxSize: 55000 },
       { import: 'array', maxSize: 56000 },
-      { import: 'object', maxSize: 57000 }
+      { import: 'object', maxSize: 57000 },
     ];
 
     for (const testCase of testCases) {
@@ -88,15 +88,18 @@ describe('Validation Module Tree-Shaking', () => {
   async function getBundleSize(code: string): Promise<number> {
     const entryFile = join(testDir, 'entry.js');
     const outFile = join(testDir, 'bundle.js');
-    
+
     writeFileSync(entryFile, code);
 
     // Bundle with esbuild for accurate tree-shaking
     try {
-      execSync(`npx esbuild ${entryFile} --bundle --minify --format=esm --outfile=${outFile} --external:magiclogger`, {
-        cwd: process.cwd(),
-        stdio: 'pipe'
-      });
+      execSync(
+        `npx esbuild ${entryFile} --bundle --minify --format=esm --outfile=${outFile} --external:magiclogger`,
+        {
+          cwd: process.cwd(),
+          stdio: 'pipe',
+        }
+      );
     } catch (error) {
       // For testing purposes, estimate size based on imports
       return estimateSize(code);
@@ -113,17 +116,17 @@ describe('Validation Module Tree-Shaking', () => {
   function estimateSize(code: string): number {
     // Rough estimation for testing when esbuild isn't available
     let size = 40000; // Base logger size
-    
+
     if (code.includes('validation')) {
       size += 10000; // Add validation base
-      
+
       if (code.includes('string')) size += 2000;
       if (code.includes('number')) size += 2000;
       if (code.includes('boolean')) size += 1000;
       if (code.includes('object')) size += 3000;
       if (code.includes('array')) size += 2000;
     }
-    
+
     return size;
   }
 });
@@ -131,10 +134,10 @@ describe('Validation Module Tree-Shaking', () => {
 describe('Validation Module Exports', () => {
   it('exports all expected functions', async () => {
     const validation = await import('../../src/validation');
-    
+
     // Core exports
     expect(validation.SchemaValidator).toBeDefined();
-    
+
     // Factory functions
     expect(validation.string).toBeDefined();
     expect(validation.number).toBeDefined();
@@ -144,7 +147,7 @@ describe('Validation Module Exports', () => {
     expect(validation.union).toBeDefined();
     expect(validation.literal).toBeDefined();
     expect(validation.enumSchema).toBeDefined();
-    
+
     // Modifiers
     expect(validation.optional).toBeDefined();
     expect(validation.nullable).toBeDefined();
@@ -153,21 +156,21 @@ describe('Validation Module Exports', () => {
   it('types are properly exported', () => {
     // This test verifies TypeScript compilation by using the types
     // The actual test is that this file compiles without errors
-    
+
     // Type assertions using imported types from top of file
     const error = {
       path: 'test',
-      message: 'error'
+      message: 'error',
     };
 
     const result = {
       valid: true,
-      data: {}
+      data: {},
     };
 
     const schema = {
       type: 'string' as const,
-      minLength: 5
+      minLength: 5,
     };
 
     expect(error).toBeDefined();

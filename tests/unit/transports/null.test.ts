@@ -152,10 +152,10 @@ describe('NullTransport', () => {
         message: '',
         plainMessage: '',
       };
-      
+
       // Warm up the transport
       await transport.log({ ...baseEntry, id: 'warmup' });
-      
+
       const startTime = Date.now();
       const numLogs = 1000;
 
@@ -178,7 +178,7 @@ describe('NullTransport', () => {
       // In CI environments with limited resources, Promise.all with 1000 promises
       // can take longer due to event loop scheduling overhead
       expect(duration).toBeLessThan(3000); // Less than 3 seconds for 1k no-op logs
-      
+
       // Also verify it's reasonably fast per operation
       const avgTimePerLog = duration / numLogs;
       expect(avgTimePerLog).toBeLessThan(3); // Less than 3ms per log on average

@@ -1,6 +1,6 @@
 /**
  * @fileoverview TypeScript example demonstrating MagicLogger's async-first API.
- * 
+ *
  * Usage: npx tsx examples/typescript-example.ts
  * Or compile with: tsc examples/typescript-example.ts
  */
@@ -9,11 +9,9 @@ import {
   Logger,
   SyncLogger,
   createLogger,
-  createSyncLogger,
   type LoggerOptions,
   type LogLevel,
   type ColorName,
-  type StylePreset,
 } from '../dist/index.js';
 
 // ==========================================
@@ -33,11 +31,11 @@ asyncLogger.warn('File/network writes are batched');
 // With custom configuration
 const customAsyncLogger = createLogger({
   buffer: {
-    size: 32768,         // Larger buffer for high throughput
-    flushInterval: 100,  // Flush every 100ms
-    flushSize: 1000,     // Or when 1000 logs accumulate
+    size: 32768, // Larger buffer for high throughput
+    flushInterval: 100, // Flush every 100ms
+    flushSize: 1000, // Or when 1000 logs accumulate
   },
-  onFlush: async (entries) => {
+  onFlush: async entries => {
     console.log(`[FLUSH] Batching ${entries.length} log entries`);
     // In production: await writeToFile(entries);
     // In production: await sendToElasticsearch(entries);
@@ -56,8 +54,8 @@ console.log('\n=== SYNC LOGGER - Blocking I/O ===\n');
 // Create sync logger for audit trail
 const auditLogger = new SyncLogger({
   file: './audit.log',
-  forceFlush: true,     // fsync after each write
-  useConsole: true,     // Also log to console
+  forceFlush: true, // fsync after each write
+  useConsole: true, // Also log to console
 });
 
 auditLogger.info('Sync logger initialized - blocking I/O');
@@ -80,9 +78,11 @@ logger.error('<red>ERROR:</> Connection to <yellow>database</> failed');
 logger.info(logger.fmt`@blue{Processing} @cyan.underline{data.json} @dim{(2.3MB)}`);
 
 // Chainable style API
-const styled = logger.s.red.bold('CRITICAL:') + ' ' + 
-               logger.s.yellow('System memory at ') + 
-               logger.s.red.bold('92%');
+const styled =
+  logger.s.red.bold('CRITICAL:') +
+  ' ' +
+  logger.s.yellow('System memory at ') +
+  logger.s.red.bold('92%');
 logger.info(styled);
 
 // ==========================================
@@ -135,19 +135,19 @@ console.log('\n=== PRODUCTION CONFIGURATION ===\n');
 // High-performance production logger
 const prodLogger = new Logger({
   // Optional extensions
-  redactor: { preset: 'strict' },            // Auto-redact PII
+  redactor: { preset: 'strict' }, // Auto-redact PII
   rateLimiter: { max: 1000, window: 60000 }, // 1000 logs/minute
-  sampler: { rate: 0.1 },                    // Sample 10% in high volume
-  
+  sampler: { rate: 0.1 }, // Sample 10% in high volume
+
   // Buffer configuration
   buffer: {
-    size: 100000,        // Large buffer for traffic spikes
-    flushInterval: 100,  // Batch every 100ms
-    flushSize: 5000,     // Or at 5000 entries
+    size: 100000, // Large buffer for traffic spikes
+    flushInterval: 100, // Batch every 100ms
+    flushSize: 5000, // Or at 5000 entries
   },
-  
+
   // Batch processing handler
-  onFlush: async (entries) => {
+  onFlush: async entries => {
     // Simulate batch writes
     console.log(`[PRODUCTION] Would batch write ${entries.length} entries`);
   },

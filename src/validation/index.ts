@@ -1,11 +1,11 @@
 /**
  * @fileoverview Tree-shakeable exports for the validation module.
- * 
+ *
  * Import only what you need to keep bundle size minimal:
  * ```typescript
  * import { SchemaValidator, string, object } from 'magiclogger/validation';
  * ```
- * 
+ *
  * @module validation
  */
 
@@ -34,5 +34,5 @@ export {
   literal,
   enumSchema,
   optional,
-  nullable
+  nullable,
 } from './SchemaValidator';
