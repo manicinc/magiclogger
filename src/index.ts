@@ -203,11 +203,15 @@ export function createLogger(
     async?: boolean;
     onFlush?: (entries: LogEntry[]) => Promise<void>;
     buffer?: { size?: number; flushInterval?: number; flushSize?: number };
-    redactor?: import('./extensions/Redactor').Redactor | import('./extensions/Redactor').RedactorOptions;
+    redactor?:
+      | import('./extensions/Redactor').Redactor
+      | import('./extensions/Redactor').RedactorOptions;
     rateLimiter?:
       | import('./extensions/RateLimiter').RateLimiter
       | import('./extensions/RateLimiter').RateLimiterOptions;
-    sampler?: import('./extensions/Sampler').Sampler | import('./extensions/Sampler').SamplerOptions;
+    sampler?:
+      | import('./extensions/Sampler').Sampler
+      | import('./extensions/Sampler').SamplerOptions;
     queueManager?:
       | import('./extensions/QueueManager').QueueManager
       | import('./extensions/QueueManager').QueueManagerOptions;

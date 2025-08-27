@@ -72,7 +72,9 @@ export interface AsyncLoggerOptions {
    * @example
    * redactor: { preset: 'strict', auditTrail: true }
    */
-  redactor?: import('../extensions/Redactor').Redactor | import('../extensions/Redactor').RedactorOptions;
+  redactor?:
+    | import('../extensions/Redactor').Redactor
+    | import('../extensions/Redactor').RedactorOptions;
 
   /**
    * Statistical sampling configuration for volume control.
@@ -81,7 +83,9 @@ export interface AsyncLoggerOptions {
    * @example
    * sampler: { rate: 0.1, strategy: 'adaptive' }
    */
-  sampler?: import('../extensions/Sampler').Sampler | import('../extensions/Sampler').SamplerOptions;
+  sampler?:
+    | import('../extensions/Sampler').Sampler
+    | import('../extensions/Sampler').SamplerOptions;
 
   /**
    * Queue management configuration for handling backpressure.
