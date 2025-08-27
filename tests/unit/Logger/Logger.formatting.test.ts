@@ -1,6 +1,6 @@
 // tests/unit/Logger/Logger.formatting.test.ts
 
-import { Logger } from '../../../src';
+import { FullLogger as Logger } from '../../../src';
 import { ANSI } from '../../../src/constants';
 import { PRESETS, StylePreset, ColorName } from '../../../src/types';
 import { terminalUtils, LoggerInternal } from '../../../jest.setup';

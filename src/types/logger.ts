@@ -149,6 +149,22 @@ export interface LoggerOptions {
   useLocalStorage?: boolean;
 
   /**
+   * File path for log output (SyncLogger only).
+   * When provided, logs will be written to this file synchronously.
+   *
+   * @example './audit.log'
+   */
+  file?: string;
+
+  /**
+   * Force flush to disk after each write (SyncLogger only).
+   * Uses fsync to ensure data is written to disk.
+   *
+   * @default true
+   */
+  forceFlush?: boolean;
+
+  /**
    * Array of transports to use for logging.
    * @type {Transport[]}
    * @default []

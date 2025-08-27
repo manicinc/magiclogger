@@ -23,11 +23,25 @@
 // ==========================================
 
 /**
- * Default async logger with high-performance buffering.
- * Console output is immediate, file/network writes are batched.
+ * Main Logger class - defaults to async for high performance.
+ * This is actually AsyncLogger exported as Logger for simplicity.
  */
 export { AsyncLogger as Logger } from './async/AsyncLogger';
 export type { AsyncLoggerOptions as LoggerOptions } from './async/AsyncLogger';
+
+/**
+ * Async logger implementation for high-performance buffering.
+ * Direct export for when you need to be explicit about async.
+ */
+export { AsyncLogger } from './async/AsyncLogger';
+export type { AsyncLoggerOptions } from './async/AsyncLogger';
+
+/**
+ * The traditional Logger class with all formatting methods.
+ * Use this when you need the full-featured logger with formatting.
+ */
+export { Logger as FullLogger } from './Logger';
+export type { LoggerOptions as FullLoggerOptions } from './types/logger';
 
 /**
  * Synchronous logger with blocking I/O.
@@ -45,136 +59,69 @@ export type { LogEntry } from './types/transport';
 // Factory Functions
 // ==========================================
 
+import { Logger as FullLoggerClass } from './Logger';
 import { AsyncLogger } from './async/AsyncLogger';
 import { SyncLogger } from './sync/SyncLogger';
 import type { AsyncLoggerOptions } from './async/AsyncLogger';
-import type { LoggerOptions as SyncLoggerOptions } from './types/logger';
+import type { LoggerOptions as FullLoggerOptions } from './types/logger';
 import type { LogEntry } from './types/transport';
 import type { LogLevel } from './types/logger';
 
 /**
- * Creates an async logger with high-performance buffering.
+ * Creates a logger with configurable behavior.
  * 
  * @param options - Configuration options
- * @param options.buffer - Buffer configuration
- * @param options.buffer.size - Maximum buffer size (default: 16384)
- * @param options.buffer.flushInterval - Flush interval in ms (default: 50)
- * @param options.buffer.flushSize - Flush when this many entries accumulate (default: 2000)
- * @param options.onFlush - Handler for batched log entries
- * @returns Async logger instance
+ * @param options.mode - Logger mode: 'async' (default), 'sync', 'auto', or 'balanced'
+ * @returns Logger instance
  * 
  * @example
  * ```typescript
- * const logger = createLogger({
- *   buffer: {
- *     flushInterval: 100,  // Flush every 100ms
- *     flushSize: 1000      // Or when 1000 logs accumulate
- *   },
- *   onFlush: async (entries) => {
- *     await writeToFile(entries);
- *     await sendToNetwork(entries);
- *   }
- * });
+ * // Default async logger for high performance
+ * const logger = createLogger();
+ * 
+ * // Explicit async mode
+ * const asyncLogger = createLogger({ mode: 'async' });
+ * 
+ * // Sync logger for debugging or auditing
+ * const syncLogger = createLogger({ mode: 'sync' });
+ * 
+ * // Auto-detect based on environment
+ * const autoLogger = createLogger({ mode: 'auto' });
  * ```
  */
-export function createLogger(options: Partial<AsyncLoggerOptions> = {}): AsyncLogger {
-  const defaultBuffer = {
-    size: options.buffer?.size ?? 16384,
-    flushInterval: options.buffer?.flushInterval ?? 50,
-    flushSize: options.buffer?.flushSize ?? 2000,
-  };
-
-  const defaultOnFlush = async (entries: LogEntry[]) => {
-    // Default: entries are already logged to console immediately
-    // This handler is for additional processing
-  };
-
-  const createLogEntry = (level: LogLevel, message: string, meta?: Record<string, unknown>) => ({
-    id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    level,
-    message,
-    timestamp: new Date().toISOString(),
-    timestampMs: Date.now(),
-    plainMessage: message.replace(/\x1b\[[0-9;]*m/g, ''), // Strip ANSI
-    context: meta,
-  });
-
-  return new AsyncLogger({
-    buffer: defaultBuffer,
-    onFlush: options.onFlush ?? defaultOnFlush,
-    enableMetrics: options.enableMetrics ?? false,
-    redactor: options.redactor,
-    rateLimiter: options.rateLimiter,
-    sampler: options.sampler,
-    queueManager: options.queueManager,
-    fallbackToSync: options.fallbackToSync ?? false,
-    flushOnHighWater: options.flushOnHighWater ?? true,
-  }, createLogEntry);
+export function createLogger(options: Partial<FullLoggerOptions & AsyncLoggerOptions> = {}): FullLoggerClass | AsyncLogger | SyncLogger {
+  const mode = options.mode ?? 'async';
+  
+  // For backward compatibility with tests, return actual AsyncLogger/SyncLogger instances
+  if (mode === 'async') {
+    // Return AsyncLogger for async mode
+    return createAsyncLogger(options as Partial<AsyncLoggerOptions>);
+  } else if (mode === 'sync') {
+    // Return SyncLogger for sync mode
+    return new SyncLogger(options);
+  } else if (mode === 'auto') {
+    // Auto-detect based on environment
+    const isProduction = typeof process !== 'undefined' && process.env?.NODE_ENV === 'production';
+    const isInteractive = typeof process !== 'undefined' && process.stdout?.isTTY;
+    const isTesting = typeof process !== 'undefined' && (process.env?.NODE_ENV === 'test' || process.env?.CI);
+    
+    const useAsync = isProduction || (!isInteractive && !isTesting);
+    return useAsync ? createAsyncLogger(options as Partial<AsyncLoggerOptions>) : new SyncLogger(options);
+  } else {
+    // Default to FullLogger class for balanced mode or unknown
+    return new FullLoggerClass(options);
+  }
 }
 
 /**
  * Creates a synchronous logger with blocking I/O.
+ * @deprecated Use createLogger({ mode: 'sync' }) instead
  * 
  * @param options - Configuration options
- * @param options.file - Log file path for synchronous writes
- * @param options.useConsole - Enable console output (default: true)
- * @param options.forceFlush - Force fsync after each write (default: true)
- * @returns Synchronous logger instance
- * 
- * @example
- * ```typescript
- * const logger = createSyncLogger({
- *   file: './audit.log',
- *   forceFlush: true  // Guarantee disk writes
- * });
- * ```
+ * @returns Logger instance in sync mode
  */
-export function createSyncLogger(options: Partial<SyncLoggerOptions> = {}): SyncLogger {
+export function createSyncLogger(options: Partial<FullLoggerOptions> = {}): SyncLogger {
   return new SyncLogger(options);
-}
-
-/**
- * Creates a smart logger that auto-detects the best mode.
- * 
- * @param options - Configuration options
- * @param options.target - Target environment ('auto', 'development', 'production')
- * @param options.mode - Force specific mode ('sync' or 'async')
- * @returns Logger instance (async or sync based on environment)
- * 
- * @example
- * ```typescript
- * const logger = createSmartLogger();
- * // Development: SyncLogger for immediate output
- * // Production: AsyncLogger for performance
- * ```
- */
-export function createSmartLogger(options: {
-  target?: 'auto' | 'development' | 'production';
-  mode?: 'sync' | 'async';
-  onFlush?: (entries: LogEntry[]) => Promise<void>;
-} = {}): AsyncLogger | SyncLogger {
-  const { target = 'auto', mode } = options;
-
-  // Explicit mode override
-  if (mode === 'sync') return createSyncLogger();
-  if (mode === 'async') return createLogger(options);
-
-  // Auto-detection
-  let useAsync = false;
-  
-  if (target === 'production') {
-    useAsync = true;
-  } else if (target === 'development') {
-    useAsync = false;
-  } else if (target === 'auto') {
-    const isProduction = process.env.NODE_ENV === 'production';
-    const isInteractive = process.stdout?.isTTY;
-    const isTesting = process.env.NODE_ENV === 'test' || process.env.CI;
-    
-    useAsync = isProduction && !isInteractive && !isTesting;
-  }
-
-  return useAsync ? createLogger(options) : createSyncLogger();
 }
 
 // ==========================================
@@ -191,7 +138,7 @@ export function createSmartLogger(options: {
  * log.info('Hello world');
  * ```
  */
-export default function magiclogger(options: Partial<AsyncLoggerOptions> = {}): AsyncLogger {
+export default function magiclogger(options: Partial<FullLoggerOptions & AsyncLoggerOptions> = {}): FullLoggerClass | AsyncLogger | SyncLogger {
   return createLogger(options);
 }
 
@@ -292,4 +239,74 @@ export function isAsyncLogger(logger: unknown): logger is AsyncLogger {
  */
 export function isSyncLogger(logger: unknown): logger is SyncLogger {
   return logger instanceof SyncLogger;
+}
+
+// ==========================================
+// Legacy Exports and Aliases
+// ==========================================
+
+/**
+ * Creates an async logger with high-performance buffering.
+ * @deprecated Use createLogger() which defaults to async
+ * 
+ * @param options - Configuration options for async logger
+ * @returns AsyncLogger instance
+ */
+export function createAsyncLogger(options: Partial<AsyncLoggerOptions> = {}): AsyncLogger {
+  // For backward compatibility, create AsyncLogger directly
+  const defaultBuffer = {
+  size: options.buffer?.size ?? 16384,
+  flushInterval: options.buffer?.flushInterval ?? 50,
+  flushSize: options.buffer?.flushSize ?? 2000,
+  };
+
+  const defaultOnFlush = async (_entries: LogEntry[]) => {
+    // Default: entries are already logged to console immediately
+  };
+
+  const createLogEntry = (level: LogLevel, message: string, meta?: Record<string, unknown>) => ({
+    id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    level,
+    message,
+    timestamp: new Date().toISOString(),
+    timestampMs: Date.now(),
+    plainMessage:
+      typeof message === 'string'
+        ? message.replace(new RegExp(String.fromCharCode(27) + "\\[[0-9;]*m", 'g'), '')
+        : String(message),
+    context: meta,
+  });
+
+  return new AsyncLogger({
+    buffer: defaultBuffer,
+    onFlush: options.onFlush ?? defaultOnFlush,
+  enableMetrics: options.enableMetrics ?? false,
+    redactor: options.redactor,
+    rateLimiter: options.rateLimiter,
+    sampler: options.sampler,
+    queueManager: options.queueManager,
+    fallbackToSync: options.fallbackToSync ?? false,
+    flushOnHighWater: options.flushOnHighWater ?? true,
+  }, createLogEntry);
+}
+
+/**
+ * Transport manager for managing multiple transports.
+ */
+export { TransportManager } from './transports/base/TransportManager';
+
+/**
+ * Default logger and singleton management.
+ */
+let defaultLogger: AsyncLogger | SyncLogger | FullLoggerClass | null = null;
+
+export function getDefaultLogger(): AsyncLogger | SyncLogger | FullLoggerClass {
+  if (!defaultLogger) {
+    defaultLogger = createLogger();
+  }
+  return defaultLogger;
+}
+
+export function setDefaultLogger(logger: AsyncLogger | SyncLogger): void {
+  defaultLogger = logger;
 }

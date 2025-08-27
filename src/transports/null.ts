@@ -19,6 +19,25 @@ export class NullTransport extends Transport {
     this.enabled = options.enabled ?? true;
   }
 
+  /**
+   * Override log to bypass unnecessary checks for performance.
+   * Returns already resolved promise for maximum speed.
+   */
+  public async log(_entry: LogEntry): Promise<void> {
+    // Ultra-fast path: return void directly (implicitly wrapped in Promise)
+    if (!this.enabled) return;
+    // No-op - the mere return is the fastest possible operation
+  }
+
+  /**
+   * Override logBatch for performance.
+   */
+  public async logBatch(_entries: LogEntry[]): Promise<void> {
+    // Ultra-fast path for batch
+    if (!this.enabled) return;
+    // No-op
+  }
+
   protected async doInit(): Promise<void> {
     /* no-op */
   }

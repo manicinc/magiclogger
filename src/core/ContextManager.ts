@@ -1,6 +1,7 @@
 // File: src/core/ContextManager.ts
 
 import { EventEmitter } from 'events';
+import type { AnySchema, ValidationResult } from '../validation/SchemaValidator';
 
 /**
  * Sanitization modes for context values.
@@ -49,6 +50,21 @@ export interface ContextManagerOptions {
    * @default true
    */
   enableValidation?: boolean;
+
+  /**
+   * Schema for context validation (lazily imported when used).
+   * When provided, contexts will be validated against this schema.
+   */
+  schema?: AnySchema;
+
+  /**
+   * What to do when schema validation fails.
+   * - 'throw': Throw an error (strict mode)
+   * - 'warn': Log a warning and continue
+   * - 'silent': Silently continue
+   * @default 'warn'
+   */
+  schemaValidationMode?: 'throw' | 'warn' | 'silent';
 }
 
 /**
@@ -153,7 +169,7 @@ export class ContextManager extends EventEmitter {
    * Configuration options.
    * @private
    */
-  private options: Required<ContextManagerOptions>;
+  private options: Required<Omit<ContextManagerOptions, 'schema'>> & { schema?: AnySchema };
 
   /**
    * Global context storage.
@@ -180,6 +196,24 @@ export class ContextManager extends EventEmitter {
   private validationRules?: ContextValidationRules;
 
   /**
+   * Schema for validation (lazily loaded).
+   * @private
+   */
+  private schema?: AnySchema;
+
+  /**
+   * Schema validator instance (lazily created).
+   * @private
+   */
+  private schemaValidator?: import('../validation/SchemaValidator').SchemaValidator;
+
+  /**
+   * Schema validation mode.
+   * @private
+   */
+  private schemaValidationMode: 'throw' | 'warn' | 'silent';
+
+  /**
    * Creates a new ContextManager instance.
    *
    * @param {ContextManagerOptions} options - Configuration options
@@ -187,14 +221,19 @@ export class ContextManager extends EventEmitter {
   constructor(options: ContextManagerOptions = {}) {
     super();
 
-    this.options = {
+  this.options = {
       maxDepth: options.maxDepth ?? 10,
       maxProperties: options.maxProperties ?? 100,
       sanitizeMode: options.sanitizeMode ?? 'basic',
       sanitize: options.sanitize ?? this.defaultSanitize.bind(this),
       freezeContext: options.freezeContext ?? false,
       enableValidation: options.enableValidation ?? true,
-    };
+      schema: options.schema,
+      schemaValidationMode: options.schemaValidationMode ?? 'warn',
+  };
+
+    this.schema = options.schema;
+    this.schemaValidationMode = options.schemaValidationMode ?? 'warn';
   }
 
   /**
@@ -373,11 +412,24 @@ export class ContextManager extends EventEmitter {
    */
   private processContext(context: Record<string, unknown>): Record<string, unknown> {
     // Sanitize
-    const sanitized = this.sanitize(context);
+    let processed = this.sanitize(context);
 
-    // Validate
+    // Schema validation (if schema is provided)
+    if (this.schema && this.options.enableValidation) {
+      const validationResult = this.validateWithSchema(processed);
+      if (!validationResult.valid) {
+        this.handleSchemaValidationError(validationResult, processed);
+        // If mode is 'throw', error will be thrown above
+        // Otherwise, continue with potentially invalid data
+      } else if (validationResult.data) {
+        // Use validated/transformed data
+        processed = validationResult.data as Record<string, unknown>;
+      }
+    }
+
+    // Legacy validation rules
     if (this.options.enableValidation && this.validationRules) {
-      const validation = this.validate(sanitized);
+      const validation = this.validate(processed);
       if (!validation.valid) {
         this.emit('validationFailed', validation);
       }
@@ -385,10 +437,10 @@ export class ContextManager extends EventEmitter {
 
     // Freeze if required
     if (this.options.freezeContext) {
-      return this.deepFreeze(sanitized) as Record<string, unknown>;
+      return this.deepFreeze(processed) as Record<string, unknown>;
     }
 
-    return sanitized;
+    return processed;
   }
 
   /**
@@ -916,5 +968,88 @@ export class ContextManager extends EventEmitter {
     this.clear();
     this.clearSnapshots();
     this.removeAllListeners();
+  }
+
+  /**
+   * Sets a schema for context validation.
+   * 
+   * @param {AnySchema} schema - The schema to use for validation
+   * @param {'throw' | 'warn' | 'silent'} [mode] - Validation mode
+   * 
+   * @example
+   * ```typescript
+   * import { object, string, number } from 'magiclogger/validation';
+   * 
+   * contextManager.setSchema(
+   *   object({
+   *     userId: string({ format: 'uuid' }),
+   *     sessionId: string(),
+   *     requestCount: number({ min: 0 })
+   *   }),
+   *   'throw' // Strict mode - throw on validation errors
+   * );
+   * ```
+   */
+  public setSchema(schema: AnySchema, mode?: 'throw' | 'warn' | 'silent'): void {
+    this.schema = schema;
+    if (mode) {
+      this.schemaValidationMode = mode;
+    }
+    this.emit('schemaSet', schema);
+  }
+
+  /**
+   * Validates context against the configured schema.
+   * 
+   * @private
+   * @param {Record<string, unknown>} context - Context to validate
+   * @returns {ValidationResult} Validation result
+   */
+  private validateWithSchema(context: Record<string, unknown>): ValidationResult {
+    if (!this.schema) {
+      return { valid: true, data: context };
+    }
+
+    // Lazy load the validator
+    if (!this.schemaValidator) {
+      // Dynamic import for lazy loading
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { SchemaValidator } = require('../validation/SchemaValidator') as typeof import('../validation/SchemaValidator');
+      this.schemaValidator = new SchemaValidator();
+    }
+
+    return this.schemaValidator.validate(context, this.schema);
+  }
+
+  /**
+   * Handles schema validation errors based on configured mode.
+   * 
+   * @private
+   * @param {ValidationResult} result - Validation result
+   * @param {Record<string, unknown>} context - The context that failed validation
+   * @throws {Error} If mode is 'throw' and validation failed
+   */
+  private handleSchemaValidationError(
+    result: ValidationResult,
+    context: Record<string, unknown>
+  ): void {
+    if (!result.errors || result.errors.length === 0) return;
+
+    const errorMessage = `Context validation failed:\n${result.errors
+      .map(e => `  - ${e.path}: ${e.message}`)
+      .join('\n')}`;
+
+    this.emit('schemaValidationFailed', { result, context });
+
+    switch (this.schemaValidationMode) {
+      case 'throw':
+        throw new Error(errorMessage);
+      case 'warn':
+        console.warn(`[ContextManager] ${errorMessage}`);
+        break;
+      case 'silent':
+        // Do nothing
+        break;
+    }
   }
 }

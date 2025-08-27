@@ -50,6 +50,9 @@ export default defineConfig(options => {
     'extensions/redactor': 'src/extensions/Redactor.ts',
     'extensions/queue-manager': 'src/extensions/QueueManager.ts',
 
+    // Validation (tree-shakeable, optional)
+    'validation/index': 'src/validation/index.ts',
+
     // Utils (core utilities)
     'utils/enhanced-console': 'src/utils/EnhancedConsole.ts',
     'utils/trace-context': 'src/utils/trace-context.ts',

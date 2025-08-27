@@ -1,4 +1,4 @@
-import { Logger, createAsyncLogger, createSmartLogger } from '../../src/index';
+import { FullLogger as Logger, createAsyncLogger } from '../../src/index';
 
 describe('Default Console Transport', () => {
   let consoleLogSpy: jest.SpyInstance;
@@ -48,6 +48,7 @@ describe('Default Console Transport', () => {
       };
 
       const logger = new Logger({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         transports: [mockTransport as any],
       });
 
@@ -96,60 +97,6 @@ describe('Default Console Transport', () => {
       expect(customFlush).toHaveBeenCalled();
 
       await logger.close();
-    });
-  });
-
-  describe('createSmartLogger', () => {
-    it('should work with zero configuration', () => {
-      const logger = createSmartLogger();
-      expect(logger).toBeDefined();
-
-      // Should be able to log immediately
-      logger.info('Test smart message');
-
-      // If async, close it
-      if ('close' in logger && typeof logger.close === 'function') {
-        logger.close();
-      }
-    });
-
-    it('should default to auto mode', () => {
-      const logger = createSmartLogger();
-
-      // Should have created either Logger or AsyncLogger based on environment
-      expect(logger).toBeDefined();
-      expect(typeof logger.info).toBe('function');
-
-      if ('close' in logger && typeof logger.close === 'function') {
-        logger.close();
-      }
-    });
-
-    it('should respect explicit target', () => {
-      const devLogger = createSmartLogger({ target: 'development' });
-      const prodLogger = createSmartLogger({ target: 'production' });
-
-      // Dev should be sync Logger
-      expect(devLogger.constructor.name).toBe('Logger');
-
-      // Prod should be AsyncLogger
-      expect(prodLogger.constructor.name).toBe('AsyncLogger');
-
-      if ('close' in prodLogger && typeof prodLogger.close === 'function') {
-        prodLogger.close();
-      }
-    });
-
-    it('should respect explicit mode override', () => {
-      const syncLogger = createSmartLogger({ mode: 'sync' });
-      const asyncLogger = createSmartLogger({ mode: 'async' });
-
-      expect(syncLogger.constructor.name).toBe('Logger');
-      expect(asyncLogger.constructor.name).toBe('AsyncLogger');
-
-      if ('close' in asyncLogger && typeof asyncLogger.close === 'function') {
-        asyncLogger.close();
-      }
     });
   });
 

@@ -105,8 +105,8 @@ const config: Config = {
               to: '/docs/api_usage',
             },
             {
-              label: 'Compatibility Guide',
-              to: '/docs/compatibility',
+              label: 'Architecture',
+              to: '/docs/ARCHITECTURE',
             },
           ],
         },

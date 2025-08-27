@@ -1,42 +1,53 @@
-// File: src/core/TagManager.ts
+/**
+ * @fileoverview Tag management system with schema validation for MagicLogger.
+ * 
+ * Provides comprehensive tag management including normalization, validation,
+ * filtering, and optional schema enforcement for structured tag data.
+ * 
+ * @module core/TagManager
+ */
 
 import { EventEmitter } from 'events';
+import type { AnySchema, ValidationResult } from '../validation/SchemaValidator';
 
 /**
- * Tag manager configuration options.
- *
+ * Configuration options for TagManager.
+ * 
  * @interface TagManagerOptions
  */
 export interface TagManagerOptions {
-  /**
-   * Maximum number of tags allowed.
-   * @default 50
-   */
+  /** Maximum number of tags allowed per log entry @default 50 */
   maxTags?: number;
 
-  /**
-   * Maximum tag length.
-   * @default 50
-   */
+  /** Maximum length for individual tags @default 50 */
   maxTagLength?: number;
 
-  /**
-   * Whether to normalize tags automatically.
-   * @default true
-   */
+  /** Automatically normalize tags on add @default true */
   autoNormalize?: boolean;
 
-  /**
-   * Tag separator for parsing.
-   * @default ','
-   */
+  /** Separator for parsing tag strings @default ',' */
   separator?: string;
 
-  /**
-   * Whether to validate tags.
+  /** Enable tag validation @default true */
+  enableValidation?: boolean;
+
+  /** 
+   * Optional schema for structured tag validation.
+   * When provided, tags can be validated as objects.
+   */
+  schema?: AnySchema;
+
+  /** 
+   * Validation mode when schema validation fails.
+   * @default 'warn'
+   */
+  schemaValidationMode?: 'throw' | 'warn' | 'silent';
+
+  /** 
+   * Allow string tags alongside structured tags.
    * @default true
    */
-  enableValidation?: boolean;
+  allowMixedTypes?: boolean;
 }
 
 /**
@@ -242,71 +253,79 @@ export interface TagStats {
 }
 
 /**
- * TagManager handles tag operations for logging.
- *
- * Features:
- * - Tag normalization and validation
+ * Manages tags for log entries with optional schema validation.
+ * 
+ * Provides comprehensive tag management including:
+ * - Normalization and validation
+ * - Schema enforcement for structured tags
  * - Tag extraction from text
- * - Tag filtering and matching
- * - Tag hierarchy support
- * - Tag statistics
- * - Performance optimization
- *
+ * - Filtering and matching
+ * - Usage statistics
+ * 
  * @class TagManager
  * @extends {EventEmitter}
- *
- * @example
+ * 
+ * @example Basic string tags
  * ```typescript
  * const tagManager = new TagManager({
  *   maxTags: 20,
  *   autoNormalize: true
  * });
- *
- * // Normalize tags
- * const normalized = tagManager.normalize(['API', 'User Login', 'v2.0']);
+ * 
+ * const tags = tagManager.normalize(['API', 'User Login', 'v2.0']);
  * // Result: ['api', 'user-login', 'v2-0']
- *
- * // Extract tags from text
- * const extracted = tagManager.extract('Fixed #bug in #authentication flow');
- * // Result: ['bug', 'authentication']
+ * ```
+ * 
+ * @example Structured tags with schema validation
+ * ```typescript
+ * import { object, string, number } from 'magiclogger/validation';
+ * 
+ * const tagManager = new TagManager({
+ *   schema: object({
+ *     category: string({ enum: ['error', 'warning', 'info'] }),
+ *     severity: number({ min: 1, max: 10 }),
+ *     component: string()
+ *   }),
+ *   schemaValidationMode: 'throw'
+ * });
+ * 
+ * tagManager.add({
+ *   category: 'error',
+ *   severity: 8,
+ *   component: 'auth'
+ * }); // Validates against schema
  * ```
  */
 export class TagManager extends EventEmitter {
-  /**
-   * Configuration options.
-   * @private
-   */
+  /** Configuration options */
   private options: Required<TagManagerOptions>;
 
-  /**
-   * Normalization rules.
-   * @private
-   */
+  /** Normalization rules for string tags */
   private normalizationRules: TagNormalizationRules;
 
-  /**
-   * Validation rules.
-   * @private
-   */
+  /** Validation rules for string tags */
   private validationRules: TagValidationRules;
 
-  /**
-   * Tag usage statistics (tag -> count).
-   * @private
-   */
+  /** Tag usage statistics */
   private stats: Map<string, number> = new Map();
 
-  /**
-   * Current set of unique tags.
-   * @private
-   */
+  /** Current set of unique tags */
   private tags: Set<string> = new Set();
 
-  /**
-   * Tag aliases.
-   * @private
-   */
+  /** Structured tags when using schema validation */
+  private structuredTags: Set<unknown> = new Set();
+
+  /** Tag aliases mapping */
   private aliases: Map<string, string> = new Map();
+
+  /** Optional schema for structured tags */
+  private schema?: AnySchema;
+
+  /** Schema validator instance (lazy loaded) */
+  private schemaValidator?: import('../validation/SchemaValidator').SchemaValidator;
+
+  /** Schema validation mode */
+  private schemaValidationMode: 'throw' | 'warn' | 'silent';
 
   /**
    * Tag hierarchy.
@@ -316,8 +335,9 @@ export class TagManager extends EventEmitter {
 
   /**
    * Creates a new TagManager instance.
-   *
+   * 
    * @param {TagManagerOptions} options - Configuration options
+   * @constructor
    */
   constructor(options: TagManagerOptions = {}) {
     super();
@@ -328,12 +348,18 @@ export class TagManager extends EventEmitter {
       autoNormalize: options.autoNormalize ?? true,
       separator: options.separator ?? ',',
       enableValidation: options.enableValidation ?? true,
-    };
+      schema: options.schema,
+      schemaValidationMode: options.schemaValidationMode ?? 'warn',
+      allowMixedTypes: options.allowMixedTypes ?? true,
+    } as Required<TagManagerOptions>;
 
     this.tags = new Set();
+    this.structuredTags = new Set();
     this.aliases = new Map();
     this.hierarchy = new Map();
     this.stats = new Map();
+    this.schema = options.schema;
+    this.schemaValidationMode = options.schemaValidationMode ?? 'warn';
 
     this.normalizationRules = {
       toLowerCase: true,
@@ -873,11 +899,193 @@ export class TagManager extends EventEmitter {
   }
 
   /**
+   * Sets a schema for structured tag validation.
+   * 
+   * @param {AnySchema} schema - Schema definition for tags
+   * @param {'throw' | 'warn' | 'silent'} [mode] - Validation mode
+   * 
+   * @example
+   * ```typescript
+   * import { object, string, number, array } from 'magiclogger/validation';
+   * 
+   * tagManager.setSchema(
+   *   object({
+   *     category: string({ enum: ['bug', 'feature', 'docs'] }),
+   *     priority: number({ min: 1, max: 5 }),
+   *     labels: array(string())
+   *   }),
+   *   'throw'
+   * );
+   * ```
+   */
+  public setSchema(schema: AnySchema, mode?: 'throw' | 'warn' | 'silent'): void {
+    this.schema = schema;
+    if (mode) {
+      this.schemaValidationMode = mode;
+    }
+    this.emit('schemaSet', schema);
+  }
+
+  /**
+   * Adds tags with optional schema validation.
+   * 
+   * @param {string | string[] | unknown} tags - Tags to add
+   * @returns {boolean} Whether tags were successfully added
+   */
+  public add(tags: string | string[] | unknown): boolean {
+    // Handle structured tags with schema
+    if (this.schema && typeof tags === 'object' && !Array.isArray(tags)) {
+      return this.addStructured(tags);
+    }
+
+    // Handle string tags
+    const stringTags = this.normalize(tags as string | string[]);
+    const validation = this.validate(stringTags);
+    
+    if (!validation.valid) {
+      this.handleValidationError('String tags validation failed', validation);
+      return false;
+    }
+
+    stringTags.forEach(tag => {
+      this.tags.add(tag);
+      this.updateStats([tag]);
+    });
+
+    this.emit('tagsAdded', stringTags);
+    return true;
+  }
+
+  /**
+   * Adds a structured tag with schema validation.
+   * 
+   * @private
+   * @param {unknown} tagData - Structured tag data
+   * @returns {boolean} Whether tag was added
+   */
+  private addStructured(tagData: unknown): boolean {
+    if (!this.schema) {
+      this.emit('error', new Error('Schema not set for structured tags'));
+      return false;
+    }
+
+    const result = this.validateWithSchema(tagData);
+    
+    if (!result.valid) {
+      this.handleSchemaValidationError(result, tagData);
+      return this.schemaValidationMode !== 'throw';
+    }
+
+    this.structuredTags.add(result.data || tagData);
+    this.emit('structuredTagAdded', result.data || tagData);
+    return true;
+  }
+
+  /**
+   * Validates data against the configured schema.
+   * 
+   * @private
+   * @param {unknown} data - Data to validate
+   * @returns {ValidationResult} Validation result
+   */
+  private validateWithSchema(data: unknown): ValidationResult {
+    if (!this.schema) {
+      return { valid: true, data };
+    }
+
+    // Lazy load validator
+    if (!this.schemaValidator) {
+      // Dynamic import for lazy loading
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { SchemaValidator } = require('../validation/SchemaValidator') as typeof import('../validation/SchemaValidator');
+      this.schemaValidator = new SchemaValidator();
+    }
+
+    // Guard against undefined to satisfy eslint no-non-null-assertion
+    const validator = this.schemaValidator;
+    const schema = this.schema;
+    if (!validator || !schema) {
+      return { valid: true, data } as ValidationResult;
+    }
+    return validator.validate(data, schema);
+  }
+
+  /**
+   * Handles schema validation errors.
+   * 
+   * @private
+   * @param {ValidationResult} result - Validation result
+   * @param {unknown} data - Data that failed validation
+   */
+  private handleSchemaValidationError(result: ValidationResult, data: unknown): void {
+    if (!result.errors || result.errors.length === 0) return;
+
+    const errorMessage = `Tag schema validation failed:\n${result.errors
+      .map(e => `  - ${e.path}: ${e.message}`)
+      .join('\n')}`;
+
+    this.emit('schemaValidationFailed', { result, data });
+
+    switch (this.schemaValidationMode) {
+      case 'throw':
+        throw new Error(errorMessage);
+      case 'warn':
+        console.warn(`[TagManager] ${errorMessage}`);
+        break;
+      case 'silent':
+        // Silent mode - no output
+        break;
+    }
+  }
+
+  /**
+   * Handles validation errors for string tags.
+   * 
+   * @private
+   * @param {string} message - Error message
+   * @param {TagValidationResult} validation - Validation result
+   */
+  private handleValidationError(message: string, validation: TagValidationResult): void {
+    const errors = validation.errors || {};
+    const errorDetails = Object.entries(errors)
+      .map(([tag, errs]) => `  - ${tag}: ${errs.join(', ')}`)
+      .join('\n');
+
+    this.emit('validationFailed', validation);
+
+    if (this.options.enableValidation) {
+      console.warn(`[TagManager] ${message}:\n${errorDetails}`);
+    }
+  }
+
+  /**
+   * Gets all tags (both string and structured).
+   * 
+   * @returns {{ strings: string[], structured: unknown[] }} All tags
+   */
+  public getAllTags(): { strings: string[]; structured: unknown[] } {
+    return {
+      strings: Array.from(this.tags),
+      structured: Array.from(this.structuredTags)
+    };
+  }
+
+  /**
+   * Clears all tags.
+   */
+  public clear(): void {
+    this.tags.clear();
+    this.structuredTags.clear();
+    this.emit('tagsCleared');
+  }
+
+  /**
    * Clean up resources.
    */
   public destroy(): void {
     this.stats.clear();
     this.tags.clear();
+    this.structuredTags.clear();
     this.aliases.clear();
     this.hierarchy.clear();
     this.removeAllListeners();

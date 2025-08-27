@@ -2,7 +2,7 @@
 
 <p align="center">
     <img src="website/static/img/magiclogger-primary-no-subtitle-transparent-4x.png" alt="Magiclogger" width="520"/>
-    <img src="https://img.shields.io/badge/core_gzip-32kb-brightgreen.svg" alt="core_gzip"> <img src="https://img.shields.io/badge/core_console_gzip-32kb-brightgreen.svg" alt="core_console_gzip"> <img src="https://img.shields.io/badge/core_transports_gzip-44kb-brightgreen.svg" alt="core_transports_gzip">
+    <img src="https://img.shields.io/badge/core_gzip-36kb-brightgreen.svg" alt="core_gzip"> <img src="https://img.shields.io/badge/core_console_gzip-32kb-brightgreen.svg" alt="core_console_gzip"> <img src="https://img.shields.io/badge/core_transports_gzip-48kb-brightgreen.svg" alt="core_transports_gzip">
 </p>
 <p align="center">
   <!-- Top row: static + coverage badges -->
@@ -12,172 +12,153 @@
 
 ## Table of Contents
 
-- [Enterprise-Ready Logging with Style](#enterprise-ready-logging-with-style)
-- [Features](#features)
-- [Installation & Quick Start](#installation--quick-start)
-  - [Module Formats](#module-formats)
-  - [Quick Start - Choose Your Style](#quick-start)
-  - [Easy API with Sensible Defaults](#easy-api-with-sensible-defaults)
+- [Key Features](#-key-features)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
 - [Three Powerful Styling APIs](#three-powerful-styling-apis)
   - [1. Chainable Style API](#1-chainable-style-api-loggers)
   - [2. Template Literal API](#2-template-literal-api-loggerfmt)
   - [3. Inline Angle Bracket Syntax](#3-inline-angle-bracket-syntax)
-  - [Style Reference](#style-reference)
-- [Structured Logging](#structured-logging)
-- [Theme System](#theme-system)
+- [MagicLog Schema & Validation](#magiclog-schema--validation)
+  - [Structured JSON Output](#structured-json-output)
+  - [Runtime Schema Validation](#runtime-schema-validation-optional)
+- [Tagging & Theming](#tagging--theming)
   - [Built-in Themes](#built-in-themes)
   - [Tag-Based Styling](#tag-based-styling)
-  - [Auto Theme Selection](#auto-theme-selection)
-  - [Custom Themes](#custom-themes)
-- [Visual Elements](#visual-elements)
-  - [Headers and Separators](#headers-and-separators)
-  - [Progress Bars](#progress-bars)
-  - [Tables](#tables)
-  - [Object Diffs](#object-diffs)
-- [MagicLog Schema & OpenTelemetry Compatibility](#-magiclog-schema--opentelemetry-compatibility)
-  - [Why MagicLog Schema?](#why-magiclog-schema)
-  - [Using MagicLog with OpenTelemetry](#using-magiclog-with-opentelemetry)
-  - [Schema Documentation](#schema-documentation)
+- [Ring Buffer Architecture](#ring-buffer-architecture)
 - [Core Features](#core-features)
   - [Sync & Async Loggers](#sync--async-loggers)
-  - [Transport System](#transport-system)
-  - [Built-in Ring Buffer](#built-in-ring-buffer)
-- [Optional Extensions](#optional-extensions)
-  - [PII Redaction](#pii-redaction)
-  - [Sampling](#sampling)
-  - [Rate Limiting](#rate-limiting)
-  - [Advanced Queue Management](#advanced-queue-management)
-- [Enterprise Transports](#enterprise-transports)
-  - [Core Transports](#core-transports)
-  - [Database & Storage](#database--storage)
-  - [Messaging & Streaming](#messaging--streaming)
-  - [Observability Integration](#observability-integration)
-- [Monitoring & Observability](#monitoring--observability)
-  - [Health Monitoring](#health-monitoring)
-  - [Performance Metrics](#performance-metrics)
+  - [Visual Elements](#visual-elements)
+- [Enterprise Features](#enterprise-features)
+  - [Enterprise Transports](#enterprise-transports)
+  - [Optional Extensions](#optional-extensions)
+  - [Monitoring & Observability](#monitoring--observability)
 - [Performance](#performance)
-  - [Benchmark Results](#benchmark-results)
-  - [Performance Insights](#performance-insights)
-  - [When to Choose Each Mode](#when-to-choose-each-mode)
-  - [Bundle Sizes](#bundle-sizes-gzipped)
-- [Practical Examples](#real-world-examples)
-  - [Express.js Middleware](#expressjs-middleware)
-  - [Deployment Pipeline](#deployment-pipeline)
-  - [Production Configuration](#production-configuration)
-  - [Distributed Tracing](#distributed-tracing)
-- [Configuration Reference](#configuration-reference)
-  - [Logger Options](#logger-options)
+- [Examples](#examples)
+- [API Reference](#api-reference)
 - [Contributing](#contributing)
 - [License](#license)
-- [Build Output Sizes](#build-output-sizes)
+- [Build Output Sizes](#-build-output-sizes)
 
-## Production-Grade Logging with Ring Buffer Architecture
+## 🚀 Production-Grade TypeScript Logger
 
-**MagicLogger** is a high-performance, zero-dependency TypeScript logger built on a **ring buffer architecture** that prevents memory leaks and provides predictable memory usage under load. Unlike traditional loggers that can cause OOM crashes with unbounded queues, MagicLogger uses a fixed-size circular buffer with explicit backpressure handling.
+**MagicLogger** is a zero-dependency, high-performance logger that combines beautiful console styling with structured JSON logging for production. Built on a **ring buffer architecture** for predictable memory usage and featuring **three flexible styling APIs**, **runtime schema validation**, and **enterprise-grade transports**.
 
-### Why Ring Buffer Architecture?
+### ✨ Key Features
 
-Traditional async loggers face a critical problem: when log production exceeds I/O capacity (common during traffic spikes), their unbounded queues grow until the application crashes with out-of-memory errors. MagicLogger solves this with:
-
-- **Fixed Memory Footprint**: Ring buffer has a configurable fixed size (default 10,000 entries)
-- **Predictable Behavior**: When full, oldest logs are dropped with warnings - no OOM crashes
-- **Backpressure Handling**: Applications can detect and respond to logging pressure
-- **Zero Memory Leaks**: Circular buffer reuses memory, no unbounded growth
-- **Production-Tested**: Handles sustained 250,000+ ops/sec without memory issues
-
-### Structured Logging with Schema Validation
-
-Every log outputs structured JSON following the **[MagicLog Schema](#-magiclog-schema--opentelemetry-compatibility)** with optional runtime validation, ensuring data consistency across your entire system. The schema is OpenTelemetry-compatible for seamless integration with modern observability stacks.
+#### **🎨 Three Flexible Styling APIs**
+Choose the styling approach that fits your code style - all work seamlessly together:
 
 ```typescript
 import { Logger } from 'magiclogger';
+const logger = new Logger();
 
-// Default async logger with high performance
-const logger = new Logger();  // Async by default!
+// 1. Inline angle brackets - simplest, works everywhere
+logger.info('<green.bold>✅ Success:</> User <cyan>john@example.com</> authenticated');
 
-// Beautiful styled output - three powerful APIs
-logger.info('<green.bold>✅ Server started:</> <cyan>http://localhost:3000</>');
-logger.info(logger.fmt`@red.bold{ERROR:} Failed to connect to @yellow{database}`);
-logger.info(logger.s.blue.bold('INFO:') + ' User ' + logger.s.cyan('john@example.com') + ' authenticated');
+// 2. Template literals - clean interpolation
+logger.info(logger.fmt`@red.bold{ERROR:} Failed to connect to @yellow{${database}}`);
 
-// Rich visual elements
-logger.header('🚀 DEPLOYMENT PROCESS');
-logger.progressBar(75);
-logger.table([
-  { service: 'API', status: 'healthy', uptime: '99.9%' },
-  { service: 'DB', status: 'degraded', uptime: '95.2%' }
-]);
+// 3. Chainable API - programmatic styling
+logger.info(logger.s.blue.bold('INFO:') + ' Processing ' + logger.s.cyan(filename));
+```
 
-// Production logger with extensions
-const prodLogger = new Logger({
-  redactor: { preset: 'strict' },            // Auto-redact PII
-  rateLimiter: { max: 1000, window: 60000 }, // Rate limiting  
-  sampler: { rate: 0.1 },                    // Sample 10% in high volume
-  buffer: {
-    size: 100000,                            // Large buffer for spikes
-    flushInterval: 100,                      // Batch every 100ms
-    flushSize: 5000                          // Or at 5000 entries
+#### **📐 MagicLog Schema with Runtime Validation**
+Structured JSON output with **optional, lazy-loaded** schema validation:
+
+```typescript
+// Define schemas for different contexts (validation module only loads if used)
+const logger = new Logger({
+  schemas: {
+    user: z.object({
+      userId: z.string().uuid(),
+      email: z.string().email(),
+      role: z.enum(['admin', 'user'])
+    }),
+    payment: z.object({
+      orderId: z.string(),
+      amount: z.number().positive(),
+      status: z.enum(['pending', 'completed', 'failed'])
+    })
   },
-  onFlush: async (entries) => {
-    await batchWriteToElasticsearch(entries);
+  onSchemaViolation: 'warn'  // 'warn' | 'error' | 'throw'
+});
+
+// ✅ Type-safe, validated logging
+logger.info('User login', { tag: 'user', userId: '550e8400...', email: 'john@example.com' });
+
+// ⚠️ Schema violations caught at log time, not in production!
+logger.info('Payment', { tag: 'payment', amount: -100 }); // Warning: amount must be positive
+```
+
+#### **🎯 Tagging & Theming System**
+Auto-style logs based on semantic tags:
+
+```typescript
+const logger = new Logger({
+  theme: {
+    tags: {
+      api: ['cyan', 'bold'],
+      database: ['yellow'],
+      critical: ['white', 'bgRed', 'bold'],
+      performance: ['magenta']
+    }
   }
 });
 
-// Guaranteed delivery with sync logger
-const auditLogger = new SyncLogger({
-  file: './audit.log',
-  forceFlush: true  // fsync after every write
-});
-auditLogger.info('Critical event - blocks until on disk');
+logger.info('Request received', { tags: ['api'] });           // Auto-styled cyan.bold
+logger.error('Connection failed', { tags: ['database', 'critical'] }); // Combined styles
 ```
----
 
-**Architecture:** MagicLogger uses a **lock-free ring buffer** with fixed memory allocation, preventing unbounded queue growth that can crash production systems. Achieves 250k+ ops/sec with predictable memory usage. See [Architecture Decisions](./docs/ARCHITECTURE.md), [Ring Buffer Design](./docs/RING_BUFFER.md), and [Performance Analysis](./docs/PERFORMANCE.md).
+#### **🔄 Ring Buffer Architecture**
+**Predictable memory usage** even under extreme load - no OOM crashes:
 
-## Features
+```typescript
+// Fixed-size ring buffer prevents unbounded memory growth
+const logger = new Logger({
+  buffer: {
+    size: 16384,       // Fixed 16K entries (~3.2MB max memory)
+    flushInterval: 50, // Batch flush every 50ms
+    flushSize: 2000    // Or when 2000 logs accumulate
+  }
+});
 
-### 📊 **MagicLog Schema with Runtime Validation**
-- **Schema-validated logging** - Define schemas per tag, catch violations at runtime
-- **Type-safe context** - Enforce structure with Zod/JSON Schema validation
-- **OpenTelemetry native** - Direct 1:1 mapping to OTLP format
-- **Distributed tracing** - Built-in W3C Trace Context propagation
-- **Zero data loss** - Full context, metadata, and stack traces preserved
+// Explicit backpressure handling
+const result = logger.info('High volume logging');
+if (!result.success) {
+  console.warn(`Buffer full: ${result.reason}`);
+}
+```
 
-### 🎨 **Beautiful Styling & Visualization**
-- **Three styling APIs** - chainable, template literals, and inline syntax
-- **Rich colors & themes** with automatic terminal detection
-- **Visual elements** - tables, progress bars, headers, diffs
-- **Dual output** - styled for console, clean JSON for aggregators
+**Benefits:**
+- ✅ **No memory leaks** - Fixed size, circular reuse
+- ✅ **Predictable behavior** - Know exactly when/why logs drop
+- ✅ **250,000+ ops/sec** - Optimized for production throughput
+- ✅ **Explicit backpressure** - Applications can adapt to load
 
-### 🚀 **Production Architecture**
-- **Ring buffer design** - Fixed 16KB default size, no memory leaks
-- **Explicit backpressure** - Know when buffers are full, adapt accordingly
-- **Batch efficiency** - Flush 1000s of logs in single syscall/network request
-- **Enterprise transports** - Kafka, PostgreSQL, OTLP, S3 with internal queuing
-- **Built-in utilities** - PII redaction, sampling, rate limiting at logger level
-- **Observable by design** - Metrics on drops, flushes, throughput
----
+**Trade-offs:**
+- ⚠️ Oldest logs dropped when buffer full (use SyncLogger for audit logs)
+- ⚠️ Requires tuning for your throughput needs
 
-## 📦 Installation & Quick Start
+See [Ring Buffer Architecture](./docs/RING_BUFFER.md) for detailed design decisions.
+
+## Quick Start
+
+## Installation
 
 ```bash
 npm install magiclogger
 # or yarn add magiclogger / pnpm add magiclogger
 ```
 
-### Module Formats
-MagicLogger supports both ESM and CJS with first-class TypeScript types:
+Supports both ESM and CJS:
 
 ```typescript
-// ESM/TypeScript
-import { Logger } from 'magiclogger';
-
-// CommonJS  
-const { Logger } = require('magiclogger');
+import { Logger } from 'magiclogger';  // ESM/TypeScript
+const { Logger } = require('magiclogger');  // CommonJS
 ```
 
-
-### Easy API with Sensible Defaults
+## Quick Start
 
 ```typescript
 import { Logger, SyncLogger, createLogger, createSyncLogger } from 'magiclogger';
@@ -218,7 +199,7 @@ const auditLogger = new SyncLogger({
 
 ---
 
-## 🎨 Three Powerful Styling APIs
+## Three Powerful Styling APIs
 
 MagicLogger provides three complementary styling approaches. Use one or combine them seamlessly!
 
@@ -309,7 +290,7 @@ logger.success('<green.bold>✓</> Deployment to <blue>production</> complete');
 
 ---
 
-## 🧱 Structured Logging - MagicLog Schema JSON Output
+## MagicLog Schema & Validation
 
 Every MagicLogger call outputs structured JSON following the **[MagicLog Schema](#-magiclog-schema---structured-json-logging-format)** - a standardized format for modern observability.
 
@@ -435,7 +416,7 @@ Options:
 
 ---
 
-## 🎨 Theme System
+## Tagging & Theming
 
 ### Built-in Themes
 
@@ -514,7 +495,7 @@ const logger = new Logger({ theme: myTheme });
 
 ---
 
-## 📊 Visual Elements
+### Visual Elements
 
 ### Headers and Separators
 
@@ -563,7 +544,43 @@ logger.diff('State change', oldState, newState);
 
 ---
 
-## 📐 MagicLog Schema & Runtime Validation
+## Ring Buffer Architecture
+
+### Why Ring Buffer?
+
+**The Problem:** Traditional loggers use unbounded queues that grow forever during traffic spikes, causing OOM crashes.
+
+**Our Solution:** Fixed-size ring buffer with explicit backpressure:
+
+```typescript
+const logger = new Logger({
+  buffer: {
+    size: 16384,       // Fixed 16K entries (~3.2MB max)
+    flushInterval: 50, // Batch flush every 50ms
+    flushSize: 2000    // Or when 2000 logs accumulate
+  }
+});
+
+// Know when buffer is full
+const result = logger.info('High volume');
+if (!result.success) {
+  metrics.increment('logs.dropped');
+}
+```
+
+**Benefits:**
+- 🟢 **Predictable memory** - Exact max usage: 16K * 200 bytes = ~3.2MB
+- 🟢 **No OOM crashes** - Can't grow unbounded
+- 🟢 **250,000+ ops/sec** - Lock-free, cache-optimized
+- 🟢 **Zero GC pressure** - Reuses same memory slots
+
+**Trade-offs:**
+- 🔴 Drops oldest logs when full (use SyncLogger for audit trails)
+- 🔴 Requires tuning for your throughput
+
+See [Ring Buffer Design](./docs/RING_BUFFER.md) for implementation details.
+
+## Advanced Schema Features
 
 MagicLogger uses the **MagicLog Schema** - a structured JSON format with **optional runtime validation** to ensure data consistency across your entire logging pipeline. Define schemas for your log contexts and catch violations before they corrupt your observability data.
 
@@ -609,9 +626,9 @@ logger.info('User authenticated', {
 }
 ```
 
-### Schema Validation (Optional)
+### Schema Validation (Optional, Lazy-Loaded)
 
-MagicLogger supports **runtime schema validation** to catch data inconsistencies before they pollute your logs:
+MagicLogger supports **runtime schema validation** to catch data inconsistencies before they pollute your logs. The validation module is **completely optional** and **lazy-loaded** - it's only imported when you explicitly set a schema, keeping your bundle size minimal:
 
 ```typescript
 import { Logger } from 'magiclogger';
@@ -819,9 +836,232 @@ const newTraceId = generateTraceId();  // 32 hex chars
 const newSpanId = generateSpanId();    // 16 hex chars
 ```
 
+### Schema Validation for Type-Safe Logging
+
+MagicLogger includes a lightweight, tree-shakeable schema validation system that ensures your log contexts and tags conform to expected structures. **The validation module is only loaded when you actually set a schema** - if you never call `setSchema()`, the validation code is never imported, keeping your bundle lean. This is especially useful for:
+
+- **Enforcing consistent log structures** across teams
+- **Catching context errors** at development time
+- **Ensuring compliance** with log aggregation requirements
+- **Type-safe logging** without runtime overhead when disabled
+
+#### Basic Context Schema Validation
+
+```typescript
+import { Logger } from 'magiclogger';
+import { object, string, number, optional } from 'magiclogger/validation';
+
+const logger = new Logger();
+
+// Define a schema for your context
+const contextSchema = object({
+  userId: string({ format: 'uuid' }),
+  sessionId: string(),
+  requestId: optional(string()),
+  environment: string({ enum: ['dev', 'staging', 'prod'] }),
+  requestCount: number({ min: 0, integer: true })
+});
+
+// Set the schema on the context manager
+logger.contextManager.setSchema(contextSchema, 'throw'); // Strict mode
+
+// This will validate successfully
+logger.info('User action', {
+  userId: '123e4567-e89b-12d3-a456-426614174000',
+  sessionId: 'session-123',
+  environment: 'prod',
+  requestCount: 42
+});
+
+// This will throw an error (invalid UUID)
+logger.info('Invalid user', {
+  userId: 'not-a-uuid',
+  sessionId: 'session-123',
+  environment: 'prod',
+  requestCount: 42
+});
+// Error: Context validation failed:
+//   - userId: Invalid uuid format
+```
+
+#### Schema Validation Modes
+
+```typescript
+// Three validation modes available:
+
+// 1. Throw mode - Strict validation, throws on error
+logger.contextManager.setSchema(schema, 'throw');
+
+// 2. Warn mode - Logs warnings but continues (default)
+logger.contextManager.setSchema(schema, 'warn');
+
+// 3. Silent mode - Validates but doesn't report errors
+logger.contextManager.setSchema(schema, 'silent');
+```
+
+#### Complex Schema Examples
+
+```typescript
+import { 
+  object, string, number, array, boolean, 
+  union, literal, optional, nullable 
+} from 'magiclogger/validation';
+
+// User activity schema
+const activitySchema = object({
+  user: object({
+    id: string({ format: 'uuid' }),
+    email: string({ format: 'email' }),
+    roles: array(string()),
+    metadata: optional(object({}, { additionalProperties: true }))
+  }),
+  action: union(
+    literal('login'),
+    literal('logout'),
+    literal('purchase'),
+    literal('view')
+  ),
+  timestamp: number({ min: 0 }),
+  success: boolean(),
+  error: nullable(object({
+    code: string(),
+    message: string(),
+    stack: optional(string())
+  }))
+});
+
+// Request/Response schema
+const apiSchema = object({
+  request: object({
+    method: string({ enum: ['GET', 'POST', 'PUT', 'DELETE'] }),
+    path: string({ pattern: /^\/api\// }),
+    headers: object({}, { additionalProperties: true }),
+    body: optional(string())
+  }),
+  response: object({
+    status: number({ min: 100, max: 599 }),
+    duration: number({ positive: true }),
+    size: number({ min: 0 })
+  }),
+  trace: object({
+    traceId: string({ pattern: /^[a-f0-9]{32}$/ }),
+    spanId: string({ pattern: /^[a-f0-9]{16}$/ }),
+    parentSpanId: optional(string({ pattern: /^[a-f0-9]{16}$/ }))
+  })
+});
+```
+
+#### Custom Validation Functions
+
+```typescript
+const customSchema = object({
+  email: string({
+    validate: (value) => {
+      // Custom validation logic
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return emailRegex.test(value as string) || 'Invalid email format';
+    }
+  }),
+  age: number({
+    validate: (value) => {
+      const age = value as number;
+      if (age < 13) return 'Must be 13 or older';
+      if (age > 120) return 'Invalid age';
+      return true;
+    }
+  }),
+  username: string({
+    transform: (value) => {
+      // Normalize username
+      return (value as string).toLowerCase().trim();
+    }
+  })
+});
+```
+
+#### Performance Considerations
+
+The schema validator is designed to be lightweight and tree-shakeable:
+
+```typescript
+// Only import what you need - unused validators are tree-shaken
+import { string, number } from 'magiclogger/validation';
+
+// Validation is only performed when schemas are set
+// No performance overhead when not using schemas
+
+// Lazy loading - validator is only loaded when first schema is set
+logger.contextManager.setSchema(schema); // Validator loaded here
+
+// Schemas can be disabled at runtime
+logger.contextManager.options.enableValidation = false; // Bypass all validation
+```
+
+#### Integration with TypeScript
+
+```typescript
+import { object, string, number } from 'magiclogger/validation';
+
+// Define your schema
+const userContextSchema = object({
+  userId: string(),
+  accountType: string({ enum: ['free', 'pro', 'enterprise'] }),
+  credits: number({ min: 0 })
+});
+
+// Derive TypeScript type from schema (for type safety)
+type UserContext = {
+  userId: string;
+  accountType: 'free' | 'pro' | 'enterprise';
+  credits: number;
+};
+
+// Use with type safety
+function logUserAction(action: string, context: UserContext) {
+  logger.info(action, context); // Type-safe and schema-validated
+}
+```
+
 ---
 
-## 🚀 Enterprise Transports
+## Core Features
+
+### Sync & Async Loggers
+
+```typescript
+import { Logger, SyncLogger } from 'magiclogger';
+
+// ASYNC (Default) - Non-blocking, high throughput
+const logger = new Logger({
+  buffer: { 
+    size: 16384,         // Ring buffer size
+    flushInterval: 50,   // Batch every 50ms
+    flushSize: 2000      // Or 2000 logs
+  }
+});
+// ✅ 250,000+ ops/sec
+// ✅ Non-blocking I/O
+// ✅ Batch efficiency
+// ⚠️ May drop logs under extreme load
+
+// SYNC - Blocking I/O, guaranteed delivery
+const auditLogger = new SyncLogger({
+  file: './audit.log',
+  forceFlush: true  // fsync after each write
+});
+// ✅ ~70,000 ops/sec
+// ✅ Every log guaranteed on disk
+// ✅ Perfect for audit trails
+// ⚠️ Blocks on each write
+```
+
+**When to use each:**
+- **Async**: Web services, APIs, high-throughput apps
+- **Sync**: Audit logs, debugging, CLI tools, crash recovery
+
+## Enterprise Features
+
+### Enterprise Transports
 
 ### Transport Batching Behavior
 
@@ -1039,136 +1279,8 @@ const lokiTransport = new HTTPTransport({
 
 ---
 
-## 🎯 Core Architecture & Design Decisions
 
-### Design Philosophy
-
-MagicLogger follows these core principles:
-
-1. **Predictable Over Fast** - We chose a ring buffer over unbounded queues because predictable memory usage matters more than absolute throughput in production
-2. **Explicit Over Implicit** - Backpressure is surfaced explicitly (AddResult) rather than hidden behind promises or callbacks
-3. **Zero Dependencies** - No external dependencies means no supply chain attacks, version conflicts, or bloat
-4. **Structured Over Pretty** - Every log is structured JSON (MagicLog Schema) for machine parsing, with optional pretty printing
-5. **Safe Defaults** - Async by default for performance, explicit opt-in for sync when you need guarantees
-
-### Two Distinct Logging Modes - Async vs Sync
-
-```typescript
-import { Logger, SyncLogger } from 'magiclogger';
-
-// ASYNC LOGGER (Default) - Ring buffer architecture
-const logger = new Logger({
-  buffer: { 
-    size: 16384,         // Fixed ring buffer size (no unbounded growth!)
-    flushInterval: 50,   // Batch flush every 50ms
-    flushSize: 2000      // Or when 2000 logs accumulate
-  }
-});
-
-const result = logger.info('High-throughput logging');
-if (!result.success) {
-  // Explicit backpressure handling - buffer is full
-  console.warn(`Dropped: ${result.reason}`);
-}
-
-// SYNC LOGGER - Blocking I/O with guaranteed delivery  
-const syncLogger = new SyncLogger({ 
-  file: './audit.log',
-  forceFlush: true  // fsync after every write
-});
-syncLogger.info('Blocks until on disk');
-// Perfect for security auditing, debugging, crash scenarios
-```
-
-### Why Ring Buffer Architecture?
-
-**The Problem:** Traditional loggers use unbounded queues that can cause OOM crashes:
-```typescript
-// DANGEROUS: Unbounded queue growth
-class NaiveLogger {
-  private queue: LogEntry[] = [];  // Grows forever if disk is slow!
-  
-  log(msg: string) {
-    this.queue.push(msg);  // Eventually OOM crash
-  }
-}
-```
-
-**Our Solution:** Fixed-size ring buffer with explicit backpressure:
-```typescript
-// SAFE: Fixed memory usage
-class MagicLogger {
-  private buffer = new RingBuffer(16384);  // Max 16K entries
-  
-  log(msg: string): AddResult {
-    return this.buffer.add(msg);  // Know when full!
-  }
-}
-```
-
-**Benefits of Ring Buffer Architecture:**
-- **Predictable memory** - Know exact max memory usage (16K * ~200 bytes = ~3.2MB)
-- **No OOM crashes** - Buffer can't grow unbounded during traffic spikes
-- **Explicit handling** - Applications know when logs are dropped and can react
-- **Batch efficiency** - Flush thousands of logs in one I/O operation
-- **Cache-friendly** - Circular access pattern optimizes CPU cache usage
-- **Zero-allocation** - Reuses same memory slots, no GC pressure
-
-**Trade-offs:**
-- **Potential log loss** - Under extreme load, oldest logs are dropped
-- **Tuning required** - Buffer size must match your throughput needs
-- **Not for audit logs** - Use SyncLogger when every log must be preserved
-
-### Transport System
-
-Transports handle where your logs go. Network transports automatically batch for efficiency:
-
-```typescript
-// All network transports extend BatchingTransport and batch by default
-import { HTTPTransport } from 'magiclogger/transports/http';
-
-const transport = new HTTPTransport({
-  url: 'https://logs.example.com',
-  batch: true,  // Default for network transports
-  batchSize: 100,
-  batchInterval: 1000
-});
-
-// Disable batching if needed
-const realtimeTransport = new HTTPTransport({
-  url: 'https://logs.example.com',
-  batch: false  // Send immediately
-});
-```
-
-### Built-in Ring Buffer
-
-AsyncLogger includes a built-in ring buffer for handling backpressure:
-
-```typescript
-const logger = createAsyncLogger({
-  buffer: {
-    size: 16384,       // 16K entries (default)
-    flushInterval: 50, // Flush every 50ms
-    flushSize: 2000    // Flush when 2000 entries accumulated
-  },
-  onFlush: async (entries) => {
-    // Entries from ring buffer, ready for transport
-    await transport.sendBatch(entries);
-  }
-});
-
-// The ring buffer returns AddResult for explicit backpressure handling
-const result = logger.info('High volume log');
-if (!result.success) {
-  // Buffer full - handle explicitly
-  console.warn(`Log dropped: ${result.reason}`);
-}
-```
-
----
-
-## 🔧 Optional Extensions
+### Optional Extensions
 
 Extensions are opt-in utilities for specialized needs. Only import and use them when you need the extra functionality.
 
@@ -1312,7 +1424,7 @@ const logger = createAsyncLogger({
 
 ---
 
-## 📊 Monitoring & Observability
+### Monitoring & Observability
 
 ### Health Monitoring
 
@@ -1363,7 +1475,7 @@ logger.on('memory_pressure', ({ usage }) => {
 
 ---
 
-## ⚡ Performance
+## Performance
 
 See detailed [benchmark results](./scripts/performance/benchmark-results.md), [architecture docs](./docs/architecture.md), and [transport options](./docs/transports.md).
 
@@ -1411,38 +1523,38 @@ See detailed [benchmark results](./scripts/performance/benchmark-results.md), [a
 <!-- PERF_TABLE_START -->
 | Logger | Iterations | Time (ms) | Ops/sec |
 |--------|------------:|----------:|--------:|
-| Pino (Sync, Styled) | 100,000 | 2252.1 | 44,404 |
-| Pino (Sync, Plain) | 100,000 | 2534.3 | 39,458 |
-| MagicLogger (Sync, Plain) | 100,000 | 2561.4 | 39,041 |
-| Bunyan (Sync, Styled) | 100,000 | 3183.6 | 31,411 |
-| Winston (Sync, Styled) | 100,000 | 4075.0 | 24,540 |
-| Winston (Sync, Plain) | 100,000 | 4288.4 | 23,319 |
-| Bunyan (Sync, Plain) | 100,000 | 4503.6 | 22,204 |
-| MagicLogger (Sync, Styled) | 100,000 | 4610.1 | 21,692 |
-| MagicLogger (Async, Plain) | 100,000 | 1518.7 | 65,844 |
-| MagicLogger (Async, Styled) | 100,000 | 1831.7 | 54,593 |
-| Pino (Async, Styled) | 100,000 | 2316.8 | 43,163 |
-| Pino (Async, Plain) | 100,000 | 2321.3 | 43,080 |
-| Winston (Async, Styled) | 100,000 | 2328.2 | 42,952 |
-| Winston (Async, Plain) | 100,000 | 3177.0 | 31,476 |
+| Winston (Sync, Styled) | 100,000 | 2547.3 | 39,257 |
+| Winston (Sync, Plain) | 100,000 | 2552.4 | 39,180 |
+| Bunyan (Sync, Plain) | 100,000 | 2870.4 | 34,838 |
+| Pino (Sync, Plain) | 100,000 | 3565.5 | 28,047 |
+| MagicLogger (Sync, Plain) | 100,000 | 3583.1 | 27,909 |
+| Pino (Sync, Styled) | 100,000 | 3708.7 | 26,964 |
+| Bunyan (Sync, Styled) | 100,000 | 3807.0 | 26,268 |
+| MagicLogger (Sync, Styled) | 100,000 | 6364.5 | 15,712 |
+| Pino (Async, Styled) | 100,000 | 1231.6 | 81,192 |
+| MagicLogger (Async, Plain) | 100,000 | 1637.9 | 61,055 |
+| MagicLogger (Async, Styled) | 100,000 | 1837.7 | 54,415 |
+| Pino (Async, Plain) | 100,000 | 2781.6 | 35,951 |
+| Winston (Async, Plain) | 100,000 | 2859.5 | 34,971 |
+| Winston (Async, Styled) | 100,000 | 2958.1 | 33,805 |
 
 ### Winners
-- Sync Plain: Pino (Sync, Plain) (39,458 ops/sec) — MagicLogger: 39,041 ops/sec
-- Sync Styled: Pino (Sync, Styled) (44,404 ops/sec) — MagicLogger: 21,692 ops/sec
-- Async Plain: MagicLogger (Async, Plain) (65,844 ops/sec)
-- Async Styled: MagicLogger (Async, Styled) (54,593 ops/sec)
+- Sync Plain: Winston (Sync, Plain) (39,180 ops/sec) — MagicLogger: 27,909 ops/sec
+- Sync Styled: Winston (Sync, Styled) (39,257 ops/sec) — MagicLogger: 15,712 ops/sec
+- Async Plain: MagicLogger (Async, Plain) (61,055 ops/sec)
+- Async Styled: Pino (Async, Styled) (81,192 ops/sec) — MagicLogger: 54,415 ops/sec
 
 === KEY COMPARISONS ===
 
 Synchronous Styled Performance:
-  MagicLogger (Sync, Styled): 21,692 ops/sec
-  Pino (Sync, Styled): 44,404 ops/sec
-  → MagicLogger is 2.05x slower
+  MagicLogger (Sync, Styled): 15,712 ops/sec
+  Winston (Sync, Styled): 39,257 ops/sec
+  → MagicLogger is 2.50x slower
 
 Asynchronous Styled Performance:
-  MagicLogger (Async, Styled): 54,593 ops/sec
-  Pino (Async, Styled): 43,163 ops/sec
-  → MagicLogger is 1.26x faster
+  MagicLogger (Async, Styled): 54,415 ops/sec
+  Pino (Async, Styled): 81,192 ops/sec
+  → MagicLogger is 1.49x slower
 
 Note: External libraries' "Styled" cases use chalk for coloring (chalk + library) for fair comparison.
 
@@ -1452,7 +1564,7 @@ Note: External libraries' "Styled" cases use chalk for coloring (chalk + library
 
 ---
 
-## 🎯 Practical Examples
+## Examples
 
 ### Express.js Middleware
 
@@ -1580,7 +1692,7 @@ app.post('/payment', async (req, res) => {
 
 ---
 
-## 🔧 Configuration Reference
+## API Reference
 
 ### Logger Options
 
@@ -1677,11 +1789,11 @@ const logger = createSmartLogger({
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-## 📄 License
+## License
 
 MIT © Manic.agency
 
@@ -1695,19 +1807,19 @@ MIT © Manic.agency
 
 | File | Format | Raw Size | Gzip |
 |------|--------|----------|------|
-| `index.cjs` | CJS | 8.34 kB | 2.08 kB |
-| `index.js` | ESM | 5.55 kB | 1.82 kB |
-| `index.d.ts` | Types | 83.2 kB | 17.4 kB |
+| `index.cjs` | CJS | 7.09 kB | 1.65 kB |
+| `index.js` | ESM | 4.06 kB | 1.34 kB |
+| `index.d.ts` | Types | 94.3 kB | 19.7 kB |
 
 ### Core Bundle Sizes (gzipped)
 
 | Scenario | Size |
 |----------|------|
-| Core (bare minimum) | 33 kB |
-| Core + Console Transport | 33 kB |
-| Core + File Transport | 35.2 kB |
-| Core + HTTP Transport | 43.5 kB |
-| Core + All Basic Transports | 44.9 kB |
+| Core (bare minimum) | 36.7 kB |
+| Core + Console Transport | 36.7 kB |
+| Core + File Transport | 38.8 kB |
+| Core + HTTP Transport | 47.3 kB |
+| Core + All Basic Transports | 48.7 kB |
 
 ### Individual Transport Sizes (gzipped)
 
@@ -1716,71 +1828,20 @@ MIT © Manic.agency
 | Console Transport Only | 7.78 kB |
 | File Transport Only | 4.12 kB |
 | HTTP Transport Only | 21.9 kB |
+
+### Schema Validation (Optional, Lazy-loaded)
+
+| Scenario | Size |
+|----------|------|
+| Core + Schema Validation | 38.9 kB |
+| Validation Module Only | 2.52 kB |
+
+*Note: Validation is only loaded when schemas are explicitly set on ContextManager or TagManager.*
 
 ### Extension Sizes (gzipped)
 
 | Extension | Size |
 |-----------|------|
-| Sampler | 1.21 kB |
-| RateLimiter | 1.09 kB |
-| Redactor | 3.79 kB |
-
-*Generated via `scripts/analyze-build.js`.*
-
-| File | Format | Raw Size | Gzip |
-|------|--------|----------|------|
-| `index.cjs` | CJS | 8.34 kB | 2.08 kB |
-| `index.js` | ESM | 5.55 kB | 1.82 kB |
-| `index.d.ts` | Types | 83.2 kB | 17.4 kB |
-
-### Core Bundle Sizes (gzipped)
-
-| Scenario | Size |
-|----------|------|
-| Core (bare minimum) | 33 kB |
-| Core + Console Transport | 33 kB |
-| Core + File Transport | 35.2 kB |
-| Core + HTTP Transport | 43.5 kB |
-| Core + All Basic Transports | 44.9 kB |
-
-### Individual Transport Sizes (gzipped)
-
-| Transport | Size |
-|-----------|------|
-| Console Transport Only | 7.78 kB |
-| File Transport Only | 4.12 kB |
-| HTTP Transport Only | 21.9 kB |
-
-*Generated via `scripts/analyze-build.js`.*
-
-| File | Format | Raw Size | Gzip |
-|------|--------|----------|------|
-| `index.cjs` | CJS | 8.68 kB | 2.06 kB |
-| `index.js` | ESM | 5.52 kB | 1.76 kB |
-| `index.d.ts` | Types | 127 kB | 25.3 kB |
-
-### Core Bundle Sizes (gzipped)
-
-| Scenario | Size |
-|----------|------|
-| Core (bare minimum) | 48.3 kB |
-| Core + Console Transport | 48.3 kB |
-| Core + File Transport | 48.3 kB |
-| Core + HTTP Transport | 55.3 kB |
-| Core + All Basic Transports | 56.6 kB |
-
-### Individual Transport Sizes (gzipped)
-
-| Transport | Size |
-|-----------|------|
-| Console Transport Only | 7.9 kB |
-| File Transport Only | 4.12 kB |
-| HTTP Transport Only | 21.7 kB |
-
-### Utility Sizes (gzipped)
-
-| Utility | Size |
-|---------|------|
 | Sampler | 1.21 kB |
 | RateLimiter | 1.09 kB |
 | Redactor | 3.79 kB |

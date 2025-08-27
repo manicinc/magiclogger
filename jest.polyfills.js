@@ -139,6 +139,7 @@ try {
 })(typeof globalThis !== 'undefined' ? globalThis : (typeof global !== 'undefined' ? global : undefined));
 
 // Debug: Log that polyfills were loaded
-if (process.env.NODE_ENV === 'test') {
-  console.log('Jest polyfills loaded: timers and DOM shims available');
-}
+// Commented out to reduce test output noise
+// if (process.env.NODE_ENV === 'test') {
+//   console.log('Jest polyfills loaded: timers and DOM shims available');
+// }

@@ -1,8 +1,15 @@
-// File: src/async/AsyncLogger.ts
+/**
+ * @fileoverview High-performance asynchronous logger with ring buffer.
+ * 
+ * Provides non-blocking logging with automatic batching, backpressure handling,
+ * and integration with operational utilities like rate limiting and redaction.
+ * 
+ * @module async/AsyncLogger
+ */
 
 import { AsyncBuffer, type AddResult } from './AsyncBuffer';
 import type { BufferStats } from './AsyncBuffer';
-import type { LogEntry } from '../types/transport';
+import type { LogEntry, Transport } from '../types/transport';
 import type { LogLevel } from '../types/logger';
 import { RateLimiter, type RateLimiterOptions } from '../extensions/RateLimiter';
 import { Redactor, type RedactorOptions } from '../extensions/Redactor';
@@ -11,7 +18,7 @@ import { QueueManager, type QueueManagerOptions } from '../extensions/QueueManag
 
 /**
  * Configuration options for AsyncLogger.
- *
+ * 
  * @interface AsyncLoggerOptions
  */
 export interface AsyncLoggerOptions {
@@ -122,43 +129,40 @@ export interface AsyncLoggerOptions {
 }
 
 /**
- * Async logging interface for high-performance logging.
- *
- * This class provides async logging methods that use a ring buffer
- * with explicit backpressure handling. It's designed to work with the main Logger
- * class to provide both sync and async APIs.
- *
- * Features:
- * - Explicit backpressure with AddResult objects
- * - Ring buffer for efficient batching
- * - Automatic batching and flushing via microtasks and timers
- * - Integrated operational utilities (rate limiting, redaction, etc.)
- * - Performance metrics and monitoring
- *
+ * High-performance asynchronous logger with ring buffer architecture.
+ * 
+ * Designed for maximum throughput with non-blocking operations, automatic
+ * batching, and comprehensive backpressure handling. Integrates operational
+ * utilities for rate limiting, redaction, and sampling.
+ * 
  * @class AsyncLogger
- *
- * @example
+ * 
+ * @example Basic usage
  * ```typescript
- * const asyncLogger = new AsyncLogger({
- *   buffer: {
- *     size: 8192,
- *     flushInterval: 100
- *   },
- *   redactor: { preset: 'strict' },
- *   rateLimiter: { max: 1000, window: 60000 },
+ * const logger = new AsyncLogger({
+ *   buffer: { size: 8192, flushInterval: 100 },
  *   onFlush: async (entries) => {
  *     await transport.sendBatch(entries);
  *   }
- * }, createLogEntry);
- *
- * // Explicit backpressure handling
- * const result = asyncLogger.info('Message', { data: 'value' });
+ * });
+ * 
+ * const result = logger.info('User logged in', { userId: 123 });
  * if (!result.success) {
  *   console.warn(`Log dropped: ${result.reason}`);
  * }
- *
- * // Critical logging with retries
- * await asyncLogger.logCritical('error', 'System failure');
+ * ```
+ * 
+ * @example With operational utilities
+ * ```typescript
+ * const logger = new AsyncLogger({
+ *   rateLimiter: { max: 1000, window: 60000 },
+ *   redactor: { preset: 'strict' },
+ *   sampler: { rate: 0.1 },
+ *   onFlush: async (entries) => {
+ *     // Entries are already rate-limited, redacted, and sampled
+ *     await transport.sendBatch(entries);
+ *   }
+ * });
  * ```
  */
 export class AsyncLogger {
@@ -211,30 +215,90 @@ export class AsyncLogger {
   }) => void;
 
   /**
+   * Minimal transport registry for AsyncLogger to interoperate with integration tests.
+   * @private
+   */
+  private transports: Transport[] = [];
+
+  /**
    * Creates a new AsyncLogger instance.
-   *
-   * @param {AsyncLoggerOptions} options - Configuration options
-   * @param {Function} createEntry - Function to create log entries
+   * 
+   * @param {Partial<AsyncLoggerOptions>} [options] - Configuration options
+   * @param {Function} [createEntry] - Function to create log entries
+   * @constructor
    */
   constructor(
-    options: AsyncLoggerOptions,
-    createEntry: (level: LogLevel, message: string, meta?: Record<string, unknown>) => LogEntry
+    options?: Partial<AsyncLoggerOptions>,
+    createEntry?: (level: LogLevel, message: string, meta?: Record<string, unknown>) => LogEntry
   ) {
-    this.createEntry = createEntry;
-    this.enableMetrics = options.enableMetrics ?? true;
-    this.originalFlushHandler = options.onFlush;
-    this.fallbackToSync = options.fallbackToSync ?? false;
-    this.flushOnHighWater = options.flushOnHighWater !== false;
-    this.onMetrics = options.onMetrics;
+  const safeOptions: AsyncLoggerOptions = {
+      buffer: {
+    size: options?.buffer?.size ?? 8192,
+    flushInterval: options?.buffer?.flushInterval ?? 100,
+    flushSize: options?.buffer?.flushSize ?? 1000,
+      },
+      onFlush:
+        options?.onFlush ??
+        ((entries: LogEntry[]) => {
+          // Default minimal flush: print messages to console as a single batch
+      try {
+            for (const e of entries) {
+              // Prefer level-appropriate console method
+              const line = e.message ?? '';
+        if (e.level === 'error') console.error(line);
+        else if (e.level === 'warn') console.warn(line);
+        else if (e.level === 'debug' && typeof console.debug === 'function') console.debug(line);
+        else console.log(line);
+            }
+          } catch {
+            /* noop */
+          }
+        }),
+    enableMetrics: options?.enableMetrics ?? true,
+    rateLimiter: options?.rateLimiter,
+    redactor: options?.redactor,
+    sampler: options?.sampler,
+    queueManager: options?.queueManager,
+      fallbackToSync: options?.fallbackToSync ?? false,
+      flushOnHighWater: options?.flushOnHighWater ?? true,
+      onMetrics: options?.onMetrics,
+    };
+
+    // CreateEntry default builder if not provided
+    const defaultCreateEntry = (
+      level: LogLevel,
+      message: string,
+      meta?: Record<string, unknown>
+    ): LogEntry => {
+      const now = Date.now();
+      const ts = new Date(now).toISOString();
+      const msg = typeof message === 'string' ? message : String(message);
+      return {
+        id: `${now}-${Math.random().toString(36).slice(2, 9)}`,
+        timestamp: ts,
+        timestampMs: now,
+        level,
+        message: msg,
+        plainMessage: msg,
+        context: meta,
+      };
+    };
+
+    this.createEntry = createEntry ?? defaultCreateEntry;
+    this.enableMetrics = safeOptions.enableMetrics ?? true;
+    this.originalFlushHandler = safeOptions.onFlush;
+    this.fallbackToSync = safeOptions.fallbackToSync ?? false;
+    this.flushOnHighWater = safeOptions.flushOnHighWater !== false;
+    this.onMetrics = safeOptions.onMetrics;
 
     // Initialize operational utilities
-    this.initializeUtilities(options);
+  this.initializeUtilities(safeOptions);
 
     // Initialize buffer with flush handler
     this.buffer = new AsyncBuffer({
-      size: options.buffer?.size || 8192,
-      flushInterval: options.buffer?.flushInterval || 100,
-      flushSize: options.buffer?.flushSize || 1000,
+      size: safeOptions.buffer?.size ?? 16384,
+      flushInterval: safeOptions.buffer?.flushInterval ?? 100,
+      flushSize: safeOptions.buffer?.flushSize ?? 1000,
       onFlush: this.processEntries.bind(this),
       overflowStrategy: 'drop-oldest',
       enableMetrics: this.enableMetrics,
@@ -245,11 +309,19 @@ export class AsyncLogger {
   }
 
   /**
-   * Log an info message asynchronously.
-   *
-   * @param {string} message - The message to log
+   * Logs an info-level message.
+   * 
+   * @param {string} message - Log message
    * @param {Record<string, unknown>} [meta] - Optional metadata
-   * @returns {AddResult} Result of adding the entry
+   * @returns {AddResult} Result indicating success/failure and reason
+   * 
+   * @example
+   * ```typescript
+   * const result = logger.info('User action', { userId: 123 });
+   * if (!result.success) {
+   *   console.warn(`Failed to log: ${result.reason}`);
+   * }
+   * ```
    */
   public info(message: string, meta?: Record<string, unknown>): AddResult {
     const entry = this.createEntry('info', message, meta);
@@ -257,11 +329,11 @@ export class AsyncLogger {
   }
 
   /**
-   * Log a warning message asynchronously.
-   *
-   * @param {string} message - The message to log
+   * Logs a warning-level message.
+   * 
+   * @param {string} message - Log message
    * @param {Record<string, unknown>} [meta] - Optional metadata
-   * @returns {AddResult} Result of adding the entry
+   * @returns {AddResult} Result indicating success/failure
    */
   public warn(message: string, meta?: Record<string, unknown>): AddResult {
     const entry = this.createEntry('warn', message, meta);
@@ -269,11 +341,11 @@ export class AsyncLogger {
   }
 
   /**
-   * Log an error message asynchronously.
-   *
-   * @param {string} message - The message to log
+   * Logs an error-level message.
+   * 
+   * @param {string} message - Log message
    * @param {Record<string, unknown>} [meta] - Optional metadata
-   * @returns {AddResult} Result of adding the entry
+   * @returns {AddResult} Result indicating success/failure
    */
   public error(message: string, meta?: Record<string, unknown>): AddResult {
     const entry = this.createEntry('error', message, meta);
@@ -281,11 +353,11 @@ export class AsyncLogger {
   }
 
   /**
-   * Log a debug message asynchronously.
-   *
-   * @param {string} message - The message to log
+   * Logs a debug-level message.
+   * 
+   * @param {string} message - Log message
    * @param {Record<string, unknown>} [meta] - Optional metadata
-   * @returns {AddResult} Result of adding the entry
+   * @returns {AddResult} Result indicating success/failure
    */
   public debug(message: string, meta?: Record<string, unknown>): AddResult {
     const entry = this.createEntry('debug', message, meta);
@@ -356,6 +428,24 @@ export class AsyncLogger {
   public async close(): Promise<void> {
     // Close buffer
     await this.buffer.close();
+
+    // Attempt to flush/close transports
+    for (const t of this.transports) {
+      try {
+        if (typeof (t as { flush?: () => void | Promise<void> }).flush === 'function') {
+          await (t as { flush?: () => void | Promise<void> }).flush?.();
+        }
+      } catch {
+        /* ignore */
+      }
+      try {
+        if (typeof (t as { close?: () => void | Promise<void> }).close === 'function') {
+          await (t as { close?: () => void | Promise<void> }).close?.();
+        }
+      } catch {
+        /* ignore */
+      }
+    }
   }
 
   /**
@@ -598,6 +688,30 @@ export class AsyncLogger {
    */
   private async processEntries(entries: LogEntry[]): Promise<void> {
     try {
+      // First, dispatch to registered transports if any
+      if (this.transports.length > 0) {
+        const ops: Array<void | Promise<void>> = [];
+        for (const t of this.transports) {
+          try {
+            if (typeof (t as { logBatch?: (e: LogEntry[]) => void | Promise<void> }).logBatch === 'function') {
+              ops.push((t as { logBatch: (e: LogEntry[]) => void | Promise<void> }).logBatch(entries));
+            } else if (typeof t.log === 'function') {
+              for (const e of entries) ops.push(t.log(e));
+            }
+          } catch (err) {
+            // eslint-disable-next-line no-console
+            console.warn('[AsyncLogger] Transport error', (t as { name?: string })?.name || 'unknown', err);
+          }
+        }
+        // Wait for async transports
+        if (ops.some(p => p && typeof (p as Promise<void>).then === 'function')) {
+          await Promise.all(
+            ops.map(p => (p && typeof (p as Promise<void>).then === 'function' ? (p as Promise<void>) : Promise.resolve()))
+          );
+        }
+      }
+
+      // Then call original flush handler (often console printing)
       await this.originalFlushHandler(entries);
     } catch (error) {
       console.error('[AsyncLogger] Process entries error:', error);
@@ -656,5 +770,35 @@ export class AsyncLogger {
     console.info('[AsyncLogger] Buffer pressure relieved', stats);
 
     this.onMetrics?.({ type: 'backpressure', ...stats });
+  }
+
+  // ==========================================
+  // Minimal transport management
+  // ==========================================
+
+  /** Add a transport (synchronous API for tests/integration). */
+  public addTransport(transport: Transport): void {
+    if (!transport) return;
+    this.transports.push(transport);
+  }
+
+  /** Remove a transport by name. */
+  public removeTransport(name: string): void {
+    this.transports = this.transports.filter(t => (t.name || '') !== name);
+  }
+
+  /** Get a transport by name. */
+  public getTransport(name: string): Transport | undefined {
+    return this.transports.find(t => (t.name || '') === name);
+  }
+
+  /** List transport names (for tests). */
+  public listTransports(): string[] {
+    return this.transports.map(t => t.name || 'unnamed');
+  }
+
+  /** Transport stats placeholder to match API shape. */
+  public getTransportStats(): Record<string, unknown> {
+    return Object.fromEntries(this.transports.map(t => [t.name || 'unnamed', { active: true }]));
   }
 }

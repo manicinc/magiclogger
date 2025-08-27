@@ -10,6 +10,7 @@
 
 import { Middleware } from './Middleware';
 import type { LogEntry } from '../types';
+import type { MiddlewareContext, MiddlewareResult } from './Middleware';
 import { 
   extractTraceContext, 
   generateTraceId, 
@@ -18,6 +19,24 @@ import {
 import type { W3CTraceContext } from '../utils/trace-context';
 
 export type { W3CTraceContext };
+
+// Minimal AsyncLocalStorage-like interface to avoid depending on Node types
+type AsyncLocalStorageLike<T> = {
+  getStore(): T | undefined;
+};
+
+type HeaderStoreExpress = { req?: { headers?: Record<string, string | string[] | undefined> } };
+type HeaderStoreKoa = { ctx?: { headers?: Record<string, string | string[] | undefined> } };
+type HeaderStoreFastify = { request?: { headers?: Record<string, string | string[] | undefined> } };
+type TraceContextStore = W3CTraceContext | HeaderStoreExpress | HeaderStoreKoa | HeaderStoreFastify;
+
+function isW3CTraceContext(value: unknown): value is W3CTraceContext {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    ('traceId' in (value as Record<string, unknown>) || 'spanId' in (value as Record<string, unknown>))
+  );
+}
 
 /**
  * Options for configuring trace context middleware.
@@ -71,7 +90,7 @@ export interface TraceContextMiddlewareOptions {
    * AsyncLocalStorage instance for Node.js async context propagation.
    * If provided, trace context will be automatically retrieved from it.
    */
-  asyncLocalStorage?: any; // AsyncLocalStorage<W3CTraceContext>
+  asyncLocalStorage?: AsyncLocalStorageLike<TraceContextStore>; // AsyncLocalStorage-like
 }
 
 /**
@@ -175,18 +194,20 @@ export class TraceContextMiddleware extends Middleware {
    * Process log entry to inject trace context.
    * 
    * @param {LogEntry} entry - The log entry to process
-   * @returns {LogEntry} The processed entry with trace context
+   * @param {MiddlewareContext} _context - Execution context (unused)
+   * @returns {MiddlewareResult} The processed entry with trace context
    * @override
    */
-  process(entry: LogEntry): LogEntry {
+  process(entry: LogEntry, _context: MiddlewareContext): MiddlewareResult {
     if (!this.options.autoExtract) {
-      return entry;
+      return { continue: true, entry };
     }
 
     // Skip if trace context already exists
-    const existingTrace = (entry as any)[this.options.traceField] || entry.metadata?.trace;
+  const field = this.options.traceField as string;
+  const existingTrace = ((entry as unknown) as Record<string, unknown>)[field] || entry.metadata?.trace;
     if (existingTrace) {
-      return entry;
+      return { continue: true, entry };
     }
 
     // Extract trace context using configured method
@@ -200,7 +221,10 @@ export class TraceContextMiddleware extends Middleware {
     // 2. Try AsyncLocalStorage
     if (!traceContext && this.options.asyncLocalStorage) {
       try {
-        traceContext = this.options.asyncLocalStorage.getStore();
+        const store = this.options.asyncLocalStorage.getStore();
+        if (isW3CTraceContext(store)) {
+          traceContext = store;
+        }
       } catch (error) {
         // AsyncLocalStorage not available or error
       }
@@ -239,10 +263,10 @@ export class TraceContextMiddleware extends Middleware {
         };
       }
 
-      return processedEntry;
+      return { continue: true, entry: processedEntry };
     }
 
-    return entry;
+    return { continue: true, entry };
   }
 }
 
@@ -273,11 +297,11 @@ export class TraceContextMiddleware extends Middleware {
  * ```
  */
 export function createExpressTraceMiddleware(
-  asyncLocalStorage: any
+  asyncLocalStorage: AsyncLocalStorageLike<HeaderStoreExpress>
 ): TraceContextMiddleware {
   return new TraceContextMiddleware({
     getHeaders: () => {
-      const store = asyncLocalStorage.getStore();
+  const store = asyncLocalStorage.getStore();
       return store?.req?.headers;
     },
     asyncLocalStorage,
@@ -291,11 +315,11 @@ export function createExpressTraceMiddleware(
  * @returns {TraceContextMiddleware} Configured middleware for Koa
  */
 export function createKoaTraceMiddleware(
-  asyncLocalStorage: any
+  asyncLocalStorage: AsyncLocalStorageLike<HeaderStoreKoa>
 ): TraceContextMiddleware {
   return new TraceContextMiddleware({
     getHeaders: () => {
-      const store = asyncLocalStorage.getStore();
+  const store = asyncLocalStorage.getStore();
       return store?.ctx?.headers;
     },
     asyncLocalStorage,
@@ -309,11 +333,11 @@ export function createKoaTraceMiddleware(
  * @returns {TraceContextMiddleware} Configured middleware for Fastify
  */
 export function createFastifyTraceMiddleware(
-  asyncLocalStorage: any
+  asyncLocalStorage: AsyncLocalStorageLike<HeaderStoreFastify>
 ): TraceContextMiddleware {
   return new TraceContextMiddleware({
     getHeaders: () => {
-      const store = asyncLocalStorage.getStore();
+  const store = asyncLocalStorage.getStore();
       return store?.request?.headers;
     },
     asyncLocalStorage,

@@ -10,8 +10,7 @@
 */
 
 // Use local built dist to avoid requiring an installed package
-import { Logger } from '../../dist/index.js';
-import { AsyncLogger } from '../../dist/async/logger.js';
+import { FullLogger as Logger, AsyncLogger } from '../../dist/index.js';
 import { Writable } from 'stream';
 import { fileURLToPath } from 'url';
 import path from 'path';
@@ -140,23 +139,27 @@ async function setupLoggers() {
   // MagicLogger configurations
   const magicLoggerSync = new Logger({
     transports: [new NullTransport()],
-    useColors: false
+    useColors: false,
+    useConsole: false  // Prevent console output during benchmark
   });
 
   const magicLoggerSyncStyled = new Logger({
     transports: [new NullTransport()],
-    useColors: true
+    useColors: true,
+    useConsole: false  // Prevent console output during benchmark
   });
 
   // Create async-enabled Logger instances for proper styling comparison
   const magicLoggerAsync = new Logger({
     transports: [new NullTransport()],
-    useColors: false
+    useColors: false,
+    useConsole: false  // Prevent console output during benchmark
   });
 
   const magicLoggerAsyncStyled = new Logger({
     transports: [new NullTransport()],
-    useColors: true
+    useColors: true,
+    useConsole: false  // Prevent console output during benchmark
   });
 
   // Create AsyncLogger instances that delegate to the Logger for entry creation

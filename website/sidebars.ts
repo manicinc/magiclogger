@@ -20,7 +20,7 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: '📋 Architecture',
-      items: ['architecture', 'TRANSPORTS', 'MAGICLOG_SCHEMA'],
+      items: ['ARCHITECTURE', 'TRANSPORTS', 'MAGIC_SCHEMA'],
     },
     {
       type: 'category',

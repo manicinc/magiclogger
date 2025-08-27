@@ -5,6 +5,18 @@
 import * as LoggerExports from '../../src';
 
 describe('Logger module exports', () => {
+  // Track created loggers for cleanup
+  const loggersToCleanup: Array<{ close?: () => void | Promise<void> }> = [];
+
+  afterEach(async () => {
+    // Clean up any loggers created during tests
+    for (const logger of loggersToCleanup) {
+      if (logger.close) {
+        await logger.close();
+      }
+    }
+    loggersToCleanup.length = 0;
+  });
   describe('Core Logger Classes', () => {
     it('should export Logger as async logger by default', () => {
       expect(LoggerExports.Logger).toBeDefined();
@@ -12,6 +24,7 @@ describe('Logger module exports', () => {
       
       // Logger should be the AsyncLogger
       const logger = new LoggerExports.Logger();
+      loggersToCleanup.push(logger);
       expect(LoggerExports.isAsyncLogger(logger)).toBe(true);
     });
 
@@ -30,6 +43,7 @@ describe('Logger module exports', () => {
       expect(typeof LoggerExports.createLogger).toBe('function');
       
       const logger = LoggerExports.createLogger();
+      loggersToCleanup.push(logger);
       expect(LoggerExports.isAsyncLogger(logger)).toBe(true);
     });
 
@@ -41,17 +55,6 @@ describe('Logger module exports', () => {
       expect(LoggerExports.isSyncLogger(logger)).toBe(true);
     });
 
-    it('should export createSmartLogger for auto-detection', () => {
-      expect(LoggerExports.createSmartLogger).toBeDefined();
-      expect(typeof LoggerExports.createSmartLogger).toBe('function');
-      
-      const logger = LoggerExports.createSmartLogger();
-      // Should be either async or sync based on environment
-      expect(
-        LoggerExports.isAsyncLogger(logger) || 
-        LoggerExports.isSyncLogger(logger)
-      ).toBe(true);
-    });
   });
 
   describe('Type Guards', () => {
@@ -72,6 +75,7 @@ describe('Logger module exports', () => {
       expect(typeof LoggerExports.default).toBe('function');
       
       const logger = LoggerExports.default();
+      loggersToCleanup.push(logger);
       expect(LoggerExports.isAsyncLogger(logger)).toBe(true);
     });
   });
@@ -163,7 +167,6 @@ describe('Logger module exports', () => {
         'SyncLogger',
         'createLogger',
         'createSyncLogger',
-        'createSmartLogger',
         'default',
         'isAsyncLogger',
         'isSyncLogger',
@@ -182,7 +185,8 @@ describe('Logger module exports', () => {
       ];
       
       expectedExports.forEach(exportName => {
-        expect(LoggerExports[exportName]).toBeDefined();
+        const anyExports = LoggerExports as unknown as Record<string, unknown>;
+        expect(anyExports[exportName]).toBeDefined();
       });
     });
   });

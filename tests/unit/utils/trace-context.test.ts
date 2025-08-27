@@ -258,9 +258,9 @@ describe('trace-context utilities', () => {
         return array;
       });
 
-      global.crypto = {
+      global.crypto = ({
         getRandomValues: mockGetRandomValues,
-      } as Crypto;
+      } as unknown) as Crypto;
 
       const traceId = generateTraceId();
 
@@ -323,9 +323,9 @@ describe('trace-context utilities', () => {
         return array;
       });
 
-      global.crypto = {
+      global.crypto = ({
         getRandomValues: mockGetRandomValues,
-      } as Crypto;
+      } as unknown) as Crypto;
 
       const spanId = generateSpanId();
 

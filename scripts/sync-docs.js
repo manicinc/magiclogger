@@ -17,9 +17,9 @@ const TARGET_DIR = path.join(__dirname, '..', 'website', 'docs');
 
 // Files to sync from docs/ to website/docs/
 const DOCS_TO_SYNC = [
-  'architecture.md',
+  'ARCHITECTURE.md',
   'transports.md',
-  'MAGICLOG_SCHEMA.md',
+  'MAGIC_SCHEMA.md',
   'api_usage.md',
   'browser_storage.md',
   'build_instructions.md',
@@ -55,7 +55,13 @@ DOCS_TO_SYNC.forEach((file) => {
     // Add frontmatter if it doesn't exist
     let finalContent = content;
     if (!content.startsWith('---')) {
-      const id = path.basename(file, '.md');
+      let id = path.basename(file, '.md');
+      // Preserve uppercase IDs for specific docs
+      if (id === 'ARCHITECTURE' || id === 'MAGIC_SCHEMA' || id === 'TRANSPORTS') {
+        // keep as-is
+      } else {
+        // by default, use filename-derived id
+      }
       const title = id.charAt(0).toUpperCase() + id.slice(1).replace(/-/g, ' ');
       
       finalContent = `---

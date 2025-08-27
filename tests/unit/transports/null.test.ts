@@ -142,17 +142,29 @@ describe('NullTransport', () => {
 
   describe('Performance', () => {
     it('should handle high volume of logs efficiently', async () => {
+      // Pre-create log entry template to minimize object creation overhead
+      const timestamp = new Date().toISOString();
+      const timestampMs = Date.now();
+      const baseEntry = {
+        timestamp,
+        timestampMs,
+        level: 'info' as const,
+        message: '',
+        plainMessage: '',
+      };
+      
+      // Warm up the transport
+      await transport.log({ ...baseEntry, id: 'warmup' });
+      
       const startTime = Date.now();
-      const numLogs = 1000; // Reduced for faster test
+      const numLogs = 1000;
 
       const promises = [];
       for (let i = 0; i < numLogs; i++) {
         promises.push(
           transport.log({
+            ...baseEntry,
             id: `test-${i}`,
-            timestamp: new Date().toISOString(),
-            timestampMs: Date.now(),
-            level: 'info',
             message: `Message ${i}`,
             plainMessage: `Message ${i}`,
           })
@@ -162,9 +174,14 @@ describe('NullTransport', () => {
       await Promise.all(promises);
 
       const duration = Date.now() - startTime;
-      // NullTransport should be fast (no actual I/O)
-      // Allow more time for CI environments
-      expect(duration).toBeLessThan(5000); // Less than 5 seconds for 1k logs
+      // NullTransport with optimized no-op should be fast
+      // In CI environments with limited resources, Promise.all with 1000 promises
+      // can take longer due to event loop scheduling overhead
+      expect(duration).toBeLessThan(3000); // Less than 3 seconds for 1k no-op logs
+      
+      // Also verify it's reasonably fast per operation
+      const avgTimePerLog = duration / numLogs;
+      expect(avgTimePerLog).toBeLessThan(3); // Less than 3ms per log on average
     });
   });
 

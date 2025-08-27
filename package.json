@@ -105,6 +105,20 @@
         "default": "./dist/extensions/index.cjs"
       }
     },
+    "./validation": {
+      "browser": {
+        "types": "./dist/validation/index.d.ts",
+        "default": "./dist/browser/validation/index.js"
+      },
+      "import": {
+        "types": "./dist/validation/index.d.ts",
+        "default": "./dist/validation/index.js"
+      },
+      "require": {
+        "types": "./dist/validation/index.d.cts",
+        "default": "./dist/validation/index.cjs"
+      }
+    },
     "./utils/trace-context": {
       "browser": {
         "types": "./dist/utils/trace-context.d.ts",

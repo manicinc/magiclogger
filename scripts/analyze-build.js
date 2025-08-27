@@ -115,6 +115,14 @@ async function measureAllScenarios() {
       { path: './dist/transports/http.js', symbols: ['HTTPTransport'] },
     ],
     
+    // Sync Logger scenarios
+    'SyncLogger Only (tree-shaken)': [
+      { path: './dist/sync/logger.js', symbols: ['SyncLogger'] },
+    ],
+    'AsyncLogger + SyncLogger': [
+      { path: './dist/index.js', symbols: ['Logger', 'SyncLogger'] },
+    ],
+    
     // Individual transports (to show tree-shaking)
     'Console Transport Only': [
       { path: './dist/transports/console.js', symbols: ['ConsoleTransport'] },
@@ -126,6 +134,15 @@ async function measureAllScenarios() {
       { path: './dist/transports/http.js', symbols: ['HTTPTransport'] },
     ],
     
+    
+    // Validation (optional, tree-shakeable)
+    'Core + Schema Validation': [
+      { path: './dist/index.js', symbols: ['Logger'] },
+      { path: './dist/validation/index.js', symbols: ['SchemaValidator', 'string', 'number', 'object'] },
+    ],
+    'Validation Module Only': [
+      { path: './dist/validation/index.js', symbols: ['SchemaValidator', 'string', 'number', 'object', 'array'] },
+    ],
     
     // Extensions (tree-shakeable)
     'Extensions: Sampler Only': [
@@ -260,6 +277,14 @@ async function injectIntoReadme(table) {
     .join('\n');
   
   
+  // Build validation table
+  const validationScenarios = [
+    ['Core + Schema Validation', allMeasurements['Core + Schema Validation']],
+    ['Validation Module Only', allMeasurements['Validation Module Only']],
+  ].filter(([_, size]) => size)
+    .map(([name, size]) => `| ${name} | ${prettyBytes(size)} |`)
+    .join('\n');
+  
   // Build extensions table
   const extensionScenarios = [
     ['Sampler', allMeasurements['Extensions: Sampler Only']],
@@ -279,6 +304,9 @@ async function injectIntoReadme(table) {
     scenarioBlocks += `\n\n### Individual Transport Sizes (gzipped)\n\n| Transport | Size |\n|-----------|------|\n${transportScenarios}`;
   }
   
+  if (validationScenarios) {
+    scenarioBlocks += `\n\n### Schema Validation (Optional, Lazy-loaded)\n\n| Scenario | Size |\n|----------|------|\n${validationScenarios}\n\n*Note: Validation is only loaded when schemas are explicitly set on ContextManager or TagManager.*`;
+  }
   
   if (extensionScenarios) {
     scenarioBlocks += `\n\n### Extension Sizes (gzipped)\n\n| Extension | Size |\n|-----------|------|\n${extensionScenarios}`;
