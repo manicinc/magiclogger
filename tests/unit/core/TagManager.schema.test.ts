@@ -316,20 +316,24 @@ describe('TagManager Schema Validation', () => {
 
   describe('Lazy loading', () => {
     it('only loads validator when schema is used', () => {
-      // Validator should not exist initially
-      expect((tagManager as any).schemaValidator).toBeUndefined();
+      // Test that validator is not loaded initially by adding invalid objects (should work without schema)
+      tagManager.add({ invalidKey: 'test' } as unknown);
+      expect(tagManager.getTags()).toContain('[object Object]');
+      tagManager.clear();
 
-      // Add string tags - no validator needed
+      // Add string tags - no validation happens
       tagManager.add(['tag1', 'tag2']);
-      expect((tagManager as any).schemaValidator).toBeUndefined();
+      expect(tagManager.getTags()).toEqual(['tag1', 'tag2']);
+      tagManager.clear();
 
-      // Set schema and add structured tag
+      // Set schema and try invalid structured tag - should throw now
       const schema = object({ id: string() });
       tagManager.setSchema(schema);
-      tagManager.add({ id: 'test' });
+      expect(() => tagManager.add({ invalidKey: 'test' } as unknown)).toThrow();
 
-      // Validator should now be loaded
-      expect((tagManager as any).schemaValidator).toBeDefined();
+      // Valid structured tag should work
+      tagManager.add({ id: 'test' });
+      expect(tagManager.getTags()).toEqual([{ id: 'test' }]);
     });
   });
 });

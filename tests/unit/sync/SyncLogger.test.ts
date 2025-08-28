@@ -96,7 +96,7 @@ describe('SyncLogger', () => {
     logger.flush();
 
     // Check write count before closing
-    const writeCount = (logger as any).getWriteCount();
+    const writeCount = logger.getWriteCount();
     expect(writeCount).toBe(2);
 
     await logger.close(); // Close the file to ensure all data is written

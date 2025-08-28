@@ -129,8 +129,7 @@ describe('Browser Entry (index.browser.ts)', () => {
     });
 
     it('should handle empty table data', () => {
-      logger.table([]);
-      // Should not throw
+      expect(() => logger.table([])).not.toThrow();
     });
 
     it('should handle progress with percent', () => {

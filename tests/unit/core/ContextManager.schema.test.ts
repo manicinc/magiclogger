@@ -288,15 +288,19 @@ describe('ContextManager Schema Validation', () => {
 
   describe('Lazy loading', () => {
     it('only loads validator when schema is set', () => {
-      // Validator should not exist initially
-      expect((contextManager as any).schemaValidator).toBeUndefined();
+      // Test that validator is not loaded initially by checking if set works without validation
+      contextManager.set({ invalidKey: 'test' });
+      expect(contextManager.getContext()).toEqual({ invalidKey: 'test' });
 
       const schema = object({ id: string() });
       contextManager.setSchema(schema);
-      contextManager.set({ id: 'test' });
 
-      // Validator should now be loaded
-      expect((contextManager as any).schemaValidator).toBeDefined();
+      // Now validation should be active
+      expect(() => contextManager.set({ invalidKey: 'test' })).toThrow();
+
+      // Valid data should work
+      contextManager.set({ id: 'test' });
+      expect(contextManager.getContext()).toEqual({ id: 'test' });
     });
   });
 });

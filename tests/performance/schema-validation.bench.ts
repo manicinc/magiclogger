@@ -325,13 +325,13 @@ describe('Schema Validation Performance', () => {
 
     it('handles deep recursion efficiently', () => {
       // Create a deeply nested schema
-      let schema: any = string();
+      let schema: object = string();
       for (let i = 0; i < 20; i++) {
         schema = object({ nested: schema });
       }
 
       // Create matching deeply nested data
-      let data: any = 'value';
+      let data: unknown = 'value';
       for (let i = 0; i < 20; i++) {
         data = { nested: data };
       }

@@ -1,5 +1,6 @@
 import type { ColorName } from './colors';
 import type { ThemeDefinition as RichThemeDefinition } from './theme';
+import type { Transport } from './transport';
 export type { ThemeDefinition } from './theme';
 
 /**
@@ -169,7 +170,7 @@ export interface LoggerOptions {
    * @type {Transport[]}
    * @default []
    */
-  transports?: any[]; // Use any[] to avoid circular imports
+  transports?: Transport[]; // Use Transport[] from types/transport
 
   /**
    * Custom ID generator function for log entries.

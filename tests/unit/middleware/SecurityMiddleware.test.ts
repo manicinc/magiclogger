@@ -157,7 +157,7 @@ describe('SecurityMiddleware', () => {
       const result = middleware.process(mockEntry, mockContext);
 
       expect(result.entry?.context?.level1).toBeDefined();
-      expect((result.entry?.context?.level1 as any).level2).toEqual({
+      expect((result.entry?.context?.level1 as Record<string, unknown>).level2).toEqual({
         _error: 'Max depth exceeded',
       });
     });
@@ -196,7 +196,7 @@ describe('SecurityMiddleware', () => {
       const result = middleware.process(mockEntry, mockContext);
 
       expect(result.entry?.context?.field1).toBe('Value with\\nnewline');
-      expect((result.entry?.context?.nested as any).field2).toBe('Tab\\there');
+      expect((result.entry?.context?.nested as Record<string, unknown>).field2).toBe('Tab\\there');
     });
 
     it('should sanitize arrays in context', () => {
@@ -207,10 +207,10 @@ describe('SecurityMiddleware', () => {
 
       const result = middleware.process(mockEntry, mockContext);
 
-      const items = result.entry?.context?.items as any[];
+      const items = result.entry?.context?.items as unknown[];
       expect(items[0]).toBe('normal');
       expect(items[1]).toBe('with\\nnewline');
-      expect(items[2].nested).toBe('with\\ttab');
+      expect((items[2] as Record<string, unknown>).nested).toBe('with\\ttab');
     });
   });
 
@@ -330,9 +330,11 @@ describe('SecurityMiddleware', () => {
       // The context should be sanitized
       expect(result.entry?.context).toBeDefined();
       // Check if password field exists and was sanitized
-      const ctx = result.entry?.context as any;
+      const ctx = result.entry?.context as Record<string, unknown>;
       expect(ctx['***']).toBe('my-***'); // Both key and value sanitized
-      expect((result.entry?.context?.nested as any)['api***']).toBe('api-secret'); // Key sanitized but not value
+      expect((result.entry?.context?.nested as Record<string, unknown>)['api***']).toBe(
+        'api-secret'
+      ); // Key sanitized but not value
     });
   });
 

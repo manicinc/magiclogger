@@ -451,7 +451,13 @@ export class ObservabilityMiddleware extends Middleware {
  * ```
  */
 export function createOTLPObservability(options: {
-  api?: { trace?: { getActiveSpan?: () => any } };
+  api?: {
+    trace?: {
+      getActiveSpan?: () =>
+        | { spanContext(): { traceId: string; spanId: string; traceFlags: number } }
+        | undefined;
+    };
+  };
   metricsCollector?: MetricsCollector;
   onMetrics?: (metrics: LogMetrics) => void;
   config?: Partial<ObservabilityMiddlewareOptions>;

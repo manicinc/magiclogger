@@ -388,8 +388,8 @@ describe('SchemaValidator', () => {
 
       expect(result.valid).toBe(false);
       expect(result.errors).toBeDefined();
-      expect(result.errors![0].path).toBe('user.profile.age');
-      expect(result.errors![0].message).toContain('Expected number');
+      expect(result.errors?.[0].path).toBe('user.profile.age');
+      expect(result.errors?.[0].message).toContain('Expected number');
     });
 
     it('reports multiple errors', () => {
@@ -447,12 +447,12 @@ describe('SchemaValidator', () => {
     });
 
     it('handles deeply nested objects efficiently', () => {
-      let schema: any = string();
+      let schema: object = string();
       for (let i = 0; i < 10; i++) {
         schema = object({ nested: schema });
       }
 
-      let data: any = 'value';
+      let data: unknown = 'value';
       for (let i = 0; i < 10; i++) {
         data = { nested: data };
       }

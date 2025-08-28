@@ -39,7 +39,7 @@ describe('ObservabilityMiddleware', () => {
     originalCrypto = global.crypto;
     global.crypto = {
       randomUUID: vi.fn(() => 'mock-uuid-123'),
-    } as any;
+    } as unknown as Crypto;
   });
 
   afterEach(() => {
@@ -133,7 +133,7 @@ describe('ObservabilityMiddleware', () => {
     });
 
     it('should use fallback when crypto.randomUUID is not available', () => {
-      global.crypto = {} as any; // No randomUUID
+      global.crypto = {} as unknown as Crypto; // No randomUUID
 
       const middleware = new ObservabilityMiddleware({
         generateCorrelationId: true,
@@ -151,7 +151,7 @@ describe('ObservabilityMiddleware', () => {
       global.process = {
         uptime: () => 123.456,
         pid: 12345,
-      } as any;
+      } as unknown as NodeJS.Process;
 
       const middleware = new ObservabilityMiddleware({
         includeHealthMetadata: true,
@@ -190,7 +190,7 @@ describe('ObservabilityMiddleware', () => {
           arrayBuffers: 5000,
         }),
         cpuUsage: vi.fn(() => ({ user: 1000, system: 500 })),
-      } as any;
+      } as unknown as NodeJS.Process;
 
       const middleware = new ObservabilityMiddleware({
         trackResourceUsage: true,

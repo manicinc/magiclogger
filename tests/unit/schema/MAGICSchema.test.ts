@@ -33,7 +33,7 @@ describe('MAGIC Schema v1 Compliance', () => {
           id: 'test-123',
           timestamp: new Date().toISOString(),
           timestampMs: Date.now(),
-          level: level as any,
+          level: level as LogEntry['level'],
           message: 'Test',
         };
 
@@ -111,7 +111,7 @@ describe('MAGIC Schema v1 Compliance', () => {
 
       expect(entry.context).toBeDefined();
       expect(entry.context?.userId).toBe('12345');
-      expect((entry.context?.nested as any).browser).toBe('Chrome');
+      expect((entry.context?.nested as Record<string, unknown>).browser).toBe('Chrome');
     });
 
     it('should support structured error information', () => {
