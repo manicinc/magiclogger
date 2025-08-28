@@ -290,7 +290,7 @@ describe('ContextManager Schema Validation', () => {
     it('only loads validator when schema is set', () => {
       // Test that validator is not loaded initially by checking if set works without validation
       contextManager.set({ invalidKey: 'test' });
-      expect(contextManager.getContext()).toEqual({ invalidKey: 'test' });
+      expect(contextManager.get()).toEqual({ invalidKey: 'test' });
 
       const schema = object({ id: string() });
       contextManager.setSchema(schema);
@@ -300,7 +300,7 @@ describe('ContextManager Schema Validation', () => {
 
       // Valid data should work
       contextManager.set({ id: 'test' });
-      expect(contextManager.getContext()).toEqual({ id: 'test' });
+      expect(contextManager.get()).toEqual({ id: 'test' });
     });
   });
 });

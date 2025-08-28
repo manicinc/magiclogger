@@ -17,6 +17,7 @@ import {
   type StringSchema,
   type NumberSchema,
   type ObjectSchema,
+  type AnySchema,
 } from '../../../src/validation/SchemaValidator';
 
 describe('SchemaValidator', () => {
@@ -447,7 +448,7 @@ describe('SchemaValidator', () => {
     });
 
     it('handles deeply nested objects efficiently', () => {
-      let schema: object = string();
+      let schema: AnySchema = string();
       for (let i = 0; i < 10; i++) {
         schema = object({ nested: schema });
       }

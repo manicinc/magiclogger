@@ -9,6 +9,7 @@ import {
   number,
   array,
   optional,
+  type AnySchema,
 } from '../../src/validation/SchemaValidator';
 import { ContextManager } from '../../src/core/ContextManager';
 import { TagManager } from '../../src/core/TagManager';
@@ -325,7 +326,7 @@ describe('Schema Validation Performance', () => {
 
     it('handles deep recursion efficiently', () => {
       // Create a deeply nested schema
-      let schema: object = string();
+      let schema: AnySchema = string();
       for (let i = 0; i < 20; i++) {
         schema = object({ nested: schema });
       }

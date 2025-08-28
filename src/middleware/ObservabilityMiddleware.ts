@@ -475,7 +475,7 @@ export function createOTLPObservability(options: {
             traceId: context.traceId,
             spanId: context.spanId,
             traceFlags: context.traceFlags?.toString(),
-            traceState: context.traceState?.serialize?.(),
+            traceState: (context as any).traceState?.serialize?.(),
           };
         } catch {
           return undefined;

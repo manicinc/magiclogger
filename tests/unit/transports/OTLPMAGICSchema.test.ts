@@ -11,6 +11,7 @@ interface OTLPAttribute {
     stringValue?: string;
     intValue?: string;
     doubleValue?: number;
+    boolValue?: boolean;
     kvlistValue?: { values: OTLPAttribute[] };
   };
 }

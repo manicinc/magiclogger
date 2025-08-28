@@ -318,12 +318,12 @@ describe('TagManager Schema Validation', () => {
     it('only loads validator when schema is used', () => {
       // Test that validator is not loaded initially by adding invalid objects (should work without schema)
       tagManager.add({ invalidKey: 'test' } as unknown);
-      expect(tagManager.getTags()).toContain('[object Object]');
+      expect(tagManager.getAllTags().strings).toContain('[object Object]');
       tagManager.clear();
 
       // Add string tags - no validation happens
       tagManager.add(['tag1', 'tag2']);
-      expect(tagManager.getTags()).toEqual(['tag1', 'tag2']);
+      expect(tagManager.getAllTags().strings).toEqual(['tag1', 'tag2']);
       tagManager.clear();
 
       // Set schema and try invalid structured tag - should throw now
@@ -333,7 +333,7 @@ describe('TagManager Schema Validation', () => {
 
       // Valid structured tag should work
       tagManager.add({ id: 'test' });
-      expect(tagManager.getTags()).toEqual([{ id: 'test' }]);
+      expect(tagManager.getAllTags().structured).toEqual([{ id: 'test' }]);
     });
   });
 });
