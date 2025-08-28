@@ -288,19 +288,22 @@ describe('ContextManager Schema Validation', () => {
 
   describe('Lazy loading', () => {
     it('only loads validator when schema is set', () => {
+      // Create a new context manager with sanitization disabled for this test
+      const localContextManager = new ContextManager({ sanitizeMode: 'none' });
+
       // Test that validator is not loaded initially by checking if set works without validation
-      contextManager.set({ invalidKey: 'test' });
-      expect(contextManager.get()).toEqual({ invalidKey: 'test' });
+      localContextManager.set({ invalidKey: 'test' });
+      expect(localContextManager.get()).toEqual({ invalidKey: 'test' });
 
       const schema = object({ id: string() });
-      contextManager.setSchema(schema);
+      localContextManager.setSchema(schema, 'throw');
 
       // Now validation should be active
-      expect(() => contextManager.set({ invalidKey: 'test' })).toThrow();
+      expect(() => localContextManager.set({ invalidKey: 'test' })).toThrow();
 
       // Valid data should work
-      contextManager.set({ id: 'test' });
-      expect(contextManager.get()).toEqual({ id: 'test' });
+      localContextManager.set({ id: 'test' });
+      expect(localContextManager.get()).toEqual({ id: 'test' });
     });
   });
 });

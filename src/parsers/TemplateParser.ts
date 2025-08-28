@@ -158,7 +158,7 @@ export class TemplateParser {
    * @static
    * @readonly
    */
-  private static readonly MAX_CACHE_SIZE = 500;
+  private static readonly MAX_CACHE_SIZE = 2000;
 
   /**
    * Regular expression for matching @style{content} tags.
@@ -284,7 +284,7 @@ export class TemplateParser {
         if (styles.length > 0) {
           const colored = Colorizer.applyColors(content, styles, this.useColors);
           // Store to result cache for faster subsequent calls with identical input
-          if (TemplateParser.resultCache.size > 500) {
+          if (TemplateParser.resultCache.size > TemplateParser.MAX_CACHE_SIZE) {
             const first = TemplateParser.resultCache.keys().next().value;
             if (first !== undefined) TemplateParser.resultCache.delete(first);
           }
@@ -305,7 +305,7 @@ export class TemplateParser {
 
     const out = this.format(tokens, []);
     // Store to result cache with small bound (under original input key)
-    if (TemplateParser.resultCache.size > 500) {
+    if (TemplateParser.resultCache.size > TemplateParser.MAX_CACHE_SIZE) {
       const first = TemplateParser.resultCache.keys().next().value;
       if (first !== undefined) TemplateParser.resultCache.delete(first);
     }
