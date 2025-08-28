@@ -454,7 +454,14 @@ export function createOTLPObservability(options: {
   api?: {
     trace?: {
       getActiveSpan?: () =>
-        | { spanContext(): { traceId: string; spanId: string; traceFlags: number } }
+        | {
+            spanContext(): {
+              traceId: string;
+              spanId: string;
+              traceFlags: number;
+              traceState?: { serialize?: () => string };
+            };
+          }
         | undefined;
     };
   };
@@ -475,7 +482,7 @@ export function createOTLPObservability(options: {
             traceId: context.traceId,
             spanId: context.spanId,
             traceFlags: context.traceFlags?.toString(),
-            traceState: (context as any).traceState?.serialize?.(),
+            traceState: context.traceState?.serialize?.(),
           };
         } catch {
           return undefined;
