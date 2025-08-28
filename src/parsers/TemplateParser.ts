@@ -169,14 +169,6 @@ export class TemplateParser {
   // Allow empty styles (e.g., '@{text}') so we can strip wrapper during tokenize
   private readonly styleRegex = /@([\w.]*)\{((?:[^{}]|\{[^{}]*\})*)\}/g;
 
-  /**
-   * Regular expression for matching angle bracket syntax.
-   * Matches: <style>content</> or <style.modifier>content</>
-   * @private
-   * @readonly
-   */
-  private readonly angleBracketRegex = /<([^>]+?)>(.*?)<\/>/g;
-
   // Precompiled placeholder regex for interpolation
   private readonly placeholderRegex = /\$\{(\d+)\}/g;
 
@@ -326,18 +318,67 @@ export class TemplateParser {
    */
   public parseAngleBrackets(text: string): string {
     if (!this.useColors) {
-      // Remove all angle bracket styling syntax
-      return text.replace(this.angleBracketRegex, '$2');
+      // Remove all angle bracket styling syntax - use non-capturing approach
+      let result = text;
+      let match;
+      const regex = /<([^>]+)>/g;
+      const closingTag = '</>';
+
+      while ((match = regex.exec(text)) !== null) {
+        const startIdx = match.index;
+        const endTag = text.indexOf(closingTag, startIdx + match[0].length);
+        if (endTag !== -1) {
+          const content = text.substring(startIdx + match[0].length, endTag);
+          result = result.replace(match[0] + content + closingTag, content);
+        }
+      }
+      return result;
     }
 
-    // Replace angle bracket syntax with styled text
-    return text.replace(this.angleBracketRegex, (match, styles, content) => {
-      const styleArray = this.parseStyleString(styles);
-      if (styleArray.length === 0) {
-        return content;
+    // Process angle bracket syntax with a safer approach
+    let lastProcessedIndex = 0;
+    const output: string[] = [];
+
+    // Find opening tags
+    const openingRegex = /<([^>]+)>/g;
+    let match;
+
+    while ((match = openingRegex.exec(text)) !== null) {
+      const styleString = match[1];
+      const startPos = match.index;
+      const openingTagEnd = startPos + match[0].length;
+
+      // Find corresponding closing tag
+      const closeTagPos = text.indexOf('</>', openingTagEnd);
+
+      if (closeTagPos !== -1) {
+        // Add text before the tag
+        if (startPos > lastProcessedIndex) {
+          output.push(text.substring(lastProcessedIndex, startPos));
+        }
+
+        // Extract and style the content
+        const content = text.substring(openingTagEnd, closeTagPos);
+        const styleArray = this.parseStyleString(styleString);
+
+        if (styleArray.length === 0) {
+          output.push(content);
+        } else {
+          output.push(Colorizer.applyColors(content, styleArray, this.useColors));
+        }
+
+        // Move past the closing tag
+        lastProcessedIndex = closeTagPos + 3; // Length of '</>'
+        openingRegex.lastIndex = lastProcessedIndex;
       }
-      return Colorizer.applyColors(content, styleArray, this.useColors);
-    });
+    }
+
+    // Add any remaining text
+    if (lastProcessedIndex < text.length) {
+      output.push(text.substring(lastProcessedIndex));
+    }
+
+    return output.join('');
   }
 
   /**
@@ -704,7 +745,40 @@ export class TemplateParser {
       return text.replace(/@([\w.]+)\{([^}]*)\}/g, '<$1>$2</>');
     } else if (from === 'angle' && to === 'at') {
       // Convert <style>content</> to @style{content}
-      return text.replace(/<([^>]+?)>(.*?)<\/>/g, '@$1{$2}');
+      // Use a safer parsing approach without vulnerable regex
+      let result = text;
+      const openingRegex = /<([^>]+)>/g;
+      let match;
+      const replacements: Array<{ start: number; end: number; replacement: string }> = [];
+
+      while ((match = openingRegex.exec(text)) !== null) {
+        const styleString = match[1];
+        const startPos = match.index;
+        const openingTagEnd = startPos + match[0].length;
+
+        // Find corresponding closing tag
+        const closeTagPos = text.indexOf('</>', openingTagEnd);
+
+        if (closeTagPos !== -1) {
+          const content = text.substring(openingTagEnd, closeTagPos);
+          replacements.push({
+            start: startPos,
+            end: closeTagPos + 3,
+            replacement: `@${styleString}{${content}}`,
+          });
+
+          // Skip past this match to avoid overlapping
+          openingRegex.lastIndex = closeTagPos + 3;
+        }
+      }
+
+      // Apply replacements in reverse order to maintain positions
+      for (let i = replacements.length - 1; i >= 0; i--) {
+        const rep = replacements[i];
+        result = result.substring(0, rep.start) + rep.replacement + result.substring(rep.end);
+      }
+
+      return result;
     }
 
     return text;
