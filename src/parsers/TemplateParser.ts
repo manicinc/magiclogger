@@ -317,65 +317,85 @@ export class TemplateParser {
    * ```
    */
   public parseAngleBrackets(text: string): string {
-    if (!this.useColors) {
-      // Remove all angle bracket styling syntax - use non-capturing approach
-      let result = text;
-      let match;
-      const regex = /<([^>]+)>/g;
-      const closingTag = '</>';
-
-      while ((match = regex.exec(text)) !== null) {
-        const startIdx = match.index;
-        const endTag = text.indexOf(closingTag, startIdx + match[0].length);
-        if (endTag !== -1) {
-          const content = text.substring(startIdx + match[0].length, endTag);
-          result = result.replace(match[0] + content + closingTag, content);
-        }
-      }
-      return result;
-    }
-
-    // Process angle bracket syntax with a safer approach
-    let lastProcessedIndex = 0;
+    // Use a safer non-regex approach to avoid ReDoS vulnerabilities
     const output: string[] = [];
+    let i = 0;
+    const len = text.length;
 
-    // Find opening tags
-    const openingRegex = /<([^>]+)>/g;
-    let match;
-
-    while ((match = openingRegex.exec(text)) !== null) {
-      const styleString = match[1];
-      const startPos = match.index;
-      const openingTagEnd = startPos + match[0].length;
-
-      // Find corresponding closing tag
-      const closeTagPos = text.indexOf('</>', openingTagEnd);
-
-      if (closeTagPos !== -1) {
-        // Add text before the tag
-        if (startPos > lastProcessedIndex) {
-          output.push(text.substring(lastProcessedIndex, startPos));
+    while (i < len) {
+      // Look for opening angle bracket
+      if (text[i] === '<') {
+        // Check if this is a closing tag
+        if (i + 2 < len && text.substring(i, i + 3) === '</>') {
+          // This shouldn't happen without a matching opening tag, just output it
+          output.push('</>');
+          i += 3;
+          continue;
         }
 
-        // Extract and style the content
-        const content = text.substring(openingTagEnd, closeTagPos);
-        const styleArray = this.parseStyleString(styleString);
+        // Find the end of the opening tag
+        let j = i + 1;
+        let tagEnd = -1;
 
-        if (styleArray.length === 0) {
-          output.push(content);
-        } else {
-          output.push(Colorizer.applyColors(content, styleArray, this.useColors));
+        // Safely find closing > without regex
+        while (j < len) {
+          if (text[j] === '>') {
+            tagEnd = j;
+            break;
+          }
+          // Limit tag length to prevent excessive scanning
+          if (j - i > 100) {
+            break;
+          }
+          j++;
         }
 
-        // Move past the closing tag
-        lastProcessedIndex = closeTagPos + 3; // Length of '</>'
-        openingRegex.lastIndex = lastProcessedIndex;
+        if (tagEnd !== -1) {
+          const styleString = text.substring(i + 1, tagEnd);
+
+          // Don't process if styleString contains < to avoid nested tags
+          if (styleString.includes('<')) {
+            output.push(text[i]);
+            i++;
+            continue;
+          }
+
+          // Look for the closing </> tag
+          const searchStart = tagEnd + 1;
+          const closingTag = '</>';
+          const closePos = text.indexOf(closingTag, searchStart);
+
+          if (closePos !== -1) {
+            // Extract content between tags
+            const content = text.substring(tagEnd + 1, closePos);
+
+            if (!this.useColors) {
+              // Just output the content without styling
+              output.push(content);
+            } else {
+              // Apply styles
+              const styleArray = this.parseStyleString(styleString);
+              if (styleArray.length === 0) {
+                output.push(content);
+              } else {
+                output.push(Colorizer.applyColors(content, styleArray, this.useColors));
+              }
+            }
+
+            // Move past the closing tag
+            i = closePos + 3;
+            continue;
+          }
+        }
+
+        // If we couldn't parse it as a tag, just output the < character
+        output.push(text[i]);
+        i++;
+      } else {
+        // Regular character
+        output.push(text[i]);
+        i++;
       }
-    }
-
-    // Add any remaining text
-    if (lastProcessedIndex < text.length) {
-      output.push(text.substring(lastProcessedIndex));
     }
 
     return output.join('');
