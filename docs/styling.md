@@ -46,6 +46,80 @@ if (support.styles.italic) {
 logger.custom('This will adapt to terminal capabilities', ['italic', 'strikethrough'], 'ADAPTIVE');
 ```
 
+## Custom Colors (Advanced)
+
+MagicLogger supports registering custom colors with RGB, hex, or 256-color codes. This feature is lazy-loaded and tree-shakeable, only loading when you actually use it.
+
+⚠️ **WARNING**: Custom colors may not work in all terminals! Most terminals support only basic 16 colors. Use predefined colors for maximum compatibility.
+
+### Registering Custom Colors
+
+```typescript
+// Register individual custom color
+logger.registerCustomColor('brandOrange', {
+  hex: '#FF5733',        // 24-bit color (if supported)
+  fallback: 'orange'     // Required fallback for limited terminals
+});
+
+// Register multiple custom colors at once
+logger.registerCustomColors({
+  brandPrimary: { 
+    rgb: [51, 102, 255], // RGB values
+    fallback: 'blue' 
+  },
+  brandSecondary: { 
+    code256: 208,        // 256-color palette code
+    fallback: 'yellow' 
+  },
+  brandAccent: {
+    ansi: '\x1b[38;2;255;87;51m', // Direct ANSI sequence
+    fallback: 'red'
+  }
+});
+```
+
+### Using Custom Colors
+
+Once registered, custom colors can be used anywhere like built-in colors:
+
+```typescript
+// In themes
+logger.setTheme({
+  header: ['brandPrimary', 'bold'],
+  info: ['brandSecondary'],
+  error: ['brandAccent', 'bold']
+});
+
+// With style factories
+const brandHighlight = logger.color('brandOrange', 'bold');
+console.log(`Welcome to ${brandHighlight('Our Product')}`);
+
+// In custom log methods
+logger.custom('Brand message', ['brandPrimary'], 'BRAND');
+```
+
+### Terminal Compatibility for Custom Colors
+
+| Terminal | RGB (24-bit) | 256 Colors | Basic 16 |
+|----------|-------------|------------|----------|
+| VS Code | ✅ | ✅ | ✅ |
+| iTerm2 | ✅ | ✅ | ✅ |
+| Windows Terminal | ✅ | ✅ | ✅ |
+| macOS Terminal | ⚠️ | ✅ | ✅ |
+| PuTTY | ❌ | ✅ | ✅ |
+| cmd.exe | ❌ | ❌ | ✅ |
+| CI/CD Pipelines | ❌ | ⚠️ | ✅ |
+
+### Best Practices for Custom Colors
+
+1. **Always provide fallbacks**: Every custom color must have a fallback color
+2. **Test in target environments**: Verify colors work where your app will run
+3. **Use sparingly**: Too many custom colors can hurt readability
+4. **Document your palette**: Keep a reference of custom colors and their meanings
+5. **Consider color blindness**: Test with color blindness simulators
+
+For complete documentation on custom colors, see [Custom Colors Guide](./custom_colors.md).
+
 ## Best Practices
 
 ### Semantic Styling

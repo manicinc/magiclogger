@@ -21,16 +21,20 @@
 
 ## Executive Summary
 
-MagicLogger represents a paradigm shift in JavaScript logging infrastructure, designed from the ground up to address the fundamental tensions between developer experience, runtime performance, and operational observability. Unlike traditional logging libraries that force developers to choose between feature richness and performance, MagicLogger employs a multi-tiered architecture that provides high-performance asynchronous logging by default while offering synchronous alternatives for scenarios requiring maximum stability and auditability.
+MagicLogger revolutionizes logging infrastructure through its **Universal Color Logging Standard** - the first specification that preserves text styling across any language, transport, or platform. Unlike traditional logging libraries that lose formatting when logs are serialized, MagicLogger's MAGIC Schema maintains color and style information as structured data that can be reconstructed anywhere. This enables developers to see beautifully styled logs in production dashboards, just as they appear in local development.
 
-**Key Architectural Shift**: MagicLogger defaults to async-first design for modern applications, while maintaining robust synchronous options for security audits, development, and systems where immediate guarantees are more important than throughput.
+**Revolutionary Innovations**:
+1. **MAGIC Schema**: An open standard for preserving log styling across languages and platforms
+2. **Style Extraction**: Separates content from presentation for universal portability
+3. **Async-First Design**: Maximum performance for modern applications with synchronous fallback
 
-The architecture is built on four foundational pillars:
+The architecture is built on five foundational pillars:
 
-1. **Async-First Performance**: Default asynchronous logging provides maximum throughput (13x faster) with robust ring buffer and backpressure handling
-2. **Synchronous Reliability**: Optional synchronous mode for security audits, development, and scenarios requiring immediate guarantees
-3. **Transport Agnosticism**: A unified transport interface allows logs to flow to any destination without coupling the core logger to specific implementations  
-4. **Cross-Platform Integration**: MAGIC schema enables seamless integration across programming languages and platforms
+1. **Universal Style Preservation**: The MAGIC Schema separates content from presentation, storing plain text with style ranges that survive serialization
+2. **Language Agnostic Design**: Any language can implement MAGIC producers; TypeScript implementation serves as the reference
+3. **Async-First Performance**: Default asynchronous logging provides maximum throughput (13x faster) with robust ring buffer and backpressure handling
+4. **Synchronous Reliability**: Optional synchronous mode for security audits, development, and scenarios requiring immediate guarantees
+5. **Cross-Platform Integration**: MAGIC schema enables seamless integration across programming languages and platforms with full style preservation
 
 ## System Architecture Overview
 
@@ -333,6 +337,88 @@ class ContextManager {
     }
     
     return result;
+  }
+}
+```
+
+## MAGIC Schema Ingestion Architecture
+
+### Universal Log Ingestion
+
+MagicLogger can consume and display MAGIC-compliant logs from any source, preserving their original styling:
+
+```typescript
+// Ingesting MAGIC logs from various sources
+class MagicLogIngester {
+  private styleReconstructor: StyleReconstructor;
+  
+  consume(magicEntry: any) {
+    // Validate MAGIC compliance
+    if (!this.isMAGICCompliant(magicEntry)) {
+      throw new Error('Invalid MAGIC format');
+    }
+    
+    // Reconstruct styled output
+    const styled = this.reconstructStyles(
+      magicEntry.message,
+      magicEntry.styles
+    );
+    
+    // Display with original formatting
+    console.log(styled);
+  }
+  
+  private reconstructStyles(text: string, styles?: Array<[number, number, string]>) {
+    if (!styles) return text;
+    
+    let result = '';
+    let lastEnd = 0;
+    
+    for (const [start, end, style] of styles) {
+      result += text.slice(lastEnd, start);
+      result += this.applyStyle(text.slice(start, end), style);
+      lastEnd = end;
+    }
+    result += text.slice(lastEnd);
+    
+    return result;
+  }
+}
+```
+
+### Cross-Language Integration Points
+
+1. **HTTP Endpoint**: Accept MAGIC logs via REST API
+2. **Message Queue**: Consume from Kafka, RabbitMQ, etc.
+3. **File Tail**: Read MAGIC logs from files
+4. **Direct Integration**: Import logs from other processes
+
+### MAGIC Compliance Validation
+
+```typescript
+interface MAGICValidator {
+  validate(entry: unknown): boolean {
+    // Required fields
+    if (!entry.id || !entry.timestamp || !entry.level || !entry.message) {
+      return false;
+    }
+    
+    // Validate styles format if present
+    if (entry.styles && !Array.isArray(entry.styles)) {
+      return false;
+    }
+    
+    // Validate style ranges
+    if (entry.styles) {
+      for (const range of entry.styles) {
+        if (range.length !== 3) return false;
+        const [start, end, style] = range;
+        if (typeof start !== 'number' || typeof end !== 'number') return false;
+        if (start < 0 || end <= start) return false;
+      }
+    }
+    
+    return true;
   }
 }
 ```
@@ -693,6 +779,13 @@ Features:
 - Color detection
 - Theme support
 - Strip ANSI functions
+
+#### Custom Color Registry (`src/colors/CustomColorRegistry.ts`)
+- Dynamic color registration (lazy-loaded)
+- RGB, hex, and 256-color support
+- Terminal capability detection
+- Fallback color management
+- Tree-shakeable module
 
 #### Environment Detection (`src/utils/environment.ts`)
 - Platform detection

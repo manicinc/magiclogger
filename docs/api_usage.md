@@ -770,6 +770,30 @@ logger.setTheme({
 
 // Get current theme
 const theme = logger.theme;
+
+// Custom Colors (lazy-loaded feature)
+// Register custom brand colors with fallbacks
+logger.registerCustomColor('brandOrange', {
+  hex: '#FF5733',
+  fallback: 'orange'
+});
+
+logger.registerCustomColors({
+  brandPrimary: { rgb: [51, 102, 255], fallback: 'blue' },
+  brandSecondary: { code256: 208, fallback: 'yellow' }
+});
+
+// Use custom colors in themes
+logger.setTheme({
+  header: ['brandPrimary', 'bold'],
+  info: ['brandSecondary']
+});
+
+// Remove custom colors
+await logger.removeCustomColor('brandOrange');
+
+// Get list of registered custom colors
+const customColors = await logger.getCustomColors();
 ```
 
 ### Environment Variables
@@ -868,6 +892,12 @@ class Logger {
   link(url: string, description?: string): void
   color(...colors: ColorName[]): (text: string) => string
   colorParts(message: string, colorMap: Record<string, ColorName[]>): string
+  
+  // Custom Colors (lazy-loaded)
+  registerCustomColor(name: string, definition: CustomColorDefinition): void
+  registerCustomColors(colors: Record<string, CustomColorDefinition>): void
+  removeCustomColor(name: string): Promise<boolean>
+  getCustomColors(): Promise<string[]>
   
   // File operations (Node.js)
   getPath(): string | null
