@@ -388,48 +388,51 @@ export class TextStyler {
     // First, handle nested tags like <bg.red><white.bold>text</></>
     let processedText = text;
     const nestedPattern = /<([^>]+)><([^>]+)>([^<]*)<\/><\/>/g;
-    processedText = processedText.replace(nestedPattern, (match, outerStyle, innerStyle, content) => {
-      // Combine styles from nested tags
-      const combinedStyle = `${outerStyle}.${innerStyle}`;
-      return `<${combinedStyle}>${content}</>`;
-    });
+    processedText = processedText.replace(
+      nestedPattern,
+      (match, outerStyle, innerStyle, content) => {
+        // Combine styles from nested tags
+        const combinedStyle = `${outerStyle}.${innerStyle}`;
+        return `<${combinedStyle}>${content}</>`;
+      }
+    );
 
     const styles: StyleRange[] = [];
     let plainText = '';
     let styledText = '';
     let lastIndex = 0;
-    
+
     // Match <styles>content</>
     const regex = /<([^>]*?)>((?:(?!<[^>]*?>).)*?)<\/>/g;
     let match: RegExpExecArray | null;
-    
+
     while ((match = regex.exec(processedText)) !== null) {
       const [fullMatch, styleString, content] = match;
       const matchStart = match.index;
-      
+
       // Add text before the match
       const beforeText = processedText.slice(lastIndex, matchStart);
       plainText += beforeText;
       styledText += beforeText;
-      
+
       // Parse styles
       const parsedStyles = TextStyler.parseStyleString(styleString);
-      
+
       if (parsedStyles.length > 0) {
         // Even empty content should be handled
         // Record style range for MAGIC Schema
         const startIndex = plainText.length;
         const endIndex = startIndex + content.length;
-        
+
         // Only add style range if there's actual content
         if (content.length > 0) {
           // Store the original style string for MAGIC schema compatibility
           styles.push([startIndex, endIndex, styleString]);
         }
-        
+
         // Add content
         plainText += content;
-        
+
         // Add styled content if colors are enabled
         if (useColors) {
           styledText += Colorizer.applyColors(content, parsedStyles, true);
@@ -441,24 +444,24 @@ export class TextStyler {
         plainText += content;
         styledText += content;
       }
-      
+
       lastIndex = matchStart + fullMatch.length;
     }
-    
+
     // Add remaining text
     const remainingText = processedText.slice(lastIndex);
     plainText += remainingText;
     styledText += remainingText;
-    
+
     // If no styles were found, return the original text with undefined styles
     if (styles.length === 0) {
-      return { 
-        plainText: plainText || text, 
+      return {
+        plainText: plainText || text,
         styledText: useColors ? styledText || text : plainText || text,
-        styles: undefined
+        styles: undefined,
       };
     }
-    
+
     return { plainText, styledText, styles };
   }
 
@@ -491,17 +494,19 @@ export class TextStyler {
       if (!trimmed) continue;
 
       let styleToProcess = trimmed;
-      
+
       // Check if this is 'bg' which should be combined with the next color
       if (trimmed.toLowerCase() === 'bg' && i + 1 < styles.length) {
         const nextStyle = styles[i + 1].trim();
         if (nextStyle) {
           // Combine bg with the next color and skip the next iteration
-          styleToProcess = `bg${nextStyle.charAt(0).toUpperCase()}${nextStyle.slice(1).toLowerCase()}`;
+          styleToProcess = `bg${nextStyle.charAt(0).toUpperCase()}${nextStyle
+            .slice(1)
+            .toLowerCase()}`;
           i++; // Skip the next style since we've combined it
         }
       }
-      
+
       // Normalize to lowercase for comparisons/tests
       const lower = styleToProcess.toLowerCase();
       let normalized: string | undefined;

@@ -10,13 +10,7 @@
  *   - TypeScript: npx ts-node examples/animated-demo.ts
  */
 
-import {
-  FullLogger,
-  COLORS,
-  type ColorName,
-  type StylePreset,
-  ANSI,
-} from '../dist/index.js';
+import { FullLogger, COLORS, type ColorName, type StylePreset, ANSI } from '../dist/index.js';
 
 // Helper function to pause execution
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));

@@ -732,10 +732,12 @@ export class SchemaValidator {
    * @private
    */
   private isSimpleSchema(schema: AnySchema): boolean {
-    return schema.type === 'string' || 
-           schema.type === 'number' || 
-           schema.type === 'boolean' ||
-           (schema.type === 'object' && this.isSimpleObject(schema as ObjectSchema));
+    return (
+      schema.type === 'string' ||
+      schema.type === 'number' ||
+      schema.type === 'boolean' ||
+      (schema.type === 'object' && this.isSimpleObject(schema as ObjectSchema))
+    );
   }
 
   /**
@@ -745,8 +747,8 @@ export class SchemaValidator {
    */
   private isSimpleObject(schema: ObjectSchema): boolean {
     if (!schema.properties) return true;
-    return Object.values(schema.properties).every(prop => 
-      prop.type === 'string' || prop.type === 'number' || prop.type === 'boolean'
+    return Object.values(schema.properties).every(
+      prop => prop.type === 'string' || prop.type === 'number' || prop.type === 'boolean'
     );
   }
 

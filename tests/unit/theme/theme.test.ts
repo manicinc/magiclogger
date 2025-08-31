@@ -66,9 +66,7 @@ describe('Logger with file-loaded theme', () => {
     await new Promise(resolve => setTimeout(resolve, 50));
 
     // Should have logged through console transport (plain text format)
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Theme-based info log')
-    );
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Theme-based info log'));
     consoleSpy.mockRestore();
   });
 
@@ -82,9 +80,7 @@ describe('Logger with file-loaded theme', () => {
     await new Promise(resolve => setTimeout(resolve, 50));
 
     // Message should be plain text now (styles stored separately)
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining('File Theme Header')
-    );
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('File Theme Header'));
     consoleSpy.mockRestore();
   });
 });

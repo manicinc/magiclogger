@@ -365,11 +365,11 @@ export class Colorizer {
       // Use dynamic import to ensure tree-shaking works
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const registry = require('../colors/CustomColorRegistry').getCustomColorRegistry();
-      
+
       if (registry && registry.hasColor(colorName)) {
         const code = registry.getColorCode(colorName);
         if (code) return code;
-        
+
         // Try fallback color if custom color isn't supported
         const fallback = registry.getFallback(colorName);
         if (fallback) {
@@ -380,7 +380,7 @@ export class Colorizer {
       // CustomColorRegistry not available or not loaded
       // This is expected in most cases for tree-shaking
     }
-    
+
     return undefined;
   }
 

@@ -1,15 +1,15 @@
 /**
  * @fileoverview Custom Color Registry for advanced color customization.
- * 
+ *
  * ⚠️ WARNING: Custom colors may not work in all terminals!
  * Most terminals support only basic 16 colors. Extended features like RGB (24-bit)
  * and 256-color palette have limited support:
  * - ✅ Modern terminals: iTerm2, Windows Terminal, VS Code, Hyper
  * - ⚠️ Limited support: cmd.exe, PowerShell (legacy), older PuTTY
  * - ❌ No support: Some CI environments, older terminals
- * 
+ *
  * Use predefined colors from the theme system for maximum compatibility.
- * 
+ *
  * @module colors/CustomColorRegistry
  */
 
@@ -37,20 +37,20 @@ export interface CustomColorDefinition {
 /**
  * Registry for custom color definitions.
  * This is a singleton that lazily initializes to avoid impacting bundle size.
- * 
+ *
  * @class CustomColorRegistry
  * @example
  * ```typescript
  * // Only loaded when explicitly used
  * const registry = CustomColorRegistry.getInstance();
- * 
+ *
  * // Add custom brand color with fallback
  * registry.registerColor('brandOrange', {
  *   rgb: [255, 87, 51],
  *   fallback: 'orange',
  *   description: 'Company brand orange'
  * });
- * 
+ *
  * // Use in theme
  * logger.setTheme({
  *   header: ['brandOrange', 'bold']
@@ -96,7 +96,7 @@ export class CustomColorRegistry {
     this.terminalSupport = {
       rgb: hasRGBColors,
       color256: has256Colors,
-      basic: hasBasicColors
+      basic: hasBasicColors,
     };
 
     // Log warning if advanced features aren't supported
@@ -113,13 +113,11 @@ export class CustomColorRegistry {
    */
   private check256ColorSupport(): boolean {
     if (typeof process === 'undefined') return false;
-    
+
     const term = process.env.TERM || '';
     const colorterm = process.env.COLORTERM || '';
-    
-    return term.includes('256') || 
-           colorterm === 'truecolor' || 
-           colorterm === '24bit';
+
+    return term.includes('256') || colorterm === 'truecolor' || colorterm === '24bit';
   }
 
   /**
@@ -128,23 +126,25 @@ export class CustomColorRegistry {
    */
   private checkRGBSupport(): boolean {
     if (typeof process === 'undefined') return false;
-    
+
     const colorterm = process.env.COLORTERM || '';
     const termProgram = process.env.TERM_PROGRAM || '';
-    
-    return colorterm === 'truecolor' || 
-           colorterm === '24bit' ||
-           termProgram === 'iTerm.app' ||
-           termProgram === 'vscode';
+
+    return (
+      colorterm === 'truecolor' ||
+      colorterm === '24bit' ||
+      termProgram === 'iTerm.app' ||
+      termProgram === 'vscode'
+    );
   }
 
   /**
    * Register a custom color.
-   * 
+   *
    * @param {string} name - Unique color name
    * @param {CustomColorDefinition} definition - Color definition
    * @throws {Error} If color name conflicts with existing colors
-   * 
+   *
    * @example
    * ```typescript
    * // RGB color
@@ -152,19 +152,19 @@ export class CustomColorRegistry {
    *   rgb: [255, 16, 240],
    *   fallback: 'magenta'
    * });
-   * 
+   *
    * // 256-color palette
    * registry.registerColor('darkOlive', {
    *   code256: 58,
    *   fallback: 'green'
    * });
-   * 
+   *
    * // Hex color
    * registry.registerColor('skyBlue', {
    *   hex: '#87CEEB',
    *   fallback: 'cyan'
    * });
-   * 
+   *
    * // Direct ANSI sequence (advanced)
    * registry.registerColor('customBlink', {
    *   ansi: '\x1b[5;38;2;255;255;0m',
@@ -178,12 +178,17 @@ export class CustomColorRegistry {
     if (this.isReservedColorName(name)) {
       throw new Error(
         `Cannot register color "${name}": conflicts with built-in color. ` +
-        `Choose a different name or use theme to remap existing colors.`
+          `Choose a different name or use theme to remap existing colors.`
       );
     }
 
     // Validate definition has at least one color format
-    if (!definition.ansi && !definition.rgb && definition.code256 === undefined && !definition.hex) {
+    if (
+      !definition.ansi &&
+      !definition.rgb &&
+      definition.code256 === undefined &&
+      !definition.hex
+    ) {
       throw new Error(
         `Color "${name}" must define at least one format: ansi, rgb, code256, or hex`
       );
@@ -196,16 +201,16 @@ export class CustomColorRegistry {
 
     // Store the definition
     this.customColors.set(name, definition);
-    
+
     // Clear cache for this color
     this.ansiCache.delete(name);
   }
 
   /**
    * Register multiple colors at once.
-   * 
+   *
    * @param {Record<string, CustomColorDefinition>} colors - Map of color definitions
-   * 
+   *
    * @example
    * ```typescript
    * registry.registerColors({
@@ -223,7 +228,7 @@ export class CustomColorRegistry {
 
   /**
    * Get ANSI escape sequence for a custom color.
-   * 
+   *
    * @param {string} name - Color name
    * @returns {string | undefined} ANSI escape sequence or undefined
    */
@@ -285,7 +290,7 @@ export class CustomColorRegistry {
 
   /**
    * Get fallback color name for a custom color.
-   * 
+   *
    * @param {string} name - Color name
    * @returns {string | undefined} Fallback color name
    */
@@ -295,7 +300,7 @@ export class CustomColorRegistry {
 
   /**
    * Check if a color is registered.
-   * 
+   *
    * @param {string} name - Color name
    * @returns {boolean} True if registered
    */
@@ -305,7 +310,7 @@ export class CustomColorRegistry {
 
   /**
    * Get all registered custom color names.
-   * 
+   *
    * @returns {string[]} Array of color names
    */
   public getColorNames(): string[] {
@@ -322,7 +327,7 @@ export class CustomColorRegistry {
 
   /**
    * Remove a specific custom color.
-   * 
+   *
    * @param {string} name - Color name to remove
    * @returns {boolean} True if removed
    */
@@ -337,13 +342,43 @@ export class CustomColorRegistry {
    */
   private isReservedColorName(name: string): boolean {
     const reserved = [
-      'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white',
-      'gray', 'grey', 'brightblack', 'brightred', 'brightgreen', 'brightyellow',
-      'brightblue', 'brightmagenta', 'brightcyan', 'brightwhite',
-      'bgblack', 'bgred', 'bggreen', 'bgyellow', 'bgblue', 'bgmagenta',
-      'bgcyan', 'bgwhite', 'bggray', 'bggrey',
-      'bold', 'dim', 'italic', 'underline', 'blink', 'reverse', 'hidden',
-      'strikethrough', 'reset'
+      'black',
+      'red',
+      'green',
+      'yellow',
+      'blue',
+      'magenta',
+      'cyan',
+      'white',
+      'gray',
+      'grey',
+      'brightblack',
+      'brightred',
+      'brightgreen',
+      'brightyellow',
+      'brightblue',
+      'brightmagenta',
+      'brightcyan',
+      'brightwhite',
+      'bgblack',
+      'bgred',
+      'bggreen',
+      'bgyellow',
+      'bgblue',
+      'bgmagenta',
+      'bgcyan',
+      'bgwhite',
+      'bggray',
+      'bggrey',
+      'bold',
+      'dim',
+      'italic',
+      'underline',
+      'blink',
+      'reverse',
+      'hidden',
+      'strikethrough',
+      'reset',
     ];
     return reserved.includes(name.toLowerCase());
   }
@@ -357,11 +392,7 @@ export class CustomColorRegistry {
     if (!result) {
       throw new Error(`Invalid hex color: ${hex}`);
     }
-    return [
-      parseInt(result[1], 16),
-      parseInt(result[2], 16),
-      parseInt(result[3], 16)
-    ];
+    return [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16)];
   }
 
   /**
@@ -395,12 +426,12 @@ export class CustomColorRegistry {
     const gi = findIndex(g);
     const bi = findIndex(b);
 
-    return 16 + (36 * ri) + (6 * gi) + bi;
+    return 16 + 36 * ri + 6 * gi + bi;
   }
 
   /**
    * Export color definitions for debugging/documentation.
-   * 
+   *
    * @returns {Record<string, CustomColorDefinition>} All custom color definitions
    */
   public exportDefinitions(): Record<string, CustomColorDefinition> {
@@ -413,7 +444,7 @@ export class CustomColorRegistry {
 
   /**
    * Get terminal support information.
-   * 
+   *
    * @returns {object} Terminal color support levels
    */
   public getTerminalSupport(): typeof CustomColorRegistry.prototype.terminalSupport {
@@ -427,7 +458,7 @@ let registryInstance: CustomColorRegistry | null = null;
 /**
  * Get the custom color registry instance (lazy initialization).
  * This function ensures the registry is only created when actually used.
- * 
+ *
  * @returns {CustomColorRegistry} The registry instance
  */
 export function getCustomColorRegistry(): CustomColorRegistry {

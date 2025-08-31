@@ -17,7 +17,7 @@ describe('Logger Console Transport', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     // Mock console methods
     consoleMocks = {
       log: jest.spyOn(console, 'log').mockImplementation(),
@@ -43,7 +43,7 @@ describe('Logger Console Transport', () => {
       await new Promise(resolve => setTimeout(resolve, 100));
 
       logger.info('Test message');
-      
+
       // Wait for async processing
       await new Promise(resolve => setTimeout(resolve, 50));
 
@@ -61,7 +61,7 @@ describe('Logger Console Transport', () => {
       await new Promise(resolve => setTimeout(resolve, 100));
 
       logger.info('Test message');
-      
+
       // Wait for async processing
       await new Promise(resolve => setTimeout(resolve, 50));
 
@@ -75,7 +75,7 @@ describe('Logger Console Transport', () => {
       await new Promise(resolve => setTimeout(resolve, 100));
 
       logger.info('Default console test');
-      
+
       // Wait for async processing
       await new Promise(resolve => setTimeout(resolve, 50));
 
@@ -96,15 +96,15 @@ describe('Logger Console Transport', () => {
       await new Promise(resolve => setTimeout(resolve, 100));
 
       logger.info('Plain text message');
-      
+
       // Wait for async processing
       await new Promise(resolve => setTimeout(resolve, 50));
 
       const output = consoleMocks.info.mock.calls[0]?.[0];
-      
+
       // Should NOT be JSON
       expect(() => JSON.parse(output)).toThrow();
-      
+
       // Should be plain text with the message
       expect(output).toContain('Plain text message');
       expect(output).toContain('INFO');
@@ -121,16 +121,16 @@ describe('Logger Console Transport', () => {
 
       // Log with angle bracket syntax
       logger.info('<green>Success:</> Operation completed');
-      
+
       // Wait for async processing
       await new Promise(resolve => setTimeout(resolve, 50));
 
       const output = consoleMocks.info.mock.calls[0]?.[0];
-      
+
       // Should contain the message (styles would be ANSI codes)
       expect(output).toContain('Success:');
       expect(output).toContain('Operation completed');
-      
+
       // Should NOT show angle brackets
       expect(output).not.toContain('<green>');
       expect(output).not.toContain('</>');
@@ -149,7 +149,7 @@ describe('Logger Console Transport', () => {
       logger.info('Info message');
       logger.warn('Warning message');
       logger.error('Error message');
-      
+
       // Wait for async processing
       await new Promise(resolve => setTimeout(resolve, 100));
 
@@ -172,7 +172,7 @@ describe('Logger Console Transport', () => {
 
       logger.debug('Debug should be filtered');
       logger.info('Info should show');
-      
+
       // Wait for async processing
       await new Promise(resolve => setTimeout(resolve, 50));
 

@@ -25,12 +25,12 @@ describe('Colorizer Custom Color Support', () => {
       // Register a custom color
       registry.registerColor('customTest', {
         ansi: '\x1b[38;2;255;100;50m', // Custom RGB
-        fallback: 'orange'
+        fallback: 'orange',
       });
 
       // Apply the custom color
       const result = Colorizer.applyColors('Hello', ['customTest' as unknown as string], true);
-      
+
       // Should contain the custom ANSI code
       expect(result).toContain('\x1b[38;2;255;100;50m');
       expect(result).toContain('Hello');
@@ -41,7 +41,7 @@ describe('Colorizer Custom Color Support', () => {
       // Register with only fallback
       registry.registerColor('fallbackTest', {
         rgb: [255, 0, 0], // Will use fallback if RGB not supported
-        fallback: 'red'
+        fallback: 'red',
       });
 
       // Mock terminal to not support RGB
@@ -50,7 +50,7 @@ describe('Colorizer Custom Color Support', () => {
 
       // The colorizer should still work with fallback
       const result = Colorizer.applyColors('Test', ['fallbackTest' as unknown as string], true);
-      
+
       // Should contain some ANSI code (either custom or fallback)
       // eslint-disable-next-line no-control-regex
       expect(result).toMatch(/\x1b\[[\d;]*m/);
@@ -64,8 +64,12 @@ describe('Colorizer Custom Color Support', () => {
 
     it('should handle non-existent custom colors gracefully', () => {
       // Try to use a custom color that doesn't exist
-      const result = Colorizer.applyColors('Test', ['nonExistentCustom' as unknown as string], true);
-      
+      const result = Colorizer.applyColors(
+        'Test',
+        ['nonExistentCustom' as unknown as string],
+        true
+      );
+
       // Should just return the text without styling
       expect(result).toBe('Test');
     });
@@ -73,15 +77,15 @@ describe('Colorizer Custom Color Support', () => {
     it('should cache custom color codes', () => {
       registry.registerColor('cachedCustom', {
         hex: '#00FF00',
-        fallback: 'green'
+        fallback: 'green',
       });
 
       // First application
       const result1 = Colorizer.applyColors('Test1', ['cachedCustom' as unknown as string], true);
-      
+
       // Second application should use cache
       const result2 = Colorizer.applyColors('Test2', ['cachedCustom' as unknown as string], true);
-      
+
       // Both should be styled
       // eslint-disable-next-line no-control-regex
       expect(result1).toMatch(/\x1b\[[\d;]*m.*Test1.*\x1b\[0m/);
@@ -92,12 +96,16 @@ describe('Colorizer Custom Color Support', () => {
     it('should combine custom colors with built-in styles', () => {
       registry.registerColor('customBlue', {
         hex: '#0080FF',
-        fallback: 'blue'
+        fallback: 'blue',
       });
 
       // Combine custom color with built-in style
-      const result = Colorizer.applyColors('Mixed', ['customBlue' as unknown as string, 'bold'], true);
-      
+      const result = Colorizer.applyColors(
+        'Mixed',
+        ['customBlue' as unknown as string, 'bold'],
+        true
+      );
+
       // Should contain both custom color and bold
       // eslint-disable-next-line no-control-regex
       expect(result).toMatch(/\x1b\[[\d;]*m/); // Some ANSI codes
@@ -108,8 +116,12 @@ describe('Colorizer Custom Color Support', () => {
   describe('Error handling', () => {
     it('should handle non-existent custom colors gracefully', () => {
       // Try to use a custom color that doesn't exist
-      const result = Colorizer.applyColors('Test', ['nonExistentCustom' as unknown as string], true);
-      
+      const result = Colorizer.applyColors(
+        'Test',
+        ['nonExistentCustom' as unknown as string],
+        true
+      );
+
       // Should just return the text without styling
       expect(result).toBe('Test');
     });
@@ -119,7 +131,7 @@ describe('Colorizer Custom Color Support', () => {
       const result1 = Colorizer.applyColors('Test1', ['123invalid' as unknown as string], true);
       const result2 = Colorizer.applyColors('Test2', ['!@#$%' as unknown as string], true);
       const result3 = Colorizer.applyColors('Test3', ['' as unknown as string], true);
-      
+
       // Should return text without styling
       expect(result1).toBe('Test1');
       expect(result2).toBe('Test2');
@@ -131,25 +143,25 @@ describe('Colorizer Custom Color Support', () => {
     it('should clear cache when custom colors change', () => {
       registry.registerColor('changing', {
         hex: '#FF0000',
-        fallback: 'red'
+        fallback: 'red',
       });
 
       // Apply color
       Colorizer.applyColors('Test1', ['changing' as unknown as string], true);
-      
+
       // Clear cache (simulating color change)
       Colorizer.clearCache();
-      
+
       // Re-register with different color
       registry.removeColor('changing');
       registry.registerColor('changing', {
         hex: '#00FF00',
-        fallback: 'green'
+        fallback: 'green',
       });
-      
+
       // Apply again - should use new color
       const result = Colorizer.applyColors('Test2', ['changing' as unknown as string], true);
-      
+
       // Should be styled (exact color depends on terminal support)
       // eslint-disable-next-line no-control-regex
       expect(result).toMatch(/\x1b\[[\d;]*m.*Test2.*\x1b\[0m/);
@@ -160,22 +172,22 @@ describe('Colorizer Custom Color Support', () => {
     it('should work with color parts', () => {
       registry.registerColor('partColor', {
         hex: '#FFA500',
-        fallback: 'yellow'
+        fallback: 'yellow',
       });
 
       const parts = [
         { text: 'Normal ', color: 'red' as unknown as string },
         { text: 'Custom ', color: 'partColor' as unknown as string },
-        { text: 'Text', color: 'blue' as unknown as string }
+        { text: 'Text', color: 'blue' as unknown as string },
       ];
 
       const result = Colorizer.colorParts(parts, true);
-      
+
       // Should contain all three parts
       expect(result).toContain('Normal');
       expect(result).toContain('Custom');
       expect(result).toContain('Text');
-      
+
       // Should have ANSI codes
       // eslint-disable-next-line no-control-regex
       expect(result).toMatch(/\x1b\[[\d;]*m/);
@@ -184,11 +196,15 @@ describe('Colorizer Custom Color Support', () => {
     it('should work with applyColors for single custom color', () => {
       registry.registerColor('singleCustom', {
         code256: 208,
-        fallback: 'orange'
+        fallback: 'orange',
       });
 
-      const result = Colorizer.applyColors('Orange Text', ['singleCustom' as unknown as string], true);
-      
+      const result = Colorizer.applyColors(
+        'Orange Text',
+        ['singleCustom' as unknown as string],
+        true
+      );
+
       // Should apply the custom color
       expect(result).toContain('Orange Text');
       // eslint-disable-next-line no-control-regex
@@ -200,7 +216,7 @@ describe('Colorizer Custom Color Support', () => {
     it('should not load registry if no custom colors used', () => {
       // Use only built-in colors
       const result = Colorizer.applyColors('Test', ['red', 'bold'], true);
-      
+
       // Should work without loading custom registry
       // eslint-disable-next-line no-control-regex
       expect(result).toMatch(/\x1b\[31m.*\x1b\[1m.*Test.*\x1b\[0m/);
@@ -211,19 +227,19 @@ describe('Colorizer Custom Color Support', () => {
       for (let i = 0; i < 100; i++) {
         registry.registerColor(`custom${i}`, {
           code256: i % 256, // Valid values 0-255
-          fallback: 'white'
+          fallback: 'white',
         });
       }
 
       const start = Date.now();
-      
+
       // Apply multiple custom colors
       for (let i = 0; i < 100; i++) {
         Colorizer.applyColors(`Test ${i}`, [`custom${i}` as unknown as string], true);
       }
-      
+
       const duration = Date.now() - start;
-      
+
       // Should complete quickly (< 100ms for 100 applications)
       expect(duration).toBeLessThan(100);
     });

@@ -50,7 +50,7 @@ export class XMLFormatter extends CustomFormatter {
     }
 
     lines.push(`  <message>${this.escapeXml(entry.message)}</message>`);
-    
+
     // Add styles if present
     if (entry.styles && entry.styles.length > 0) {
       lines.push('  <styles>');

@@ -1,0 +1,29 @@
+# Build outputs
+dist/
+build/
+lib/
+coverage/
+.tsbuildinfo
+
+# Dependencies
+node_modules/
+
+# Website
+website/
+
+# Documentation
+docs/
+
+# Test outputs
+test_logs/
+
+# JSON files in examples (these are sample log outputs, not code)
+examples/*.json
+
+# Config files
+*.config.js
+*.config.ts
+
+# Temporary files
+*.tmp
+*.log

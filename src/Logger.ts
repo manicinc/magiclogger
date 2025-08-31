@@ -160,7 +160,9 @@ export class Logger {
    */
   private templateFormatter?: TemplateFormatter;
   /** Cached Node.js util.inspect function when available */
-  private nodeUtilInspect?: ((val: unknown, opts?: { colors?: boolean; depth?: number }) => string) | null;
+  private nodeUtilInspect?:
+    | ((val: unknown, opts?: { colors?: boolean; depth?: number }) => string)
+    | null;
 
   /**
    * Theme manager instance for handling themes.
@@ -393,8 +395,8 @@ export class Logger {
    * @param {StyleRange[]} styles - Optional extracted styles
    */
   private createLogEntry(
-    level: LogLevel, 
-    message: string, 
+    level: LogLevel,
+    message: string,
     meta?: LogEntryMeta,
     styles?: import('./types/transport').StyleRange[]
   ): LogEntry {
@@ -428,7 +430,7 @@ export class Logger {
 
     // Extract plain message (no ANSI codes)
     const plainMessage = this.stripAnsiCodes(message);
-    
+
     // Create complete log entry
     const entry: LogEntry = {
       id: this.idGenerator(),
@@ -791,14 +793,14 @@ export class Logger {
    */
   public log(msg: string, level: LogLevel = 'info', meta?: LogEntryMeta): void {
     let entry: LogEntry;
-    
+
     // Parse angle bracket syntax if present and extract styles
     if (msg && msg.includes('<')) {
       const result = TextStyler.parseBracketsWithExtraction(msg, this.useColors);
-      
+
       // Create structured log entry with extracted plain text and styles
       entry = this.createLogEntry(level, result.plainText, meta, result.styles);
-      
+
       // Store the styled version for console output
       (entry as unknown as Record<string, unknown>)._styledMessage = result.styledText;
     } else {
@@ -1282,7 +1284,7 @@ export class Logger {
 
     // Update internal options
     (this.options as { theme: Record<string, ColorName[]> }).theme = validated;
-    
+
     // Also update the theme manager if it exists
     if (this.themeManager) {
       this.themeManager.setTheme(validated);
@@ -1336,10 +1338,10 @@ export class Logger {
 
   /**
    * Register custom colors for use in themes and styling.
-   * 
+   *
    * ⚠️ WARNING: Custom colors may not work in all terminals!
    * Use predefined colors for maximum compatibility.
-   * 
+   *
    * @param {string} name - Custom color name
    * @param {object} definition - Color definition
    * @param {string} [definition.hex] - Hex color (e.g., '#FF5733')
@@ -1347,7 +1349,7 @@ export class Logger {
    * @param {number} [definition.code256] - 256-color palette code
    * @param {string} [definition.ansi] - Direct ANSI escape sequence
    * @param {string} [definition.fallback] - Fallback color name
-   * 
+   *
    * @example
    * ```typescript
    * // Register a custom brand color
@@ -1355,7 +1357,7 @@ export class Logger {
    *   hex: '#FF5733',
    *   fallback: 'orange'
    * });
-   * 
+   *
    * // Use in theme
    * logger.setTheme({
    *   header: ['brandOrange', 'bold']
@@ -1378,7 +1380,7 @@ export class Logger {
       .then(({ getCustomColorRegistry }) => {
         const registry = getCustomColorRegistry();
         registry.registerColor(name, definition);
-        
+
         // Clear Colorizer cache to pick up new colors
         Colorizer.clearCache();
       })
@@ -1389,9 +1391,9 @@ export class Logger {
 
   /**
    * Register multiple custom colors at once.
-   * 
+   *
    * @param {Record<string, object>} colors - Map of color definitions
-   * 
+   *
    * @example
    * ```typescript
    * logger.registerCustomColors({
@@ -1402,21 +1404,24 @@ export class Logger {
    * ```
    */
   public registerCustomColors(
-    colors: Record<string, {
-      hex?: string;
-      rgb?: [number, number, number];
-      code256?: number;
-      ansi?: string;
-      fallback?: string;
-      description?: string;
-    }>
+    colors: Record<
+      string,
+      {
+        hex?: string;
+        rgb?: [number, number, number];
+        code256?: number;
+        ansi?: string;
+        fallback?: string;
+        description?: string;
+      }
+    >
   ): void {
     // Lazy load the custom color registry
     import('./colors/CustomColorRegistry')
       .then(({ getCustomColorRegistry }) => {
         const registry = getCustomColorRegistry();
         registry.registerColors(colors);
-        
+
         // Clear Colorizer cache to pick up new colors
         Colorizer.clearCache();
       })
@@ -1427,7 +1432,7 @@ export class Logger {
 
   /**
    * Remove a custom color registration.
-   * 
+   *
    * @param {string} name - Color name to remove
    * @returns {Promise<boolean>} True if removed
    */
@@ -1436,11 +1441,11 @@ export class Logger {
       const { getCustomColorRegistry } = await import('./colors/CustomColorRegistry');
       const registry = getCustomColorRegistry();
       const removed = registry.removeColor(name);
-      
+
       if (removed) {
         Colorizer.clearCache();
       }
-      
+
       return removed;
     } catch {
       return false;
@@ -1449,7 +1454,7 @@ export class Logger {
 
   /**
    * Get list of all registered custom colors.
-   * 
+   *
    * @returns {Promise<string[]>} Array of custom color names
    */
   public async getCustomColors(): Promise<string[]> {

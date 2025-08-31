@@ -317,7 +317,7 @@ export class ConsoleTransport extends Transport {
 
     // Message - reconstruct styled message if styles are available
     let messageOutput: string;
-    
+
     if ((entry as unknown as Record<string, unknown>)._styledMessage) {
       // Use pre-styled message if available (temporary backward compat)
       messageOutput = String((entry as unknown as Record<string, unknown>)._styledMessage);
@@ -328,7 +328,7 @@ export class ConsoleTransport extends Transport {
       // Use plain message
       messageOutput = String(entry.message ?? '');
     }
-    
+
     parts.push(messageOutput);
 
     let output = parts.join(' ');
@@ -484,45 +484,42 @@ export class ConsoleTransport extends Transport {
    * @returns {string} Styled text with ANSI codes
    * @private
    */
-  private applyStylesToMessage(
-    plainText: string,
-    styles: Array<[number, number, string]>
-  ): string {
+  private applyStylesToMessage(plainText: string, styles: Array<[number, number, string]>): string {
     if (!styles || styles.length === 0) {
       return plainText;
     }
-    
+
     // Import required modules
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { Colorizer } = require('../../../core/Colorizer');
-    
+
     // Sort styles by start index
     const sortedStyles = [...styles].sort((a, b) => a[0] - b[0]);
-    
+
     let result = '';
     let lastEnd = 0;
-    
+
     for (const [start, end, styleStr] of sortedStyles) {
       // Add unstyled text before this range
       result += plainText.slice(lastEnd, start);
-      
+
       // Parse style string (e.g., "red.bold" → ["red", "bold"])
       const styleNames = styleStr.split('.');
-      
+
       // Apply styles to the text segment
       const styledSegment = Colorizer.applyColors(
         plainText.slice(start, end),
         styleNames,
         true // useColors
       );
-      
+
       result += styledSegment;
       lastEnd = end;
     }
-    
+
     // Add any remaining unstyled text
     result += plainText.slice(lastEnd);
-    
+
     return result;
   }
 

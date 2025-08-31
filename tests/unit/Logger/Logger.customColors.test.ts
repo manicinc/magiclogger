@@ -26,7 +26,7 @@ describe('Logger Custom Colors', () => {
     it('should register a custom color with hex format', async () => {
       logger.registerCustomColor('testBrand', {
         hex: '#FF5733',
-        fallback: 'orange'
+        fallback: 'orange',
       });
 
       // Give async registration time to complete
@@ -38,7 +38,7 @@ describe('Logger Custom Colors', () => {
     it('should register a custom color with RGB format', async () => {
       logger.registerCustomColor('testRGB', {
         rgb: [255, 0, 128],
-        fallback: 'magenta'
+        fallback: 'magenta',
       });
 
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -49,7 +49,7 @@ describe('Logger Custom Colors', () => {
     it('should register a custom color with 256-color code', async () => {
       logger.registerCustomColor('test256', {
         code256: 196,
-        fallback: 'red'
+        fallback: 'red',
       });
 
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -63,7 +63,7 @@ describe('Logger Custom Colors', () => {
       // Try to register with invalid data (will be caught by registry)
       logger.registerCustomColor('invalid', {
         // No color format provided
-        fallback: 'red'
+        fallback: 'red',
       } as Record<string, unknown>);
 
       // Wait for async error
@@ -81,7 +81,7 @@ describe('Logger Custom Colors', () => {
       logger.registerCustomColors({
         brand1: { hex: '#FF0000', fallback: 'red' },
         brand2: { hex: '#00FF00', fallback: 'green' },
-        brand3: { hex: '#0000FF', fallback: 'blue' }
+        brand3: { hex: '#0000FF', fallback: 'blue' },
       });
 
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -97,7 +97,7 @@ describe('Logger Custom Colors', () => {
       // First register a color
       logger.registerCustomColor('toRemove', {
         hex: '#123456',
-        fallback: 'cyan'
+        fallback: 'cyan',
       });
 
       // Wait for registration
@@ -122,7 +122,7 @@ describe('Logger Custom Colors', () => {
 
       logger.registerCustomColor('cached', {
         hex: '#ABCDEF',
-        fallback: 'blue'
+        fallback: 'blue',
       });
 
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -143,7 +143,7 @@ describe('Logger Custom Colors', () => {
     it('should return list of registered custom colors', async () => {
       logger.registerCustomColors({
         color1: { hex: '#111111', fallback: 'black' },
-        color2: { hex: '#222222', fallback: 'gray' }
+        color2: { hex: '#222222', fallback: 'gray' },
       });
 
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -166,14 +166,14 @@ describe('Logger Custom Colors', () => {
     it('should allow custom colors in themes', async () => {
       logger.registerCustomColor('themeColor', {
         hex: '#FF69B4',
-        fallback: 'magenta'
+        fallback: 'magenta',
       });
 
       await new Promise(resolve => setTimeout(resolve, 100));
       // Set theme with custom color
       logger.setTheme({
         header: ['themeColor', 'bold'],
-        info: ['themeColor']
+        info: ['themeColor'],
       });
 
       const theme = logger.getTheme();
@@ -188,7 +188,7 @@ describe('Logger Custom Colors', () => {
 
       logger.registerCustomColor('cacheTest', {
         hex: '#FEDCBA',
-        fallback: 'yellow'
+        fallback: 'yellow',
       });
 
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -201,22 +201,24 @@ describe('Logger Custom Colors', () => {
     it('should only load CustomColorRegistry when needed', () => {
       // The registry shouldn't be loaded until we actually register a color
       const newLogger = new Logger();
-      
+
       // This is just creating the logger, not loading the registry
       expect(newLogger).toBeDefined();
-      
+
       // Registry loads here
       newLogger.registerCustomColor('lazy', {
         hex: '#LAZY00',
-        fallback: 'green'
+        fallback: 'green',
       });
 
       // We can't easily test if the module was loaded, but we can verify
       // the functionality works
-      expect(() => newLogger.registerCustomColor('lazy2', {
-        hex: '#LAZY01',
-        fallback: 'blue'
-      })).not.toThrow();
+      expect(() =>
+        newLogger.registerCustomColor('lazy2', {
+          hex: '#LAZY01',
+          fallback: 'blue',
+        })
+      ).not.toThrow();
     });
   });
 
@@ -226,17 +228,20 @@ describe('Logger Custom Colors', () => {
 
       // Mock the dynamic import to fail
       const mockLogger = new Logger();
-      (mockLogger as any).registerCustomColor = jest.fn((_name: string, _def: unknown) => {
-        import('../../../src/colors/CustomColorRegistry').then(() => {
-          throw new Error('Mock registration error');
-        }).catch((err: Error) => {
-          console.error('[Logger] Failed to register custom color:', err);
-        });
+      const mockLoggerWithMethod = mockLogger as { registerCustomColor: jest.Mock };
+      mockLoggerWithMethod.registerCustomColor = jest.fn((_name: string, _def: unknown) => {
+        import('../../../src/colors/CustomColorRegistry')
+          .then(() => {
+            throw new Error('Mock registration error');
+          })
+          .catch((err: Error) => {
+            console.error('[Logger] Failed to register custom color:', err);
+          });
       });
 
       mockLogger.registerCustomColor('failing', {
         hex: '#FAILED',
-        fallback: 'red'
+        fallback: 'red',
       });
 
       await new Promise(resolve => setTimeout(resolve, 100));

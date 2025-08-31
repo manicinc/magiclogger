@@ -2,7 +2,10 @@
  * @fileoverview Tests for CustomColorRegistry
  */
 
-import { CustomColorRegistry, getCustomColorRegistry } from '../../../src/colors/CustomColorRegistry';
+import {
+  CustomColorRegistry,
+  getCustomColorRegistry,
+} from '../../../src/colors/CustomColorRegistry';
 
 describe('CustomColorRegistry', () => {
   let registry: CustomColorRegistry;
@@ -21,7 +24,7 @@ describe('CustomColorRegistry', () => {
     it('should register a color with hex format', () => {
       registry.registerColor('testOrange', {
         hex: '#FF5733',
-        fallback: 'orange'
+        fallback: 'orange',
       });
 
       expect(registry.hasColor('testOrange')).toBe(true);
@@ -31,7 +34,7 @@ describe('CustomColorRegistry', () => {
     it('should register a color with RGB format', () => {
       registry.registerColor('testPink', {
         rgb: [255, 16, 240],
-        fallback: 'magenta'
+        fallback: 'magenta',
       });
 
       expect(registry.hasColor('testPink')).toBe(true);
@@ -41,7 +44,7 @@ describe('CustomColorRegistry', () => {
     it('should register a color with 256-color code', () => {
       registry.registerColor('darkOlive', {
         code256: 58,
-        fallback: 'green'
+        fallback: 'green',
       });
 
       expect(registry.hasColor('darkOlive')).toBe(true);
@@ -56,7 +59,7 @@ describe('CustomColorRegistry', () => {
       const customAnsi = '\x1b[5;38;2;255;255;0m';
       registry.registerColor('blinkYellow', {
         ansi: customAnsi,
-        fallback: 'yellow'
+        fallback: 'yellow',
       });
 
       expect(registry.hasColor('blinkYellow')).toBe(true);
@@ -67,7 +70,7 @@ describe('CustomColorRegistry', () => {
     it('should convert hex to RGB automatically', () => {
       registry.registerColor('hexColor', {
         hex: '#3366FF',
-        fallback: 'blue'
+        fallback: 'blue',
       });
 
       const definitions = registry.exportDefinitions();
@@ -80,7 +83,7 @@ describe('CustomColorRegistry', () => {
       registry.registerColors({
         brandPrimary: { hex: '#003366', fallback: 'blue' },
         brandSecondary: { hex: '#66CC00', fallback: 'green' },
-        brandAccent: { rgb: [255, 152, 0], fallback: 'yellow' }
+        brandAccent: { rgb: [255, 152, 0], fallback: 'yellow' },
       });
 
       expect(registry.hasColor('brandPrimary')).toBe(true);
@@ -93,12 +96,12 @@ describe('CustomColorRegistry', () => {
   describe('Validation', () => {
     it('should throw error for reserved color names', () => {
       const reservedNames = ['red', 'blue', 'bold', 'bgGreen', 'reset'];
-      
+
       for (const name of reservedNames) {
         expect(() => {
           registry.registerColor(name, {
             hex: '#123456',
-            fallback: 'cyan'
+            fallback: 'cyan',
           });
         }).toThrow(/conflicts with built-in color/);
       }
@@ -107,7 +110,7 @@ describe('CustomColorRegistry', () => {
     it('should throw error if no color format provided', () => {
       expect(() => {
         registry.registerColor('noFormat', {
-          fallback: 'red'
+          fallback: 'red',
         });
       }).toThrow(/must define at least one format/);
     });
@@ -116,7 +119,7 @@ describe('CustomColorRegistry', () => {
       expect(() => {
         registry.registerColor('badHex', {
           hex: 'not-a-hex',
-          fallback: 'red'
+          fallback: 'red',
         });
       }).toThrow(/Invalid hex color/);
     });
@@ -126,11 +129,11 @@ describe('CustomColorRegistry', () => {
     it('should remove a registered color', () => {
       registry.registerColor('tempColor', {
         hex: '#FF0000',
-        fallback: 'red'
+        fallback: 'red',
       });
 
       expect(registry.hasColor('tempColor')).toBe(true);
-      
+
       const removed = registry.removeColor('tempColor');
       expect(removed).toBe(true);
       expect(registry.hasColor('tempColor')).toBe(false);
@@ -145,11 +148,11 @@ describe('CustomColorRegistry', () => {
       registry.registerColors({
         color1: { hex: '#111111', fallback: 'black' },
         color2: { hex: '#222222', fallback: 'gray' },
-        color3: { hex: '#333333', fallback: 'white' }
+        color3: { hex: '#333333', fallback: 'white' },
       });
 
       expect(registry.getColorNames()).toHaveLength(3);
-      
+
       registry.clear();
       expect(registry.getColorNames()).toHaveLength(0);
     });
@@ -159,7 +162,7 @@ describe('CustomColorRegistry', () => {
     it('should return fallback color name', () => {
       registry.registerColor('customGreen', {
         rgb: [0, 255, 0],
-        fallback: 'green'
+        fallback: 'green',
       });
 
       expect(registry.getFallback('customGreen')).toBe('green');
@@ -173,11 +176,11 @@ describe('CustomColorRegistry', () => {
   describe('Terminal Support Detection', () => {
     it('should detect terminal support levels', () => {
       const support = registry.getTerminalSupport();
-      
+
       expect(support).toHaveProperty('basic');
       expect(support).toHaveProperty('color256');
       expect(support).toHaveProperty('rgb');
-      
+
       // Values will vary by environment
       expect(typeof support?.basic).toBe('boolean');
       expect(typeof support?.color256).toBe('boolean');
@@ -189,12 +192,12 @@ describe('CustomColorRegistry', () => {
     it('should cache generated ANSI codes', () => {
       registry.registerColor('cached', {
         rgb: [100, 150, 200],
-        fallback: 'blue'
+        fallback: 'blue',
       });
 
       const code1 = registry.getColorCode('cached');
       const code2 = registry.getColorCode('cached');
-      
+
       // Should return same cached value
       expect(code1).toBe(code2);
     });
@@ -210,22 +213,23 @@ describe('CustomColorRegistry', () => {
       // Mock limited terminal support
       const originalEnv = process.env.COLORTERM;
       delete process.env.COLORTERM;
-      
+
       // Create new registry to test with limited support
-      const limitedRegistry = new (CustomColorRegistry as unknown as new () => CustomColorRegistry)();
-      
+      const limitedRegistry =
+        new (CustomColorRegistry as unknown as new () => CustomColorRegistry)();
+
       limitedRegistry.registerColor('rgbColor', {
         rgb: [128, 64, 192],
-        fallback: 'purple'
+        fallback: 'purple',
       });
-      
+
       // The code should still work even with limited support
       const code = limitedRegistry.getColorCode('rgbColor');
       // Should generate some ANSI code
       expect(code).toBeDefined();
       // eslint-disable-next-line no-control-regex
       expect(code).toMatch(/\x1b\[/);
-      
+
       // Restore environment
       if (originalEnv) {
         process.env.COLORTERM = originalEnv;
@@ -238,15 +242,15 @@ describe('CustomColorRegistry', () => {
       registry.registerColors({
         export1: { hex: '#111111', fallback: 'black' },
         export2: { rgb: [255, 0, 0], fallback: 'red' },
-        export3: { code256: 42, fallback: 'green' }
+        export3: { code256: 42, fallback: 'green' },
       });
 
       const exported = registry.exportDefinitions();
-      
+
       expect(exported).toHaveProperty('export1');
       expect(exported).toHaveProperty('export2');
       expect(exported).toHaveProperty('export3');
-      
+
       expect(exported.export1.hex).toBe('#111111');
       expect(exported.export2.rgb).toEqual([255, 0, 0]);
       expect(exported.export3.code256).toBe(42);
@@ -257,7 +261,7 @@ describe('CustomColorRegistry', () => {
     it('should return same instance', () => {
       const instance1 = CustomColorRegistry.getInstance();
       const instance2 = CustomColorRegistry.getInstance();
-      
+
       expect(instance1).toBe(instance2);
     });
 
@@ -265,7 +269,7 @@ describe('CustomColorRegistry', () => {
       const instance1 = CustomColorRegistry.getInstance();
       instance1.registerColor('shared', {
         hex: '#ABCDEF',
-        fallback: 'cyan'
+        fallback: 'cyan',
       });
 
       const instance2 = CustomColorRegistry.getInstance();
@@ -276,9 +280,9 @@ describe('CustomColorRegistry', () => {
   describe('Lazy Getter Function', () => {
     it('should provide lazy initialization through getter', () => {
       const lazyRegistry = getCustomColorRegistry();
-      
+
       expect(lazyRegistry).toBeInstanceOf(CustomColorRegistry);
-      
+
       // Should return same instance on subsequent calls
       const lazyRegistry2 = getCustomColorRegistry();
       expect(lazyRegistry).toBe(lazyRegistry2);
@@ -290,7 +294,7 @@ describe('CustomColorRegistry', () => {
       registry.registerColor('documented', {
         hex: '#FF00FF',
         fallback: 'magenta',
-        description: 'A well-documented custom color'
+        description: 'A well-documented custom color',
       });
 
       const exported = registry.exportDefinitions();
@@ -301,7 +305,7 @@ describe('CustomColorRegistry', () => {
       // Test the private rgbTo256 method indirectly
       registry.registerColor('gray50', {
         rgb: [128, 128, 128], // Grayscale
-        fallback: 'gray'
+        fallback: 'gray',
       });
 
       // Just verify it doesn't throw
@@ -312,12 +316,12 @@ describe('CustomColorRegistry', () => {
     it('should handle extreme RGB values in conversion', () => {
       registry.registerColor('deepBlack', {
         rgb: [0, 0, 0],
-        fallback: 'black'
+        fallback: 'black',
       });
 
       registry.registerColor('pureWhite', {
         rgb: [255, 255, 255],
-        fallback: 'white'
+        fallback: 'white',
       });
 
       // Just verify they don't throw

@@ -19,7 +19,10 @@ describe('MAGIC Schema Cross-Language Ingestion', () => {
         timestampMs: 1705316400000,
         level: 'info',
         message: 'Test message',
-        styles: [[0, 4, 'red'], [5, 12, 'blue.bold']]
+        styles: [
+          [0, 4, 'red'],
+          [5, 12, 'blue.bold'],
+        ],
       };
 
       expect(isMAGICCompliant(validEntry)).toBe(true);
@@ -44,7 +47,10 @@ describe('MAGIC Schema Cross-Language Ingestion', () => {
         timestamp: '2024-01-15T10:30:00.000Z',
         level: 'info',
         message: 'Test message',
-        styles: [[0, 4, 'red'], [5, 12, 'blue']]
+        styles: [
+          [0, 4, 'red'],
+          [5, 12, 'blue'],
+        ],
       };
 
       const invalidStyles = [
@@ -73,8 +79,8 @@ describe('MAGIC Schema Cross-Language Ingestion', () => {
         level: 'error',
         message: 'Database connection failed for user alice@example.com',
         styles: [
-          [0, 26, 'red.bold'],        // "Database connection failed"
-          [31, 53, 'cyan']             // "alice@example.com"
+          [0, 26, 'red.bold'], // "Database connection failed"
+          [31, 53, 'cyan'], // "alice@example.com"
         ] as Array<[number, number, string]>,
         service: 'python-api',
         environment: 'production',
@@ -82,8 +88,8 @@ describe('MAGIC Schema Cross-Language Ingestion', () => {
           hostname: 'python-server-01',
           pid: 54321,
           platform: 'linux',
-          pythonVersion: '3.11.0'
-        }
+          pythonVersion: '3.11.0',
+        },
       };
 
       const reconstructed = reconstructStyles(pythonLog.message, pythonLog.styles);
@@ -100,12 +106,12 @@ describe('MAGIC Schema Cross-Language Ingestion', () => {
         level: 'warn',
         message: 'Cache miss for key user:12345 in region us-west-2',
         styles: [
-          [0, 10, 'yellow'],           // "Cache miss"
-          [19, 29, 'cyan.bold'],       // "user:12345"
-          [41, 50, 'green']            // "us-west-2"
+          [0, 10, 'yellow'], // "Cache miss"
+          [19, 29, 'cyan.bold'], // "user:12345"
+          [41, 50, 'green'], // "us-west-2"
         ] as Array<[number, number, string]>,
         service: 'go-cache-service',
-        environment: 'staging'
+        environment: 'staging',
       };
 
       const reconstructed = reconstructStyles(goLog.message, goLog.styles);
@@ -122,11 +128,11 @@ describe('MAGIC Schema Cross-Language Ingestion', () => {
         level: 'info',
         message: 'Processing 1000 records in 45ms',
         styles: [
-          [11, 15, 'green.bold'],      // "1000"
-          [27, 31, 'yellow.bold']      // "45ms"
+          [11, 15, 'green.bold'], // "1000"
+          [27, 31, 'yellow.bold'], // "45ms"
         ] as Array<[number, number, string]>,
         service: 'rust-processor',
-        environment: 'development'
+        environment: 'development',
       };
 
       const reconstructed = reconstructStyles(rustLog.message, rustLog.styles);
@@ -138,13 +144,13 @@ describe('MAGIC Schema Cross-Language Ingestion', () => {
     it('should correctly reconstruct overlapping styles', () => {
       const message = 'Error in module A at line 42';
       const styles: Array<[number, number, string]> = [
-        [0, 5, 'red'],               // "Error"
-        [9, 17, 'yellow'],           // "module A"
-        [26, 28, 'cyan.bold']        // "42"
+        [0, 5, 'red'], // "Error"
+        [9, 17, 'yellow'], // "module A"
+        [26, 28, 'cyan.bold'], // "42"
       ];
 
       const reconstructed = reconstructStyles(message, styles);
-      
+
       // Verify structure is maintained
       expect(reconstructed).toContain('Error');
       expect(reconstructed).toContain('module A');
@@ -175,8 +181,11 @@ describe('MAGIC Schema Cross-Language Ingestion', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: 'User logged in',
-        styles: [[0, 4, 'green'], [5, 14, 'cyan']],
-        service: 'auth-service'
+        styles: [
+          [0, 4, 'green'],
+          [5, 14, 'cyan'],
+        ],
+        service: 'auth-service',
       };
 
       // Entry is already MAGIC compliant
@@ -210,7 +219,7 @@ describe('MAGIC Schema Cross-Language Ingestion', () => {
           level: 'error',
           message: 'Python error occurred',
           styles: [[0, 6, 'red']] as Array<[number, number, string]>,
-          service: 'python-app'
+          service: 'python-app',
         },
         // Go log
         {
@@ -220,7 +229,7 @@ describe('MAGIC Schema Cross-Language Ingestion', () => {
           level: 'info',
           message: 'Go service started',
           styles: [[0, 2, 'green']],
-          service: 'go-app'
+          service: 'go-app',
         },
         // Rust log
         {
@@ -230,13 +239,16 @@ describe('MAGIC Schema Cross-Language Ingestion', () => {
           level: 'warn',
           message: 'Rust warning issued',
           styles: [[0, 4, 'yellow']],
-          service: 'rust-app'
-        }
+          service: 'rust-app',
+        },
       ];
 
       const results = mixedLogs.map(log => ({
         valid: isMAGICCompliant(log),
-        reconstructed: reconstructStyles(log.message, log.styles as Array<[number, number, string]>)
+        reconstructed: reconstructStyles(
+          log.message,
+          log.styles as Array<[number, number, string]>
+        ),
       }));
 
       results.forEach(result => {
@@ -251,7 +263,7 @@ describe('MAGIC Schema Cross-Language Ingestion', () => {
 
 function isMAGICCompliant(entry: unknown): boolean {
   const e = entry as Record<string, unknown>;
-  
+
   // Check required fields
   if (!e.id || !e.timestamp || !e.level || !e.message) {
     return false;
@@ -275,7 +287,7 @@ function isMAGICCompliant(entry: unknown): boolean {
       }
 
       const [start, end, style] = range;
-      
+
       if (typeof start !== 'number' || typeof end !== 'number' || typeof style !== 'string') {
         return false;
       }
@@ -297,30 +309,26 @@ function reconstructStyles(message: string, styles?: Array<[number, number, stri
   // Import colorizer for actual ANSI code application
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { Colorizer } = require('../../src/core/Colorizer');
-  
+
   let result = '';
   let lastEnd = 0;
-  
+
   for (const [start, end, styleStr] of styles) {
     // Add unstyled text before this range
     result += message.slice(lastEnd, start);
-    
+
     // Parse style string (e.g., "red.bold" → ["red", "bold"])
     const styleNames = styleStr.split('.');
-    
+
     // Apply styles to the text segment
-    const styledSegment = Colorizer.applyColors(
-      message.slice(start, end),
-      styleNames,
-      true
-    );
-    
+    const styledSegment = Colorizer.applyColors(message.slice(start, end), styleNames, true);
+
     result += styledSegment;
     lastEnd = end;
   }
-  
+
   // Add any remaining unstyled text
   result += message.slice(lastEnd);
-  
+
   return result;
 }
