@@ -35,14 +35,14 @@
 
 - [Installation](#installation)
 - [Quick Start](#quick-start)
+- [Styling APIs](#styling-apis)
 - [Key Features](#key-features)
 - [MAGIC Schema](#magic-schema)
-- [Styling APIs](#styling-apis)
+- [Transports](#transports)
 - [Advanced Features](#advanced-features)
 - [Theming & Custom Colors](#-theming--custom-colors)
 - [Context & Tags](#-context--tags)
 - [Validation & Schema Enforcement](#️-validation--schema-enforcement)
-- [Transports](#transports)
 - [Performance](#performance)
 - [Examples](#examples)
 - [API Reference](#api-reference)
@@ -95,9 +95,7 @@ const smartLogger = createSmartLogger();
 // Production: Async for performance
 ```
 
-## Key Features
-
-### 🎨 Three Flexible Styling APIs
+## Styling APIs
 Choose the styling approach that fits your code style:
 
 ```typescript
@@ -113,6 +111,8 @@ logger.info(logger.fmt`@red.bold{ERROR:} Failed to connect to @yellow{${database
 // 3. Chainable API - programmatic styling
 logger.info(logger.s.blue.bold('INFO:') + ' Processing ' + logger.s.cyan(filename));
 ```
+
+## Key Features
 
 ### 📐 Structured JSON with Optional Validation
 Every log outputs structured JSON following the MAGIC Schema:
@@ -321,6 +321,75 @@ For a logger to be MAGIC-compliant, it must:
 | **Other Language SDKs** | 🌍 Open Opportunity | Schema is ready for community implementations |
 | **Ingestion Tools** | 🌍 Open Opportunity | Build tools to consume MAGIC logs from any source |
 | **Converters** | 🌍 Open Opportunity | Convert between MAGIC and other log formats |
+
+
+## Transports
+
+### Core Transports
+
+```typescript
+import { 
+  ConsoleTransport,
+  FileTransport, 
+  HTTPTransport,
+  WebSocketTransport
+} from 'magiclogger/transports';
+
+const logger = new Logger({
+  transports: [
+    // Console with colors
+    new ConsoleTransport({ useColors: true }),
+    
+    // File with rotation
+    new FileTransport({ 
+      filepath: './logs/app.log',
+      maxFiles: 7,
+      maxSize: '10MB'
+    }),
+    
+    // HTTP with batching
+    new HTTPTransport({ 
+      url: 'https://logs.example.com',
+      batch: { size: 100, timeout: 5000 }
+    })
+  ]
+});
+```
+
+### Enterprise Transports
+
+```typescript
+// Database transports
+import { PostgreSQLTransport, MongoDBTransport } from 'magiclogger/transports';
+
+// Cloud storage
+import { S3Transport } from 'magiclogger/transports';
+
+// Messaging systems
+import { KafkaTransport, SyslogTransport } from 'magiclogger/transports';
+
+// Observability platforms
+import { OTLPTransport } from 'magiclogger/transports/otlp';
+
+const otlpTransport = new OTLPTransport({
+  endpoint: 'http://localhost:4318',
+  serviceName: 'my-service',
+  includeTraceContext: true  // W3C Trace Context support
+});
+```
+
+### Transport Batching
+Network transports batch automatically, local transports don't:
+
+| Transport | Batching | Default Config |
+|-----------|----------|----------------|
+| Console | ❌ No | Immediate write |
+| File | ❌ No | Immediate write |
+| HTTP | ✅ **Yes** | 100 logs or 5s |
+| WebSocket | ✅ **Yes** | 100 logs or 5s |
+| S3 | ✅ **Yes** | 1000 logs or 30s |
+| MongoDB | ✅ **Yes** | 100 logs or 5s |
+
 
 ## Advanced Features
 
@@ -1130,73 +1199,6 @@ const logger = new Logger({
   rateLimiter: new RateLimiter({ max: 1000, window: 60000 })
 });
 ```
-
-## Transports
-
-### Core Transports
-
-```typescript
-import { 
-  ConsoleTransport,
-  FileTransport, 
-  HTTPTransport,
-  WebSocketTransport
-} from 'magiclogger/transports';
-
-const logger = new Logger({
-  transports: [
-    // Console with colors
-    new ConsoleTransport({ useColors: true }),
-    
-    // File with rotation
-    new FileTransport({ 
-      filepath: './logs/app.log',
-      maxFiles: 7,
-      maxSize: '10MB'
-    }),
-    
-    // HTTP with batching
-    new HTTPTransport({ 
-      url: 'https://logs.example.com',
-      batch: { size: 100, timeout: 5000 }
-    })
-  ]
-});
-```
-
-### Enterprise Transports
-
-```typescript
-// Database transports
-import { PostgreSQLTransport, MongoDBTransport } from 'magiclogger/transports';
-
-// Cloud storage
-import { S3Transport } from 'magiclogger/transports';
-
-// Messaging systems
-import { KafkaTransport, SyslogTransport } from 'magiclogger/transports';
-
-// Observability platforms
-import { OTLPTransport } from 'magiclogger/transports/otlp';
-
-const otlpTransport = new OTLPTransport({
-  endpoint: 'http://localhost:4318',
-  serviceName: 'my-service',
-  includeTraceContext: true  // W3C Trace Context support
-});
-```
-
-### Transport Batching
-Network transports batch automatically, local transports don't:
-
-| Transport | Batching | Default Config |
-|-----------|----------|----------------|
-| Console | ❌ No | Immediate write |
-| File | ❌ No | Immediate write |
-| HTTP | ✅ **Yes** | 100 logs or 5s |
-| WebSocket | ✅ **Yes** | 100 logs or 5s |
-| S3 | ✅ **Yes** | 1000 logs or 30s |
-| MongoDB | ✅ **Yes** | 100 logs or 5s |
 
 ## Performance
 
