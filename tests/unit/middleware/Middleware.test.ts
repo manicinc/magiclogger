@@ -114,7 +114,7 @@ describe('Middleware', () => {
       timestampMs: 1704067200000,
       level: 'info',
       message: 'Test message',
-      plainMessage: 'Test message',
+      message: 'Test message',
       loggerId: 'test-logger',
       context: { test: true },
     };

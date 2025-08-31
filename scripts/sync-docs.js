@@ -55,15 +55,17 @@ DOCS_TO_SYNC.forEach((file) => {
     // Add frontmatter if it doesn't exist
     let finalContent = content;
     if (!content.startsWith('---')) {
-      let id = path.basename(file, '.md');
-      // Preserve uppercase IDs for specific docs
-      if (id === 'ARCHITECTURE' || id === 'MAGIC_SCHEMA' || id === 'TRANSPORTS') {
-        // keep as-is
-      } else {
-        // by default, use filename-derived id
-      }
-      const title = id.charAt(0).toUpperCase() + id.slice(1).replace(/-/g, ' ');
-      
+      // Derive id from filename (kebab to snake where needed) and preserve case for known UPPER ids
+      const baseName = path.basename(file, '.md');
+      const upperIds = new Set(['ARCHITECTURE', 'MAGIC_SCHEMA', 'TRANSPORTS']);
+      const id = upperIds.has(baseName)
+        ? baseName
+        : baseName.replace(/-/g, '_');
+      const title = (upperIds.has(baseName)
+        ? baseName
+        : baseName.replace(/-/g, ' '))
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+
       finalContent = `---
 id: ${id}
 title: ${title}

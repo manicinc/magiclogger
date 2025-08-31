@@ -1,6 +1,7 @@
 // File: src/utils/TextStyler.ts
 
 import type { ColorName } from '../types/colors';
+import type { StyleRange } from '../types/transport';
 import { Colorizer } from '../core/Colorizer';
 
 /**
@@ -356,6 +357,112 @@ export class TextStyler {
   }
 
   /**
+   * Parses angle bracket styled text and extracts both plain text and style ranges.
+   * This is the enhanced version that supports the optimized MAGIC Schema format.
+   *
+   * @param {string} text - Text with angle bracket styling
+   * @param {boolean} applyStyles - Whether to apply styles (for console) or extract them
+   * @returns {object} Object with plain text, styled text, and style ranges
+   *
+   * @example
+   * ```typescript
+   * const result = TextStyler.parseBracketsWithExtraction(
+   *   '<red.bold>Error:</> User <cyan>john@example.com</> not found'
+   * );
+   * // Returns: {
+   * //   plainText: "Error: User john@example.com not found",
+   * //   styledText: "\x1b[31m\x1b[1mError:\x1b[0m User \x1b[36mjohn@example.com\x1b[0m not found",
+   * //   styles: [[0, 6, "red.bold"], [12, 29, "cyan"]]
+   * // }
+   * ```
+   */
+  public static parseBracketsWithExtraction(
+    text: string,
+    useColors = true
+  ): { plainText: string; styledText: string; styles?: StyleRange[] } {
+    if (!text) {
+      return { plainText: '', styledText: '', styles: undefined };
+    }
+
+    // Handle nested tags by processing from innermost to outermost
+    // First, handle nested tags like <bg.red><white.bold>text</></>
+    let processedText = text;
+    const nestedPattern = /<([^>]+)><([^>]+)>([^<]*)<\/><\/>/g;
+    processedText = processedText.replace(nestedPattern, (match, outerStyle, innerStyle, content) => {
+      // Combine styles from nested tags
+      const combinedStyle = `${outerStyle}.${innerStyle}`;
+      return `<${combinedStyle}>${content}</>`;
+    });
+
+    const styles: StyleRange[] = [];
+    let plainText = '';
+    let styledText = '';
+    let lastIndex = 0;
+    
+    // Match <styles>content</>
+    const regex = /<([^>]*?)>((?:(?!<[^>]*?>).)*?)<\/>/g;
+    let match: RegExpExecArray | null;
+    
+    while ((match = regex.exec(processedText)) !== null) {
+      const [fullMatch, styleString, content] = match;
+      const matchStart = match.index;
+      
+      // Add text before the match
+      const beforeText = processedText.slice(lastIndex, matchStart);
+      plainText += beforeText;
+      styledText += beforeText;
+      
+      // Parse styles
+      const parsedStyles = TextStyler.parseStyleString(styleString);
+      
+      if (parsedStyles.length > 0) {
+        // Even empty content should be handled
+        // Record style range for MAGIC Schema
+        const startIndex = plainText.length;
+        const endIndex = startIndex + content.length;
+        
+        // Only add style range if there's actual content
+        if (content.length > 0) {
+          // Store the original style string for MAGIC schema compatibility
+          styles.push([startIndex, endIndex, styleString]);
+        }
+        
+        // Add content
+        plainText += content;
+        
+        // Add styled content if colors are enabled
+        if (useColors) {
+          styledText += Colorizer.applyColors(content, parsedStyles, true);
+        } else {
+          styledText += content;
+        }
+      } else {
+        // No valid styles, just add the content
+        plainText += content;
+        styledText += content;
+      }
+      
+      lastIndex = matchStart + fullMatch.length;
+    }
+    
+    // Add remaining text
+    const remainingText = processedText.slice(lastIndex);
+    plainText += remainingText;
+    styledText += remainingText;
+    
+    // If no styles were found, return the original text with undefined styles
+    if (styles.length === 0) {
+      return { 
+        plainText: plainText || text, 
+        styledText: useColors ? styledText || text : plainText || text,
+        styles: undefined
+      };
+    }
+    
+    return { plainText, styledText, styles };
+  }
+
+  /**
    * Parses a style string into an array of valid color names.
    * Handles dot-separated styles like "red.bold.underline".
    *
@@ -379,12 +486,24 @@ export class TextStyler {
     const styles = styleString.split('.');
     const result: ColorName[] = [];
 
-    for (const style of styles) {
-      const trimmed = style.trim();
+    for (let i = 0; i < styles.length; i++) {
+      const trimmed = styles[i].trim();
       if (!trimmed) continue;
 
+      let styleToProcess = trimmed;
+      
+      // Check if this is 'bg' which should be combined with the next color
+      if (trimmed.toLowerCase() === 'bg' && i + 1 < styles.length) {
+        const nextStyle = styles[i + 1].trim();
+        if (nextStyle) {
+          // Combine bg with the next color and skip the next iteration
+          styleToProcess = `bg${nextStyle.charAt(0).toUpperCase()}${nextStyle.slice(1).toLowerCase()}`;
+          i++; // Skip the next style since we've combined it
+        }
+      }
+      
       // Normalize to lowercase for comparisons/tests
-      const lower = trimmed.toLowerCase();
+      const lower = styleToProcess.toLowerCase();
       let normalized: string | undefined;
 
       switch (lower) {
@@ -462,20 +581,21 @@ export class TextStyler {
           normalized = 'bgWhite';
           break;
         case 'bggray':
+        case 'bggrey':
           normalized = 'bgGray';
           break;
-        case 'bggrey':
-          normalized = 'bgGrey';
+        case 'grey':
+          normalized = 'gray';
           break;
         default:
-          break;
+          normalized = lower;
       }
 
-      // If not a bright* alias, use lower directly
-      const check = normalized ?? lower;
-      if (validStyles.has(lower) || validStyles.has(check)) {
-        // Push lowercase version to satisfy tests expecting toLowerCase entries
-        result.push(lower as ColorName);
+      // Check if the normalized or original style is valid
+      if (validStyles.has(normalized)) {
+        result.push(normalized as ColorName);
+      } else if (validStyles.has(styleToProcess)) {
+        result.push(styleToProcess as ColorName);
       }
     }
 

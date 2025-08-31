@@ -146,15 +146,8 @@ export class SecurityMiddleware extends Middleware {
         }
       }
 
-      // Sanitize plain message
-      if (typeof sanitized.plainMessage === 'string') {
-        sanitized.plainMessage = this.sanitizeString(sanitized.plainMessage);
-
-        if (sanitized.plainMessage.length > this.options.maxMessageLength) {
-          sanitized.plainMessage =
-            sanitized.plainMessage.substring(0, this.options.maxMessageLength) + '...[truncated]';
-        }
-      }
+      // Note: The message field is now always plain text in the new schema
+      // No need to handle plainMessage separately
 
       // Sanitize context
       if (sanitized.context && typeof sanitized.context === 'object') {

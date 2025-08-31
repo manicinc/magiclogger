@@ -311,7 +311,6 @@ export class TransportManager extends EventEmitter {
       timestampMs: Date.now(),
       level: 'info' as const,
       message: 'Aggregation report',
-      plainMessage: 'Aggregation report',
       loggerId: 'transport-manager',
       tags: ['aggregation'],
       context: { stats },

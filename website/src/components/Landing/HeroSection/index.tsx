@@ -15,8 +15,8 @@ export default function HeroSection() {
   const { colorMode } = useColorMode();
   const isDarkTheme = colorMode === 'dark';
   const heroLogoSrc = isDarkTheme
-    ? '/img/magiclogger-primary-no-subtitle-dark-4x.png'
-    : '/img/magiclogger-primary-no-subtitle-transparent-4x.png';
+    ? '/img/magiclog-primary-no-subtitle-dark-4x.png'
+    : '/img/magiclog-primary-no-subtitle-transparent-4x.png';
   
   return (
     <header className={styles.heroSection}>
@@ -30,7 +30,7 @@ export default function HeroSection() {
               <div className={styles.logoWrapper}>
                 <img
                   src={heroLogoSrc}
-                  alt="MagicLogger"
+                  alt="MagicLog"
                   className={styles.heroLogo}
                 />
                 <div className={styles.logoGlow} />
@@ -43,7 +43,7 @@ export default function HeroSection() {
             </Heading>
 
             <p className={styles.heroTagline}>
-              The command center for <span className={styles.logText}>MagicLogger</span>
+              The Universal Color Logging Standard
             </p>
 
             <p className={styles.heroDescription}>
@@ -67,18 +67,12 @@ export default function HeroSection() {
                 <span className={styles.buttonGlow} />
               </Link>
               
-              <a
-                className={clsx('button', styles.dashboardButton)}
-                href="https://app.magiclog.io"
-                target="_blank"
-                rel="noopener noreferrer">
+              <button
+                className={clsx('button', styles.dashboardButton, styles.comingSoon)}
+                disabled>
                 <DashboardIcon />
-                <span>Open Dashboard</span>
-                <span className={styles.newBadge}>
-                  <span className={styles.pulseRing} />
-                  NEW
-                </span>
-              </a>
+                <span>Dashboard - Coming Soon</span>
+              </button>
               
               <a
                 className={clsx('button', styles.landingButton)}
@@ -114,16 +108,16 @@ export default function HeroSection() {
             {/* Live Stats */}
             <div className={styles.heroStats}>
               <StatCard 
-                value={12} 
+                value={38} 
                 unit="KB" 
-                label="Tiny Bundle" 
+                label="Core (gzip)" 
                 icon={<PackageIcon />}
                 color="purple" 
               />
               <StatCard 
-                value={850} 
+                value={135} 
                 unit="K/s" 
-                label="Logs Per Sec" 
+                label="Async Styled" 
                 icon={<SpeedIcon />}
                 color="cyan" 
               />
@@ -134,9 +128,9 @@ export default function HeroSection() {
                 color="green" 
               />
               <StatCard 
-                value={5} 
-                unit="★" 
-                label="Developer Joy" 
+                value={100} 
+                unit="%" 
+                label="TypeScript" 
                 icon={<StarIcon />}
                 color="yellow" 
               />

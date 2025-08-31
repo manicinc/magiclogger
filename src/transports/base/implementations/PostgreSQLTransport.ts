@@ -228,7 +228,7 @@ export class PostgreSQLTransport extends BatchingTransport {
         rowPlaceholders.push(`$${paramIndex++}`);
         values.push(entry.message);
         rowPlaceholders.push(`$${paramIndex++}`);
-        values.push(entry.plainMessage || entry.message);
+        values.push(entry.message); // message is now always plain text
         rowPlaceholders.push(`$${paramIndex++}`);
         values.push(entry.loggerId || null);
         rowPlaceholders.push(`$${paramIndex++}`);

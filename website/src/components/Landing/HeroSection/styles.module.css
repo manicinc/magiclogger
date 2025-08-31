@@ -287,12 +287,24 @@
   position: relative;
 }
 
-.dashboardButton:hover {
+.dashboardButton:hover:not(:disabled) {
   transform: translateY(-3px);
   box-shadow: 
     8px 8px 16px var(--neo-shadow-dark),
     -8px -8px 16px var(--neo-shadow-light);
   color: var(--ifm-color-primary) !important;
+}
+
+.dashboardButton.comingSoon {
+  opacity: 0.6;
+  cursor: not-allowed !important;
+}
+
+.dashboardButton.comingSoon:hover {
+  transform: none !important;
+  box-shadow: 
+    6px 6px 12px var(--neo-shadow-dark),
+    -6px -6px 12px var(--neo-shadow-light) !important;
 }
 
 .newBadge {

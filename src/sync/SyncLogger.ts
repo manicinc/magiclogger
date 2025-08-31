@@ -255,7 +255,7 @@ export class SyncLogger {
 
   /**
    * Creates a normalized log entry object for file output and handlers.
-   * Ensures required fields like level/message/plainMessage are always present.
+   * Ensures required fields like level/message are always present.
    */
   private createEntry(
     level: LogLevel,
@@ -269,7 +269,7 @@ export class SyncLogger {
     timestampMs: number;
     level: string;
     message: string;
-    plainMessage: string;
+    styles?: Array<[number, number, string]>;
     context?: LogEntryMeta;
     meta?: LogEntryMeta;
     pid?: number;
@@ -283,7 +283,7 @@ export class SyncLogger {
       timestampMs: epochMs,
       level: String(level),
       message: msg,
-      plainMessage: this.stripAnsi(msg),
+      // Note: styles extraction could be added here in the future
       context: meta,
       meta,
       pid: typeof process !== 'undefined' ? process.pid : undefined,
@@ -291,21 +291,6 @@ export class SyncLogger {
     };
 
     return entry;
-  }
-
-  /**
-   * Strips ANSI escape codes from text.
-   *
-   * @private
-   * @param {string} text - Text potentially containing ANSI codes
-   * @returns {string} Plain text with all ANSI codes removed
-   *
-   * @remarks
-   * Uses the centralized Formatter method for consistency.
-   * Required for file output to ensure clean JSON logs.
-   */
-  private stripAnsi(text: string): string {
-    return this.formatter.stripAnsi(text);
   }
 
   /**

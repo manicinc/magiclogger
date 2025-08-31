@@ -20,12 +20,12 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: '📋 Architecture',
-      items: ['ARCHITECTURE', 'TRANSPORTS', 'MAGIC_SCHEMA'],
+      items: ['architecture', 'TRANSPORTS', 'magic_schema'],
     },
     {
       type: 'category',
       label: '🔧 Features',
-      items: ['browser_storage', 'styling', 'formatters', 'context-and-tags', 'terminal_support'],
+      items: ['browser_storage', 'styling', 'custom_colors', 'formatters', 'context-and-tags', 'terminal_support'],
     },
     {
       type: 'category',

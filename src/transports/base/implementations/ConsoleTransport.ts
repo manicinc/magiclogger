@@ -315,8 +315,21 @@ export class ConsoleTransport extends Transport {
       parts.push(tags);
     }
 
-    // Message - use plain message if available to avoid double coloring (ensure string)
-    parts.push(String(entry.plainMessage ?? entry.message ?? ''));
+    // Message - reconstruct styled message if styles are available
+    let messageOutput: string;
+    
+    if ((entry as any)._styledMessage) {
+      // Use pre-styled message if available (temporary backward compat)
+      messageOutput = String((entry as any)._styledMessage);
+    } else if (entry.styles && entry.styles.length > 0 && this.useColors) {
+      // Reconstruct styled message from plain text and style ranges
+      messageOutput = this.applyStylesToMessage(entry.message, entry.styles);
+    } else {
+      // Use plain message
+      messageOutput = String(entry.message ?? '');
+    }
+    
+    parts.push(messageOutput);
 
     let output = parts.join(' ');
 
@@ -460,6 +473,56 @@ export class ConsoleTransport extends Transport {
       }
     }
     // No error thrown means base Transport.logBatch will count successes for non-batching transports.
+  }
+
+  /**
+   * Apply styles to a plain message using style ranges.
+   * Reconstructs styled output for console display.
+   *
+   * @param {string} plainText - Plain text message
+   * @param {Array} styles - Style ranges [start, end, style]
+   * @returns {string} Styled text with ANSI codes
+   * @private
+   */
+  private applyStylesToMessage(
+    plainText: string,
+    styles: Array<[number, number, string]>
+  ): string {
+    if (!styles || styles.length === 0) {
+      return plainText;
+    }
+    
+    // Import required modules
+    const { Colorizer } = require('../../../core/Colorizer');
+    
+    // Sort styles by start index
+    const sortedStyles = [...styles].sort((a, b) => a[0] - b[0]);
+    
+    let result = '';
+    let lastEnd = 0;
+    
+    for (const [start, end, styleStr] of sortedStyles) {
+      // Add unstyled text before this range
+      result += plainText.slice(lastEnd, start);
+      
+      // Parse style string (e.g., "red.bold" → ["red", "bold"])
+      const styleNames = styleStr.split('.');
+      
+      // Apply styles to the text segment
+      const styledSegment = Colorizer.applyColors(
+        plainText.slice(start, end),
+        styleNames,
+        true // useColors
+      );
+      
+      result += styledSegment;
+      lastEnd = end;
+    }
+    
+    // Add any remaining unstyled text
+    result += plainText.slice(lastEnd);
+    
+    return result;
   }
 
   /**

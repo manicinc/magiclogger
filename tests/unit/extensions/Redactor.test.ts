@@ -490,7 +490,6 @@ describe('Redactor', () => {
         timestampMs: 1704067200000,
         level: 'info',
         message: 'User john@example.com logged in from 192.168.1.1',
-        plainMessage: 'User john@example.com logged in from 192.168.1.1',
         context: {
           userId: '12345',
           sessionToken: 'sk_live_abc123',
@@ -506,7 +505,7 @@ describe('Redactor', () => {
       const output = redactor.redactLogEntry(entry);
 
       expect(output.message).toContain('*');
-      expect(output.plainMessage).toContain('*');
+      // plainMessage field removed in favor of styles
       expect(output.context?.sessionToken).toContain('*');
       expect(output.context?.creditCard).toContain('*');
       expect(output.error?.message).toContain('*');

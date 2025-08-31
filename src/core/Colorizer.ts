@@ -126,16 +126,22 @@ export class Colorizer {
         if (direct) {
           colorCode = direct;
         } else {
-          // Try fallback style. Prefer raw ANSI when it's a style (e.g., 'underline', 'dim').
-          // If the fallback is a color (e.g., 'gray'), consult COLORS to obtain its code.
-          const fallbackStyle = this.getFallbackStyleInternal(normalized);
-          if (fallbackStyle) {
-            if (RAW_STYLE_MAP[fallbackStyle]) {
-              colorCode = RAW_STYLE_MAP[fallbackStyle];
-            } else {
-              const fbDirect = COLORS[fallbackStyle as keyof typeof COLORS];
-              if (fbDirect) {
-                colorCode = fbDirect;
+          // Check for custom colors (lazily loaded)
+          const customCode = this.getCustomColorCode(normalized);
+          if (customCode) {
+            colorCode = customCode;
+          } else {
+            // Try fallback style. Prefer raw ANSI when it's a style (e.g., 'underline', 'dim').
+            // If the fallback is a color (e.g., 'gray'), consult COLORS to obtain its code.
+            const fallbackStyle = this.getFallbackStyleInternal(normalized);
+            if (fallbackStyle) {
+              if (RAW_STYLE_MAP[fallbackStyle]) {
+                colorCode = RAW_STYLE_MAP[fallbackStyle];
+              } else {
+                const fbDirect = COLORS[fallbackStyle as keyof typeof COLORS];
+                if (fbDirect) {
+                  colorCode = fbDirect;
+                }
               }
             }
           }
@@ -346,6 +352,35 @@ export class Colorizer {
    */
   public static clearCache(): void {
     this.codeCache.clear();
+  }
+
+  /**
+   * Get custom color code if available (lazy-loaded).
+   * @private
+   * @static
+   */
+  private static getCustomColorCode(colorName: string): string | undefined {
+    // Lazy load custom color registry only when needed
+    try {
+      // Use dynamic import to ensure tree-shaking works
+      const registry = require('../colors/CustomColorRegistry').getCustomColorRegistry();
+      
+      if (registry && registry.hasColor(colorName)) {
+        const code = registry.getColorCode(colorName);
+        if (code) return code;
+        
+        // Try fallback color if custom color isn't supported
+        const fallback = registry.getFallback(colorName);
+        if (fallback) {
+          return COLORS[fallback as keyof typeof COLORS];
+        }
+      }
+    } catch {
+      // CustomColorRegistry not available or not loaded
+      // This is expected in most cases for tree-shaking
+    }
+    
+    return undefined;
   }
 
   /**

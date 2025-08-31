@@ -218,7 +218,7 @@ describe('PostgreSQLTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: 'Test message 1',
-        plainMessage: 'Test message 1',
+        message: 'Test message 1',
         loggerId: 'test-logger',
         tags: ['test'],
         context: { key: 'value' },
@@ -231,7 +231,7 @@ describe('PostgreSQLTransport', () => {
         timestampMs: Date.now(),
         level: 'error',
         message: 'Test message 2',
-        plainMessage: 'Test message 2',
+        message: 'Test message 2',
         loggerId: 'test-logger',
         error: {
           name: 'TestError',
@@ -256,7 +256,7 @@ describe('PostgreSQLTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: 'Debug message',
-        plainMessage: 'Debug message',
+        message: 'Debug message',
       };
 
       await transport.log(entry);
@@ -290,7 +290,7 @@ describe('PostgreSQLTransport', () => {
         timestampMs: Date.now(),
         level: 'error',
         message: 'Test',
-        plainMessage: 'Test',
+        message: 'Test',
       };
 
       await transport.log(entry);
@@ -319,7 +319,7 @@ describe('PostgreSQLTransport', () => {
         timestampMs: Date.now(),
         level: 'debug',
         message: 'Debug',
-        plainMessage: 'Debug',
+        message: 'Debug',
       };
 
       const errorEntry: LogEntry = {
@@ -328,7 +328,7 @@ describe('PostgreSQLTransport', () => {
         timestampMs: Date.now(),
         level: 'error',
         message: 'Error',
-        plainMessage: 'Error',
+        message: 'Error',
       };
 
       await transport.log(debugEntry); // Should be filtered out
@@ -456,7 +456,7 @@ describe('PostgreSQLTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: 'Test',
-        plainMessage: 'Test',
+        message: 'Test',
       };
 
       await transport.log(entry);
@@ -475,7 +475,7 @@ describe('PostgreSQLTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: 'Test',
-        plainMessage: 'Test',
+        message: 'Test',
         context: circularRef,
       };
 
@@ -505,7 +505,7 @@ describe('PostgreSQLTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: 'Test',
-        plainMessage: 'Test',
+        message: 'Test',
       };
 
       await transport.log(entry);
@@ -533,7 +533,7 @@ describe('PostgreSQLTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: 'Test',
-        plainMessage: 'Test',
+        message: 'Test',
       };
 
       await transport.log(entry);

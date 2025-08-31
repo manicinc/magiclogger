@@ -625,7 +625,7 @@ export class S3Transport extends NetworkTransport {
       'timestampMs',
       'level',
       'message',
-      'plainMessage',
+      'styles',
       'loggerId',
       'tags',
       'error.name',

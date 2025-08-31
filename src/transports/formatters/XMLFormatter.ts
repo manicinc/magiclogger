@@ -49,7 +49,16 @@ export class XMLFormatter extends CustomFormatter {
       lines.push(`  <loggerId>${this.escapeXml(entry.loggerId)}</loggerId>`);
     }
 
-    lines.push(`  <message>${this.escapeXml(entry.plainMessage || entry.message)}</message>`);
+    lines.push(`  <message>${this.escapeXml(entry.message)}</message>`);
+    
+    // Add styles if present
+    if (entry.styles && entry.styles.length > 0) {
+      lines.push('  <styles>');
+      entry.styles.forEach(([start, end, style]) => {
+        lines.push(`    <style start="${start}" end="${end}" type="${this.escapeXml(style)}" />`);
+      });
+      lines.push('  </styles>');
+    }
 
     if (entry.tags && entry.tags.length > 0) {
       lines.push('  <tags>');

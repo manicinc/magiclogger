@@ -116,14 +116,14 @@ describe('SyncLogger', () => {
     const first = JSON.parse(lines[0]);
     expect(first.level).toBe('info');
     expect(first.message).toBe('file hello');
-    expect(first.plainMessage).toBe('file hello');
+    // plainMessage field removed in favor of styles
     expect(first.meta).toEqual({ a: 1 });
 
     // Parse second line (warn)
     const last = JSON.parse(lines[1]);
     expect(last.level).toBe('warn');
     expect(last.message).toBe('file warn');
-    expect(last.plainMessage).toBe('file warn');
+    // plainMessage field removed in favor of styles
     expect(last.meta).toEqual({ b: 2 });
 
     // flush() should not throw even when already flushed

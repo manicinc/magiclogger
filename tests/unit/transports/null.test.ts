@@ -57,7 +57,7 @@ describe('NullTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: 'Test message',
-        plainMessage: 'Test message',
+        message: 'Test message',
       };
 
       await expect(transport.log(entry)).resolves.not.toThrow();
@@ -71,7 +71,7 @@ describe('NullTransport', () => {
           timestampMs: Date.now(),
           level: 'info',
           message: 'Message 1',
-          plainMessage: 'Message 1',
+          message: 'Message 1',
         },
         {
           id: 'test-2',
@@ -79,7 +79,7 @@ describe('NullTransport', () => {
           timestampMs: Date.now() + 1000,
           level: 'error',
           message: 'Message 2',
-          plainMessage: 'Message 2',
+          message: 'Message 2',
         },
       ];
 
@@ -95,7 +95,7 @@ describe('NullTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: 'Test message',
-        plainMessage: 'Test message',
+        message: 'Test message',
         context: {
           userId: '12345',
           requestId: 'req-abc',
@@ -150,7 +150,7 @@ describe('NullTransport', () => {
         timestampMs,
         level: 'info' as const,
         message: '',
-        plainMessage: '',
+        message: '',
       };
 
       // Warm up the transport
@@ -166,7 +166,7 @@ describe('NullTransport', () => {
             ...baseEntry,
             id: `test-${i}`,
             message: `Message ${i}`,
-            plainMessage: `Message ${i}`,
+            message: `Message ${i}`,
           })
         );
       }
@@ -193,7 +193,7 @@ describe('NullTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: '',
-        plainMessage: '',
+        message: '',
       };
 
       await expect(transport.log(entry)).resolves.not.toThrow();
@@ -207,7 +207,7 @@ describe('NullTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: largeMessage,
-        plainMessage: largeMessage,
+        message: largeMessage,
       };
 
       await expect(transport.log(entry)).resolves.not.toThrow();
@@ -220,7 +220,7 @@ describe('NullTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: '特殊文字 🎉 \n\t\r',
-        plainMessage: '特殊文字 🎉 \n\t\r',
+        message: '特殊文字 🎉 \n\t\r',
       };
 
       await expect(transport.log(entry)).resolves.not.toThrow();

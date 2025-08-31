@@ -77,7 +77,7 @@ describe('OTLP Transport - MAGIC Schema Integration', () => {
         timestampMs: 1704067200000,
         level: 'info',
         message: 'Test message',
-        plainMessage: 'Test message',
+        message: 'Test message',
         schemaVersion: 'v1',
       };
 
@@ -99,14 +99,14 @@ describe('OTLP Transport - MAGIC Schema Integration', () => {
       expect(schemaAttr?.value.stringValue).toBe('v1');
     });
 
-    it('should use plainMessage for body when available', async () => {
+    it('should use message field (now always plain text)', async () => {
       const entry: LogEntry = {
         id: 'test-123',
         timestamp: '2024-01-01T00:00:00.000Z',
         timestampMs: 1704067200000,
         level: 'info',
-        message: '\x1b[31mColored message\x1b[0m',
-        plainMessage: 'Colored message',
+        message: 'Plain message text',
+        styles: [[0, 5, 'red.bold']], // Style info stored separately
       };
 
       await transport.log(entry);
@@ -115,8 +115,8 @@ describe('OTLP Transport - MAGIC Schema Integration', () => {
       const requestBody = JSON.parse(mockFetch.mock.calls[0][1].body) as OTLPRequestBody;
       const logRecord = requestBody.resourceLogs[0].scopeLogs[0].logRecords[0];
 
-      // Should use plain message for structured backends
-      expect(logRecord.body.stringValue).toBe('Colored message');
+      // Message is now always plain text
+      expect(logRecord.body.stringValue).toBe('Plain message text');
     });
 
     it('should map service and environment fields', async () => {

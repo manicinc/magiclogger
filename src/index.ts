@@ -277,10 +277,7 @@ export function createAsyncLogger(options: Partial<AsyncLoggerOptions> = {}): As
     message,
     timestamp: new Date().toISOString(),
     timestampMs: Date.now(),
-    plainMessage:
-      typeof message === 'string'
-        ? message.replace(new RegExp(String.fromCharCode(27) + '\\[[0-9;]*m', 'g'), '')
-        : String(message),
+    // Note: styles extraction could be added here in the future
     context: meta,
   });
 

@@ -1,13 +1,13 @@
 import { themes as prismThemes } from 'prism-react-renderer';
 import type { Config } from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
-import path from 'path';
-import fs from 'fs';
+import * as path from 'path';
+import * as fs from 'fs';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
 const config: Config = {
-  title: 'MagicLogger',
+  title: 'MagicLog',
   tagline: 'The most colorful TypeScript/JavaScript logging library 🌈',
   favicon: 'img/icon/favicon-32x32.png',
 
@@ -15,7 +15,7 @@ const config: Config = {
   url: 'https://manicinc.github.io',
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
-  baseUrl: '/magiclogger/',
+  baseUrl: '/',
 
   // GitHub pages deployment config.
   organizationName: 'manicinc', // Usually your GitHub org/user name.
@@ -65,15 +65,15 @@ const config: Config = {
 
   themeConfig: {
     // Replace with your project's social card
-    image: 'img/magiclogger-primary-white-4x.png',
+    image: 'img/magiclog-primary-no-subtitle-white-4x.png',
     navbar: {
-      title: 'MagicLogger',
+      title: 'MagicLog',
       logo: {
-        alt: 'MagicLogger Logo',
+        alt: 'MagicLog Logo',
         // Use transparent variant on light mode and dark variant on dark mode
         // so the logo is always visible and on-brand
-        src: 'img/magiclogger-primary-no-subtitle-transparent-4x.png',
-        srcDark: 'img/magiclogger-primary-no-subtitle-dark-4x.png',
+        src: 'img/magiclog-primary-no-subtitle-transparent-4x.png',
+        srcDark: 'img/magiclog-primary-no-subtitle-dark-4x.png',
       },
       items: [
         {
@@ -101,12 +101,8 @@ const config: Config = {
               to: '/docs/api_usage',
             },
             {
-              label: 'API Reference',
-              to: '/docs/api_usage',
-            },
-            {
-              label: 'Architecture',
-              to: '/docs/ARCHITECTURE',
+                label: 'architecture',
+                to: '/docs/architecture',
             },
           ],
         },

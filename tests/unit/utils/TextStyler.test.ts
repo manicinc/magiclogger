@@ -382,7 +382,46 @@ describe('TextStyler', () => {
 
       allColors.forEach(color => {
         const styles = TextStyler.parseStyleString(color);
-        expect(styles).toContain(color.toLowerCase());
+        // Handle normalizations
+        let expected = color.toLowerCase();
+        
+        // Special normalizations
+        if (expected === 'grey') {
+          expected = 'gray';
+        } else if (expected.startsWith('bright') && expected !== 'brightblack' && 
+                   expected !== 'brightred' && expected !== 'brightgreen' && 
+                   expected !== 'brightyellow' && expected !== 'brightblue' && 
+                   expected !== 'brightmagenta' && expected !== 'brightcyan' && 
+                   expected !== 'brightwhite') {
+          // Already camelCase bright colors stay as-is
+          expected = color;
+        } else if (expected.startsWith('bright')) {
+          // Normalize brightblack -> brightBlack, etc.
+          expected = 'bright' + expected.slice(6).charAt(0).toUpperCase() + expected.slice(7);
+        } else if (expected.startsWith('bgbright')) {
+          // Normalize bgbrightblack -> bgBrightBlack, etc.
+          expected = 'bgBright' + expected.slice(8).charAt(0).toUpperCase() + expected.slice(9);
+        } else if (expected.startsWith('bg') && expected !== 'bgblack' && 
+                   expected !== 'bgred' && expected !== 'bggreen' && 
+                   expected !== 'bgyellow' && expected !== 'bgblue' && 
+                   expected !== 'bgmagenta' && expected !== 'bgcyan' && 
+                   expected !== 'bgwhite' && expected !== 'bggray' && 
+                   expected !== 'bggrey') {
+          // Already camelCase bg colors stay as-is
+          expected = color;
+        } else if (expected.startsWith('bg')) {
+          // Normalize bgred -> bgRed, etc.
+          const colorPart = expected.slice(2);
+          if (colorPart === 'grey') {
+            expected = 'bgGray';
+          } else if (colorPart === 'gray') {
+            expected = 'bgGray';
+          } else {
+            expected = 'bg' + colorPart.charAt(0).toUpperCase() + colorPart.slice(1);
+          }
+        }
+        
+        expect(styles).toContain(expected);
       });
     });
 

@@ -16,7 +16,7 @@ describe('SecurityMiddleware', () => {
       timestampMs: 1704067200000,
       level: 'info',
       message: 'Test message',
-      plainMessage: 'Test message',
+      message: 'Test message',
       loggerId: 'test-logger',
       context: {},
     };
@@ -131,14 +131,7 @@ describe('SecurityMiddleware', () => {
       expect(result.entry?.message).toBe('This is a very long ...[truncated]');
     });
 
-    it('should truncate plainMessage separately', () => {
-      const middleware = new SecurityMiddleware({ maxMessageLength: 20 });
-      mockEntry.plainMessage = 'This is a very long plain message that exceeds the limit';
-
-      const result = middleware.process(mockEntry, mockContext);
-
-      expect(result.entry?.plainMessage).toBe('This is a very long ...[truncated]');
-    });
+    // plainMessage field removed - test no longer needed
   });
 
   describe('Context Sanitization', () => {

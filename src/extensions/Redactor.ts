@@ -783,9 +783,7 @@ export class Redactor {
     if (typeof redacted.message === 'string') {
       redacted.message = this.redactString(redacted.message, 'message') as string;
     }
-    if (typeof redacted.plainMessage === 'string') {
-      redacted.plainMessage = this.redactString(redacted.plainMessage, 'plainMessage') as string;
-    }
+    // Note: styles field doesn't need redaction as it only contains position/style info
     if (redacted.context && typeof redacted.context === 'object') {
       redacted.context = this.redactObject(
         redacted.context as Record<string, unknown>,

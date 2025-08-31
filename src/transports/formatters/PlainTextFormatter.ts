@@ -232,8 +232,8 @@ export class PlainTextFormatter {
       parts.push(`[${entry.tags.join(this.options.tagSeparator)}]`);
     }
 
-    // Message
-    parts.push(entry.plainMessage || entry.message);
+    // Message (now always plain text in the new schema)
+    parts.push(entry.message);
 
     // Build main line
     let mainLine = parts.join(this.options.fieldSeparator);
@@ -281,7 +281,7 @@ export class PlainTextFormatter {
     const replacements: Record<string, string> = {
       timestamp: this.formatTimestamp(entry.timestamp),
       level: this.options.uppercaseLevel ? entry.level.toUpperCase() : entry.level,
-      message: entry.plainMessage || entry.message,
+      message: entry.message,
       loggerId: entry.loggerId || '',
       tags: entry.tags?.join(this.options.tagSeparator) || '',
     };

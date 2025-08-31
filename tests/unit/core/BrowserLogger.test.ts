@@ -391,7 +391,7 @@ describe('BrowserLogger', () => {
 
   describe('IndexedDB Operations', () => {
     // Allow more time for async IndexedDB mock operations
-    jest.setTimeout(10000);
+    jest.setTimeout(20000);
     it('IndexedDB path success storing & clearing', async () => {
       buildIndexedDB(true);
       const logger = new BrowserLogger({

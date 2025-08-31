@@ -14,7 +14,6 @@ describe('AsyncBuffer', () => {
     timestampMs: Date.now(),
     level: 'info',
     message: `Test message ${id}`,
-    plainMessage: `Test message ${id}`,
   });
 
   beforeEach(() => {

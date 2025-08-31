@@ -53,6 +53,9 @@ export default defineConfig(options => {
     // Validation (tree-shakeable, optional)
     'validation/index': 'src/validation/index.ts',
 
+    // Custom colors (tree-shakeable, optional)
+    'colors/CustomColorRegistry': 'src/colors/CustomColorRegistry.ts',
+
     // Utils (core utilities)
     'utils/enhanced-console': 'src/utils/EnhancedConsole.ts',
     'utils/trace-context': 'src/utils/trace-context.ts',

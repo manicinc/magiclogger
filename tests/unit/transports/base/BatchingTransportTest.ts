@@ -58,7 +58,7 @@ describe('BatchingTransport', () => {
       timestampMs: Date.now(),
       level: 'info',
       message: 'Test message',
-      plainMessage: 'Test message',
+      message: 'Test message',
       loggerId: 'test-logger',
       tags: ['test'],
       context: { test: true },

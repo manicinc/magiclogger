@@ -47,7 +47,7 @@ describe('ConsoleTransport', () => {
       timestampMs: Date.now(),
       level: 'info',
       message: 'Test message',
-      plainMessage: 'Test message',
+      message: 'Test message',
       loggerId: 'test-logger',
       tags: ['test', 'unit'],
       context: { test: true, value: 42 },
@@ -426,7 +426,7 @@ describe('ConsoleTransport', () => {
     it('should handle very long messages', async () => {
       const longMessage = 'x'.repeat(1000);
       consoleMocks.info.mockClear();
-      await transport.log({ ...mockEntry, message: longMessage, plainMessage: longMessage });
+      await transport.log({ ...mockEntry, message: longMessage });
 
       const out = consoleMocks.info.mock.calls[0]?.[0] as string;
       expect(out).toContain(longMessage);

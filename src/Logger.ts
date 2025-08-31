@@ -355,6 +355,12 @@ export class Logger {
           enabled: true,
           level: this.options.verbose ? 'debug' : 'info',
           useColors: this.options.useColors ?? true,
+          format: 'plain', // Use plain format for styled console output
+          showTimestamp: true,
+          showLevel: true,
+          showLoggerId: false,
+          showTags: true,
+          showMetadata: false,
         });
 
         this.transportManager.registerTransport(consoleTransport).catch(error => {
@@ -378,8 +384,17 @@ export class Logger {
   /**
    * Creates a structured log entry from raw log data.
    * @private
+   * @param {LogLevel} level - Log level
+   * @param {string} message - Message with ANSI codes
+   * @param {LogEntryMeta} meta - Optional metadata
+   * @param {StyleRange[]} styles - Optional extracted styles
    */
-  private createLogEntry(level: LogLevel, message: string, meta?: LogEntryMeta): LogEntry {
+  private createLogEntry(
+    level: LogLevel, 
+    message: string, 
+    meta?: LogEntryMeta,
+    styles?: import('./types/transport').StyleRange[]
+  ): LogEntry {
     const now = new Date();
 
     // Extract error and context from metadata
@@ -408,14 +423,17 @@ export class Logger {
       context = meta as Record<string, unknown> | undefined;
     }
 
+    // Extract plain message (no ANSI codes)
+    const plainMessage = this.stripAnsiCodes(message);
+    
     // Create complete log entry
     const entry: LogEntry = {
       id: this.idGenerator(),
       timestamp: now.toISOString(),
       timestampMs: now.getTime(),
       level,
-      message,
-      plainMessage: this.stripAnsiCodes(message),
+      message: plainMessage, // Store plain text as primary message
+      styles: styles, // Store extracted styles if provided
       loggerId: this.options.id,
       tags: this.options.tags,
       context: context || this.options.context,
@@ -769,13 +787,21 @@ export class Logger {
    * @returns {void}
    */
   public log(msg: string, level: LogLevel = 'info', meta?: LogEntryMeta): void {
-    // Parse angle bracket syntax if present
+    let entry: LogEntry;
+    
+    // Parse angle bracket syntax if present and extract styles
     if (msg && msg.includes('<')) {
-      msg = this.parseBrackets(msg);
+      const result = TextStyler.parseBracketsWithExtraction(msg, this.useColors);
+      
+      // Create structured log entry with extracted plain text and styles
+      entry = this.createLogEntry(level, result.plainText, meta, result.styles);
+      
+      // Store the styled version for console output
+      (entry as any)._styledMessage = result.styledText;
+    } else {
+      // No angle brackets, just create entry normally
+      entry = this.createLogEntry(level, msg, meta, undefined);
     }
-
-    // Create structured log entry
-    const entry = this.createLogEntry(level, msg, meta);
 
     // Send to transports if available
     if (this.transportManager && this.transportManager.getTransportNames().length > 0) {
@@ -1253,6 +1279,11 @@ export class Logger {
 
     // Update internal options
     (this.options as { theme: Record<string, ColorName[]> }).theme = validated;
+    
+    // Also update the theme manager if it exists
+    if (this.themeManager) {
+      this.themeManager.setTheme(validated);
+    }
   }
 
   /**
@@ -1298,6 +1329,134 @@ export class Logger {
       this.transportManager;
 
     return childLogger;
+  }
+
+  /**
+   * Register custom colors for use in themes and styling.
+   * 
+   * ⚠️ WARNING: Custom colors may not work in all terminals!
+   * Use predefined colors for maximum compatibility.
+   * 
+   * @param {string} name - Custom color name
+   * @param {object} definition - Color definition
+   * @param {string} [definition.hex] - Hex color (e.g., '#FF5733')
+   * @param {[number, number, number]} [definition.rgb] - RGB values
+   * @param {number} [definition.code256] - 256-color palette code
+   * @param {string} [definition.ansi] - Direct ANSI escape sequence
+   * @param {string} [definition.fallback] - Fallback color name
+   * 
+   * @example
+   * ```typescript
+   * // Register a custom brand color
+   * logger.registerCustomColor('brandOrange', {
+   *   hex: '#FF5733',
+   *   fallback: 'orange'
+   * });
+   * 
+   * // Use in theme
+   * logger.setTheme({
+   *   header: ['brandOrange', 'bold']
+   * });
+   * ```
+   */
+  public registerCustomColor(
+    name: string,
+    definition: {
+      hex?: string;
+      rgb?: [number, number, number];
+      code256?: number;
+      ansi?: string;
+      fallback?: string;
+      description?: string;
+    }
+  ): void {
+    // Lazy load the custom color registry
+    import('./colors/CustomColorRegistry')
+      .then(({ getCustomColorRegistry }) => {
+        const registry = getCustomColorRegistry();
+        registry.registerColor(name, definition);
+        
+        // Clear Colorizer cache to pick up new colors
+        Colorizer.clearCache();
+      })
+      .catch(err => {
+        console.error('[Logger] Failed to register custom color:', err);
+      });
+  }
+
+  /**
+   * Register multiple custom colors at once.
+   * 
+   * @param {Record<string, object>} colors - Map of color definitions
+   * 
+   * @example
+   * ```typescript
+   * logger.registerCustomColors({
+   *   brandPrimary: { hex: '#FF5733', fallback: 'orange' },
+   *   brandSecondary: { hex: '#3366FF', fallback: 'blue' },
+   *   brandAccent: { rgb: [0, 255, 127], fallback: 'green' }
+   * });
+   * ```
+   */
+  public registerCustomColors(
+    colors: Record<string, {
+      hex?: string;
+      rgb?: [number, number, number];
+      code256?: number;
+      ansi?: string;
+      fallback?: string;
+      description?: string;
+    }>
+  ): void {
+    // Lazy load the custom color registry
+    import('./colors/CustomColorRegistry')
+      .then(({ getCustomColorRegistry }) => {
+        const registry = getCustomColorRegistry();
+        registry.registerColors(colors);
+        
+        // Clear Colorizer cache to pick up new colors
+        Colorizer.clearCache();
+      })
+      .catch(err => {
+        console.error('[Logger] Failed to register custom colors:', err);
+      });
+  }
+
+  /**
+   * Remove a custom color registration.
+   * 
+   * @param {string} name - Color name to remove
+   * @returns {Promise<boolean>} True if removed
+   */
+  public async removeCustomColor(name: string): Promise<boolean> {
+    try {
+      const { getCustomColorRegistry } = await import('./colors/CustomColorRegistry');
+      const registry = getCustomColorRegistry();
+      const removed = registry.removeColor(name);
+      
+      if (removed) {
+        Colorizer.clearCache();
+      }
+      
+      return removed;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Get list of all registered custom colors.
+   * 
+   * @returns {Promise<string[]>} Array of custom color names
+   */
+  public async getCustomColors(): Promise<string[]> {
+    try {
+      const { getCustomColorRegistry } = await import('./colors/CustomColorRegistry');
+      const registry = getCustomColorRegistry();
+      return registry.getColorNames();
+    } catch {
+      return [];
+    }
   }
 
   // ============================================================

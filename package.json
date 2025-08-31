@@ -119,6 +119,20 @@
         "default": "./dist/validation/index.cjs"
       }
     },
+    "./colors/CustomColorRegistry": {
+      "browser": {
+        "types": "./dist/colors/CustomColorRegistry.d.ts",
+        "default": "./dist/browser/colors/CustomColorRegistry.js"
+      },
+      "import": {
+        "types": "./dist/colors/CustomColorRegistry.d.ts",
+        "default": "./dist/colors/CustomColorRegistry.js"
+      },
+      "require": {
+        "types": "./dist/colors/CustomColorRegistry.d.cts",
+        "default": "./dist/colors/CustomColorRegistry.cjs"
+      }
+    },
     "./utils/trace-context": {
       "browser": {
         "types": "./dist/utils/trace-context.d.ts",

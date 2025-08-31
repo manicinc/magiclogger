@@ -225,7 +225,7 @@ export class RateLimiter {
   private recordDropped(key: string): void {
     const count = (this.droppedCounts.get(key) || 0) + 1;
     this.droppedCounts.set(key, count);
-    if (count % 100 === 0) {
+    if (count % 100 === 0 && this.options.onLimit) {
       this.options.onLimit(key, count);
     }
   }

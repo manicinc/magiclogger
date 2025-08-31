@@ -16,16 +16,16 @@ const examples = [
 
 const logger = new Logger();
 
-// It just works™
-logger.info('Server started successfully');
-logger.warn('Memory usage is high', { usage: '85%' });
-logger.error('Failed to connect', new Error('ECONNREFUSED'));
+// Beautiful logs with angle bracket syntax
+logger.info('<cyan.bold>Server started</> on port <yellow>3000</>');
+logger.warn('<yellow>⚠</> Memory usage <red.bold>high</>', { usage: '85%' });
+logger.error('Connection failed', new Error('ECONNREFUSED'));
 
-// Pretty printing built-in
-logger.success('✅ All tests passed!');
-logger.rainbow('🌈 Make logging fun again!');
+// The MAGIC Schema preserves your styles everywhere
+logger.success('<green>✅ All tests passed!</>');
+logger.header('Application Metrics', ['cyan', 'bold']);
 
-// Structured data? We got you
+// Rich formatting
 logger.table([
   { name: 'Alice', role: 'Developer', status: 'Active' },
   { name: 'Bob', role: 'Designer', status: 'Away' }

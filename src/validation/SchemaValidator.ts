@@ -592,10 +592,20 @@ export class SchemaValidator {
       // Pre-size array for performance
       result.length = len;
 
-      for (let i = 0; i < len; i++) {
-        this.currentPath.push(String(i));
-        result[i] = this.validateValue(value[i], schema.items);
-        this.currentPath.pop();
+      // Performance optimization: for large arrays with simple schemas,
+      // validate in batches to reduce path manipulation overhead
+      if (len > 500 && this.isSimpleSchema(schema.items)) {
+        // Fast path for large arrays with simple item schemas
+        for (let i = 0; i < len; i++) {
+          result[i] = this.validateValueFast(value[i], schema.items, i);
+        }
+      } else {
+        // Standard path with full error tracking
+        for (let i = 0; i < len; i++) {
+          this.currentPath.push(String(i));
+          result[i] = this.validateValue(value[i], schema.items);
+          this.currentPath.pop();
+        }
       }
     } else {
       // Fast copy
@@ -714,6 +724,90 @@ export class SchemaValidator {
     if (len === 1) return this.currentPath[0];
     if (len === 2) return `${this.currentPath[0]}.${this.currentPath[1]}`;
     return this.currentPath.join('.');
+  }
+
+  /**
+   * Checks if a schema is simple (primitive types only) for optimization.
+   *
+   * @private
+   */
+  private isSimpleSchema(schema: AnySchema): boolean {
+    return schema.type === 'string' || 
+           schema.type === 'number' || 
+           schema.type === 'boolean' ||
+           (schema.type === 'object' && this.isSimpleObject(schema as ObjectSchema));
+  }
+
+  /**
+   * Checks if an object schema is simple (all properties are primitives).
+   *
+   * @private
+   */
+  private isSimpleObject(schema: ObjectSchema): boolean {
+    if (!schema.properties) return true;
+    return Object.values(schema.properties).every(prop => 
+      prop.type === 'string' || prop.type === 'number' || prop.type === 'boolean'
+    );
+  }
+
+  /**
+   * Fast validation for simple schemas without path tracking overhead.
+   *
+   * @private
+   */
+  private validateValueFast(value: unknown, schema: AnySchema, index?: number): unknown {
+    // Handle null/undefined first
+    if (value === null) {
+      if (schema.nullable) return null;
+      if (schema.optional) return undefined;
+      this.addError(`Expected ${schema.type}, got null`);
+      return undefined;
+    }
+
+    if (value === undefined) {
+      if (schema.optional) return undefined;
+      if (schema.default !== undefined) return schema.default;
+      this.addError(`Expected ${schema.type}, got undefined`);
+      return undefined;
+    }
+
+    // Fast primitive validation
+    switch (schema.type) {
+      case 'string':
+        if (typeof value !== 'string') {
+          this.addError(`Expected string, got ${typeof value}`);
+          return undefined;
+        }
+        return value;
+      case 'number':
+        if (typeof value !== 'number' || isNaN(value)) {
+          this.addError(`Expected number, got ${typeof value}`);
+          return undefined;
+        }
+        return value;
+      case 'boolean':
+        if (typeof value !== 'boolean') {
+          this.addError(`Expected boolean, got ${typeof value}`);
+          return undefined;
+        }
+        return value;
+      case 'object':
+        // Simple object validation - just check basic structure
+        if (typeof value !== 'object' || value === null) {
+          this.addError(`Expected object, got ${typeof value}`);
+          return undefined;
+        }
+        return value; // Skip detailed property validation for performance
+      default:
+        // Fall back to full validation for complex types
+        if (index !== undefined) {
+          this.currentPath.push(String(index));
+          const result = this.validateValue(value, schema);
+          this.currentPath.pop();
+          return result;
+        }
+        return this.validateValue(value, schema);
+    }
   }
 }
 

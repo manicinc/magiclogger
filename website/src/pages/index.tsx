@@ -32,8 +32,8 @@ export default function Home(): JSX.Element {
         <ArchitectureSection />
         <PerformanceSection />
         <CodeExamplesSection />
-        <IntegrationSection />
-        <TestimonialsSection />
+        {/* <IntegrationSection /> */}
+        {/* <TestimonialsSection /> */}
         <CTASection />
       </main>
     </Layout>

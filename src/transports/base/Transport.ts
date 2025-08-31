@@ -480,7 +480,7 @@ export abstract class Transport extends EventEmitter implements ITransport {
       parts.push(`[${entry.tags.join(',')}]`);
     }
 
-    parts.push(entry.plainMessage || entry.message);
+    parts.push(entry.message);
 
     if (entry.error) {
       parts.push(`\nError: ${entry.error.message}`);

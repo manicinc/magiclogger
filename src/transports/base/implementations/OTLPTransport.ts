@@ -417,8 +417,8 @@ export class OTLPTransport extends BatchingTransport {
       severityNumber: this.getSeverityNumber(entry.level),
       severityText: entry.level.toUpperCase(),
       body: {
-        // Use plain message for structured backends
-        stringValue: entry.plainMessage || entry.message,
+        // Message is now always plain text in the new schema
+        stringValue: entry.message,
       },
       attributes: [],
     };

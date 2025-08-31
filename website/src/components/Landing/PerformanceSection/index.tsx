@@ -7,34 +7,34 @@ import styles from './styles.module.css';
 
 const benchmarks = {
   sync: {
-    title: 'Synchronous Performance',
-    description: 'Direct logging throughput - no buffering',
+    title: 'Synchronous Performance (Styled)',
+    description: 'Direct logging throughput with color styling - no buffering',
     data: [
-      { name: 'MagicLogger', value: 850000, percentage: 100, color: '#667eea' },
-      { name: 'Pino', value: 800000, percentage: 94, color: '#4facfe' },
-      { name: 'Console.log', value: 200000, percentage: 24, color: '#43e97b' },
-      { name: 'Bunyan', value: 120000, percentage: 14, color: '#fa709a' },
-      { name: 'Winston', value: 40000, percentage: 5, color: '#fee140' }
+      { name: 'Winston', value: 72452, percentage: 100, color: '#fee140' },
+      { name: 'Bunyan', value: 66602, percentage: 92, color: '#fa709a' },
+      { name: 'Pino', value: 46701, percentage: 64, color: '#4facfe' },
+      { name: 'MagicLogger', value: 38203, percentage: 53, color: '#667eea' }
     ]
   },
   async: {
-    title: 'Async Performance',
-    description: 'With ring buffer enabled - production mode',
+    title: 'Async Performance (Styled)',
+    description: 'With ring buffer enabled - production mode with colors',
     data: [
-      { name: 'MagicLogger', value: 2500000, percentage: 100, color: '#667eea' },
-      { name: 'Pino (worker)', value: 400000, percentage: 16, color: '#4facfe' },
-      { name: 'Bunyan', value: 30000, percentage: 1.2, color: '#fa709a' },
-      { name: 'Winston', value: 15000, percentage: 0.6, color: '#fee140' }
+      { name: 'Pino', value: 145778, percentage: 100, color: '#4facfe' },
+      { name: 'MagicLogger', value: 135186, percentage: 93, color: '#667eea' },
+      { name: 'Winston', value: 77813, percentage: 53, color: '#fee140' }
     ]
   },
   bundle: {
     title: 'Bundle Size',
     description: 'Minified + Gzipped - what your users download',
     data: [
-      { name: 'MagicLogger', value: 12, percentage: 100, color: '#667eea', unit: 'KB' },
-      { name: 'Pino', value: 45, percentage: 27, color: '#4facfe', unit: 'KB' },
-      { name: 'Winston', value: 180, percentage: 7, color: '#fee140', unit: 'KB' },
-      { name: 'Bunyan', value: 65, percentage: 18, color: '#fa709a', unit: 'KB' }
+      { name: 'MagicLogger Core', value: 38, percentage: 100, color: '#667eea', unit: 'KB' },
+      { name: 'MagicLogger + Console', value: 39, percentage: 97, color: '#9945ff', unit: 'KB' },
+      { name: 'MagicLogger + Transports', value: 50, percentage: 76, color: '#00d4ff', unit: 'KB' },
+      { name: 'Pino', value: 45, percentage: 84, color: '#4facfe', unit: 'KB' },
+      { name: 'Bunyan', value: 65, percentage: 58, color: '#fa709a', unit: 'KB' },
+      { name: 'Winston', value: 180, percentage: 21, color: '#fee140', unit: 'KB' }
     ]
   }
 };
@@ -105,10 +105,11 @@ export default function PerformanceSection() {
         {/* Performance insights */}
         <div className={styles.performanceInsights}>
           <div className={styles.insight}>
-            <h4>Why is MagicLogger so fast?</h4>
+            <h4>Performance Note</h4>
             <p>
-              Zero heap allocations, monomorphic functions, and a ring buffer architecture 
-              designed for V8's JIT compiler. We obsess over every nanosecond.
+              MagicLogger prioritizes developer experience with rich color styling and the MAGIC Schema standard.
+              While slightly slower than minimalist loggers, async mode delivers 135,000+ ops/sec with full styling - 
+              more than sufficient for production workloads. The tradeoff: beautiful, readable logs everywhere.
             </p>
           </div>
         </div>

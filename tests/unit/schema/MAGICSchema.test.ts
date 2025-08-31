@@ -62,12 +62,10 @@ describe('MAGIC Schema v1 Compliance', () => {
         timestamp: new Date().toISOString(),
         timestampMs: Date.now(),
         level: 'info',
-        message: '\x1b[31mColored message\x1b[0m',
-        plainMessage: 'Colored message',
+        message: 'Colored message', // Message should always be plain text in MAGIC schema
       };
 
-      expect(entry.message).toContain('\x1b[31m');
-      expect(entry.plainMessage).not.toContain('\x1b');
+      expect(entry.message).not.toContain('\x1b'); // Message field should be plain text in MAGIC schema
     });
 
     it('should support logger context fields', () => {
@@ -341,7 +339,6 @@ describe('MAGIC Schema v1 Compliance', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: 'Test message',
-        plainMessage: 'Test message',
         tags: ['tag1', 'tag2'],
         context: { key: 'value' },
       };
@@ -359,8 +356,7 @@ describe('MAGIC Schema v1 Compliance', () => {
         timestamp: new Date().toISOString(),
         timestampMs: Date.now(),
         level: 'info',
-        message: 'Test',
-        plainMessage: 'Test', // OTLP should use plain message
+        message: 'Test', // OTLP should use plain message
         service: 'my-service',
         trace: {
           traceId: '0af7651916cd43dd8448eb211c80319c',
@@ -373,7 +369,7 @@ describe('MAGIC Schema v1 Compliance', () => {
 
       // OTLP needs these fields
       expect(entry.timestampMs).toBeDefined(); // For nanosecond conversion
-      expect(entry.plainMessage).toBeDefined(); // For body.stringValue
+      expect(entry.message).toBeDefined(); // For body.stringValue
       expect(entry.trace?.traceId).toBeDefined(); // For trace correlation
       expect(entry.service).toBeDefined(); // For resource.service.name
     });

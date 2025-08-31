@@ -6,6 +6,12 @@ import type { LogLevel } from './logger';
 export type { LogLevel };
 
 /**
+ * Style range for efficient storage of formatting information.
+ * Tuple format: [startIndex, endIndex, styleDescriptor]
+ */
+export type StyleRange = [number, number, string];
+
+/**
  * Connection state for network transports.
  */
 export type ConnectionState =
@@ -55,15 +61,17 @@ export interface LogEntry {
   level: LogLevel;
 
   /**
-   * The formatted log message (may include ANSI codes).
+   * Plain text log message without any formatting codes.
+   * This is the primary message content for all transports.
    */
   message: string;
 
   /**
-   * Plain text message with ANSI codes stripped.
-   * Used for structured storage and non-TTY transports.
+   * Optional style ranges for reconstructing formatted output.
+   * Each entry is [startIndex, endIndex, styleDescriptor].
+   * Example: [[0, 6, "red.bold"], [12, 29, "cyan"]]
    */
-  plainMessage?: string;
+  styles?: Array<[number, number, string]>;
 
   // === LOGGER CONTEXT ===
   /**

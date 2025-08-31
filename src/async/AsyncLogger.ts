@@ -280,7 +280,7 @@ export class AsyncLogger {
         timestampMs: now,
         level,
         message: msg,
-        plainMessage: msg,
+        // Note: styles extraction could be added here in the future
         context: meta,
       };
     };
