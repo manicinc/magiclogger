@@ -246,7 +246,6 @@ The MAGIC Schema maps directly to OpenTelemetry's log data model:
 
 📖 **Full Documentation**: See the [MAGIC Schema Specification](./docs/magic_schema.md) for complete field definitions, examples, and integration guides.
 
-
 ## 🌍 Cross-Language SDK Compatibility
 
 ### The MAGIC Format Specification
