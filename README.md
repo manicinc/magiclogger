@@ -33,9 +33,9 @@
 
 ## Table of Contents
 
-- [Key Features](#key-features)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
+- [Key Features](#key-features)
 - [MAGIC Schema](#magic-schema)
 - [Styling APIs](#styling-apis)
 - [Advanced Features](#advanced-features)

@@ -203,6 +203,6 @@ For the complete MAGIC schema specification, see [magic_schema.md](./magic_schem
 
 ## Related Documentation
 
-- [Theming System](./theming) - How themes work with MAGIC
+- [Custom Colors](./custom_colors) - How themes and colors work with MAGIC
 - [Context and Tags](./context-and-tags) - Tag-based styling system
 - [Architecture](./architecture) - Overall system design
