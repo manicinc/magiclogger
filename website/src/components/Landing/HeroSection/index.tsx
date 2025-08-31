@@ -4,43 +4,29 @@ import React from 'react';
 import clsx from 'clsx';
 import Link from '@docusaurus/Link';
 import Heading from '@theme/Heading';
-import AnimatedBackground from '@site/src/components/Landing/AnimatedBackground';
 import InteractiveDemo from '@site/src/components/Landing/InteractiveDemo';
 import { useTypingEffect, useCounter } from '@site/src/hooks/animations';
 import { useColorMode } from '@docusaurus/theme-common';
 import styles from './styles.module.css';
 
 export default function HeroSection() {
-  const { displayedText } = useTypingEffect('Stop squinting at ugly console logs', 40);
+  const { displayedText } = useTypingEffect('High-performance async and sync logging for modern JavaScript', 40);
   const { colorMode } = useColorMode();
   const isDarkTheme = colorMode === 'dark';
-  const heroLogoSrc = isDarkTheme
-    ? '/img/magiclog-primary-no-subtitle-dark-4x.png'
-    : '/img/magiclog-primary-no-subtitle-transparent-4x.png';
   
   return (
     <header className={styles.heroSection}>
-      <AnimatedBackground variant="datacenter" />
-      
       <div className="container">
         <div className={styles.heroGrid}>
           <div className={styles.heroContent}>
-            {/* Logo with proper MagicLog branding */}
+            {/* Single Logo - No duplication, larger size */}
             <div className={styles.logoContainer}>
-              <div className={styles.logoWrapper}>
-                <img
-                  src={heroLogoSrc}
-                  alt="MagicLog"
-                  className={styles.heroLogo}
-                />
-                <div className={styles.logoGlow} />
-                <div className={styles.dataStream} />
-              </div>
+              <img
+                src="/img/magiclog-primary-no-subtitle-transparent-4x.png"
+                alt="MagicLog"
+                className={styles.heroLogo}
+              />
             </div>
-
-            <Heading as="h1" className={styles.heroTitle}>
-              <span className={styles.magicText}>MagicLog</span>
-            </Heading>
 
             <p className={styles.heroTagline}>
               The Universal Color Logging Standard
@@ -52,35 +38,34 @@ export default function HeroSection() {
             </p>
 
             <p className={styles.heroSubDescription}>
-              Transform your debugging experience with <span className={styles.highlight}>intelligent logging</span> that actually{' '}
-              <span className={styles.highlight}>makes sense</span>. See patterns, track performance, and{' '}
-              <span className={styles.highlight}>ship faster</span> with confidence.
+              <span className={styles.highlight}>High-performance async logging</span> that never crashes from memory issues.{' '}
+              <span className={styles.highlight}>Synchronous logging</span> for secure auditing and guaranteed delivery.{' '}
+              Built with the <span className={styles.highlight}>MAGIC schema</span> for universal style preservation.
             </p>
 
             {/* CTA Buttons */}
             <div className={styles.heroActions}>
               <Link
-                className={clsx('button', styles.primaryButton)}
+                className={clsx('button button--primary', styles.primaryButton)}
                 to="/docs/">
                 <ServerIcon />
-                <span>Start Logging</span>
-                <span className={styles.buttonGlow} />
+                <span>Get Started</span>
               </Link>
               
-              <button
-                className={clsx('button', styles.dashboardButton, styles.comingSoon)}
-                disabled>
-                <DashboardIcon />
-                <span>Dashboard - Coming Soon</span>
-              </button>
+              <Link
+                className={clsx('button button--secondary', styles.secondaryButton)}
+                to="/api/">
+                <ApiIcon />
+                <span>API Documentation</span>
+              </Link>
               
               <a
-                className={clsx('button', styles.landingButton)}
-                href="https://magiclog.io"
+                className={clsx('button button--secondary', styles.githubButton)}
+                href="https://github.com/manicinc/magiclogger"
                 target="_blank"
                 rel="noopener noreferrer">
-                <span>About MagicLog</span>
-                <ExternalIcon />
+                <GithubIcon />
+                <span>View on GitHub</span>
               </a>
             </div>
 
@@ -105,33 +90,33 @@ export default function HeroSection() {
               </div>
             </div>
 
-            {/* Live Stats */}
+            {/* Updated Stats with correct performance numbers */}
             <div className={styles.heroStats}>
               <StatCard 
-                value={38} 
+                value={39} 
                 unit="KB" 
                 label="Core (gzip)" 
                 icon={<PackageIcon />}
                 color="purple" 
               />
               <StatCard 
-                value={135} 
-                unit="K/s" 
+                value={85} 
+                unit="K ops/s" 
                 label="Async Styled" 
                 icon={<SpeedIcon />}
                 color="cyan" 
               />
               <StatCard 
-                value={0} 
-                label="Dependencies" 
-                icon={<ZeroIcon />}
+                value={22} 
+                unit="K ops/s" 
+                label="Sync Styled" 
+                icon={<SyncIcon />}
                 color="green" 
               />
               <StatCard 
-                value={100} 
-                unit="%" 
-                label="TypeScript" 
-                icon={<StarIcon />}
+                value={0} 
+                label="Dependencies" 
+                icon={<ZeroIcon />}
                 color="yellow" 
               />
             </div>
@@ -142,12 +127,6 @@ export default function HeroSection() {
             <InteractiveDemo />
           </div>
         </div>
-      </div>
-
-      {/* Scroll indicator */}
-      <div className={styles.scrollIndicator}>
-        <div className={styles.scrollArrow} />
-        <span className={styles.scrollText}>Explore Features</span>
       </div>
     </header>
   );
@@ -181,23 +160,20 @@ function ServerIcon() {
   );
 }
 
-function DashboardIcon() {
+function ApiIcon() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M4 13h6c.55 0 1-.45 1-1V4c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v8c0 .55.45 1 1 1zm0 8h6c.55 0 1-.45 1-1v-4c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v4c0 .55.45 1 1 1zm10 0h6c.55 0 1-.45 1-1v-8c0-.55-.45-1-1-1h-6c-.55 0-1 .45-1 1v8c0 .55.45 1 1 1zM13 4v4c0 .55.45 1 1 1h6c.55 0 1-.45 1-1V4c0-.55-.45-1-1-1h-6c-.55 0-1 .45-1 1z"/>
-      <circle cx="8" cy="8" r="1" fill="#00ff88"/>
-      <circle cx="8" cy="18" r="1" fill="#00d4ff"/>
-      <circle cx="18" cy="8" r="1" fill="#9945ff"/>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M4 7h6l1 -2h6l1 2h6"/>
+      <rect x="3" y="7" width="18" height="13" rx="2"/>
+      <path d="M8 12h.01M12 12h.01M16 12h.01M8 16h8"/>
     </svg>
   );
 }
 
-function ExternalIcon() {
+function GithubIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-      <polyline points="15 3 21 3 21 9"/>
-      <line x1="10" y1="14" x2="21" y2="3"/>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.17 6.839 9.49.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.167 22 16.418 22 12c0-5.523-4.477-10-10-10z"/>
     </svg>
   );
 }
@@ -229,19 +205,19 @@ function SpeedIcon() {
   );
 }
 
+function SyncIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0020 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74A7.93 7.93 0 004 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/>
+    </svg>
+  );
+}
+
 function ZeroIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
       <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"/>
       <path d="M8 12c0-2.21 1.79-4 4-4s4 1.79 4 4-1.79 4-4 4-4-1.79-4-4z"/>
-    </svg>
-  );
-}
-
-function StarIcon() {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
     </svg>
   );
 }

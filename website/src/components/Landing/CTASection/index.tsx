@@ -36,16 +36,17 @@ export default function CTASection() {
               rel="noopener noreferrer">
               <GitHubIcon />
               <span>Star on GitHub</span>
-              <span className={styles.starCount}>⭐ 2.3k</span>
             </a>
           </div>
 
+          {/* Stats section - commented out until we have real numbers
           <div className={styles.ctaStats}>
             <StatCard number="50M+" label="Logs Daily" icon="📊" />
             <StatCard number="10k+" label="Happy Devs" icon="😊" />
             <StatCard number="99.9%" label="Uptime" icon="✅" />
             <StatCard number="24/7" label="Support" icon="🛟" />
           </div>
+          */}
         </div>
 
         {/* Quick start terminal */}

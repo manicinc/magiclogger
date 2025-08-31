@@ -19,7 +19,7 @@ const layers = [
     name: 'Logger Core',
     color: '#764ba2',
     description: 'Lightweight orchestration layer that manages everything',
-    features: ['12KB minified', 'Zero dependencies', 'Extensible architecture']
+    features: ['39KB gzipped', 'Zero dependencies', 'Extensible architecture']
   },
   {
     id: 'transports',

@@ -18,37 +18,30 @@ logger.progress(0.75);`,
   },
   {
     icon: '⚡',
-    title: 'Insanely Fast',
-    description: 'Faster than console.log with zero overhead. Handle millions of logs without breaking a sweat.',
-    stats: ['850k ops/sec sync', '2.5M ops/sec async', 'Zero dependencies', 'Tree-shakeable'],
+    title: 'Blazing Fast Performance',
+    description: 'High-performance async logging that never crashes from memory issues. Synchronous logging for secure auditing.',
+    stats: ['85K ops/s async styled', '22K ops/s sync styled', 'Zero dependencies', 'Tree-shakeable'],
     gradient: 'lightning'
   },
   {
     icon: '🧠',
-    title: 'Intelligent Context',
-    description: 'Automatically capture and organize metadata. Track requests, trace errors, and understand your app\'s behavior.',
-    features: ['Auto Request IDs', 'Error Stack Traces', 'Performance Metrics', 'User Context'],
+    title: 'MAGIC Schema',
+    description: 'Universal style preservation with our MAGIC schema. Maintain consistent formatting across all transports.',
+    features: ['Style Preservation', 'Cross-Transport', 'Universal Format', 'Color Consistency'],
     gradient: 'brain'
-  },
-  {
-    icon: '🔄',
-    title: '100% Compatible',
-    description: 'Drop-in replacement for Winston, Bunyan, or Pino. Switch in seconds, not hours.',
-    compatibility: ['Winston API', 'Bunyan Streams', 'Pino Speed', 'Console Fallback'],
-    gradient: 'compatibility'
   },
   {
     icon: '🚀',
     title: 'Ship Anywhere',
-    description: 'One logger, infinite destinations. Console, files, HTTP, S3, databases - we\'ve got you covered.',
-    transports: ['Console', 'File', 'HTTP/S', 'S3', 'MongoDB', 'WebSocket', 'Custom'],
+    description: 'One logger, infinite destinations. From console to cloud, we support all major transports.',
+    transports: ['Console', 'File', 'HTTP/S', 'S3', 'MongoDB', 'PostgreSQL', 'WebSocket', 'OTLP', 'Stream'],
     gradient: 'rocket'
   },
   {
     icon: '🛡️',
     title: 'Production Ready',
-    description: 'Battle-tested in production with built-in error handling, retries, and graceful degradation.',
-    features: ['Error Boundaries', 'Auto Retry', 'Circuit Breaker', 'Dead Letter Queue'],
+    description: 'Battle-tested with built-in extensions for rate limiting, sampling, redaction, and queue management.',
+    features: ['Rate Limiter', 'Sampler', 'Redactor', 'Queue Manager'],
     gradient: 'shield'
   },
   {
@@ -60,17 +53,24 @@ logger.progress(0.75);`,
   },
   {
     icon: '📊',
-    title: 'Built-in Analytics',
-    description: 'Track performance, monitor errors, and visualize patterns without external tools.',
-    analytics: ['Performance Tracking', 'Error Rates', 'Log Volume', 'Custom Metrics'],
+    title: 'OpenTelemetry Support',
+    description: 'Native OpenTelemetry integration for distributed tracing and observability.',
+    features: ['Trace Context', 'Span Integration', 'OTLP Export', 'W3C Standards'],
     gradient: 'analytics'
   },
   {
-    icon: '🔍',
-    title: 'Powerful Search',
-    description: 'Find any log instantly with our built-in search and filtering capabilities.',
-    search: ['Full Text Search', 'Structured Queries', 'Time Ranges', 'Saved Filters'],
-    gradient: 'search'
+    icon: '🔧',
+    title: 'Flexible Architecture',
+    description: 'Extensible design with custom transports, formatters, and processors.',
+    features: ['Custom Transports', 'Custom Formatters', 'Middleware Support', 'Plugin System'],
+    gradient: 'tools'
+  },
+  {
+    icon: '🎯',
+    title: 'TypeScript First',
+    description: '100% TypeScript with full type safety, autocomplete, and IntelliSense support.',
+    features: ['Full Type Safety', 'Autocomplete', 'IntelliSense', 'Type Guards'],
+    gradient: 'typescript'
   }
 ];
 
@@ -143,17 +143,6 @@ function FeatureCard({ feature, index }) {
         </div>
       )}
 
-      {feature.compatibility && (
-        <div className={styles.compatList}>
-          {feature.compatibility.map((item, i) => (
-            <div key={i} className={styles.compatItem}>
-              <CompatIcon />
-              {item}
-            </div>
-          ))}
-        </div>
-      )}
-
       {feature.transports && (
         <div className={styles.transportList}>
           {feature.transports.map((transport, i) => (
@@ -175,41 +164,11 @@ function FeatureCard({ feature, index }) {
           ))}
         </div>
       )}
-
-      {feature.analytics && (
-        <div className={styles.analyticsList}>
-          {feature.analytics.map((item, i) => (
-            <div key={i} className={styles.analyticsItem}>
-              <ChartIcon />
-              {item}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {feature.search && (
-        <div className={styles.searchList}>
-          {feature.search.map((item, i) => (
-            <div key={i} className={styles.searchItem}>
-              <SearchIcon />
-              {item}
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
 
 // Icon components
-function CompatIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-    </svg>
-  );
-}
-
 function TransportIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
@@ -226,23 +185,6 @@ function PlatformIcon() {
       <rect x="4" y="4" width="16" height="16" rx="2"/>
       <line x1="9" y1="9" x2="15" y2="15" stroke="white" strokeWidth="2"/>
       <line x1="15" y1="9" x2="9" y2="15" stroke="white" strokeWidth="2"/>
-    </svg>
-  );
-}
-
-function ChartIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M3 13h2v8H3zm4-8h2v16H7zm4-2h2v18h-2zm4 4h2v14h-2zm4-2h2v16h-2z"/>
-    </svg>
-  );
-}
-
-function SearchIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <circle cx="11" cy="11" r="8"/>
-      <path d="m21 21-4.35-4.35"/>
     </svg>
   );
 }

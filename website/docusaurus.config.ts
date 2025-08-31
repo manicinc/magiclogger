@@ -82,6 +82,11 @@ const config: Config = {
           position: 'left',
           label: 'Documentation',
         },
+        {
+          to: '/api/',
+          label: 'API Docs',
+          position: 'left',
+        },
         { to: '/blog', label: 'Blog', position: 'left' },
         {
           href: 'https://github.com/manicinc/magiclogger',
