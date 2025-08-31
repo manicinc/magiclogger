@@ -77,7 +77,6 @@ describe('OTLP Transport - MAGIC Schema Integration', () => {
         timestampMs: 1704067200000,
         level: 'info',
         message: 'Test message',
-        message: 'Test message',
         schemaVersion: 'v1',
       };
 

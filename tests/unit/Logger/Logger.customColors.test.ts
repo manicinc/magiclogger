@@ -23,82 +23,72 @@ describe('Logger Custom Colors', () => {
   });
 
   describe('registerCustomColor', () => {
-    it('should register a custom color with hex format', (done) => {
+    it('should register a custom color with hex format', async () => {
       logger.registerCustomColor('testBrand', {
         hex: '#FF5733',
         fallback: 'orange'
       });
 
       // Give async registration time to complete
-      setTimeout(async () => {
-        const colors = await logger.getCustomColors();
-        expect(colors).toContain('testBrand');
-        done();
-      }, 100);
+      await new Promise(resolve => setTimeout(resolve, 100));
+      const colors = await logger.getCustomColors();
+      expect(colors).toContain('testBrand');
     });
 
-    it('should register a custom color with RGB format', (done) => {
+    it('should register a custom color with RGB format', async () => {
       logger.registerCustomColor('testRGB', {
         rgb: [255, 0, 128],
         fallback: 'magenta'
       });
 
-      setTimeout(async () => {
-        const colors = await logger.getCustomColors();
-        expect(colors).toContain('testRGB');
-        done();
-      }, 100);
+      await new Promise(resolve => setTimeout(resolve, 100));
+      const colors = await logger.getCustomColors();
+      expect(colors).toContain('testRGB');
     });
 
-    it('should register a custom color with 256-color code', (done) => {
+    it('should register a custom color with 256-color code', async () => {
       logger.registerCustomColor('test256', {
         code256: 196,
         fallback: 'red'
       });
 
-      setTimeout(async () => {
-        const colors = await logger.getCustomColors();
-        expect(colors).toContain('test256');
-        done();
-      }, 100);
+      await new Promise(resolve => setTimeout(resolve, 100));
+      const colors = await logger.getCustomColors();
+      expect(colors).toContain('test256');
     });
 
-    it('should handle registration errors gracefully', (done) => {
+    it('should handle registration errors gracefully', async () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
       // Try to register with invalid data (will be caught by registry)
       logger.registerCustomColor('invalid', {
         // No color format provided
         fallback: 'red'
-      } as any);
+      } as Record<string, unknown>);
 
       // Wait for async error
-      setTimeout(() => {
-        expect(consoleSpy).toHaveBeenCalledWith(
-          expect.stringContaining('[Logger] Failed to register custom color:'),
-          expect.any(Error)
-        );
-        consoleSpy.mockRestore();
-        done();
-      }, 100);
+      await new Promise(resolve => setTimeout(resolve, 100));
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('[Logger] Failed to register custom color:'),
+        expect.any(Error)
+      );
+      consoleSpy.mockRestore();
     });
   });
 
   describe('registerCustomColors', () => {
-    it('should register multiple custom colors at once', (done) => {
+    it('should register multiple custom colors at once', async () => {
       logger.registerCustomColors({
         brand1: { hex: '#FF0000', fallback: 'red' },
         brand2: { hex: '#00FF00', fallback: 'green' },
         brand3: { hex: '#0000FF', fallback: 'blue' }
       });
 
-      setTimeout(async () => {
-        const colors = await logger.getCustomColors();
-        expect(colors).toContain('brand1');
-        expect(colors).toContain('brand2');
-        expect(colors).toContain('brand3');
-        done();
-      }, 100);
+      await new Promise(resolve => setTimeout(resolve, 100));
+      const colors = await logger.getCustomColors();
+      expect(colors).toContain('brand1');
+      expect(colors).toContain('brand2');
+      expect(colors).toContain('brand3');
     });
   });
 
@@ -173,29 +163,27 @@ describe('Logger Custom Colors', () => {
   });
 
   describe('Integration with themes', () => {
-    it('should allow custom colors in themes', (done) => {
+    it('should allow custom colors in themes', async () => {
       logger.registerCustomColor('themeColor', {
         hex: '#FF69B4',
         fallback: 'magenta'
       });
 
-      setTimeout(() => {
-        // Set theme with custom color
-        logger.setTheme({
-          header: ['themeColor', 'bold'],
-          info: ['themeColor']
-        });
+      await new Promise(resolve => setTimeout(resolve, 100));
+      // Set theme with custom color
+      logger.setTheme({
+        header: ['themeColor', 'bold'],
+        info: ['themeColor']
+      });
 
-        const theme = logger.getTheme();
-        expect(theme.header).toContain('themeColor');
-        expect(theme.info).toContain('themeColor');
-        done();
-      }, 100);
+      const theme = logger.getTheme();
+      expect(theme.header).toContain('themeColor');
+      expect(theme.info).toContain('themeColor');
     });
   });
 
   describe('Cache clearing', () => {
-    it('should clear Colorizer cache after registration', (done) => {
+    it('should clear Colorizer cache after registration', async () => {
       const clearCacheSpy = jest.spyOn(Colorizer, 'clearCache');
 
       logger.registerCustomColor('cacheTest', {
@@ -203,11 +191,9 @@ describe('Logger Custom Colors', () => {
         fallback: 'yellow'
       });
 
-      setTimeout(() => {
-        expect(clearCacheSpy).toHaveBeenCalled();
-        clearCacheSpy.mockRestore();
-        done();
-      }, 100);
+      await new Promise(resolve => setTimeout(resolve, 100));
+      expect(clearCacheSpy).toHaveBeenCalled();
+      clearCacheSpy.mockRestore();
     });
   });
 
@@ -235,15 +221,15 @@ describe('Logger Custom Colors', () => {
   });
 
   describe('Error handling', () => {
-    it('should log error if custom color registration fails', (done) => {
+    it('should log error if custom color registration fails', async () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
       // Mock the dynamic import to fail
       const mockLogger = new Logger();
-      jest.spyOn(mockLogger as any, 'registerCustomColor').mockImplementation((name, def) => {
+      (mockLogger as any).registerCustomColor = jest.fn((_name: string, _def: unknown) => {
         import('../../../src/colors/CustomColorRegistry').then(() => {
           throw new Error('Mock registration error');
-        }).catch(err => {
+        }).catch((err: Error) => {
           console.error('[Logger] Failed to register custom color:', err);
         });
       });
@@ -253,14 +239,12 @@ describe('Logger Custom Colors', () => {
         fallback: 'red'
       });
 
-      setTimeout(() => {
-        expect(consoleSpy).toHaveBeenCalledWith(
-          '[Logger] Failed to register custom color:',
-          expect.any(Error)
-        );
-        consoleSpy.mockRestore();
-        done();
-      }, 100);
+      await new Promise(resolve => setTimeout(resolve, 100));
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[Logger] Failed to register custom color:',
+        expect.any(Error)
+      );
+      consoleSpy.mockRestore();
     });
   });
 });

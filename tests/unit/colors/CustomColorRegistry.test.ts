@@ -47,9 +47,9 @@ describe('CustomColorRegistry', () => {
       expect(registry.hasColor('darkOlive')).toBe(true);
       const code = registry.getColorCode('darkOlive');
       // Should generate 256-color ANSI code
-      if (code) {
-        expect(code).toMatch(/\x1b\[38;5;\d+m/);
-      }
+      expect(code).toBeDefined();
+      // eslint-disable-next-line no-control-regex
+      expect(code).toMatch(/\x1b\[38;5;\d+m/);
     });
 
     it('should register a color with direct ANSI sequence', () => {
@@ -212,7 +212,7 @@ describe('CustomColorRegistry', () => {
       delete process.env.COLORTERM;
       
       // Create new registry to test with limited support
-      const limitedRegistry = new (CustomColorRegistry as any)();
+      const limitedRegistry = new (CustomColorRegistry as unknown as new () => CustomColorRegistry)();
       
       limitedRegistry.registerColor('rgbColor', {
         rgb: [128, 64, 192],
@@ -221,10 +221,10 @@ describe('CustomColorRegistry', () => {
       
       // The code should still work even with limited support
       const code = limitedRegistry.getColorCode('rgbColor');
-      if (code) {
-        // Should generate some ANSI code
-        expect(code).toMatch(/\x1b\[/);
-      }
+      // Should generate some ANSI code
+      expect(code).toBeDefined();
+      // eslint-disable-next-line no-control-regex
+      expect(code).toMatch(/\x1b\[/);
       
       // Restore environment
       if (originalEnv) {

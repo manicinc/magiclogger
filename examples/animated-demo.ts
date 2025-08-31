@@ -11,11 +11,10 @@
  */
 
 import {
-  createSyncLogger,
+  FullLogger,
   COLORS,
   type ColorName,
   type StylePreset,
-  type Logger,
   ANSI,
 } from '../dist/index.js';
 
@@ -185,7 +184,7 @@ logger.table(userData, ['brightGreen', 'bold']);
 /**
  * Demonstrate color factory functions
  */
-async function colorFactoryDemo(logger: Logger): Promise<void> {
+async function colorFactoryDemo(logger: FullLogger): Promise<void> {
   logger.header('  COLOR FACTORY FUNCTIONS  ', ['brightWhite', 'bgBlue', 'bold']);
   await sleep(500);
 
@@ -239,7 +238,7 @@ console.log(\`Use \${code('logger.color()')} to create reusable styles\`);
 /**
  * Demonstrate selective colorization
  */
-async function colorPartsDemo(logger: Logger): Promise<void> {
+async function colorPartsDemo(logger: FullLogger): Promise<void> {
   logger.header('  SELECTIVE COLORIZATION  ', ['brightWhite', 'bgBlue', 'bold']);
   await sleep(500);
 
@@ -305,7 +304,7 @@ console.log(formattedLog);
 /**
  * Demonstrate progress bars
  */
-async function progressBarDemo(logger: Logger): Promise<void> {
+async function progressBarDemo(logger: FullLogger): Promise<void> {
   logger.header('  PROGRESS TRACKING  ', ['brightWhite', 'bgBlue', 'bold']);
   await sleep(500);
 
@@ -362,7 +361,7 @@ for (let i = 0; i <= 100; i += 10) {
 /**
  * Demonstrate styled presets
  */
-async function stylePresetsDemo(logger: Logger): Promise<void> {
+async function stylePresetsDemo(logger: FullLogger): Promise<void> {
   logger.header('  STYLE PRESETS  ', ['brightWhite', 'bgBlue', 'bold']);
   await sleep(500);
 
@@ -415,7 +414,7 @@ logger.styled('Code sample or command', 'code');
 /**
  * Demonstrate custom prefixes and styling
  */
-async function customStyleDemo(logger: Logger): Promise<void> {
+async function customStyleDemo(logger: FullLogger): Promise<void> {
   logger.header('  CUSTOM STYLING WITH PREFIXES  ', ['brightWhite', 'bgBlue', 'bold']);
   await sleep(500);
 
@@ -481,7 +480,7 @@ logger.custom('Request processed in 45ms', ['blue'], 'API');
 /**
  * Demonstrate server monitoring with live updates and API usage
  */
-async function serverMonitoringDemo(logger: Logger): Promise<void> {
+async function serverMonitoringDemo(logger: FullLogger): Promise<void> {
   logger.header('  LIVE SERVER MONITORING  ', ['brightWhite', 'bgBlue', 'bold']);
   await sleep(500);
 
@@ -574,7 +573,7 @@ if (metrics.cpu > 30) {
 /**
  * Show a realistic log analysis demo
  */
-async function logAnalysisDemo(logger: Logger): Promise<void> {
+async function logAnalysisDemo(logger: FullLogger): Promise<void> {
   logger.header('  LOG ANALYSIS  ', ['brightWhite', 'bgBlue', 'bold']);
   await sleep(500);
 
@@ -677,7 +676,7 @@ logger.table([
 /**
  * Enhanced deployment demo with visual effects
  */
-async function deploymentDemo(logger: Logger): Promise<void> {
+async function deploymentDemo(logger: FullLogger): Promise<void> {
   logger.header('  DEPLOYMENT PIPELINE  ', ['brightWhite', 'bgBlue', 'bold']);
   await sleep(500);
 
@@ -819,7 +818,7 @@ logger.header('  DEPLOYMENT SUCCESSFUL  ', ['brightWhite', 'bgGreen', 'bold']);
 /**
  * Service health check demo with visual status indicators
  */
-async function healthCheckDemo(logger: Logger): Promise<void> {
+async function healthCheckDemo(logger: FullLogger): Promise<void> {
   logger.header('  SYSTEM HEALTH CHECK  ', ['brightWhite', 'bgBlue', 'bold']);
   await sleep(500);
 
@@ -915,7 +914,7 @@ if (service.status === 'DEGRADED') {
 /**
  * Basic logging methods demo
  */
-async function basicLoggingDemo(logger: Logger): Promise<void> {
+async function basicLoggingDemo(logger: FullLogger): Promise<void> {
   logger.header('  BASIC LOGGING METHODS  ', ['brightWhite', 'bgBlue', 'bold']);
   await sleep(500);
 
@@ -993,7 +992,7 @@ logger.log('Error message example', 'error');
 /**
  * Rainbow text demo
  */
-async function rainbowDemo(logger: Logger): Promise<void> {
+async function rainbowDemo(logger: FullLogger): Promise<void> {
   logger.header('  RAINBOW TEXT EFFECTS  ', ['brightWhite', 'bgBlue', 'bold']);
   await sleep(500);
 
@@ -1045,7 +1044,7 @@ console.log(rainbowText('✨ MagicLogger - Beautiful terminal styling ✨'));
  */
 async function runAnimatedDemo(): Promise<void> {
   // Create a logger with colors enabled
-  const logger = createSyncLogger({
+  const logger = new FullLogger({
     useColors: true,
     verbose: true,
   });
@@ -1085,11 +1084,8 @@ async function runAnimatedDemo(): Promise<void> {
   logger.info('Starting enhanced demonstration of MagicLogger capabilities');
   await sleep(500);
 
-  logger.custom(
-    'This demo showcases API usage, animations, and practical use cases',
-    ['cyan'],
-    'DEMO'
-  );
+  // Using styled log with cyan color
+  logger.info('<cyan>This demo showcases API usage, animations, and practical use cases</>');
   await sleep(1000);
 
   // Run the basic logging demo

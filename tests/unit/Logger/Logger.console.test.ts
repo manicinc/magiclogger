@@ -1,7 +1,6 @@
 // File: tests/unit/Logger/Logger.console.test.ts
 
 import { Logger } from '../../../src/Logger';
-import type { LogEntry } from '../../../src/types/transport';
 
 /**
  * Test suite for Logger console transport functionality.

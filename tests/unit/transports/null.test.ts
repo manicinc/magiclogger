@@ -57,7 +57,6 @@ describe('NullTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: 'Test message',
-        message: 'Test message',
       };
 
       await expect(transport.log(entry)).resolves.not.toThrow();
@@ -71,14 +70,12 @@ describe('NullTransport', () => {
           timestampMs: Date.now(),
           level: 'info',
           message: 'Message 1',
-          message: 'Message 1',
         },
         {
           id: 'test-2',
           timestamp: '2024-01-01T00:00:01.000Z',
           timestampMs: Date.now() + 1000,
           level: 'error',
-          message: 'Message 2',
           message: 'Message 2',
         },
       ];
@@ -94,7 +91,6 @@ describe('NullTransport', () => {
         timestamp: '2024-01-01T00:00:00.000Z',
         timestampMs: Date.now(),
         level: 'info',
-        message: 'Test message',
         message: 'Test message',
         context: {
           userId: '12345',
@@ -150,7 +146,6 @@ describe('NullTransport', () => {
         timestampMs,
         level: 'info' as const,
         message: '',
-        message: '',
       };
 
       // Warm up the transport
@@ -165,7 +160,6 @@ describe('NullTransport', () => {
           transport.log({
             ...baseEntry,
             id: `test-${i}`,
-            message: `Message ${i}`,
             message: `Message ${i}`,
           })
         );
@@ -193,7 +187,6 @@ describe('NullTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: '',
-        message: '',
       };
 
       await expect(transport.log(entry)).resolves.not.toThrow();
@@ -207,7 +200,6 @@ describe('NullTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: largeMessage,
-        message: largeMessage,
       };
 
       await expect(transport.log(entry)).resolves.not.toThrow();
@@ -219,7 +211,6 @@ describe('NullTransport', () => {
         timestamp: '2024-01-01T00:00:00.000Z',
         timestampMs: Date.now(),
         level: 'info',
-        message: '特殊文字 🎉 \n\t\r',
         message: '特殊文字 🎉 \n\t\r',
       };
 

@@ -47,7 +47,6 @@ describe('ConsoleTransport', () => {
       timestampMs: Date.now(),
       level: 'info',
       message: 'Test message',
-      message: 'Test message',
       loggerId: 'test-logger',
       tags: ['test', 'unit'],
       context: { test: true, value: 42 },

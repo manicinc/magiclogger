@@ -25,8 +25,11 @@ let os: typeof import('os') | undefined;
 // Only import Node.js modules if we're in a Node.js environment
 if (typeof process !== 'undefined' && typeof require !== 'undefined') {
   try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     path = require('path');
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     fs = require('fs');
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     os = require('os');
   } catch {
     // Ignore import errors in browser environments
@@ -157,7 +160,7 @@ export class Logger {
    */
   private templateFormatter?: TemplateFormatter;
   /** Cached Node.js util.inspect function when available */
-  private nodeUtilInspect?: ((val: unknown, opts?: unknown) => string) | null;
+  private nodeUtilInspect?: ((val: unknown, opts?: { colors?: boolean; depth?: number }) => string) | null;
 
   /**
    * Theme manager instance for handling themes.
@@ -797,7 +800,7 @@ export class Logger {
       entry = this.createLogEntry(level, result.plainText, meta, result.styles);
       
       // Store the styled version for console output
-      (entry as any)._styledMessage = result.styledText;
+      (entry as unknown as Record<string, unknown>)._styledMessage = result.styledText;
     } else {
       // No angle brackets, just create entry normally
       entry = this.createLogEntry(level, msg, meta, undefined);

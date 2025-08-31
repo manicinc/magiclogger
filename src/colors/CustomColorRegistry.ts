@@ -255,6 +255,21 @@ export class CustomColorRegistry {
       // Fallback: convert RGB to nearest 256-color
       const code = this.rgbTo256(definition.rgb);
       ansiCode = ANSI.FG_COLOR_256(code);
+    } else if (definition.code256 !== undefined) {
+      // Even if terminal doesn't support 256 colors, still generate the code
+      // Some terminals may support it even if detection fails
+      ansiCode = ANSI.FG_COLOR_256(definition.code256);
+    } else if (definition.rgb) {
+      // Fallback: convert RGB to 256-color even without full support
+      const code = this.rgbTo256(definition.rgb);
+      ansiCode = ANSI.FG_COLOR_256(code);
+    } else if (definition.hex) {
+      // Convert hex to RGB then to 256-color
+      const rgb = this.hexToRgb(definition.hex);
+      if (rgb) {
+        const code = this.rgbTo256(rgb);
+        ansiCode = ANSI.FG_COLOR_256(code);
+      }
     } else {
       // No compatible format, will use fallback
       ansiCode = undefined;

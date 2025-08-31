@@ -363,6 +363,7 @@ export class Colorizer {
     // Lazy load custom color registry only when needed
     try {
       // Use dynamic import to ensure tree-shaking works
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const registry = require('../colors/CustomColorRegistry').getCustomColorRegistry();
       
       if (registry && registry.hasColor(colorName)) {

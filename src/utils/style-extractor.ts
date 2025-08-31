@@ -27,21 +27,13 @@ export function extractStyles(styledMessage: string): {
   let plainText = '';
   const styles: StyleRange[] = [];
   let workingMessage = styledMessage;
-  let globalOffset = 0;
   
   // Process styles iteratively to handle nesting
-  while (true) {
-    // Find the first complete style tag
-    const match = /<([^>]+)>((?:(?!<[^>]*?>).)*?)<\/>/s.exec(workingMessage);
-    
-    if (!match) {
-      // No more styled segments, add the rest as plain text
-      plainText += workingMessage;
-      break;
-    }
+  let match;
+  while ((match = /<([^>]+)>((?:(?!<[^>]*?>).)*?)<\/>/s.exec(workingMessage)) !== null) {
     
     const [fullMatch, style, text] = match;
-    const matchStart = match.index!;
+    const matchStart = match.index ?? 0;
     
     // Add text before the match
     const beforeText = workingMessage.slice(0, matchStart);
@@ -59,6 +51,11 @@ export function extractStyles(styledMessage: string): {
     
     // Move past this match
     workingMessage = workingMessage.slice(matchStart + fullMatch.length);
+  }
+  
+  // Add any remaining text after the last match
+  if (workingMessage) {
+    plainText += workingMessage;
   }
   
   // If no styles were found, return undefined styles

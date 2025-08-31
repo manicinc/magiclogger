@@ -318,9 +318,9 @@ export class ConsoleTransport extends Transport {
     // Message - reconstruct styled message if styles are available
     let messageOutput: string;
     
-    if ((entry as any)._styledMessage) {
+    if ((entry as unknown as Record<string, unknown>)._styledMessage) {
       // Use pre-styled message if available (temporary backward compat)
-      messageOutput = String((entry as any)._styledMessage);
+      messageOutput = String((entry as unknown as Record<string, unknown>)._styledMessage);
     } else if (entry.styles && entry.styles.length > 0 && this.useColors) {
       // Reconstruct styled message from plain text and style ranges
       messageOutput = this.applyStylesToMessage(entry.message, entry.styles);
@@ -493,6 +493,7 @@ export class ConsoleTransport extends Transport {
     }
     
     // Import required modules
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { Colorizer } = require('../../../core/Colorizer');
     
     // Sort styles by start index

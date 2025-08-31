@@ -4,6 +4,7 @@ import { Logger } from '../../src/Logger';
 import type { LogEntry } from '../../src/types/transport';
 
 describe('MAGIC Schema Cross-Language Ingestion', () => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let logger: Logger;
 
   beforeEach(() => {
@@ -235,7 +236,7 @@ describe('MAGIC Schema Cross-Language Ingestion', () => {
 
       const results = mixedLogs.map(log => ({
         valid: isMAGICCompliant(log),
-        reconstructed: reconstructStyles(log.message, log.styles)
+        reconstructed: reconstructStyles(log.message, log.styles as Array<[number, number, string]>)
       }));
 
       results.forEach(result => {
@@ -248,25 +249,27 @@ describe('MAGIC Schema Cross-Language Ingestion', () => {
 
 // Helper functions that would be part of the ingestion system
 
-function isMAGICCompliant(entry: any): boolean {
+function isMAGICCompliant(entry: unknown): boolean {
+  const e = entry as Record<string, unknown>;
+  
   // Check required fields
-  if (!entry.id || !entry.timestamp || !entry.level || !entry.message) {
+  if (!e.id || !e.timestamp || !e.level || !e.message) {
     return false;
   }
 
   // Validate level
   const validLevels = ['trace', 'debug', 'info', 'warn', 'error', 'fatal'];
-  if (!validLevels.includes(entry.level)) {
+  if (!validLevels.includes(e.level as string)) {
     return false;
   }
 
   // Validate styles if present
-  if (entry.styles !== undefined) {
-    if (!Array.isArray(entry.styles)) {
+  if (e.styles !== undefined) {
+    if (!Array.isArray(e.styles)) {
       return false;
     }
 
-    for (const range of entry.styles) {
+    for (const range of e.styles) {
       if (!Array.isArray(range) || range.length !== 3) {
         return false;
       }
@@ -277,7 +280,7 @@ function isMAGICCompliant(entry: any): boolean {
         return false;
       }
 
-      if (start < 0 || end <= start || start >= entry.message.length) {
+      if (start < 0 || end <= start || start >= (e.message as string).length) {
         return false;
       }
     }
@@ -292,6 +295,7 @@ function reconstructStyles(message: string, styles?: Array<[number, number, stri
   }
 
   // Import colorizer for actual ANSI code application
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { Colorizer } = require('../../src/core/Colorizer');
   
   let result = '';

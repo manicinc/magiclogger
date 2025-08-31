@@ -217,8 +217,8 @@ async function injectIntoReadme(table) {
   const allMeasurements = await measureAllScenarios();
   
   // Extract key measurements for badges
-  // Note: Core ALWAYS includes console, so we just use coreGz (which is 32kb)
   const coreGz = allMeasurements['Core (bare minimum)'] || 0;
+  const coreConsoleGz = allMeasurements['Core + Console Transport'] || 0;
   const coreTransportsGz = allMeasurements['Core + All Basic Transports'] || 0;
 
   // UPDATE BADGES - Do this in ONE operation on the badges block
@@ -233,6 +233,7 @@ async function injectIntoReadme(table) {
     // Update each badge in the block
     const badges = [
       { label: 'core_gzip', bytes: coreGz },
+      { label: 'core_console_gzip', bytes: coreConsoleGz },
       { label: 'core_transports_gzip', bytes: coreTransportsGz }
     ];
     

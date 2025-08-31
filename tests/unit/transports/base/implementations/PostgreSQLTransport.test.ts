@@ -218,7 +218,6 @@ describe('PostgreSQLTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: 'Test message 1',
-        message: 'Test message 1',
         loggerId: 'test-logger',
         tags: ['test'],
         context: { key: 'value' },
@@ -230,7 +229,6 @@ describe('PostgreSQLTransport', () => {
         timestamp: new Date().toISOString(),
         timestampMs: Date.now(),
         level: 'error',
-        message: 'Test message 2',
         message: 'Test message 2',
         loggerId: 'test-logger',
         error: {
@@ -255,7 +253,6 @@ describe('PostgreSQLTransport', () => {
         timestamp: new Date().toISOString(),
         timestampMs: Date.now(),
         level: 'info',
-        message: 'Debug message',
         message: 'Debug message',
       };
 
@@ -290,7 +287,6 @@ describe('PostgreSQLTransport', () => {
         timestampMs: Date.now(),
         level: 'error',
         message: 'Test',
-        message: 'Test',
       };
 
       await transport.log(entry);
@@ -319,7 +315,6 @@ describe('PostgreSQLTransport', () => {
         timestampMs: Date.now(),
         level: 'debug',
         message: 'Debug',
-        message: 'Debug',
       };
 
       const errorEntry: LogEntry = {
@@ -327,7 +322,6 @@ describe('PostgreSQLTransport', () => {
         timestamp: new Date().toISOString(),
         timestampMs: Date.now(),
         level: 'error',
-        message: 'Error',
         message: 'Error',
       };
 
@@ -456,7 +450,6 @@ describe('PostgreSQLTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: 'Test',
-        message: 'Test',
       };
 
       await transport.log(entry);
@@ -474,7 +467,6 @@ describe('PostgreSQLTransport', () => {
         timestamp: new Date().toISOString(),
         timestampMs: Date.now(),
         level: 'info',
-        message: 'Test',
         message: 'Test',
         context: circularRef,
       };
@@ -505,7 +497,6 @@ describe('PostgreSQLTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: 'Test',
-        message: 'Test',
       };
 
       await transport.log(entry);
@@ -532,7 +523,6 @@ describe('PostgreSQLTransport', () => {
         timestamp: new Date().toISOString(),
         timestampMs: Date.now(),
         level: 'info',
-        message: 'Test',
         message: 'Test',
       };
 

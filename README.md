@@ -1,12 +1,23 @@
 # MagicLogger
 
 <p align="center">
-    <img src="website/static/img/magiclogger-primary-no-subtitle-transparent-4x.png" alt="Magiclogger" width="520"/>
-    <img src="https://img.shields.io/badge/core_gzip-38kb-brightgreen.svg" alt="core_gzip"> <img src="https://img.shields.io/badge/core_console_gzip-32kb-brightgreen.svg" alt="core_console_gzip"> <img src="https://img.shields.io/badge/core_transports_gzip-50kb-brightgreen.svg" alt="core_transports_gzip">
+    <img src="website/static/img/magiclog-primary-no-subtitle-transparent-4x.png" alt="MagicLog" width="520"/>
 </p>
 <p align="center">
-  <!-- Top row: static + coverage badges -->
-  <img src="https://img.shields.io/badge/zero_dependencies-✓-blue" alt="Zero Dependencies"> <img src="https://img.shields.io/badge/typescript-5.0+-blue" alt="TypeScript"> <img src="https://img.shields.io/badge/node-14+-green" alt="Node.js"> <img src="https://img.shields.io/badge/license-MIT-blue" alt="License"> <img src="https://img.shields.io/badge/coverage-0%25-lightgrey.svg" alt="Test Coverage"> <a href="https://codecov.io/gh/manicinc/magiclogger"><img src="https://codecov.io/gh/manicinc/magiclogger/branch/master/graph/badge.svg" alt="codecov"/></a>
+  <!-- Bundle sizes -->
+  <img src="https://img.shields.io/badge/core_gzip-38kb-brightgreen.svg" alt="core_gzip"> 
+  <img src="https://img.shields.io/badge/core_console_gzip-39kb-brightgreen.svg" alt="core_console_gzip"> 
+  <img src="https://img.shields.io/badge/core_transports_gzip-50kb-brightgreen.svg" alt="core_transports_gzip">
+</p>
+<p align="center">
+  <!-- GitHub stats and features -->
+  <a href="https://github.com/manicinc/magiclogger"><img src="https://img.shields.io/github/stars/manicinc/magiclogger?style=social" alt="GitHub Stars"></a>
+  <img src="https://img.shields.io/badge/zero_dependencies-✓-blue" alt="Zero Dependencies"> 
+  <img src="https://img.shields.io/badge/typescript-100%25-blue" alt="TypeScript"> 
+  <img src="https://img.shields.io/badge/node-14+-green" alt="Node.js"> 
+  <img src="https://img.shields.io/npm/v/magiclogger" alt="npm version">
+  <img src="https://img.shields.io/badge/license-MIT-blue" alt="License"> 
+  <a href="https://codecov.io/gh/manicinc/magiclogger"><img src="https://codecov.io/gh/manicinc/magiclogger/branch/master/graph/badge.svg" alt="codecov"/></a>
 </p>
 
 ## 🚀 Universal Color Logging Standard
@@ -27,8 +38,10 @@
 - [Quick Start](#quick-start)
 - [MAGIC Schema](#magic-schema)
 - [Styling APIs](#styling-apis)
-- [Structured Logging](#structured-logging)
 - [Advanced Features](#advanced-features)
+- [Theming & Custom Colors](#-theming--custom-colors)
+- [Context & Tags](#-context--tags)
+- [Validation & Schema Enforcement](#️-validation--schema-enforcement)
 - [Transports](#transports)
 - [Performance](#performance)
 - [Examples](#examples)
@@ -155,6 +168,7 @@ if (!result.success) {
 }
 ```
 
+Note: By default MagicLogger's async ring buffer drops the oldest logs when the buffer is full, preventing any types of memory crashes, but allowing for some loss of data. When doing security audits, you should use MagicLogger's synchronous logger API which is slower and blocking but failsafe from losing logs.
 
 
 ## MAGIC Schema - Universal Styled Logging Standard
@@ -253,17 +267,6 @@ The MAGIC Schema is an open specification that any language can implement:
 }
 ```
 
-### How Any Language Could Output MAGIC
-
-If other languages implement MAGIC, they would:
-
-1. **Parse styled text** (e.g., `<red>Error:</> Something went wrong`)
-2. **Extract plain text** (`"Error: Something went wrong"`)
-3. **Record style positions** (`[[0, 6, "red"]]`)
-4. **Output MAGIC JSON** with the format above
-
-### TypeScript Implementation (Available Now)
-
 ```typescript
 import { Logger } from 'magiclogger';
 
@@ -319,53 +322,6 @@ For a logger to be MAGIC-compliant, it must:
 | **Ingestion Tools** | 🌍 Open Opportunity | Build tools to consume MAGIC logs from any source |
 | **Converters** | 🌍 Open Opportunity | Convert between MAGIC and other log formats |
 
-## Structured Logging
-
-### Console-like Arguments
-MagicLogger supports console-like variadic arguments while maintaining structured output:
-
-```typescript
-import { Logger, meta, err } from 'magiclogger';
-const logger = new Logger();
-
-// Print like console.log
-logger.info('Data:', { a: 1, b: 2 });
-
-// Attach metadata for transports (not printed)
-logger.info('Saved user', user, meta({ requestId, userId }));
-
-// Structured error handling
-logger.error('Failed to save', err(new Error('boom')), meta({ requestId }));
-```
-
-### MagicLog Schema
-Every log outputs structured JSON:
-
-```typescript
-logger.info('User authenticated', { 
-  userId: 'u_123', 
-  method: 'OAuth'
-});
-```
-
-Outputs:
-```json
-{
-  "id": "1733938475123-abc123xyz",
-  "timestamp": "2025-08-14T12:34:35.123Z",
-  "level": "info",
-  "message": "User authenticated",
-  "context": { 
-    "userId": "u_123",
-    "method": "OAuth"
-  },
-  "metadata": {
-    "hostname": "api-server-01",
-    "pid": 12345
-  }
-}
-```
-
 ## Advanced Features
 
 ### Visual Elements
@@ -391,59 +347,771 @@ logger.table([
 logger.diff('State change', oldState, newState);
 ```
 
-### Themes
-Use predefined or custom themes:
+## 🎨 Theming & Custom Colors
+
+### Theme System
+
+MagicLogger's theme system provides consistent, semantic styling across your application. Themes define how different types of log messages appear, making your logs both beautiful and meaningful.
+
+#### Built-in Themes
 
 ```typescript
-// Built-in themes
 const logger = new Logger({ theme: 'ocean' });
-// Available: ocean, forest, sunset, minimal, cyberpunk, dark
+// Available themes: ocean, forest, sunset, minimal, cyberpunk, dark, default
 
-// Custom theme
+// Each theme provides consistent colors for semantic log types
+logger.info('Information');     // Themed as info style
+logger.success('Completed');    // Themed as success style
+logger.warning('Caution');      // Themed as warning style
+logger.error('Failed');         // Themed as error style
+```
+
+#### Custom Theme Definition
+
+```typescript
 const logger = new Logger({
   theme: {
-    info: ['brightCyan'],
-    error: ['brightRed', 'bold'],
-    success: ['brightGreen', 'bold']
+    // Log level styles
+    info: ['cyan'],
+    success: ['green', 'bold'],
+    warning: ['yellow'],
+    error: ['red', 'bold'],
+    debug: ['gray', 'dim'],
+    
+    // UI element styles
+    header: ['brightWhite', 'bold', 'underline'],
+    footer: ['gray', 'dim'],
+    separator: ['blue'],
+    highlight: ['brightYellow', 'bold'],
+    muted: ['gray', 'dim'],
+    
+    // Custom semantic styles
+    api: ['cyan', 'bold'],
+    database: ['yellow'],
+    cache: ['magenta'],
+    network: ['blue'],
+    security: ['red', 'bold', 'underline']
   }
 });
+```
+
+#### Tag-Based Theming
+
+Combine themes with tags for automatic styling based on log categories:
+
+```typescript
+const logger = new Logger({
+  theme: {
+    tags: {
+      'api': ['cyan', 'bold'],
+      'api.request': ['cyan'],
+      'api.response': ['brightCyan'],
+      'database': ['yellow'],
+      'database.query': ['yellow', 'dim'],
+      'database.error': ['red', 'bold'],
+      'security': ['red', 'bold', 'bgYellow'],
+      'performance': ['magenta', 'bold']
+    }
+  }
+});
+
+// Tags automatically apply themed styles
+logger.info('Request received', { tags: ['api', 'api.request'] });
+logger.error('Query timeout', { tags: ['database', 'database.error'] });
+logger.warn('Unauthorized access attempt', { tags: ['security'] });
 ```
 
 ### Custom Colors (Advanced)
-Register custom colors with RGB, hex, or 256-color codes:
+
+MagicLogger supports custom color registration for brand-specific palettes and advanced terminal features.
+
+#### Registering Custom Colors
 
 ```typescript
-// ⚠️ WARNING: Custom colors may not work in all terminals!
-// Use predefined colors for maximum compatibility.
+// Register individual custom color
+logger.registerCustomColor('brandPrimary', {
+  hex: '#FF5733',        // 24-bit RGB color (for modern terminals)
+  fallback: 'orange'     // Required fallback for limited terminals
+});
 
-// Register custom brand colors
+// Register multiple custom colors
 logger.registerCustomColors({
-  brandOrange: { 
-    hex: '#FF5733',     // 24-bit color (if supported)
-    fallback: 'orange'  // Fallback for limited terminals
-  },
+  // Using RGB values
   brandBlue: { 
     rgb: [51, 102, 255],
-    fallback: 'blue' 
+    fallback: 'blue',
+    description: 'Primary brand blue'
   },
+  
+  // Using 256-color palette
   darkOlive: { 
-    code256: 58,        // 256-color palette
-    fallback: 'green' 
+    code256: 58,        // 256-color palette code
+    fallback: 'green',
+    description: 'Secondary accent color'
+  },
+  
+  // Direct ANSI sequence (advanced)
+  brandGradient: {
+    ansi: '\x1b[38;2;255;87;51m', // Direct ANSI escape
+    fallback: 'red'
+  }
+});
+```
+
+#### Using Custom Colors
+
+```typescript
+// In themes
+logger.setTheme({
+  header: ['brandPrimary', 'bold'],
+  success: ['brandBlue'],
+  accent: ['darkOlive', 'italic']
+});
+
+// With style factories
+const brand = logger.color('brandPrimary', 'bold');
+const accent = logger.color('darkOlive');
+
+logger.info(`Welcome to ${brand('Our Product')} - ${accent('v2.0')}`);
+
+// In styled messages
+logger.info('<brandPrimary.bold>Important:</> Check the <brandBlue>dashboard</>');
+```
+
+#### Terminal Compatibility Matrix
+
+| Terminal | RGB/24-bit | 256 Colors | Basic 16 | Notes |
+|----------|------------|------------|----------|-------|
+| **Modern Terminals** |
+| VS Code Terminal | ✅ | ✅ | ✅ | Full support |
+| Windows Terminal | ✅ | ✅ | ✅ | Full support |
+| iTerm2 (macOS) | ✅ | ✅ | ✅ | Full support |
+| Hyper | ✅ | ✅ | ✅ | Full support |
+| Alacritty | ✅ | ✅ | ✅ | Full support |
+| **Standard Terminals** |
+| Terminal.app (macOS) | ⚠️ | ✅ | ✅ | RGB varies by version |
+| GNOME Terminal | ✅ | ✅ | ✅ | Good support |
+| Konsole (KDE) | ✅ | ✅ | ✅ | Good support |
+| **Legacy/Limited** |
+| cmd.exe | ❌ | ❌ | ✅ | Basic colors only |
+| PowerShell (legacy) | ❌ | ⚠️ | ✅ | Use Windows Terminal |
+| PuTTY | ❌ | ✅ | ✅ | Configure for 256 |
+| **CI/Cloud** |
+| GitHub Actions | ⚠️ | ✅ | ✅ | Varies by runner |
+| GitLab CI | ❌ | ⚠️ | ✅ | Basic recommended |
+| CircleCI | ⚠️ | ✅ | ✅ | Good support |
+| Jenkins | ❌ | ⚠️ | ✅ | Depends on config |
+
+#### Best Practices
+
+1. **Always provide fallbacks** - Every custom color must have a basic color fallback
+2. **Test in target environments** - Verify colors work where your application runs
+3. **Use semantic names** - Name colors by purpose, not appearance (`brandPrimary` not `orange`)
+4. **Document your palette** - Maintain a style guide for consistency
+5. **Consider accessibility** - Test with colorblind simulators and high contrast modes
+
+## 📊 Context & Tags
+
+MagicLogger provides powerful context and tagging features for structured logging, enabling better log organization, filtering, and analysis.
+
+### Context - Structured Metadata
+
+Context allows you to attach structured data to log entries, providing rich metadata for debugging and monitoring.
+
+#### Global vs Per-Log Context
+
+```typescript
+// Global context - applied to all logs from this logger
+const logger = new Logger({
+  id: 'payment-service',
+  context: {
+    service: 'payment-api',
+    version: '2.1.0',
+    environment: process.env.NODE_ENV,
+    region: 'us-east-1',
+    instanceId: process.env.INSTANCE_ID
   }
 });
 
-// Use custom colors in themes
-logger.setTheme({
-  header: ['brandOrange', 'bold'],
-  link: ['brandBlue', 'underline'],
-  success: ['darkOlive']
+// Per-log context - specific to individual log entries
+logger.info('Payment processed', {
+  orderId: 'ORD-12345',
+  customerId: 'CUST-67890',
+  amount: 99.99,
+  currency: 'USD',
+  processingTime: 145,
+  paymentMethod: 'credit_card'
 });
 
-// Terminal Support:
-// ✅ Full support: iTerm2, Windows Terminal, VS Code, Hyper
-// ⚠️ Limited: cmd.exe, PowerShell (legacy), older terminals
-// ❌ No support: Some CI environments, very old terminals
+// Context merging - per-log overrides global
+logger.info('Special payment', {
+  amount: 199.99,
+  version: '2.2.0',  // Overrides global version
+  promotional: true   // Adds new field
+});
 ```
+
+#### Using the meta() Helper
+
+When using console-like variadic arguments, wrap context to prevent it from being printed:
+
+```typescript
+import { meta } from 'magiclogger';
+
+// Without meta() - context gets printed to console
+logger.info('User logged in', { userId: '123' });
+// Output: User logged in { userId: '123' }
+
+// With meta() - context is attached but not printed
+logger.info('User logged in', meta({ userId: '123' }));
+// Output: User logged in
+// Context still available in structured output/transports
+```
+
+#### Advanced Context Management
+
+```typescript
+import { ContextManager } from 'magiclogger';
+
+const contextManager = new ContextManager({
+  // Auto-redact sensitive fields
+  sensitiveKeys: ['password', 'token', 'ssn', 'creditCard'],
+  
+  // Transform nested keys to flat structure
+  transformRules: {
+    'user.id': 'userId',
+    'request.id': 'requestId',
+    'response.time': 'responseTime'
+  },
+  
+  // Validation rules
+  maxDepth: 3,
+  maxSize: 1000, // bytes
+  forbidden: ['__proto__', 'constructor']
+});
+
+// Sanitize sensitive data automatically
+const userContext = {
+  userId: '123',
+  email: 'user@example.com',
+  password: 'secret123',  // Will be redacted
+  creditCard: '4111111111111111'  // Will be redacted
+};
+
+const sanitized = contextManager.sanitize(userContext);
+// Result: { 
+//   userId: '123', 
+//   email: 'user@example.com', 
+//   password: '***', 
+//   creditCard: '***' 
+// }
+```
+
+### Tags - Categorical Labels
+
+Tags are simple string labels for categorizing and filtering logs. They enable powerful log organization and styling.
+
+#### Basic Tag Usage
+
+```typescript
+// Global tags - applied to all logs
+const logger = new Logger({
+  tags: ['api', 'production', 'v2']
+});
+
+// All logs include these tags
+logger.info('Server started');  // Tags: ['api', 'production', 'v2']
+logger.error('Database error'); // Tags: ['api', 'production', 'v2']
+
+// Per-log tags - additional categorization
+logger.info('User authenticated', { 
+  tags: ['auth', 'oauth', 'google'] 
+});
+// Combined tags: ['api', 'production', 'v2', 'auth', 'oauth', 'google']
+```
+
+#### Hierarchical Tags
+
+Use dot notation for hierarchical organization:
+
+```typescript
+const logger = new Logger({
+  tags: ['api.v2']
+});
+
+// Log with hierarchical tags
+logger.info('Database query', {
+  tags: ['database.query.select', 'performance.slow']
+});
+
+// Results in tags that can be filtered at any level:
+// - 'api.v2'
+// - 'database.query.select' (matches: database, database.query, database.query.select)
+// - 'performance.slow' (matches: performance, performance.slow)
+```
+
+#### Tag-Based Styling
+
+Combine tags with themes for automatic visual categorization:
+
+```typescript
+const logger = new Logger({
+  theme: {
+    tags: {
+      // Exact match
+      'error': ['red', 'bold'],
+      'warning': ['yellow'],
+      'success': ['green', 'bold'],
+      
+      // Hierarchical matching
+      'api': ['cyan', 'bold'],
+      'api.request': ['cyan'],
+      'api.response': ['brightCyan'],
+      'api.error': ['red', 'bold'],
+      
+      // Category styling
+      'database': ['yellow'],
+      'database.slow': ['yellow', 'bold', 'bgRed'],
+      'cache': ['magenta'],
+      'security': ['red', 'bold', 'underline']
+    }
+  }
+});
+
+// Automatic styling based on tags
+logger.info('Request received', { tags: ['api.request'] });    // Cyan
+logger.warn('Slow query', { tags: ['database.slow'] });        // Yellow on red
+logger.error('Auth failed', { tags: ['security', 'api.error'] }); // Red, bold, underline
+```
+
+#### Using TagManager
+
+```typescript
+import { TagManager } from 'magiclogger';
+
+const tagManager = new TagManager();
+
+// Generate tags from file paths
+const tags = tagManager.fromPath('src/api/v2/users/create.ts');
+// Result: ['src', 'api', 'v2', 'users', 'create']
+
+// Normalize and validate tags
+const normalized = tagManager.normalize(['API', 'User-Auth', 'OAuth/2.0']);
+// Result: ['api', 'user-auth', 'oauth-2-0']
+
+// Filter logs by tags
+const logs = [/* array of log entries */];
+const apiLogs = logs.filter(log => 
+  tagManager.matches(log.tags, 'api.*')
+);
+```
+
+### Best Practices
+
+#### Context Best Practices
+
+1. **Keep it flat** - Avoid deeply nested objects for easier querying
+2. **Use consistent keys** - Standardize field names across your application
+3. **Avoid sensitive data** - Never log passwords, tokens, or PII without sanitization
+4. **Size matters** - Large contexts can impact performance
+5. **Type safety** - Use TypeScript interfaces for context structure
+
+```typescript
+// Define context types for consistency
+interface RequestContext {
+  requestId: string;
+  userId?: string;
+  method: string;
+  path: string;
+  duration?: number;
+}
+
+const logger = new Logger<RequestContext>();
+logger.info('Request completed', {
+  requestId: 'req-123',
+  method: 'GET',
+  path: '/api/users',
+  duration: 45
+});
+```
+
+#### Tag Best Practices
+
+1. **Use hierarchical structure** - Organize with dots: `component.subcomponent.action`
+2. **Be consistent** - Establish naming conventions and stick to them
+3. **Don't overuse** - Too many tags make filtering difficult
+4. **Document your tags** - Maintain a tag taxonomy for your team
+5. **Automate tagging** - Generate tags from code structure when possible
+
+```typescript
+// Good tag examples
+['api.auth.login', 'performance.slow', 'security.audit']
+
+// Poor tag examples
+['login', 'slow', 'important']  // Too generic
+['api_auth_login_oauth_google_success']  // Too specific
+```
+
+### Pretty Printing Objects
+
+MagicLogger supports console-like variadic arguments while maintaining structured output:
+
+```typescript
+import { Logger, meta, err } from 'magiclogger';
+const logger = new Logger();
+
+// Print like console.log
+logger.info('Data:', { a: 1, b: 2 });
+
+// Attach metadata for transports (not printed)
+logger.info('Saved user', user, meta({ requestId, userId }));
+
+// Structured error handling
+logger.error('Failed to save', err(new Error('boom')), meta({ requestId }));
+```
+
+## 🛡️ Validation & Schema Enforcement
+
+MagicLogger provides comprehensive validation for both context and tags, ensuring data quality and preventing malformed logs from polluting your logging infrastructure.
+
+### Schema Validation
+
+Define schemas to enforce structure and types for your log data:
+
+```typescript
+import { Logger, ContextManager, TagManager } from 'magiclogger';
+import type { ObjectSchema } from 'magiclogger/validation';
+
+// Define a schema for context validation
+const contextSchema: ObjectSchema = {
+  type: 'object',
+  properties: {
+    userId: { 
+      type: 'string', 
+      format: 'uuid',
+      optional: false 
+    },
+    email: { 
+      type: 'string', 
+      format: 'email',
+      transform: (v) => v.toLowerCase() 
+    },
+    age: { 
+      type: 'number', 
+      min: 0, 
+      max: 150 
+    },
+    roles: {
+      type: 'array',
+      items: { type: 'string' },
+      minItems: 1
+    },
+    metadata: {
+      type: 'object',
+      additionalProperties: true
+    }
+  },
+  required: ['userId', 'email']
+};
+
+// Configure validation behavior
+const contextManager = new ContextManager({
+  schema: contextSchema,
+  schemaValidationMode: 'warn',  // 'throw' | 'warn' | 'silent'
+  enableValidation: true
+});
+```
+
+### Validation Modes
+
+Control how validation failures are handled:
+
+```typescript
+// Strict mode - throws errors on validation failure
+const strictLogger = new Logger({
+  contextManager: new ContextManager({
+    schema: userSchema,
+    schemaValidationMode: 'throw'  // Fails fast
+  })
+});
+
+// Warning mode - logs warnings but continues
+const warnLogger = new Logger({
+  contextManager: new ContextManager({
+    schema: userSchema,
+    schemaValidationMode: 'warn'   // Logs warnings to console
+  })
+});
+
+// Silent mode - silently drops invalid data
+const silentLogger = new Logger({
+  contextManager: new ContextManager({
+    schema: userSchema,
+    schemaValidationMode: 'silent'  // No errors or warnings
+  })
+});
+```
+
+### Validation Events
+
+Listen to validation events for custom handling:
+
+```typescript
+const contextManager = new ContextManager({
+  schema: contextSchema,
+  schemaValidationMode: 'silent'
+});
+
+// Listen for validation failures
+contextManager.on('schemaValidationFailed', ({ result, context }) => {
+  // Custom handling - send to error tracking
+  errorTracker.report('Invalid log context', {
+    errors: result.errors,
+    context: context
+  });
+  
+  // Or increment metrics
+  metrics.increment('logs.validation.failed', {
+    errorCount: result.errors.length
+  });
+});
+
+// Listen for successful validations
+contextManager.on('validated', (context) => {
+  metrics.increment('logs.validation.success');
+});
+```
+
+### Built-in Validation Rules
+
+#### Context Validation
+
+```typescript
+const contextManager = new ContextManager({
+  // Structure limits
+  maxDepth: 5,           // Maximum nesting depth
+  maxProperties: 50,     // Maximum properties per object
+  
+  // Security
+  sanitizeMode: 'strict', // Remove sensitive data
+  freezeContext: true,    // Prevent mutations
+  
+  // Custom validation rules
+  enableValidation: true
+});
+
+// Set validation rules programmatically
+contextManager.setValidationRules({
+  required: ['requestId', 'userId'],
+  types: {
+    requestId: 'string',
+    userId: 'string',
+    timestamp: 'number',
+    success: 'boolean'
+  },
+  custom: (context) => {
+    // Custom validation logic
+    if (context.userId && context.userId === 'admin') {
+      return context.adminToken !== undefined;
+    }
+    return true;
+  }
+});
+```
+
+#### Tag Validation
+
+```typescript
+const tagManager = new TagManager({
+  maxTags: 10,           // Maximum number of tags
+  maxTagLength: 50,      // Maximum length per tag
+  allowedPattern: /^[a-z0-9.-]+$/,  // Regex pattern
+  
+  // Schema for structured tags
+  schema: {
+    type: 'array',
+    items: {
+      type: 'string',
+      pattern: /^[a-z]+(\.[a-z]+)*$/,  // Hierarchical pattern
+      maxLength: 50
+    },
+    maxItems: 10,
+    uniqueItems: true
+  },
+  schemaValidationMode: 'warn'
+});
+```
+
+### Schema Types
+
+MagicLogger supports comprehensive schema types:
+
+```typescript
+// String validation
+const stringSchema = {
+  type: 'string',
+  minLength: 3,
+  maxLength: 100,
+  pattern: /^[A-Z]/,        // Must start with capital
+  format: 'email',          // Predefined formats
+  enum: ['admin', 'user'],  // Allowed values
+  trim: true,               // Auto-trim whitespace
+  toLowerCase: true         // Auto-lowercase
+};
+
+// Number validation
+const numberSchema = {
+  type: 'number',
+  min: 0,
+  max: 100,
+  integer: true,           // Must be integer
+  positive: true,          // Must be positive
+  multipleOf: 5            // Must be multiple of 5
+};
+
+// Array validation
+const arraySchema = {
+  type: 'array',
+  items: { type: 'string' },
+  minItems: 1,
+  maxItems: 10,
+  uniqueItems: true        // No duplicates
+};
+
+// Object validation
+const objectSchema = {
+  type: 'object',
+  properties: {
+    name: { type: 'string' },
+    age: { type: 'number' }
+  },
+  required: ['name'],
+  additionalProperties: false,  // No extra props
+  minProperties: 1,
+  maxProperties: 10
+};
+
+// Union types
+const unionSchema = {
+  type: 'union',
+  schemas: [
+    { type: 'string' },
+    { type: 'number' }
+  ]
+};
+```
+
+### Sanitization
+
+Automatic sanitization of sensitive data:
+
+```typescript
+const contextManager = new ContextManager({
+  sanitizeMode: 'strict',  // 'none' | 'basic' | 'strict' | 'custom'
+  
+  // Custom sanitization function
+  sanitize: (value) => {
+    if (typeof value === 'string') {
+      // Redact credit card numbers
+      return value.replace(/\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/g, '****-****-****-****');
+    }
+    return value;
+  }
+});
+
+// Automatic sensitive key detection
+const context = {
+  userId: '123',
+  password: 'secret123',      // Automatically redacted
+  creditCard: '4111-1111-1111-1111',  // Automatically redacted
+  apiToken: 'xyz789',          // Automatically redacted
+  data: 'safe-data'
+};
+
+// Result after sanitization:
+// {
+//   userId: '123',
+//   password: '***',
+//   creditCard: '***',
+//   apiToken: '***',
+//   data: 'safe-data'
+// }
+```
+
+### Performance Considerations
+
+Validation is designed to be efficient and tree-shakeable:
+
+```typescript
+// Validation is lazy-loaded only when schemas are defined
+const logger = new Logger();  // No validation overhead
+
+// SchemaValidator is loaded only when schema is set
+const validatedLogger = new Logger({
+  contextManager: new ContextManager({
+    schema: mySchema  // SchemaValidator loaded here
+  })
+});
+
+// Validation can be toggled at runtime
+contextManager.setOptions({
+  enableValidation: process.env.NODE_ENV !== 'production'
+});
+```
+
+### Best Practices
+
+1. **Use appropriate validation modes**:
+   - `throw` for development and testing
+   - `warn` for staging environments  
+   - `silent` for production (with event listeners)
+
+2. **Define schemas at initialization**:
+   ```typescript
+   // Good - schema defined once
+   const schema = { /* ... */ };
+   const logger = new Logger({ contextManager: new ContextManager({ schema }) });
+   
+   // Avoid - schema defined per log
+   logger.info('message', validateSchema({ /* ... */ }));
+   ```
+
+3. **Monitor validation failures**:
+   ```typescript
+   contextManager.on('schemaValidationFailed', ({ result }) => {
+     monitoring.recordValidationFailure(result.errors);
+   });
+   ```
+
+4. **Use transforms for data normalization**:
+   ```typescript
+   const schema = {
+     type: 'object',
+     properties: {
+       email: {
+         type: 'string',
+         transform: (v) => v.toLowerCase().trim()
+       },
+       timestamp: {
+         type: 'number',
+         transform: (v) => Math.floor(v)  // Remove decimals
+       }
+     }
+   };
+   ```
+
+5. **Combine with TypeScript for compile-time safety**:
+   ```typescript
+   interface UserContext {
+     userId: string;
+     email: string;
+     roles: string[];
+   }
+   
+   const logger = new Logger<UserContext>();
+   // TypeScript ensures compile-time type safety
+   // Schema ensures runtime validation
+   ```
 
 ### Extensions (Optional)
 Extensions are opt-in for specialized needs:
@@ -551,38 +1219,38 @@ Network transports batch automatically, local transports don't:
 <!-- PERF_TABLE_START -->
 | Logger | Iterations | Time (ms) | Ops/sec |
 |--------|------------:|----------:|--------:|
-| Winston (Sync, Styled) | 100,000 | 3710.9 | 26,947 |
-| Winston (Sync, Plain) | 100,000 | 3845.6 | 26,004 |
-| Bunyan (Sync, Styled) | 100,000 | 4340.8 | 23,037 |
-| Bunyan (Sync, Plain) | 100,000 | 5140.8 | 19,452 |
-| Pino (Sync, Plain) | 100,000 | 6176.4 | 16,191 |
-| Pino (Sync, Styled) | 100,000 | 7448.4 | 13,426 |
-| MagicLogger (Sync, Plain) | 100,000 | 8532.3 | 11,720 |
-| MagicLogger (Sync, Styled) | 100,000 | 11490.5 | 8,703 |
-| Pino (Async, Plain) | 100,000 | 1678.0 | 59,594 |
-| MagicLogger (Async, Plain) | 100,000 | 1799.8 | 55,562 |
-| Pino (Async, Styled) | 100,000 | 2123.6 | 47,089 |
-| MagicLogger (Async, Styled) | 100,000 | 2301.2 | 43,456 |
-| Winston (Async, Styled) | 100,000 | 4506.7 | 22,189 |
-| Winston (Async, Plain) | 100,000 | 4905.4 | 20,386 |
+| Winston (Sync, Styled) | 100,000 | 2268.7 | 44,078 |
+| Bunyan (Sync, Plain) | 100,000 | 2520.1 | 39,682 |
+| Bunyan (Sync, Styled) | 100,000 | 2562.0 | 39,032 |
+| Winston (Sync, Plain) | 100,000 | 2636.9 | 37,923 |
+| Pino (Sync, Styled) | 100,000 | 2880.4 | 34,718 |
+| Pino (Sync, Plain) | 100,000 | 3000.7 | 33,325 |
+| MagicLogger (Sync, Plain) | 100,000 | 3843.8 | 26,016 |
+| MagicLogger (Sync, Styled) | 100,000 | 4534.1 | 22,055 |
+| Pino (Async, Plain) | 100,000 | 798.3 | 125,261 |
+| MagicLogger (Async, Styled) | 100,000 | 1182.4 | 84,575 |
+| MagicLogger (Async, Plain) | 100,000 | 1266.4 | 78,966 |
+| Pino (Async, Styled) | 100,000 | 1475.1 | 67,793 |
+| Winston (Async, Styled) | 100,000 | 2507.4 | 39,882 |
+| Winston (Async, Plain) | 100,000 | 3708.5 | 26,965 |
 
 ### Winners
-- Sync Plain: Winston (Sync, Plain) (26,004 ops/sec) — MagicLogger: 11,720 ops/sec
-- Sync Styled: Winston (Sync, Styled) (26,947 ops/sec) — MagicLogger: 8,703 ops/sec
-- Async Plain: Pino (Async, Plain) (59,594 ops/sec) — MagicLogger: 55,562 ops/sec
-- Async Styled: Pino (Async, Styled) (47,089 ops/sec) — MagicLogger: 43,456 ops/sec
+- Sync Plain: Bunyan (Sync, Plain) (39,682 ops/sec) — MagicLogger: 26,016 ops/sec
+- Sync Styled: Winston (Sync, Styled) (44,078 ops/sec) — MagicLogger: 22,055 ops/sec
+- Async Plain: Pino (Async, Plain) (125,261 ops/sec) — MagicLogger: 78,966 ops/sec
+- Async Styled: MagicLogger (Async, Styled) (84,575 ops/sec)
 
 === KEY COMPARISONS ===
 
 Synchronous Styled Performance:
-  MagicLogger (Sync, Styled): 8,703 ops/sec
-  Winston (Sync, Styled): 26,947 ops/sec
-  → MagicLogger is 3.10x slower
+  MagicLogger (Sync, Styled): 22,055 ops/sec
+  Winston (Sync, Styled): 44,078 ops/sec
+  → MagicLogger is 2.00x slower
 
 Asynchronous Styled Performance:
-  MagicLogger (Async, Styled): 43,456 ops/sec
-  Pino (Async, Styled): 47,089 ops/sec
-  → MagicLogger is 1.08x slower
+  MagicLogger (Async, Styled): 84,575 ops/sec
+  Pino (Async, Styled): 67,793 ops/sec
+  → MagicLogger is 1.25x faster
 
 Note: External libraries' "Styled" cases use chalk for coloring (chalk + library) for fair comparison.
 
@@ -749,17 +1417,60 @@ MIT © [Manic.agency](https://manic.agency)
 
 | Scenario | Size |
 |----------|------|
-| Core (bare minimum) | 39.3 kB |
+| Core (bare minimum) | 39.4 kB |
 | Core + Console Transport | 39.4 kB |
-| Core + File Transport | 41.4 kB |
-| Core + HTTP Transport | 50 kB |
+| Core + File Transport | 41.5 kB |
+| Core + HTTP Transport | 50.1 kB |
 | Core + All Basic Transports | 51.4 kB |
 
 ### Individual Transport Sizes (gzipped)
 
 | Transport | Size |
 |-----------|------|
-| Console Transport Only | 9.56 kB |
+| Console Transport Only | 9.59 kB |
+| File Transport Only | 4.11 kB |
+| HTTP Transport Only | 23.7 kB |
+
+### Schema Validation (Optional, Lazy-loaded)
+
+| Scenario | Size |
+|----------|------|
+| Core + Schema Validation | 41.7 kB |
+| Validation Module Only | 2.75 kB |
+
+*Note: Validation is only loaded when schemas are explicitly set on ContextManager or TagManager.*
+
+### Extension Sizes (gzipped)
+
+| Extension | Size |
+|-----------|------|
+| Sampler | 1.21 kB |
+| RateLimiter | 1.09 kB |
+| Redactor | 3.77 kB |
+
+*Generated via `scripts/analyze-build.js`.*
+
+| File | Format | Raw Size | Gzip |
+|------|--------|----------|------|
+| `index.cjs` | CJS | 7.27 kB | 1.67 kB |
+| `index.js` | ESM | 4.35 kB | 1.37 kB |
+| `index.d.ts` | Types | 96.5 kB | 20.3 kB |
+
+### Core Bundle Sizes (gzipped)
+
+| Scenario | Size |
+|----------|------|
+| Core (bare minimum) | 39.4 kB |
+| Core + Console Transport | 39.4 kB |
+| Core + File Transport | 41.5 kB |
+| Core + HTTP Transport | 50.1 kB |
+| Core + All Basic Transports | 51.4 kB |
+
+### Individual Transport Sizes (gzipped)
+
+| Transport | Size |
+|-----------|------|
+| Console Transport Only | 9.59 kB |
 | File Transport Only | 4.11 kB |
 | HTTP Transport Only | 23.7 kB |
 
