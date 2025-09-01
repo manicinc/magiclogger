@@ -114,7 +114,16 @@ The system employs a push-based event flow where log entries originate from the 
 
 ## Core Design Principles
 
-### 1. Performance First, Features Second
+### 1. Performance Through Simplicity
+
+MagicLogger achieves high performance through pure JavaScript rather than native bindings:
+
+- **Ring Buffer**: Pre-allocated circular buffer eliminates allocations
+- **Microtask Batching**: Uses `queueMicrotask()` for efficient scheduling
+- **Monomorphic Functions**: Consistent types for JIT optimization
+- **Zero Dependencies**: No external library overhead
+
+### 2. Performance First, Features Second
 
 Every architectural decision prioritizes runtime performance, particularly for the synchronous logging path. This manifests in several ways:
 
@@ -123,7 +132,43 @@ Every architectural decision prioritizes runtime performance, particularly for t
 - **Static Dispatch**: Method calls are monomorphic where possible to enable JIT optimization
 - **Object Pooling**: Frequently created objects are pooled and reused
 
-### 2. Pay-As-You-Go Architecture
+### 3. Two-Stage Batching
+
+Batching occurs at two independent levels for maximum efficiency:
+
+```typescript
+// Stage 1: Logger-level batching (AsyncLogger)
+const logger = new AsyncLogger({
+  buffer: {
+    size: 16384,        // Ring buffer capacity
+    flushInterval: 100, // Flush every 100ms
+    flushSize: 2000     // Or when 2000 entries accumulate
+  }
+});
+
+// Stage 2: Transport-level batching (Network transports)
+const httpTransport = new HTTPTransport({
+  maxBatchSize: 100,     // Transport's own batching
+  maxBatchTime: 5000     // Independent of logger batching
+});
+```
+
+### 4. Tree-Shakeable Architecture
+
+Each feature is in a separate module with dedicated entry points:
+
+```typescript
+// Minimal import - just core
+import { Logger } from 'magiclogger';
+
+// Specific transport - tree-shakeable
+import { HTTPTransport } from 'magiclogger/transports/http';
+
+// Extensions only when needed
+import { Redactor } from 'magiclogger/extensions/redactor';
+```
+
+### 5. Pay-As-You-Go Architecture
 
 Features have zero cost when not used:
 
@@ -142,7 +187,7 @@ The build system ensures unused code is eliminated through:
 - Granular entry points for each feature
 - Static analysis friendly code structure
 
-### 3. Composability Over Configuration
+### 6. Composability Over Configuration
 
 Rather than a monolithic configuration object, the system uses composition:
 
@@ -162,7 +207,7 @@ const logger = new Logger({
 });
 ```
 
-### 4. Explicit Over Implicit
+### 7. Explicit Over Implicit
 
 The architecture favors explicit behavior over magic:
 
@@ -525,11 +570,107 @@ Final Context (Merged)
 
 ## Performance Architecture
 
+### Implementation Approaches
+
+#### How Sonic-Boom Works (What Pino Uses)
+
+Sonic-boom achieves extreme performance through:
+
+1. **Memory-Mapped Files**: Maps file regions directly to memory addresses, bypassing traditional I/O
+2. **Worker Threads**: Offloads all I/O operations to separate threads, preventing any blocking
+3. **Large Buffers**: Accumulates writes in 16KB+ buffers before flushing to reduce syscalls
+4. **Native Bindings**: Uses C++ for critical paths where JavaScript would be slower
+
+```javascript
+// Sonic-boom approach (simplified)
+const SonicBoom = require('sonic-boom')
+const sonic = new SonicBoom({ 
+  fd: process.stdout.fd,
+  minLength: 4096,  // Buffer threshold
+  sync: false       // Async mode with threads
+})
+```
+
+#### How MagicLogger Works (Zero Dependencies)
+
+MagicLogger achieves high performance through pure JavaScript techniques:
+
+1. **Ring Buffer Architecture**: Pre-allocated circular buffer that never allocates during operation
+2. **Microtask Scheduling**: Uses the microtask queue for batching without thread overhead
+3. **Stream Buffering**: Leverages Node.js built-in stream buffering efficiently
+4. **Batch Writing**: Accumulates multiple logs and writes them in single operations
+
+```typescript
+// MagicLogger's approach
+class AsyncLogger {
+  private ringBuffer: RingBuffer;
+  private flushScheduled = false;
+  
+  log(entry: LogEntry) {
+    // Add to ring buffer (zero allocation)
+    this.ringBuffer.add(entry);
+    
+    // Schedule flush if not already scheduled
+    if (!this.flushScheduled) {
+      this.flushScheduled = true;
+      queueMicrotask(() => this.flush());
+    }
+  }
+  
+  private flush() {
+    const batch = this.ringBuffer.drain();
+    this.transport.writeBatch(batch);
+    this.flushScheduled = false;
+  }
+}
+```
+
+#### File Writing Strategy
+
+**MagicLogger's file transport** uses Node.js streams with optimized settings:
+
+```typescript
+class FileTransport {
+  constructor(filepath: string) {
+    this.stream = fs.createWriteStream(filepath, {
+      flags: 'a',              // Append mode
+      highWaterMark: 64 * 1024, // 64KB internal buffer
+      autoClose: false         // Keep stream open
+    });
+  }
+  
+  writeBatch(entries: LogEntry[]) {
+    // Write entire batch as single operation
+    const chunk = entries.map(JSON.stringify).join('\n') + '\n';
+    
+    // Non-blocking write with backpressure handling
+    if (!this.stream.write(chunk)) {
+      // Handle backpressure - wait for drain
+      this.stream.once('drain', () => {
+        // Continue when buffer space available
+      });
+    }
+  }
+}
+```
+
+#### Key Differences
+
+**Sonic-Boom (Pino)**:
+- Complexity: Uses worker threads and native code
+- Dependencies: Requires multiple packages
+- Best for: Absolute maximum throughput at any cost
+
+**MagicLogger**:
+- Simplicity: Pure JavaScript, single-threaded
+- Dependencies: Zero
+- Best for: High performance with simplicity and portability
+
 ### Asynchronous vs Synchronous Design Philosophy
 
 MagicLogger defaults to asynchronous logging to align with modern application architectures and performance requirements. This design prioritizes:
 
-1. **Performance First**: 13x throughput advantage for modern applications
+1. **Performance First**: Near-Pino throughput with zero dependencies
 2. **Production Ready**: Robust ring buffer with explicit backpressure handling
 3. **Graceful Degradation**: Fallback to sync mode on critical errors
 4. **Modern Applications**: Designed for microservices and high-volume systems
@@ -622,6 +763,99 @@ class RingBuffer<T> {
   }
 }
 ```
+
+## Batching Architecture
+
+### Two-Stage Batching System
+
+MagicLogger implements batching at two independent levels for maximum efficiency:
+
+#### Stage 1: Logger-Level Batching (AsyncLogger)
+
+The AsyncLogger uses a ring buffer to batch entries before sending to transports:
+
+```typescript
+class AsyncLogger {
+  private buffer: AsyncBuffer;
+  
+  constructor(options) {
+    this.buffer = new AsyncBuffer({
+      size: 16384,           // Fixed-size ring buffer
+      flushInterval: 100,    // Time-based flush (ms)
+      flushSize: 2000,       // Size-based flush
+      onFlush: (entries) => {
+        // Send batch to all transports
+        this.transportManager.logBatch(entries);
+      }
+    });
+  }
+}
+```
+
+**Ring Buffer Characteristics:**
+- Pre-allocated array (zero allocations during operation)
+- Overwrite-oldest policy when full
+- Automatic flush on size/time triggers
+- ~80,000 ops/sec throughput
+
+#### Stage 2: Transport-Level Batching
+
+Network transports inherit from BatchingTransport for additional batching:
+
+```typescript
+class BatchingTransport extends Transport {
+  protected maxBatchSize: number;      // e.g., 100 entries
+  protected maxBatchTime: number;      // e.g., 5000ms
+  protected maxBatchBytes: number;     // e.g., 1MB
+  
+  private currentBatch: LogEntry[] = [];
+  private sendQueue: LogEntry[][] = [];
+}
+```
+
+**Transport Batching Matrix:**
+
+| Transport | Batching | Default Config |
+|-----------|----------|----------------|
+| Console | ❌ No | Immediate write |
+| File | ❌ No | Immediate write (can add buffer) |
+| HTTP | ✅ **Yes** | 100 logs or 5s |
+| WebSocket | ✅ **Yes** | 100 logs or 5s |
+| S3 | ✅ **Yes** | 1000 logs or 30s |
+| MongoDB | ✅ **Yes** | 100 logs or 5s |
+
+#### How Two-Stage Batching Works
+
+```typescript
+// Stage 1: Logger-level batching (AsyncLogger)
+const logger = new AsyncLogger({
+  buffer: {
+    size: 16384,        // Ring buffer capacity
+    flushInterval: 100, // Flush every 100ms
+    flushSize: 2000     // Or when 2000 entries accumulate
+  }
+});
+
+// Stage 2: Transport-level batching (Network transports)
+const httpTransport = new HTTPTransport({
+  maxBatchSize: 100,     // Transport's own batching
+  maxBatchTime: 5000     // Independent of logger batching
+});
+```
+
+**Flow Example:**
+1. Application logs 5000 entries rapidly
+2. AsyncLogger's ring buffer accumulates them
+3. After 100ms or 2000 entries, buffer flushes a batch
+4. HTTPTransport receives the batch
+5. HTTPTransport may further batch these with other flushes
+6. After 5 seconds or 100 entries, HTTPTransport sends to server
+
+This two-stage approach provides:
+- **Efficiency**: Reduces system calls and network requests
+- **Flexibility**: Each stage can be tuned independently
+- **Resilience**: Buffers handle bursts at different scales
+- **Performance**: Minimizes overhead at both local and network levels
 
 #### String Building Optimization
 
