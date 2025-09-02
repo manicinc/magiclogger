@@ -2,6 +2,9 @@
 
 <p align="center">
     <img src="website/static/img/magiclog-primary-no-subtitle-transparent-4x.png" alt="MagicLog" width="520"/>
+ <img src="https://img.shields.io/badge/core_gzip-39kb-brightgreen.svg" alt="core_gzip">
+ <img src="https://img.shields.io/badge/core_console_gzip-39kb-brightgreen.svg" alt="core_console_gzip">
+ <img src="https://img.shields.io/badge/core_transports_gzip-51kb-brightgreen.svg" alt="core_transports_gzip">
 </p>
 <p align="center">
   <!-- Bundle sizes -->
@@ -1571,6 +1574,49 @@ MIT © [Manic.agency](https://manic.agency)
 </p>
 
 ## 📦 Build Output Sizes
+
+| File | Format | Raw Size | Gzip |
+|------|--------|----------|------|
+| `index.cjs` | CJS | 7.13 kB | 1.66 kB |
+| `index.js` | ESM | 4.31 kB | 1.35 kB |
+| `index.d.ts` | Types | 98.4 kB | 20.9 kB |
+
+### Core Bundle Sizes (gzipped)
+
+| Scenario | Size |
+|----------|------|
+| Core (bare minimum) | 39.9 kB |
+| Core + Console Transport | 39.9 kB |
+| Core + File Transport | 41.9 kB |
+| Core + HTTP Transport | 50.5 kB |
+| Core + All Basic Transports | 51.9 kB |
+
+### Individual Transport Sizes (gzipped)
+
+| Transport | Size |
+|-----------|------|
+| Console Transport Only | 9.59 kB |
+| File Transport Only | 4.11 kB |
+| HTTP Transport Only | 23.7 kB |
+
+### Schema Validation (Optional, Lazy-loaded)
+
+| Scenario | Size |
+|----------|------|
+| Core + Schema Validation | 42.2 kB |
+| Validation Module Only | 2.75 kB |
+
+*Note: Validation is only loaded when schemas are explicitly set on ContextManager or TagManager.*
+
+### Extension Sizes (gzipped)
+
+| Extension | Size |
+|-----------|------|
+| Sampler | 1.21 kB |
+| RateLimiter | 1.09 kB |
+| Redactor | 3.77 kB |
+
+*Generated via `scripts/analyze-build.js`.*
 
 | File | Format | Raw Size | Gzip |
 |------|--------|----------|------|

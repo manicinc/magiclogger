@@ -51,6 +51,15 @@ export interface LoggerOptions {
   context?: Record<string, unknown>;
 
   /**
+   * Minimum log level to output.
+   * Messages below this level will be filtered out.
+   *
+   * @example 'info' // Only info, warn, error, fatal will be logged
+   * @default 'info'
+   */
+  level?: LogLevel;
+
+  /**
    * If enabled, debug-level logs will be shown.
    *
    * @default false

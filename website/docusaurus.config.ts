@@ -158,6 +158,33 @@ const config: Config = {
   // Plugin to alias 'magiclogger' to the local dist build during docs build/serve.
   // Falls back to a local shim when dist isn't built so the site still compiles.
   plugins: [
+    // TypeDoc plugin for API documentation
+    [
+      'docusaurus-plugin-typedoc',
+      {
+        // TypeDoc options
+        entryPoints: ['../src'],
+        entryPointStrategy: 'expand',
+        tsconfig: '../tsconfig.json',
+        out: 'api',
+        sidebar: {
+          autoConfiguration: true,
+          pretty: true,
+        },
+        watch: process.env.TYPEDOC_WATCH === 'true',
+        excludePrivate: true,
+        excludeProtected: false,
+        excludeInternal: true,
+        readme: 'none',
+        exclude: [
+          '**/node_modules/**',
+          '**/tests/**',
+          '**/examples/**',
+          '**/*.test.ts',
+          '**/*.spec.ts',
+        ],
+      },
+    ],
     function magicloggerLocalAliasPlugin() {
       return {
         name: 'magiclogger-local-alias',

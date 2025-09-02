@@ -1,0 +1,41 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["src/index.ts"],
+  "entryPointStrategy": "expand",
+  "out": "website/docs/api",
+  "exclude": [
+    "**/node_modules/**",
+    "**/tests/**",
+    "**/examples/**",
+    "**/*.test.ts",
+    "**/*.spec.ts"
+  ],
+  "tsconfig": "./tsconfig.json",
+  "plugin": ["typedoc-plugin-markdown"],
+  "readme": "none",
+  "githubPages": false,
+  "disableSources": false,
+  "excludePrivate": true,
+  "excludeProtected": false,
+  "excludeInternal": true,
+  "excludeExternals": false,
+  "includeVersion": false,
+  "categorizeByGroup": true,
+  "defaultCategory": "Other",
+  "categoryOrder": [
+    "Core",
+    "Transports",
+    "Types",
+    "Extensions",
+    "Utils",
+    "*"
+  ],
+  "navigationLinks": {
+    "GitHub": "https://github.com/manicinc/magiclogger",
+    "Documentation": "/docs/intro"
+  },
+  "sidebarLinks": {
+    "Documentation": "/docs/intro",
+    "API Reference": "/docs/api"
+  }
+}

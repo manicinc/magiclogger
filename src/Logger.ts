@@ -1313,12 +1313,18 @@ export class Logger {
    * @public
    */
   public child(options: Partial<LoggerOptions>): Logger {
-    // Merge options with parent options, handling tags specially
+    // Merge options with parent options, handling tags and context specially
     const mergedOptions = { ...this.options, ...options };
 
-    // Merge tags arrays if both parent and child have tags
-    if (this.options.tags && options.tags) {
-      mergedOptions.tags = [...this.options.tags, ...options.tags];
+    // Merge context objects if both parent and child have context
+    if (this.options.context && options.context) {
+      mergedOptions.context = { ...this.options.context, ...options.context };
+    }
+
+    // For tags, if child specifies tags, use only child's tags (no inheritance)
+    // This matches the test expectation where child tags replace parent tags
+    if (options.tags) {
+      mergedOptions.tags = options.tags;
     }
 
     // Merge themeByTag mappings if both parent and child have them
