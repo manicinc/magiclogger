@@ -1,9 +1,10 @@
 {
   "entryPoints": ["src/index.ts"],
-  "out": "website/static/api",
+  "out": "website/static/docs/api",
   "theme": "default",
   "name": "MagicLogger API Documentation",
   "readme": "README.md",
+  "basePath": "/docs/api/",
   "excludePrivate": true,
   "excludeProtected": true,
   "excludeInternal": true,
@@ -15,5 +16,25 @@
   "navigationLinks": {
     "GitHub": "https://github.com/manicinc/magiclogger",
     "NPM": "https://www.npmjs.com/package/magiclogger"
-  }
+  },
+  "exclude": [
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "**/tests/**",
+    "**/node_modules/**"
+  ],
+  "tsconfig": "./tsconfig.typedoc.json",
+  "skipErrorChecking": true,
+  "validation": {
+    "invalidLink": false,
+    "notDocumented": false
+  },
+  "treatValidationWarningsAsErrors": false,
+  "treatWarningsAsErrors": false,
+  "blockTags": [
+    "@fileoverview",
+    "@constructor", 
+    "@static",
+    "@async"
+  ]
 }

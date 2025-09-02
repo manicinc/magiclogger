@@ -4,9 +4,11 @@
   "private": true,
   "scripts": {
     "sync-docs": "node ../scripts/sync-docs.js",
+    "generate-api-docs": "cd .. && npm run docs:api",
+    "prebuild": "npm run sync-docs && npm run generate-api-docs",
     "docusaurus": "docusaurus",
     "start": "npm run sync-docs && docusaurus start --config docusaurus.config.local.ts --port 3000 --no-open",
-    "build": "npm run sync-docs && docusaurus build",
+    "build": "docusaurus build",
     "swizzle": "docusaurus swizzle",
     "deploy": "docusaurus deploy",
     "clear": "docusaurus clear",

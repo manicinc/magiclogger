@@ -6,6 +6,9 @@
 /* Import Inter font */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
+/* Import navbar dashboard styles */
+@import url('./navbar-dashboard.css');
+
 /* Root Variables - Light Mode */
 :root {
   /* MagicLogger Brand Colors */
@@ -146,22 +149,40 @@ body {
   border-bottom: 1px solid var(--glass-border);
   box-shadow: var(--neo-shadow-small);
   padding: 0.75rem 0;
+  position: relative;
 }
 
 .navbar__logo {
   display: flex;
   align-items: center;
   margin-right: 1rem;
+  z-index: 10;
 }
 
 .navbar__logo img {
-  height: 40px;
+  height: 50px !important; /* Keep full size on all screens */
   width: auto;
   display: block;
+  filter: drop-shadow(0 2px 4px rgba(153, 69, 255, 0.2));
+  transition: var(--neo-transition);
+}
+
+.navbar__logo:hover img {
+  transform: scale(1.05);
+  filter: drop-shadow(0 4px 8px rgba(153, 69, 255, 0.3));
 }
 
 .navbar__title {
   display: none; /* Hide text title since logo has text */
+}
+
+/* Mobile menu toggle positioning */
+.navbar__toggle {
+  position: absolute !important;
+  right: 1rem !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  z-index: 20;
 }
 
 .navbar__link {
@@ -392,8 +413,43 @@ code {
 
 /* Mobile Responsive */
 @media (max-width: 996px) {
+  /* Keep navbar organized on tablet/mobile */
+  .navbar__inner {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  
+  .navbar__items {
+    flex: 1;
+  }
+  
+  .navbar__items--right {
+    margin-right: 3rem; /* Space for hamburger */
+  }
+  
+  /* Keep logo size consistent */
   .navbar__logo img {
-    height: 32px;
+    height: 45px !important;
+    min-height: 45px !important;
+  }
+  
+  /* Ensure dashboard button stays visible and styled */
+  .navbar-dashboard-link {
+    margin: 0.25rem 0.5rem !important;
+    padding: 0.4rem 0.8rem !important;
+    font-size: 0.85rem;
+  }
+  
+  .navbar-dashboard-link::after {
+    font-size: 8px;
+    padding: 1px 4px;
+  }
+  
+  /* Mobile menu sidebar */
+  .navbar-sidebar {
+    top: 60px !important;
   }
   
   .hero {

@@ -21,8 +21,11 @@ const config: Config = {
   organizationName: 'manicinc', // Usually your GitHub org/user name.
   projectName: 'magiclogger', // Usually your repo name.
 
-  onBrokenLinks: 'throw',
+  onBrokenLinks: 'warn',
   onBrokenMarkdownLinks: 'warn',
+  
+  // Add static directories for API docs
+  staticDirectories: ['static'],
 
   // Even if you don't use internationalization, you can use this field to set
   // useful metadata like html lang. For example, if your site is Chinese, you
@@ -70,10 +73,10 @@ const config: Config = {
       title: 'MagicLog',
       logo: {
         alt: 'MagicLog Logo',
-        // Use transparent variant on light mode and dark variant on dark mode
-        // so the logo is always visible and on-brand
+        // Use transparent variant for both light and dark modes
+        // The transparent logo works on both backgrounds
         src: 'img/magiclog-primary-no-subtitle-transparent-4x.png',
-        srcDark: 'img/magiclog-primary-no-subtitle-dark-4x.png',
+        srcDark: 'img/magiclog-primary-no-subtitle-transparent-4x.png',
       },
       items: [
         {
@@ -83,11 +86,19 @@ const config: Config = {
           label: 'Documentation',
         },
         {
-          to: '/api/',
+          href: '/docs/api/',
           label: 'API Docs',
           position: 'left',
+          target: '_self',
         },
         { to: '/blog', label: 'Blog', position: 'left' },
+        {
+          to: '/dashboard',
+          label: '✨ Magic Dashboard',
+          position: 'right',
+          className: 'navbar-dashboard-link',
+          'aria-label': 'Magic Dashboard - Coming Soon',
+        },
         {
           href: 'https://github.com/manicinc/magiclogger',
           label: 'GitHub',

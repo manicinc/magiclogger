@@ -13,19 +13,26 @@ export default function HeroSection() {
   const { displayedText } = useTypingEffect('High-performance async and sync logging for modern JavaScript', 40);
   const { colorMode } = useColorMode();
   const isDarkTheme = colorMode === 'dark';
+  const [copied, setCopied] = React.useState(false);
+  
+  const handleCopy = () => {
+    navigator.clipboard.writeText('npm install magiclogger');
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
   
   return (
     <header className={styles.heroSection}>
       <div className="container">
         <div className={styles.heroGrid}>
           <div className={styles.heroContent}>
-            {/* Single Logo - No duplication, larger size */}
-            <div className={styles.logoContainer}>
-              <img
-                src="/img/magiclog-primary-no-subtitle-transparent-4x.png"
-                alt="MagicLog"
-                className={styles.heroLogo}
-              />
+            {/* Rainbow gradient title */}
+            <div className={styles.titleContainer}>
+              <p className={styles.homeText}>Home of</p>
+              <h1 className={styles.rainbowTitle}>
+                <span className={styles.magicText}>Magic</span>
+                <span className={styles.loggerText}>Logger</span>
+              </h1>
             </div>
 
             <p className={styles.heroTagline}>
@@ -52,12 +59,13 @@ export default function HeroSection() {
                 <span>Get Started</span>
               </Link>
               
-              <Link
+              <a
                 className={clsx('button button--secondary', styles.secondaryButton)}
-                to="/api/">
+                href="/docs/api/"
+                target="_self">
                 <ApiIcon />
                 <span>API Documentation</span>
-              </Link>
+              </a>
               
               <a
                 className={clsx('button button--secondary', styles.githubButton)}
@@ -67,6 +75,15 @@ export default function HeroSection() {
                 <GithubIcon />
                 <span>View on GitHub</span>
               </a>
+              
+              <Link
+                to="/dashboard"
+                className={clsx('button', styles.dashboardButton)}
+                title="Magic Dashboard - Coming Soon">
+                <DashboardIcon />
+                <span>Magic Dashboard</span>
+                <span className={styles.comingSoonBadge}>Coming Soon</span>
+              </Link>
             </div>
 
             {/* Terminal Install */}
@@ -84,8 +101,9 @@ export default function HeroSection() {
                 <code className={styles.installCommand}>npm install magiclogger</code>
                 <button 
                   className={styles.copyButton}
-                  onClick={() => navigator.clipboard.writeText('npm install magiclogger')}>
-                  <CopyIcon />
+                  onClick={handleCopy}
+                  title={copied ? 'Copied!' : 'Copy to clipboard'}>
+                  {copied ? <CheckIcon /> : <CopyIcon />}
                 </button>
               </div>
             </div>
@@ -119,6 +137,33 @@ export default function HeroSection() {
                 icon={<ZeroIcon />}
                 color="yellow" 
               />
+            </div>
+
+            {/* Newsletter CTA Section */}
+            <div className={styles.newsletterCTA}>
+              <div className={styles.newsletterContent}>
+                <div className={styles.sponsorshipText}>
+                  <span className={styles.developmentText}>Development of</span>
+                  <span className={styles.magicLoggerText}>MagicLogger</span>
+                  <span className={styles.sponsoredText}>is sponsored by</span>
+                  <a 
+                    href="https://manic.agency" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className={styles.manicLink}>
+                    Manic Agency
+                  </a>
+                </div>
+                <a 
+                  href="https://manic.agency/newsletter"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.newsletterButton}>
+                  <MailIcon />
+                  <span>Subscribe to Newsletter</span>
+                  <span className={styles.shimmer}></span>
+                </a>
+              </div>
             </div>
           </div>
 
@@ -186,6 +231,14 @@ function CopyIcon() {
   );
 }
 
+function CheckIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+    </svg>
+  );
+}
+
 function PackageIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
@@ -218,6 +271,22 @@ function ZeroIcon() {
     <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
       <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"/>
       <path d="M8 12c0-2.21 1.79-4 4-4s4 1.79 4 4-1.79 4-4 4-4-1.79-4-4z"/>
+    </svg>
+  );
+}
+
+function DashboardIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>
+    </svg>
+  );
+}
+
+function MailIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
     </svg>
   );
 }
