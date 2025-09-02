@@ -190,7 +190,7 @@ async function chapter2_RainbowEffects(logger: Logger): Promise<void> {
     const colors = ['red', 'yellow', 'green', 'cyan', 'blue', 'magenta'];
     const shifted = [...colors.slice(i), ...colors.slice(0, i)];
     const wave = shifted
-      .map((c, idx) => `${COLORS[c as ColorName]}${'█'.repeat(3)}${COLORS.reset}`)
+      .map(c => `${COLORS[c as ColorName]}${'█'.repeat(3)}${COLORS.reset}`)
       .join('');
     process.stdout.write(wave);
     await sleep(300);

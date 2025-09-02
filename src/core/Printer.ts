@@ -160,6 +160,7 @@ export class Printer {
    * @private
    * @static
    */
+  // eslint-disable-next-line no-control-regex
   private static readonly ansiRegex = /\x1b\[[0-9;]*m/g;
 
   /**
