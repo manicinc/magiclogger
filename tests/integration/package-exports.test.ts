@@ -131,7 +131,7 @@ describe('Package.json Exports', () => {
   describe('Bundle size optimization scenarios', () => {
     it('should support minimal import for logger only', async () => {
       // Simulate: import { Logger } from 'magiclogger'
-      const { FullLogger: Logger } = await import('../../src/index');
+      const { Logger } = await import('../../src/index');
 
       const logger = new Logger();
       expect(logger).toBeDefined();
@@ -166,7 +166,7 @@ describe('Package.json Exports', () => {
 
   describe('Real-world usage patterns', () => {
     it('should support full logger setup', async () => {
-      const { FullLogger: Logger } = await import('../../src/index');
+      const { Logger } = await import('../../src/index');
 
       // createConsole/createFile are from transports module, not main
       const logger = new Logger();
@@ -175,7 +175,7 @@ describe('Package.json Exports', () => {
     });
 
     it('should support logger with separate transport imports', async () => {
-      const { FullLogger: Logger } = await import('../../src/index');
+      const { Logger } = await import('../../src/index');
       const { createConsole, createFile } = await import('../../src/transports');
 
       const logger = new Logger();
@@ -191,7 +191,7 @@ describe('Package.json Exports', () => {
 
     it('should support mixed import strategies', async () => {
       // Main logger
-      const { FullLogger: Logger, COLORS } = await import('../../src/index');
+      const { Logger, COLORS } = await import('../../src/index');
 
       // Individual transports
       const { ConsoleTransport } = await import('../../src/transports/console');

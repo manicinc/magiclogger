@@ -116,10 +116,6 @@ dist
 
 # Docusaurus cache and generated files
 .docusaurus
-# Synced docs - generated from docs/ folder
-website/docs/
-!website/docs/tutorial-basics/
-!website/docs/tutorial-extras/
 
 # Serverless directories
 .serverless/

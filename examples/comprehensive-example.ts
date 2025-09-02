@@ -1,9 +1,9 @@
 /**
  * MagicLogger Comprehensive API Example
- * 
+ *
  * This file demonstrates ALL MagicLogger features and APIs in one place.
  * Use this as a reference for every available method and configuration option.
- * 
+ *
  * Run with: npx ts-node examples/comprehensive-example.ts
  */
 
@@ -11,11 +11,11 @@ import {
   // Core Loggers
   Logger,
   SyncLogger,
-  
+
   // Factory functions
   createAsyncLogger,
   createSmartLogger,
-  
+
   // Utilities
   meta,
   err,
@@ -23,20 +23,20 @@ import {
   isSyncLogger,
   getDefaultLogger,
   setDefaultLogger,
-  
+
   // Context & Tags
   ContextManager,
   TagManager,
-  
+
   // Extensions
   RateLimiter,
   Redactor,
   Sampler,
   enhanceConsole,
-  
+
   // Types
   type LogEntry,
-} from '../src/index';
+} from '../dist/index.js';
 
 // Import transports separately (with safe fallbacks for optional ones)
 import {
@@ -45,27 +45,27 @@ import {
   HTTPTransport,
   StreamTransport,
   WebSocketTransport,
-  
+
   // Factory functions
   createConsole,
   createFile,
   createHTTP,
-} from '../src/transports';
+} from '../dist/transports.js';
 
 // Optional transports - may not be available
-let S3Transport: typeof import('../src/transports').S3Transport | undefined;
-let MongoDBTransport: typeof import('../src/transports').MongoDBTransport | undefined;
+let S3Transport: typeof import('../dist/transports.js').S3Transport | undefined;
+let MongoDBTransport: typeof import('../dist/transports.js').MongoDBTransport | undefined;
 
 try {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  S3Transport = require('../src/transports').S3Transport;
+  S3Transport = require('../dist/transports.cjs').S3Transport;
 } catch {
   console.log('Note: S3Transport not available (AWS SDK not installed)');
 }
 
 try {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  MongoDBTransport = require('../src/transports').MongoDBTransport;
+  MongoDBTransport = require('../dist/transports.cjs').MongoDBTransport;
 } catch {
   console.log('Note: MongoDBTransport not available (MongoDB driver not installed)');
 }
@@ -83,7 +83,7 @@ const logger = new Logger({
   id: 'main-logger',
   useColors: true,
   verbose: false,
-  useConsole: true,  // Auto-adds console transport (default)
+  useConsole: true, // Auto-adds console transport (default)
 });
 
 // Basic logging methods
@@ -113,7 +113,7 @@ syncLogger.error('Guaranteed delivery for audit logs');
 console.log('\n1.3 Async Logger (High performance):');
 const asyncLogger = createAsyncLogger({
   buffer: { size: 16384, flushInterval: 50 },
-  onFlush: (entries) => {
+  onFlush: entries => {
     console.log(`  Flushed ${entries.length} log entries`);
   },
 });
@@ -147,22 +147,27 @@ console.log('='.repeat(80) + '\n');
 console.log('2.1 Inline angle bracket syntax:');
 logger.info('<green.bold>Success:</> File <cyan.underline>data.json</> uploaded');
 logger.error('<red>Error:</> <yellow>Connection</> to <magenta>database</> failed');
-logger.info('<bgBlue.white> STATUS </> <gray>|</> <green>Active</> <gray>|</> <yellow>3 warnings</>');
+logger.info(
+  '<bgBlue.white> STATUS </> <gray>|</> <green>Active</> <gray>|</> <yellow>3 warnings</>'
+);
 
 // 2.2 Chainable style API
 console.log('\n2.2 Chainable style API (.s):');
 logger.info(
   logger.s.red.bold('ERROR: ') +
-  logger.s.yellow('File not found: ') +
-  logger.s.cyan.underline('/path/to/file.js')
+    logger.s.yellow('File not found: ') +
+    logger.s.cyan.underline('/path/to/file.js')
 );
 
 // Complex chaining
 logger.info(
-  logger.s.bgGreen.black.bold(' DEPLOY ') + ' ' +
-  logger.s.green('✓') + ' Version ' +
-  logger.s.cyan.bold('v2.4.1') + ' to ' +
-  logger.s.magenta.underline('production')
+  logger.s.bgGreen.black.bold(' DEPLOY ') +
+    ' ' +
+    logger.s.green('✓') +
+    ' Version ' +
+    logger.s.cyan.bold('v2.4.1') +
+    ' to ' +
+    logger.s.magenta.underline('production')
 );
 
 // 2.3 Template literal styling
@@ -209,12 +214,15 @@ for (let i = 0; i <= 100; i += 25) {
 
 // 3.4 Tables
 console.log('\nTable:');
-logger.table([
-  { Service: 'API', Status: logger.s.green('✓ Healthy'), CPU: '12%', Memory: '256MB' },
-  { Service: 'Database', Status: logger.s.green('✓ Healthy'), CPU: '45%', Memory: '2.1GB' },
-  { Service: 'Cache', Status: logger.s.yellow('⚠ Warning'), CPU: '78%', Memory: '512MB' },
-  { Service: 'Queue', Status: logger.s.red('✗ Down'), CPU: '0%', Memory: '0MB' },
-], ['cyan', 'bold']);
+logger.table(
+  [
+    { Service: 'API', Status: logger.s.green('✓ Healthy'), CPU: '12%', Memory: '256MB' },
+    { Service: 'Database', Status: logger.s.green('✓ Healthy'), CPU: '45%', Memory: '2.1GB' },
+    { Service: 'Cache', Status: logger.s.yellow('⚠ Warning'), CPU: '78%', Memory: '512MB' },
+    { Service: 'Queue', Status: logger.s.red('✗ Down'), CPU: '0%', Memory: '0MB' },
+  ],
+  ['cyan', 'bold']
+);
 
 // 3.5 Links
 logger.link('https://github.com/your-repo', 'View on GitHub');
@@ -251,11 +259,14 @@ contextLogger.info('User authenticated', {
 });
 
 // 4.3 Using meta() helper
-contextLogger.info('Processing payment', meta({
-  orderId: 'ORD-456',
-  amount: 99.99,
-  currency: 'USD',
-}));
+contextLogger.info(
+  'Processing payment',
+  meta({
+    orderId: 'ORD-456',
+    amount: 99.99,
+    currency: 'USD',
+  })
+);
 
 // 4.4 Using err() helper
 try {
@@ -380,12 +391,8 @@ if (MongoDBTransport) {
 
 // 5.6 Logger with multiple transports
 const multiTransportLogger = new Logger({
-  useConsole: false,  // Disable default console
-  transports: [
-    consoleTransport,
-    fileTransport,
-    httpTransport,
-  ],
+  useConsole: false, // Disable default console
+  transports: [consoleTransport, fileTransport, httpTransport],
 });
 
 // 5.7 Transport management
@@ -399,7 +406,7 @@ async function setupTransports() {
   const consoleT = await createConsole({ useColors: true });
   const fileT = await createFile('./logs/factory.log');
   const httpT = await createHTTP('https://api.example.com/logs');
-  
+
   console.log('Created transports via factories:', consoleT.name, fileT.name, httpT.name);
 }
 
@@ -426,15 +433,15 @@ const customThemeLogger = new Logger({
     warning: ['yellow'],
     error: ['red', 'bold'],
     debug: ['gray', 'dim'],
-    
+
     header: ['brightWhite', 'bold', 'underline'],
     footer: ['gray', 'dim'],
     separator: ['blue'],
-    
+
     tags: {
-      'api': ['cyan', 'bold'],
-      'database': ['yellow'],
-      'security': ['red', 'bold', 'bgYellow'],
+      api: ['cyan', 'bold'],
+      database: ['yellow'],
+      security: ['red', 'bold', 'bgYellow'],
     },
   },
 });
@@ -513,7 +520,7 @@ console.log('='.repeat(80) + '\n');
 // 8.1 Rate Limiter
 const rateLimiter = new RateLimiter({
   max: 100,
-  window: 1000,  // 100 logs per second
+  window: 1000, // 100 logs per second
   strategy: 'sliding',
 });
 
@@ -529,9 +536,7 @@ for (let i = 0; i < 5; i++) {
 // 8.2 Redactor
 const redactor = new Redactor({
   preset: 'strict',
-  customPatterns: [
-    { pattern: /user_\d+/g, replacement: 'user_[REDACTED]' },
-  ],
+  customPatterns: [{ pattern: /user_\d+/g, replacement: 'user_[REDACTED]' }],
 });
 
 const redactedLogger = new Logger({
@@ -542,7 +547,7 @@ redactedLogger.info('User user_12345 with SSN 123-45-6789');
 
 // 8.3 Sampler
 const sampler = new Sampler({
-  rate: 0.1,  // Sample 10% of logs
+  rate: 0.1, // Sample 10% of logs
   strategy: 'random',
 });
 
@@ -649,11 +654,11 @@ console.log('='.repeat(80) + '\n');
 // 10.1 Ring buffer configuration
 const performantLogger = createAsyncLogger({
   buffer: {
-    size: 32768,      // Larger buffer
-    flushInterval: 100,  // Less frequent flushes
-    flushSize: 5000,     // Bigger batches
+    size: 32768, // Larger buffer
+    flushInterval: 100, // Less frequent flushes
+    flushSize: 5000, // Bigger batches
   },
-  dropPolicy: 'oldest',  // Drop old logs when full
+  dropPolicy: 'oldest', // Drop old logs when full
 });
 
 // 10.2 Check buffer status
@@ -679,12 +684,12 @@ console.log('='.repeat(80) + '\n');
 // Close all loggers and transports
 async function cleanup() {
   console.log('Closing loggers...');
-  
+
   await logger.close();
   await asyncLogger.close();
   syncLogger.close();
   await multiTransportLogger.close();
-  
+
   console.log('All loggers closed successfully');
 }
 
@@ -697,11 +702,4 @@ setTimeout(async () => {
 // ============================================================================
 // EXPORT FOR TESTING
 // ============================================================================
-export {
-  logger,
-  syncLogger,
-  asyncLogger,
-  contextLogger,
-  taggedLogger,
-  multiTransportLogger,
-};
+export { logger, syncLogger, asyncLogger, contextLogger, taggedLogger, multiTransportLogger };

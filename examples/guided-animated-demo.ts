@@ -8,7 +8,7 @@
  */
 
 import * as readline from 'readline';
-import { Logger, COLORS, type ColorName } from '../src/index';
+import { Logger, COLORS, type ColorName } from '../dist/index.js';
 
 // Create readline interface for user input
 const rl = readline.createInterface({

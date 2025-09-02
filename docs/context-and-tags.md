@@ -813,5 +813,5 @@ Context and tags are powerful features that enable structured, searchable, and w
 
 For more information, see:
 - [Transport Documentation](./intro.md#-multiple-transports)
-- [API Reference](./api_usage.md)
+- [API Reference](./api-reference.md)
 - [Examples](https://github.com/manicinc/magiclogger/tree/main/examples)

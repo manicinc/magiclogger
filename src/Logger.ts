@@ -1337,6 +1337,116 @@ export class Logger {
   }
 
   /**
+   * Get the current context object.
+   * @returns {Record<string, any> | undefined} Current context
+   */
+  public getContext(): Record<string, any> | undefined {
+    return this.options.context;
+  }
+
+  /**
+   * Get the current tags array.
+   * @returns {string[] | undefined} Current tags
+   */
+  public getTags(): string[] | undefined {
+    return this.options.tags;
+  }
+
+  /**
+   * Get the current log level.
+   * @returns {string | undefined} Current minimum log level
+   */
+  public getLevel(): string | undefined {
+    return this.options.level;
+  }
+
+  /**
+   * Get all transports.
+   * @returns {Transport[]} Array of configured transports
+   */
+  public getTransports(): Transport[] {
+    return this.transportManager.getTransports();
+  }
+
+  /**
+   * Get logger ID.
+   * @returns {string | undefined} Logger instance ID
+   */
+  public getId(): string | undefined {
+    return this.options.id;
+  }
+
+  /**
+   * Get all logger bindings (context + metadata).
+   * Similar to Pino's bindings() method.
+   * @returns {Record<string, any>} Combined context and metadata
+   */
+  public getBindings(): Record<string, any> {
+    return {
+      ...(this.options.context || {}),
+      ...(this.options.id && { loggerId: this.options.id }),
+      ...(this.options.tags && { tags: this.options.tags }),
+    };
+  }
+
+  /**
+   * Set the context (replaces existing).
+   * @param {Record<string, any>} context - New context object
+   */
+  public setContext(context: Record<string, any>): void {
+    this.options.context = context;
+  }
+
+  /**
+   * Add to existing context (merges with existing).
+   * @param {Record<string, any>} context - Context to merge
+   */
+  public addContext(context: Record<string, any>): void {
+    this.options.context = {
+      ...(this.options.context || {}),
+      ...context,
+    };
+  }
+
+  /**
+   * Set tags (replaces existing).
+   * @param {string[]} tags - New tags array
+   */
+  public setTags(tags: string[]): void {
+    this.options.tags = tags;
+  }
+
+  /**
+   * Add tags to existing tags.
+   * @param {string[]} tags - Tags to add
+   */
+  public addTags(tags: string[]): void {
+    const existingTags = this.options.tags || [];
+    this.options.tags = [...new Set([...existingTags, ...tags])];
+  }
+
+  /**
+   * Set the minimum log level.
+   * @param {LogLevel} level - New minimum log level
+   */
+  public setLevel(level: LogLevel): void {
+    this.options.level = level;
+  }
+
+  /**
+   * Check if a log level is enabled.
+   * @param {LogLevel} level - Level to check
+   * @returns {boolean} True if the level would be logged
+   */
+  public isLevelEnabled(level: LogLevel): boolean {
+    const levels: LogLevel[] = ['trace', 'debug', 'info', 'warn', 'error', 'fatal'];
+    const currentLevel = this.options.level || 'info';
+    const currentIndex = levels.indexOf(currentLevel);
+    const checkIndex = levels.indexOf(level);
+    return checkIndex >= currentIndex;
+  }
+
+  /**
    * Register custom colors for use in themes and styling.
    *
    * ⚠️ WARNING: Custom colors may not work in all terminals!

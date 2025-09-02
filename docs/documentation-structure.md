@@ -2,63 +2,65 @@
 
 ## Overview
 
-MagicLogger uses a single-source documentation approach to maintain consistency and avoid duplication, so our documentation website can render our docs in markdown. This guide explains how the system works.
+MagicLogger uses Docusaurus for documentation with a simple, single-source approach. All documentation lives in the `docs/` folder and Docusaurus reads directly from there.
 
 ## Directory Structure
 
 ```
 magiclogger/
-├── docs/                     # 📚 Single source of truth for all docs
-│   ├── api_usage.md
-│   ├── architecture.md
-│   ├── transports.md
-│   └── ... (all other docs)
+├── docs/                     # 📚 All documentation files
+│   ├── getting-started.md    # Quick start guide
+│   ├── api-reference.md      # Complete API documentation
+│   ├── advanced-usage.md     # Advanced patterns and examples
+│   ├── architecture.md       # System architecture
+│   ├── transports.md         # Transport documentation
+│   └── ... (other docs)
 │
-├── website/                  # 🌐 Docusaurus website
-│   ├── docs/                # ⚠️ GENERATED - Do not edit directly!
-│   │   └── (synced from docs/)
-│   ├── sidebars.ts         # Sidebar configuration
-│   ├── docusaurus.config.ts
-│   └── package.json
-│
-└── scripts/
-    └── sync-docs.js         # 🔄 Syncs docs/ → website/docs/
-
+└── website/                  # 🌐 Docusaurus website
+    ├── src/                  # Website components and pages
+    ├── static/               # Static assets
+    ├── sidebars.ts          # Sidebar configuration
+    └── docusaurus.config.ts # Main configuration
 ```
 
 ## How It Works
 
-### 1. Single Source of Truth
+### Single Source of Truth
 
 All documentation is maintained in the root `docs/` folder. This ensures:
 - No duplicate content
-- Consistent updates
-- Easy to find and edit
+- Simple maintenance
 - Works with GitHub's doc viewer
+- Direct integration with Docusaurus
 
-### 2. Automatic Synchronization
+### Docusaurus Configuration
 
-The `sync-docs.js` script:
-- Copies docs from `docs/` to `website/docs/`
-- Adds Docusaurus frontmatter if missing
-- Runs automatically during:
-  - `npm run start` (local development)
-  - `npm run build` (production build)
-  - CI/CD pipeline (GitHub Actions)
+The website is configured to read documentation directly from the parent `docs/` directory:
 
-### 3. Gitignore Strategy
-
-```gitignore
-# website/docs is generated - don't track
-website/docs/
-!website/docs/tutorial-basics/  # Keep Docusaurus tutorials
-!website/docs/tutorial-extras/
+```typescript
+// docusaurus.config.ts
+{
+  presets: [
+    [
+      'classic',
+      {
+        docs: {
+          path: '../docs',  // Points to parent docs folder
+          editUrl: 'https://github.com/manicinc/magiclogger/tree/main/docs/',
+        }
+      }
+    ]
+  ]
+}
 ```
 
-This prevents:
-- Duplicate docs in git history
-- Merge conflicts between docs/ and website/docs/
-- Confusion about which files to edit
+### No Syncing Required
+
+Unlike many setups, we don't copy or sync documentation files. Docusaurus reads directly from the source, eliminating:
+- Build-time sync steps
+- Duplicate files
+- Sync script maintenance
+- Potential sync errors
 
 ## Working with Documentation
 
@@ -69,50 +71,41 @@ This prevents:
 echo "# My New Feature" > docs/my-feature.md
 ```
 
-2. **Add to sync list** in `scripts/sync-docs.js`:
-```javascript
-const DOCS_TO_SYNC = [
-  'api_usage.md',
-  'architecture.md',
-  // ... existing docs
-  'my-feature.md',  // Add your new doc
-];
-```
-
-3. **Update sidebar** in `website/sidebars.ts`:
+2. **Update sidebar** in `website/sidebars.ts`:
 ```typescript
 {
   type: 'category',
   label: '📚 Guides',
   items: [
-    'my-feature',  // Doc ID (filename without .md)
+    'getting-started',
+    'my-feature',  // Add your new doc
+    'api-reference',
   ],
 }
 ```
 
-4. **Test locally**:
+3. **Test locally**:
 ```bash
 cd website
-npm run start  # Auto-syncs and starts dev server
+npm start  # Starts dev server
 ```
 
-### Editing Existing Documentation
+### Editing Documentation
 
-Always edit files in `docs/`, never in `website/docs/`:
+Always edit files directly in the `docs/` folder:
 
 ```bash
 # ✅ CORRECT
-vim docs/api_usage.md
+vim docs/api-reference.md
 
-# ❌ WRONG - These changes will be overwritten!
-vim website/docs/api_usage.md
+# ❌ WRONG - No other location for docs
+vim website/docs/api-reference.md  # This doesn't exist!
 ```
 
 ### Documentation with Special Formatting
 
-For docs needing special Docusaurus features:
+Add Docusaurus frontmatter directly in the `docs/` files:
 
-1. Add frontmatter in the source `docs/` file:
 ```markdown
 ---
 id: my-doc
@@ -124,103 +117,86 @@ sidebar_position: 1
 # My Document Content
 ```
 
-2. The sync script preserves existing frontmatter
+## API Documentation
 
-### Testing Documentation Changes
+API documentation is maintained in `docs/api-reference.md` using pure Markdown. This provides:
+- Complete API reference with code examples
+- Type definitions and interfaces
+- Transport documentation
+- Extension guides
+- Migration guides from other loggers
+
+No TypeDoc or other generation tools are needed - everything is hand-written for clarity and control.
+
+## Testing Documentation Changes
 
 ```bash
-# Quick test - just build
+# Start development server
 cd website
-npm run sync-docs
+npm start
+# Opens http://localhost:3000
+
+# Build for production
+cd website
 npm run build
 
-# Full test - preview the site
+# Serve production build locally
 cd website
-npm run start
-# Opens http://localhost:3000
+npm run serve
 ```
 
 ## CI/CD Integration
 
-The GitHub Actions workflow (`docs.yml`) automatically:
+The GitHub Actions workflow automatically:
 
-1. Syncs documentation on every push
-2. Builds the Docusaurus site
-3. Deploys to GitHub Pages
+1. Builds the Docusaurus site
+2. Deploys to GitHub Pages
 
-```yaml
-- name: Sync documentation from docs/ to website/docs/
-  run: node scripts/sync-docs.js
-
-- name: Build website
-  run: npm run build
-  working-directory: ./website
-```
+No sync step is needed since Docusaurus reads directly from `docs/`.
 
 ## Benefits of This Approach
 
-1. **Single Source of Truth**: Edit once, deploy everywhere
-2. **No Duplication**: Reduces repo size and complexity
-3. **Automatic Sync**: No manual copying needed
+1. **Simplicity**: No sync scripts or duplicate files
+2. **Single Source**: Edit once in `docs/`
+3. **Direct Integration**: Docusaurus reads from source
 4. **Version Control**: Only track source files
 5. **IDE Friendly**: Edit markdown in root docs/ with full IDE support
 6. **GitHub Friendly**: Docs render correctly on GitHub repo page
-7. **Flexible**: Can add Docusaurus-specific features when needed
-
-## Troubleshooting
-
-### Changes Not Appearing
-
-If your changes don't appear on the website:
-
-1. **Check sync list**: Ensure your file is in `DOCS_TO_SYNC` array
-2. **Clear cache**: `cd website && npm run clear`
-3. **Check frontmatter**: Invalid frontmatter can cause build errors
-4. **Restart dev server**: Sometimes hot reload misses changes
-
-### Build Errors
-
-```bash
-# Check which docs are causing issues
-cd website
-npm run sync-docs
-npm run build -- --debug
-```
-
-### Duplicate Content
-
-If you see duplicate content:
-1. Check that `website/docs/` is gitignored
-2. Remove any manually copied files from `website/docs/`
-3. Run `git rm -r --cached website/docs/` if needed
+7. **Maintenance Free**: No sync scripts to maintain
 
 ## Best Practices
 
-1. **Always edit in `docs/`** - Never edit `website/docs/` directly
-2. **Test locally** - Run the website locally before pushing
-3. **Use meaningful names** - Keep filenames descriptive and lowercase
-4. **Add to sync list** - Don't forget to add new docs to `sync-docs.js`
-5. **Update sidebar** - Keep the sidebar organized and logical
-6. **Write once** - Avoid platform-specific content when possible
+1. **Keep docs organized** - Use clear, descriptive filenames
+2. **Use frontmatter** - Add metadata for better organization
+3. **Test locally** - Always preview changes before pushing
+4. **Write clearly** - Focus on user needs and clarity
+5. **Include examples** - Code examples make concepts clear
+6. **Update promptly** - Keep docs in sync with code changes
 
-## Migration from Duplicate Docs
+## Documentation Categories
 
-If you have existing duplicate docs:
+### Core Documentation
+- `getting-started.md` - Quick start guide
+- `api-reference.md` - Complete API reference
+- `advanced-usage.md` - Advanced patterns
 
-```bash
-# 1. Ensure docs/ has all latest content
-cp website/docs/*.md docs/  # If website has newer versions
+### Architecture & Design
+- `architecture.md` - System architecture
+- `magic-schema.md` - MAGIC schema specification
 
-# 2. Remove website docs from git
-git rm -r website/docs/
-git commit -m "chore: remove duplicate docs, use single source"
+### Features
+- `transports.md` - Transport documentation
+- `styling.md` - Styling and theming
+- `context-and-tags.md` - Structured logging
 
-# 3. Add to .gitignore
-echo "website/docs/" >> .gitignore
+### Development
+- `development.md` - Development guide
+- `contributing.md` - Contribution guidelines
+- `build_instructions.md` - Build instructions
 
-# 4. Test the sync
-node scripts/sync-docs.js
-cd website && npm run build
-```
+### Operations
+- `deployment.md` - Deployment guide
+- `cicd.md` - CI/CD documentation
+- `publishing.md` - NPM publishing
 
-This documentation structure ensures maintainability, consistency, and ease of use for both contributors and users.
+This simple structure ensures maintainability, consistency, and ease of use for both contributors and users.

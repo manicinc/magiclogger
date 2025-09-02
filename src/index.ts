@@ -36,11 +36,6 @@ export type { LoggerOptions } from './types/logger';
 export { AsyncLogger } from './async/AsyncLogger';
 export type { AsyncLoggerOptions } from './async/AsyncLogger';
 
-/**
- * Alias for the main Logger class for backward compatibility.
- */
-export { Logger as FullLogger } from './Logger';
-export type { LoggerOptions as FullLoggerOptions } from './types/logger';
 
 /**
  * Synchronous logger with blocking I/O.
@@ -58,11 +53,11 @@ export type { LogEntry } from './types/transport';
 // Factory Functions
 // ==========================================
 
-import { Logger as FullLoggerClass } from './Logger';
+import { Logger } from './Logger';
 import { AsyncLogger } from './async/AsyncLogger';
 import { SyncLogger } from './sync/SyncLogger';
 import type { AsyncLoggerOptions } from './async/AsyncLogger';
-import type { LoggerOptions as FullLoggerOptions } from './types/logger';
+import type { LoggerOptions } from './types/logger';
 import type { LogEntry } from './types/transport';
 import type { LogLevel } from './types/logger';
 
@@ -89,8 +84,8 @@ import type { LogLevel } from './types/logger';
  * ```
  */
 export function createLogger(
-  options: Partial<FullLoggerOptions & AsyncLoggerOptions> = {}
-): FullLoggerClass | AsyncLogger | SyncLogger {
+  options: Partial<LoggerOptions & AsyncLoggerOptions> = {}
+): Logger | AsyncLogger | SyncLogger {
   const mode = options.mode ?? 'async';
 
   // For backward compatibility with tests, return actual AsyncLogger/SyncLogger instances
@@ -112,8 +107,8 @@ export function createLogger(
       ? createAsyncLogger(options as Partial<AsyncLoggerOptions>)
       : new SyncLogger(options);
   } else {
-    // Default to FullLogger class for balanced mode or unknown
-    return new FullLoggerClass(options);
+    // Default to Logger class for balanced mode or unknown
+    return new Logger(options);
   }
 }
 
@@ -124,7 +119,7 @@ export function createLogger(
  * @param options - Configuration options
  * @returns Logger instance in sync mode
  */
-export function createSyncLogger(options: Partial<FullLoggerOptions> = {}): SyncLogger {
+export function createSyncLogger(options: Partial<LoggerOptions> = {}): SyncLogger {
   return new SyncLogger(options);
 }
 
@@ -143,8 +138,8 @@ export function createSyncLogger(options: Partial<FullLoggerOptions> = {}): Sync
  * ```
  */
 export default function magiclogger(
-  options: Partial<FullLoggerOptions & AsyncLoggerOptions> = {}
-): FullLoggerClass | AsyncLogger | SyncLogger {
+  options: Partial<LoggerOptions & AsyncLoggerOptions> = {}
+): Logger | AsyncLogger | SyncLogger {
   return createLogger(options);
 }
 
@@ -304,9 +299,9 @@ export { TransportManager } from './transports/base/TransportManager';
 /**
  * Default logger and singleton management.
  */
-let defaultLogger: AsyncLogger | SyncLogger | FullLoggerClass | null = null;
+let defaultLogger: AsyncLogger | SyncLogger | Logger | null = null;
 
-export function getDefaultLogger(): AsyncLogger | SyncLogger | FullLoggerClass {
+export function getDefaultLogger(): AsyncLogger | SyncLogger | Logger {
   if (!defaultLogger) {
     defaultLogger = createLogger();
   }

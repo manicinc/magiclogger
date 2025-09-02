@@ -1545,6 +1545,17 @@ logger.getStats()       // Performance metrics
 
 *Schema validation is lazy-loaded only when used (+2.5 kB)*
 
+## Documentation
+
+📚 **[View Documentation](https://manicinc.github.io/magiclogger)** | **[Getting Started](./docs/intro.md)** | **[API Reference](./docs/api-reference.md)**
+
+```bash
+npm run docs        # Start docs dev server with live reload
+npm run docs:build  # Build production docs
+```
+
+For development setup and build instructions, see [Development Guide](./docs/development.md) and [Build Instructions](./docs/build_instructions.md).
+
 ## Contributing
 
 We welcome contributions! Please see [CONTRIBUTING.md](./docs/contributing.md) for guidelines.

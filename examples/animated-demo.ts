@@ -7,7 +7,7 @@
  * Run with: npx ts-node examples/animated-demo.ts
  */
 
-import { Logger, COLORS, type ColorName } from '../src/index';
+import { Logger, COLORS, type ColorName } from '../dist/index.js';
 
 // Helper function to pause execution
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));

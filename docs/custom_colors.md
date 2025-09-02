@@ -360,4 +360,4 @@ logger.info('<customOrange>Hello</>');
 
 ## API Reference
 
-See the [API Reference](./api_usage.md#api-reference) for complete method signatures and options.
+See the [API Reference](./api-reference.md#api-reference) for complete method signatures and options.

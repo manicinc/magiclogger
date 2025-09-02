@@ -441,11 +441,10 @@
     "demo:web": "npm run build && node -e \"const fs = require('fs-extra'); fs.copySync('dist', 'examples/web-demo/dist')\" && serve examples/web-demo",
     "docs": "npm run docs:start",
     "docs:start": "cd website && npm start",
-    "docs:build": "npm run build && cd website && npm ci && npm run build",
+    "docs:build": "cd website && npm run build",
     "docs:serve": "cd website && npm run serve",
     "docs:deploy": "cd website && npm run deploy",
     "docs:install": "cd website && npm ci",
-    "docs:api": "typedoc",
     "clean": "rimraf dist test_logs .tsbuildinfo",
     "check": "npm run format && npm run lint",
     "dev": "tsup --watch",
@@ -554,8 +553,6 @@
     "tsconfig-paths": "^4.2.0",
     "tsup": "^8.0.1",
     "tsx": "^4.7.0",
-    "typedoc": "^0.28.11",
-    "typedoc-plugin-markdown": "^4.8.1",
     "typescript": "^5.0.4"
   },
   "peerDependencies": {

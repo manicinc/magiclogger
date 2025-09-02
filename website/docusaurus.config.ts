@@ -86,10 +86,9 @@ const config: Config = {
           label: 'Documentation',
         },
         {
-          href: '/docs/api/',
-          label: 'API Docs',
+          to: '/docs/api-reference',
+          label: 'API Reference',
           position: 'left',
-          target: '_self',
         },
         { to: '/blog', label: 'Blog', position: 'left' },
         {

@@ -147,6 +147,6 @@ npm run test:coverage
 
 - **CI/CD Pipeline**: See [CI/CD Documentation](./cicd.md)
 - **Release Process**: See [Publishing Guide](./publishing.md)
-- **API Documentation**: See [API Usage](./api_usage.md)
+- **API Documentation**: See [API Usage](./api-reference.md)
 
 Thank you for contributing to Magiclogger!

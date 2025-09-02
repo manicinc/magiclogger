@@ -14,8 +14,8 @@ const sidebars: SidebarsConfig = {
     'intro',
     {
       type: 'category',
-      label: '🚀 Getting Started',
-      items: ['api_usage'],
+      label: '📖 API & Usage',
+      items: ['api-reference', 'advanced-usage'],
     },
     {
       type: 'category',
