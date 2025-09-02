@@ -185,25 +185,63 @@ logger.error('Database connection failed');
 
 ### Hierarchical Tags
 
-Use hierarchical tags for better organization:
+MagicLogger implements a sophisticated hierarchical tag system that supports both implicit (dot notation) and explicit (parent-child) hierarchies:
+
+#### 1. Dot Notation Hierarchy (Implicit)
+
+The most common approach uses dot notation to create implicit hierarchies:
+
+```typescript
+// Tags automatically form a hierarchy
+logger.info('Database query executed', {
+  tags: ['database.query.select', 'performance.slow']
+});
+
+// These tags implicitly match at multiple levels:
+// - 'database' (parent)
+// - 'database.query' (sub-parent)  
+// - 'database.query.select' (specific)
+```
+
+#### 2. Explicit Parent-Child Relationships
+
+The TagManager also supports explicit hierarchy definitions:
 
 ```typescript
 import { TagManager } from 'magiclogger';
 
 const tagManager = new TagManager();
 
-// Generate hierarchical tags from paths
-const apiTags = tagManager.fromPath('api/v1/users/create');
-// Result: ['api', 'api-v1', 'api-v1-users', 'api-v1-users-create']
+// Define explicit parent-child relationships
+tagManager.setHierarchy('api', ['api.v1', 'api.v2', 'api.internal']);
+tagManager.setHierarchy('api.v1', ['api.v1.users', 'api.v1.posts']);
+
+// Query the hierarchy
+tagManager.getChildren('api');        // ['api.v1', 'api.v2', 'api.internal']
+tagManager.getParents('api.v1.users'); // ['api', 'api.v1']
+
+// Expand to include full hierarchy
+tagManager.expandHierarchy('api.v1', true, true); 
+// Returns: ['api.v1', 'api', 'api.v1.users', 'api.v1.posts']
+```
+
+#### 3. Path-Based Tag Generation
+
+Generate hierarchical tags from file paths:
+
+```typescript
+// Generate hierarchical tags from file paths
+const tags = tagManager.fromPath('src/api/v2/users/create.ts');
+// Result: ['src', 'src.api', 'src.api.v2', 'src.api.v2.users', 'src.api.v2.users.create']
 
 // Group related functionality
 const tags = [
-  'service-api',
-  'service-auth',
-  'database-read',
-  'database-write',
-  'cache-redis',
-  'cache-memory'
+  'service.api',
+  'service.auth',
+  'database.read',
+  'database.write',
+  'cache.redis',
+  'cache.memory'
 ];
 
 const grouped = tagManager.group(tags);
@@ -212,6 +250,103 @@ const grouped = tagManager.group(tags);
 //   database: ['read', 'write'],
 //   cache: ['redis', 'memory']
 // }
+```
+
+#### 4. Hierarchical Transport Filtering
+
+Configure transports to filter by hierarchical tags:
+
+```typescript
+// Configure transports to filter by hierarchical tags
+new FileTransport({
+  filepath: './api.log',
+  tags: ['api'],        // Catches all api.* tags
+  excludeTags: ['api.internal']  // But excludes internal API logs
+});
+
+// Custom filter logic for hierarchical matching
+const apiTransport = new FileTransport({
+  filepath: './api.log',
+  tagFilter: (tags) => {
+    // Custom filter logic for hierarchical matching
+    return tags.some(tag => tag.startsWith('api.'));
+  }
+});
+```
+
+#### 5. Theme Selection by Tag Hierarchy
+
+More specific tags override general ones in theming:
+
+```typescript
+const logger = new Logger({
+  theme: {
+    tags: {
+      'api': ['cyan', 'bold'],           // All API logs
+      'api.request': ['cyan'],            // API requests specifically
+      'api.response': ['brightCyan'],     // API responses
+      'api.error': ['red', 'bold'],       // API errors
+      'database': ['yellow'],             // All database logs
+      'database.slow': ['yellow', 'bold', 'bgRed']  // Slow queries highlighted
+    }
+  }
+});
+
+// Hierarchical matching - more specific tags override general ones
+logger.info('Slow query detected', { tags: ['database.slow'] });
+// Gets the 'database.slow' theme, not just 'database'
+```
+
+#### 6. Programmatic Pattern Matching
+
+Check if tags match patterns with wildcards:
+
+```typescript
+const tags = ['api.v1.users', 'production', 'slow'];
+
+// Check if tags match patterns
+tagManager.matches(tags, {
+  any: ['api.*', 'database.*']  // Matches anything under api or database
+}); // true
+
+tagManager.matches(tags, {
+  all: ['api.*', 'production'],  // Must match api hierarchy AND production
+  none: ['*.internal', 'debug']  // Must not match internal or debug
+}); // true
+```
+
+#### Practical Example: Microservice Logging
+
+```typescript
+// Set up hierarchical tags for a microservice
+const logger = new Logger({
+  tags: ['service.api.v2']
+});
+
+// This log entry will be caught by transports filtering for:
+// - 'service' (parent)
+// - 'service.api' (sub-parent)
+// - 'service.api.v2' (exact)
+logger.info('Request processed', {
+  tags: ['endpoint.users.create']  // Additional hierarchical tag
+});
+
+// Transport sees combined tags and can filter hierarchically
+const serviceTransport = new FileTransport({
+  filepath: './service.log',
+  tagFilter: (tags) => {
+    // Capture all service logs
+    return tags.some(tag => tag.startsWith('service.'));
+  }
+});
+
+const apiTransport = new FileTransport({
+  filepath: './api-only.log',
+  tagFilter: (tags) => {
+    // Only API-specific logs
+    return tags.some(tag => tag.startsWith('service.api.'));
+  }
+});
 ```
 
 ### Tag Normalization

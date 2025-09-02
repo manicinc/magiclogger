@@ -75,12 +75,15 @@ import { Logger, SyncLogger, createLogger, createSyncLogger } from 'magiclogger'
 const logger = new Logger();
 logger.info('Application started');
 
-// Full featured logger with console output enabled by default
+// Logger with automatic console transport (enabled by default)
 const logger = new Logger({
-  useConsole: true,   // Automatically adds console transport (default: true)
+  useConsole: true,   // Console transport is enabled by default (can be disabled with false)
   useColors: true,    // Enable colored output (default: true)
   verbose: false      // Show debug messages (default: false)
 });
+
+// Or simply use with defaults - console is automatically enabled
+const logger = new Logger();  // Console transport created automatically
 
 // Sync logger - blocking I/O for guaranteed delivery
 const auditLogger = new SyncLogger({ 
@@ -149,13 +152,16 @@ const logger = new Logger({
 logger.info('Request received', { tags: ['api'] });  // Auto-styled
 ```
 
-### 🔄 Ring Buffer Architecture
-Predictable memory usage even under extreme load:
+### 🔄 Two-Stage Batching Architecture
+MagicLogger uses a two-stage batching system for optimal performance:
+
+#### Stage 1: Ring Buffer (Logger Level)
+The async logger uses a pre-allocated ring buffer for zero-allocation batching:
 
 ```typescript
 const logger = new Logger({
   buffer: {
-    size: 16384,       // Fixed 16K entries
+    size: 16384,       // Fixed 16K entries ring buffer
     flushInterval: 50, // Batch flush every 50ms
     flushSize: 2000    // Or when 2000 logs accumulate
   }
@@ -168,12 +174,27 @@ if (!result.success) {
 }
 ```
 
+#### Stage 2: Transport Batching
+Network transports implement their own independent batching:
+
+```typescript
+// Transport batching happens automatically for network transports
+const httpTransport = new HTTPTransport({
+  batch: { size: 100, timeout: 5000 }  // Batch 100 logs or flush every 5s
+});
+```
+
+This two-stage approach means:
+- **Logger batches** entries in its ring buffer (e.g., flushes every 50ms)
+- **Transports batch** these flushes further (e.g., accumulates for 5s before sending)
+- Maximum efficiency with minimal system calls and network requests
+
 Note: By default MagicLogger's async ring buffer drops the oldest logs when the buffer is full, preventing any types of memory crashes, but allowing for some loss of data. When doing security audits, you should use MagicLogger's synchronous logger API which is slower and blocking but failsafe from losing logs.
 
 
 ## MAGIC Schema - Universal Styled Logging Standard
 
-The **[MAGIC Schema](./docs/magic_schema.md)** is a universal JSON format that **preserves text styling across any language, transport, or platform**. It's not just for TypeScript - any language can produce MAGIC-compliant logs that MagicLogger (or any MAGIC-compatible system) can ingest and display with full color preservation.
+The **[MAGIC Schema](./docs/magic-schema.md)** is a universal JSON format that **preserves text styling across any language, transport, or platform**. It's not just for TypeScript - any language can produce MAGIC-compliant logs that MagicLogger (or any MAGIC-compatible system) can ingest and display with full color preservation.
 
 ### The MAGIC Schema provides:
 
@@ -244,7 +265,7 @@ The MAGIC Schema maps directly to OpenTelemetry's log data model:
 }
 ```
 
-📖 **Full Documentation**: See the [MAGIC Schema Specification](./docs/magic_schema.md) for complete field definitions, examples, and integration guides.
+📖 **Full Documentation**: See the [MAGIC Schema Specification](./docs/magic-schema.md) for complete field definitions, examples, and integration guides.
 
 ## 🌍 Cross-Language SDK Compatibility
 
@@ -334,10 +355,11 @@ import {
   WebSocketTransport
 } from 'magiclogger/transports';
 
+// Note: Console transport is added automatically by default unless disabled
 const logger = new Logger({
   transports: [
-    // Console with colors
-    new ConsoleTransport({ useColors: true }),
+    // Console with colors (optional - added by default if no transports specified)
+    new ConsoleTransport({ useColors: true }),  // This overrides the default console transport
     
     // File with rotation
     new FileTransport({ 
@@ -377,13 +399,59 @@ const otlpTransport = new OTLPTransport({
 });
 ```
 
+### Console Transport Behavior
+
+By default, MagicLogger automatically creates a console transport unless explicitly disabled:
+
+```typescript
+// Default behavior - console transport is automatically created
+const logger = new Logger();  // Console output enabled
+
+// Explicitly disable console for file-only logging (better performance)
+const fileOnlyLogger = new Logger({
+  useConsole: false,  // Disable automatic console transport
+  transports: [
+    new FileTransport({ 
+      filepath: './app.log',
+      buffer: { size: 1000 }  // Buffer for better write performance
+    })
+  ]
+});
+
+// Production setup - disable console, use fast transports
+const prodLogger = new Logger({
+  useConsole: false,  // No console overhead in production
+  transports: [
+    new HTTPTransport({ 
+      url: process.env.LOG_ENDPOINT,
+      batch: { size: 1000, timeout: 10000 }
+    }),
+    new S3Transport({ 
+      bucket: 'logs',
+      compress: true
+    })
+  ]
+});
+
+// Override default console transport with custom settings
+const customConsoleLogger = new Logger({
+  transports: [
+    new ConsoleTransport({ 
+      level: 'warn',  // Only warnings and errors
+      format: 'json'  // JSON instead of pretty format
+    })
+  ]
+  // Note: When you provide transports array, default console is not added
+});
+```
+
 ### Transport Batching
 Network transports batch automatically, local transports don't:
 
 | Transport | Batching | Default Config |
 |-----------|----------|----------------|
 | Console | ❌ No | Immediate write |
-| File | ❌ No | Immediate write |
+| File | ❌ No | Immediate write (can add buffer) |
 | HTTP | ✅ **Yes** | 100 logs or 5s |
 | WebSocket | ✅ **Yes** | 100 logs or 5s |
 | S3 | ✅ **Yes** | 1000 logs or 30s |
@@ -700,22 +768,107 @@ logger.info('User authenticated', {
 
 #### Hierarchical Tags
 
-Use dot notation for hierarchical organization:
+MagicLogger supports powerful hierarchical tag organization using both dot notation and explicit parent-child relationships:
 
 ```typescript
 const logger = new Logger({
   tags: ['api.v2']
 });
 
-// Log with hierarchical tags
+// Dot notation - automatic hierarchy
 logger.info('Database query', {
   tags: ['database.query.select', 'performance.slow']
 });
 
 // Results in tags that can be filtered at any level:
-// - 'api.v2'
+// - 'api.v2' (matches: api, api.v2)
 // - 'database.query.select' (matches: database, database.query, database.query.select)
 // - 'performance.slow' (matches: performance, performance.slow)
+
+// Explicit parent-child relationships
+logger.info('User action', {
+  tags: [
+    { name: 'user', children: ['auth', 'profile'] },
+    { name: 'api', children: ['request', 'response'] }
+  ]
+});
+// Generates: ['user', 'user.auth', 'user.profile', 'api', 'api.request', 'api.response']
+
+// Path-based tag generation
+import { TagManager } from 'magiclogger';
+const tagManager = new TagManager();
+
+// Generate from file paths
+const tags = tagManager.fromPath('src/services/payment/stripe.ts');
+// Result: ['src', 'src.services', 'src.services.payment', 'src.services.payment.stripe']
+
+// Generate from class/method names
+const methodTags = tagManager.fromMethod('PaymentService', 'processRefund');
+// Result: ['PaymentService', 'PaymentService.processRefund']
+```
+
+##### Hierarchical Transport Filtering
+
+Filter logs at transport level based on tag hierarchy:
+
+```typescript
+const logger = new Logger({
+  transports: [
+    {
+      type: 'file',
+      path: './app.log',
+      filter: (entry) => {
+        // Include all API-related logs
+        return entry.tags?.some(tag => 
+          tag.startsWith('api.') || tag === 'api'
+        );
+      }
+    },
+    {
+      type: 'file', 
+      path: './errors.log',
+      filter: (entry) => {
+        // Only error and security tags
+        return entry.tags?.some(tag =>
+          tag.includes('error') || tag.startsWith('security.')
+        );
+      }
+    }
+  ]
+});
+```
+
+##### Hierarchical Theme Selection
+
+Apply styles based on tag hierarchy with cascading rules:
+
+```typescript
+const logger = new Logger({
+  theme: {
+    tags: {
+      // Base styles
+      'api': ['cyan'],
+      'database': ['yellow'],
+      'security': ['red', 'bold'],
+      
+      // More specific styles override base
+      'api.error': ['red', 'bold'],
+      'api.success': ['green'],
+      'database.slow': ['yellow', 'bold', 'bgRed'],
+      'security.breach': ['red', 'bold', 'underline', 'bgYellow'],
+      
+      // Wildcards for pattern matching
+      '*.error': ['red'],
+      'performance.*': ['magenta'],
+      '*.slow': ['bold', 'bgYellow']
+    }
+  }
+});
+
+// Theme selection follows specificity
+logger.error('Auth failed', { tags: ['api.error'] });        // Uses 'api.error' style
+logger.warn('Slow query', { tags: ['database.slow'] });      // Uses 'database.slow' style
+logger.info('Request', { tags: ['api.request'] });           // Falls back to 'api' style
 ```
 
 #### Tag-Based Styling
@@ -1335,7 +1488,7 @@ interface LoggerOptions {
   context?: Record<string, unknown>;
   verbose?: boolean;
   useColors?: boolean;     // Enable colored output (default: true)
-  useConsole?: boolean;     // Add console transport automatically (default: true)
+  useConsole?: boolean;     // Add console transport automatically (default: true, set to false to disable)
   
   // Styling & themes
   theme?: string | ThemeDefinition;
@@ -1394,7 +1547,7 @@ logger.getStats()       // Performance metrics
 
 ## Contributing
 
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+We welcome contributions! Please see [CONTRIBUTING.md](./docs/contributing.md) for guidelines.
 
 ## License
 

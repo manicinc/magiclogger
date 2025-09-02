@@ -52,10 +52,10 @@ npm install axios form-data
 ```typescript
 import { Logger } from 'magiclogger';
 
-// Create a logger with zero config (uses default console transport)
-const logger = new Logger();
+// Create a logger with zero config - console transport is enabled by default
+const logger = new Logger();  // Automatically includes console output
 
-// Or with configuration
+// Or with configuration (console still enabled by default)
 const logger = new Logger({
   id: 'my-service',
   tags: ['production', 'api'],
@@ -63,6 +63,13 @@ const logger = new Logger({
     service: 'user-api',
     version: '1.2.3'
   }
+  // Note: useConsole defaults to true, so console output is automatic
+});
+
+// Explicitly disable console for production
+const prodLogger = new Logger({
+  useConsole: false,  // No console output - better performance
+  transports: [/* your production transports */]
 });
 
 // Basic logging

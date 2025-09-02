@@ -955,14 +955,50 @@ Key methods:
 #### TagManager Module (`src/core/TagManager.ts`)
 
 Primary responsibilities:
-- Tag normalization
-- Deduplication
-- Hierarchy support
+- Tag normalization and validation
+- Deduplication with order preservation
+- Hierarchical tag expansion and management
+- Path-based tag generation
+- Pattern matching and filtering
+
+**Hierarchical Tag System**:
+
+MagicLogger implements a sophisticated hierarchical tag system that enables powerful log organization and filtering:
+
+1. **Dot Notation Hierarchy**:
+   - Tags like `api.v2.users` automatically create parent relationships
+   - Enables filtering at any level: `api`, `api.v2`, or `api.v2.users`
+   - Supports wildcard patterns: `api.*`, `*.error`, `database.*.slow`
+
+2. **Explicit Parent-Child Relationships**:
+   ```typescript
+   { name: 'service', children: ['auth', 'payment', 'notification'] }
+   // Generates: service, service.auth, service.payment, service.notification
+   ```
+
+3. **Path-Based Generation**:
+   - File paths: `src/api/v2/users.ts` → `['src', 'src.api', 'src.api.v2', 'src.api.v2.users']`
+   - Class/method: `UserService.authenticate` → `['UserService', 'UserService.authenticate']`
+   - Module paths: `@app/auth/oauth` → `['app', 'app.auth', 'app.auth.oauth']`
+
+4. **Hierarchical Filtering**:
+   - Transport-level filtering based on tag patterns
+   - Support for include/exclude rules with hierarchy awareness
+   - Efficient pattern matching using optimized data structures
+
+5. **Theme Selection by Hierarchy**:
+   - Cascading style rules based on tag specificity
+   - More specific tags override general ones
+   - Wildcard patterns for cross-cutting concerns
 
 Key methods:
-- `normalize(tags: string[]): string[]`
-- `merge(...tagArrays: string[][]): string[]`
-- `fromPath(path: string): string[]`
+- `normalize(tags: string[]): string[]` - Normalize and validate tags
+- `merge(...tagArrays: string[][]): string[]` - Merge and deduplicate tag arrays
+- `fromPath(path: string): string[]` - Generate hierarchical tags from file paths
+- `fromMethod(className: string, methodName: string): string[]` - Generate from class/method
+- `expandHierarchy(tags: TagInput[]): string[]` - Expand parent-child relationships
+- `matches(tags: string[], pattern: string): boolean` - Pattern matching with wildcards
+- `filter(logs: LogEntry[], pattern: string): LogEntry[]` - Filter logs by tag patterns
 
 ### Transport Modules
 
@@ -2129,13 +2165,64 @@ logger.info('User action', {
 
 #### Use Tags Effectively
 
-```typescript
-// Good - hierarchical tags
-logger.addTags(['api', 'api-users', 'api-users-create']);
+MagicLogger's hierarchical tag system enables powerful log organization:
 
-// Good - categorical tags
-logger.addTags(['production', 'critical', 'security']);
+```typescript
+// Good - dot notation hierarchy
+logger.info('User created', { 
+  tags: ['api.v2.users.create'] 
+});
+// Automatically matches: api, api.v2, api.v2.users, api.v2.users.create
+
+// Good - explicit parent-child relationships
+logger.info('Payment processed', {
+  tags: [
+    { name: 'payment', children: ['stripe', 'successful'] },
+    { name: 'api', children: ['v2'] }
+  ]
+});
+// Generates: payment, payment.stripe, payment.successful, api, api.v2
+
+// Good - path-based tags for code organization
+import { TagManager } from 'magiclogger';
+const tagManager = new TagManager();
+
+const tags = tagManager.fromPath(__filename);
+// If file is src/services/payment/stripe.ts
+// Generates: src, src.services, src.services.payment, src.services.payment.stripe
+
+// Good - categorical tags with hierarchy
+logger.addTags(['env.production', 'severity.critical', 'security.auth']);
+
+// Pattern matching for transport filtering
+const logger = new Logger({
+  transports: [
+    {
+      type: 'file',
+      path: './api.log',
+      filter: (entry) => entry.tags?.some(tag => 
+        tag.startsWith('api.') || tag === 'api'
+      )
+    },
+    {
+      type: 'file',
+      path: './errors.log',
+      filter: (entry) => entry.tags?.some(tag =>
+        tag.includes('.error') || tag.startsWith('severity.critical')
+      )
+    }
+  ]
+});
 ```
+
+**Tag Hierarchy Best Practices**:
+
+1. **Use dot notation for natural hierarchies**: `service.module.action`
+2. **Keep hierarchies shallow**: Maximum 3-4 levels for readability
+3. **Be consistent**: Establish naming conventions across your application
+4. **Use wildcards judiciously**: `*.error` for cross-cutting concerns
+5. **Generate tags programmatically**: Use `TagManager` for consistency
+6. **Document your taxonomy**: Maintain a tag reference for your team
 
 ### For Transport Developers
 

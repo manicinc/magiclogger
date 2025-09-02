@@ -293,15 +293,34 @@ await logger.logCritical('error', 'Database connection lost', {
 
 #### Console Transport
 
+**Note: Console transport is automatically enabled by default when you create a Logger instance.**
+
 Output to stdout/stderr with full color support:
 
 ```javascript
+import { Logger } from 'magiclogger';
+
+// Console transport is created automatically by default
+const logger = new Logger();  // Console output enabled
+
+// Explicitly disable console transport for production
+const prodLogger = new Logger({
+  useConsole: false,  // Disable automatic console transport
+  transports: [/* your production transports */]
+});
+
+// Or override default console with custom settings
 import { ConsoleTransport } from 'magiclogger/transports/console';
 
-const transport = new ConsoleTransport({
-  level: 'debug',
-  useColors: true,
-  format: 'pretty' // 'json' | 'pretty' | 'compact'
+const customLogger = new Logger({
+  transports: [
+    new ConsoleTransport({
+      level: 'warn',     // Only warnings and errors
+      useColors: false,  // No colors (e.g., for log aggregators)
+      format: 'json'     // JSON format instead of pretty
+    })
+  ]
+  // Note: When you provide a transports array, the default console is not added
 });
 ```
 
@@ -480,6 +499,52 @@ const transport = new OTLPTransport({
 
 ### Basic Usage
 
+#### Default Console Transport
+
+By default, MagicLogger automatically creates a console transport:
+
+```javascript
+import { Logger } from 'magiclogger';
+
+// Console transport is enabled by default
+const logger = new Logger();
+logger.info('This appears in console automatically');
+
+// Explicitly control console behavior
+const customLogger = new Logger({
+  useConsole: true,   // Default: true - console enabled
+  useColors: true,    // Default: true - colored output
+  verbose: false      // Default: false - debug level disabled
+});
+```
+
+#### Performance Optimization - Disable Console
+
+For production environments, disable console to improve performance:
+
+```javascript
+import { Logger } from 'magiclogger';
+import { FileTransport } from 'magiclogger/transports/file';
+import { HTTPTransport } from 'magiclogger/transports/http';
+
+// Production setup - no console overhead
+const prodLogger = new Logger({
+  useConsole: false,  // Disable console for better performance
+  transports: [
+    new FileTransport({ 
+      filepath: './app.log',
+      buffer: { size: 1000 }  // Buffer writes for performance
+    }),
+    new HTTPTransport({ 
+      url: 'https://logs.example.com',
+      batch: { size: 100, timeout: 5000 }  // Batch for efficiency
+    })
+  ]
+});
+
+logger.info('Fast logging without console overhead');
+```
+
 #### With createLogger (Recommended)
 
 The `createLogger` factory provides the easiest setup:
@@ -490,7 +555,7 @@ import { FileTransport } from 'magiclogger/transports/file';
 import { HTTPTransport } from 'magiclogger/transports/http';
 
 const logger = createLogger({
-  // Console is included by default
+  // Console is included by default unless you set useConsole: false
   transports: [
     new FileTransport({ filepath: './app.log' }),
     new HTTPTransport({ url: 'https://logs.example.com' })
