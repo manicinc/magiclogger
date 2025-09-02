@@ -357,16 +357,18 @@ async function runBenchmarks() {
   // MagicLogger Sync (Plain)
   results.push(await benchmark(
     'MagicLogger (Sync, Plain)', 
-    () => loggers.magicLoggerSync.info(testMessage, testMetadata)
+    () => { loggers.magicLoggerSync.info(testMessage, testMetadata); }
   ));
 
   // MagicLogger Sync (Styled)
   results.push(await benchmark(
     'MagicLogger (Sync, Styled)', 
-    () => loggers.magicLoggerSyncStyled.info(
-      loggers.magicLoggerSyncStyled.s.green.bold('✔') + ' ' + testMessage,
-      testMetadata
-    )
+    () => {
+      loggers.magicLoggerSyncStyled.info(
+        loggers.magicLoggerSyncStyled.s.green.bold('✔') + ' ' + testMessage,
+        testMetadata
+      );
+    }
   ));
 
   // Pino Sync
@@ -413,16 +415,18 @@ async function runBenchmarks() {
   // MagicLogger Async (Plain)  
   results.push(await benchmark(
     'MagicLogger (Async, Plain)', 
-    () => loggers.magicLoggerAsync.info(testMessage, testMetadata)
+    () => { loggers.magicLoggerAsync.info(testMessage, testMetadata); }
   ));
 
   // MagicLogger Async (Styled)
   results.push(await benchmark(
     'MagicLogger (Async, Styled)', 
-    () => loggers.magicLoggerAsyncStyled.info(
-      `<green.bold>✔</> ${testMessage}`,
-      testMetadata
-    )
+    () => { 
+      loggers.magicLoggerAsyncStyled.info(
+        `<green.bold>✔</> ${testMessage}`,
+        testMetadata
+      );
+    }
   ));
 
   // Pino Async

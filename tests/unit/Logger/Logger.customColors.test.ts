@@ -228,7 +228,7 @@ describe('Logger Custom Colors', () => {
 
       // Mock the dynamic import to fail
       const mockLogger = new Logger();
-      const mockLoggerWithMethod = mockLogger as { registerCustomColor: jest.Mock };
+      const mockLoggerWithMethod = mockLogger as unknown as { registerCustomColor: jest.Mock };
       mockLoggerWithMethod.registerCustomColor = jest.fn((_name: string, _def: unknown) => {
         import('../../../src/colors/CustomColorRegistry')
           .then(() => {

@@ -156,6 +156,13 @@ export class Printer {
   };
 
   /**
+   * ANSI escape code regex pattern for stripping color codes.
+   * @private
+   * @static
+   */
+  private static readonly ansiRegex = /\x1b\[[0-9;]*m/g;
+
+  /**
    * Gets the console object to use (configured console or original).
    * @private
    * @static
@@ -622,6 +629,18 @@ export class Printer {
   }
 
   /**
+   * Strip ANSI escape codes from a string.
+   *
+   * @param {string} text - Text with ANSI codes
+   * @returns {string} Plain text without ANSI codes
+   * @private
+   * @static
+   */
+  private static stripAnsiCodes(text: string): string {
+    return text.replace(this.ansiRegex, '');
+  }
+
+  /**
    * Get all unique columns from data.
    *
    * @param {Record<string, unknown>[]} data - Table data
@@ -775,22 +794,37 @@ export class Printer {
   ): string {
     const cells = columns.map(col => {
       let value = this.formatCellValue(row[col]);
-      const fallbackLen = value.length;
       const w = widths[col];
-      const width = typeof w === 'number' && !Number.isNaN(w) ? w : fallbackLen;
+      const width = typeof w === 'number' && !Number.isNaN(w) ? w : value.length;
       widths[col] = width; // ensure cached numeric width
 
-      // Truncate if needed
-      if (truncate && value.length > width) {
-        const cut = Math.max(0, width - 3);
-        value = value.substring(0, cut) + (cut < value.length ? '...' : '');
+      // Apply colors first if needed
+      if (colors.length > 0) {
+        value = Colorizer.applyColors(value, colors);
       }
 
-      // Pad value
-      const padded = ` ${value.padEnd(width)} `;
+      // Truncate if needed (accounting for visible length without ANSI codes)
+      const visibleLength = this.stripAnsiCodes(value).length;
+      if (truncate && visibleLength > width) {
+        // For colored text, we need to be careful with truncation
+        if (colors.length > 0) {
+          // Strip colors, truncate, then reapply colors
+          const plain = this.stripAnsiCodes(value);
+          const cut = Math.max(0, width - 3);
+          const truncated = plain.substring(0, cut) + (cut < plain.length ? '...' : '');
+          value = Colorizer.applyColors(truncated, colors);
+        } else {
+          const cut = Math.max(0, width - 3);
+          value = value.substring(0, cut) + (cut < value.length ? '...' : '');
+        }
+      }
 
-      // Apply colors
-      return colors.length > 0 ? Colorizer.applyColors(padded, colors) : padded;
+      // Pad value (accounting for ANSI codes)
+      const currentVisibleLength = this.stripAnsiCodes(value).length;
+      const padLength = width - currentVisibleLength;
+      const padded = ` ${value}${' '.repeat(Math.max(0, padLength))} `;
+
+      return padded;
     });
 
     return vertical + cells.join(vertical) + vertical;

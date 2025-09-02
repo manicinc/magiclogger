@@ -1,19 +1,19 @@
 /**
- * Test the Full Logger with Console Transport
+ * Test the Logger with Console Transport
  * 
- * Demonstrates that the Logger class (FullLogger) automatically adds
+ * Demonstrates that the Logger class automatically adds
  * a console transport when useConsole is true (default behavior).
  */
 
-import { Logger as FullLogger } from '../dist/index.js';
+import { Logger } from '../dist/index.js';
 
-console.log('🔮 Testing FullLogger (the complete logger with transports)...\n');
+console.log('🔮 Testing Logger (the complete logger with transports)...\n');
 console.log('─'.repeat(60));
 
 async function main() {
-  console.log('\n1️⃣  Creating FullLogger with useConsole: true...\n');
+  console.log('\n1️⃣  Creating Logger with useConsole: true...\n');
 
-  const logger = new FullLogger({
+  const logger = new Logger({
     useConsole: true,  // This should add console transport
     useColors: true,   // This should enable colors
     verbose: true      // Show debug messages
@@ -56,7 +56,7 @@ async function main() {
   await new Promise(resolve => setTimeout(resolve, 200));
 
   console.log('\n─'.repeat(60));
-  console.log('\n✅ FullLogger test complete!');
+  console.log('\n✅ Logger test complete!');
   
   console.log('\n📝 Summary:');
   console.log('  • Colors should be visible in the log output above');

@@ -23,22 +23,21 @@
 // ==========================================
 
 /**
- * Main Logger class - defaults to async for high performance.
- * This is actually AsyncLogger exported as Logger for simplicity.
+ * Main Logger class - the full-featured logger with all styling methods.
+ * This is what users expect when they import Logger.
  */
-export { AsyncLogger as Logger } from './async/AsyncLogger';
-export type { AsyncLoggerOptions as LoggerOptions } from './async/AsyncLogger';
+export { Logger } from './Logger';
+export type { LoggerOptions } from './types/logger';
 
 /**
  * Async logger implementation for high-performance buffering.
- * Direct export for when you need to be explicit about async.
+ * Use this when you explicitly need async/buffered logging.
  */
 export { AsyncLogger } from './async/AsyncLogger';
 export type { AsyncLoggerOptions } from './async/AsyncLogger';
 
 /**
- * The traditional Logger class with all formatting methods.
- * Use this when you need the full-featured logger with formatting.
+ * Alias for the main Logger class for backward compatibility.
  */
 export { Logger as FullLogger } from './Logger';
 export type { LoggerOptions as FullLoggerOptions } from './types/logger';

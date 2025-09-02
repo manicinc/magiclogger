@@ -292,6 +292,12 @@ export class Formatter {
     const textLength = this.stripAnsi(text).length;
 
     if (textLength >= length) {
+      // If text is already at or over the desired length, 
+      // we still need to ensure consistent visible length
+      if (textLength > length) {
+        // Text is too long, truncate it
+        return this.truncate(text, length, '');
+      }
       return text;
     }
 
@@ -487,8 +493,44 @@ export class Formatter {
 
     // Content lines
     for (const line of lines) {
-      const paddedLine = this.pad(line, maxLength, ' ', align);
+      // Get the visible length of the current line
+      const visibleLength = this.stripAnsi(line).length;
+      
+      // Calculate how much padding we need to reach maxLength
+      const padNeeded = maxLength - visibleLength;
+      
+      // Apply padding based on alignment
+      let paddedLine: string;
+      if (padNeeded > 0) {
+        switch (align) {
+          case 'left':
+            paddedLine = ' '.repeat(padNeeded) + line;
+            break;
+          case 'center': {
+            const leftPad = Math.floor(padNeeded / 2);
+            const rightPad = padNeeded - leftPad;
+            paddedLine = ' '.repeat(leftPad) + line + ' '.repeat(rightPad);
+            break;
+          }
+          case 'right':
+          default:
+            paddedLine = line + ' '.repeat(padNeeded);
+            break;
+        }
+      } else if (padNeeded < 0) {
+        // Line is too long, truncate it
+        paddedLine = this.truncate(line, maxLength, '');
+        // After truncation, ensure it's exactly maxLength visible chars
+        const truncVisibleLength = this.stripAnsi(paddedLine).length;
+        if (truncVisibleLength < maxLength) {
+          paddedLine = paddedLine + ' '.repeat(maxLength - truncVisibleLength);
+        }
+      } else {
+        paddedLine = line;
+      }
 
+      // Now paddedLine has exactly maxLength visible characters
+      // Add the box borders and padding
       result.push(
         marginSpace +
           colorBorder(border.vertical) +

@@ -19,7 +19,7 @@ const TARGET_DIR = path.join(__dirname, '..', 'website', 'docs');
 const DOCS_TO_SYNC = [
   'ARCHITECTURE.md',
   'transports.md',
-  'MAGIC_SCHEMA.md',
+  'magic-schema.md',
   'api_usage.md',
   'browser_storage.md',
   'build_instructions.md',
@@ -57,10 +57,10 @@ DOCS_TO_SYNC.forEach((file) => {
     if (!content.startsWith('---')) {
       // Derive id from filename (kebab to snake where needed) and preserve case for known UPPER ids
       const baseName = path.basename(file, '.md');
-      const upperIds = new Set(['ARCHITECTURE', 'MAGIC_SCHEMA', 'TRANSPORTS']);
+      const upperIds = new Set(['ARCHITECTURE', 'TRANSPORTS']);
       const id = upperIds.has(baseName)
         ? baseName
-        : baseName.replace(/-/g, '_');
+        : baseName;
       const title = (upperIds.has(baseName)
         ? baseName
         : baseName.replace(/-/g, ' '))

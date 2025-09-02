@@ -1,4 +1,4 @@
-import { FullLogger as Logger, meta, err } from '../../../src';
+import { Logger, meta, err } from '../../../src';
 
 describe('Logger variadic args & meta wrappers', () => {
   let originalConsoleLog: Console['log'];

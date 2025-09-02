@@ -1,4 +1,4 @@
-import { FullLogger as Logger, createAsyncLogger } from '../../src/index';
+import { Logger, createAsyncLogger } from '../../src/index';
 
 describe('Default Console Transport', () => {
   let consoleLogSpy: jest.SpyInstance;

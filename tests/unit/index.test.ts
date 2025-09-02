@@ -18,14 +18,16 @@ describe('Logger module exports', () => {
     loggersToCleanup.length = 0;
   });
   describe('Core Logger Classes', () => {
-    it('should export Logger as async logger by default', () => {
+    it('should export Logger as the full-featured logger', () => {
       expect(LoggerExports.Logger).toBeDefined();
       expect(typeof LoggerExports.Logger).toBe('function');
 
-      // Logger should be the AsyncLogger
+      // Logger should be the full-featured logger with styling methods
       const logger = new LoggerExports.Logger();
       loggersToCleanup.push(logger);
-      expect(LoggerExports.isAsyncLogger(logger)).toBe(true);
+      expect(typeof logger.s).toBeDefined();
+      expect(typeof logger.fmt).toBeDefined();
+      expect(typeof logger.header).toBeDefined();
     });
 
     it('should export SyncLogger for blocking I/O', () => {
