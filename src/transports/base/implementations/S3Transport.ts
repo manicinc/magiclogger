@@ -244,8 +244,12 @@ export class S3Transport extends NetworkTransport {
         import('@aws-sdk/client-s3' as any).then(m => ({ S3Client: m.S3Client })),
         import('@aws-sdk/client-s3' as any).then(m => ({ PutObjectCommand: m.PutObjectCommand })),
         import('@aws-sdk/client-s3' as any).then(m => ({ HeadBucketCommand: m.HeadBucketCommand })),
-        import('@aws-sdk/client-s3' as any).then(m => ({ ListObjectsV2Command: m.ListObjectsV2Command })),
-        import('@aws-sdk/client-s3' as any).then(m => ({ DeleteObjectsCommand: m.DeleteObjectsCommand })),
+        import('@aws-sdk/client-s3' as any).then(m => ({
+          ListObjectsV2Command: m.ListObjectsV2Command,
+        })),
+        import('@aws-sdk/client-s3' as any).then(m => ({
+          DeleteObjectsCommand: m.DeleteObjectsCommand,
+        })),
       ]);
 
       this.awsModules = {

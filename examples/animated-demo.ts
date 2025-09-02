@@ -1,6 +1,6 @@
 /**
  * MagicLogger Animated Demo - Visual Spectacle Edition
- * 
+ *
  * This demo showcases MagicLogger's rich styling capabilities through
  * dynamic, colorful animations and practical examples.
  *
@@ -36,15 +36,17 @@ function gradientText(text: string, _startColor: ColorName, _endColor: ColorName
   const startRGB = { r: 255, g: 0, b: 0 }; // Simplified for demo
   const endRGB = { r: 0, g: 0, b: 255 };
   const steps = text.length;
-  
-  return Array.from(text).map((char, i) => {
-    if (char === ' ') return char;
-    const progress = i / steps;
-    const r = Math.round(startRGB.r + (endRGB.r - startRGB.r) * progress);
-    const g = Math.round(startRGB.g + (endRGB.g - startRGB.g) * progress);
-    const b = Math.round(startRGB.b + (endRGB.b - startRGB.b) * progress);
-    return `\x1b[38;2;${r};${g};${b}m${char}\x1b[0m`;
-  }).join('');
+
+  return Array.from(text)
+    .map((char, i) => {
+      if (char === ' ') return char;
+      const progress = i / steps;
+      const r = Math.round(startRGB.r + (endRGB.r - startRGB.r) * progress);
+      const g = Math.round(startRGB.g + (endRGB.g - startRGB.g) * progress);
+      const b = Math.round(startRGB.b + (endRGB.b - startRGB.b) * progress);
+      return `\x1b[38;2;${r};${g};${b}m${char}\x1b[0m`;
+    })
+    .join('');
 }
 
 /**
@@ -52,7 +54,7 @@ function gradientText(text: string, _startColor: ColorName, _endColor: ColorName
  */
 async function showAnimatedLogo(_logger: Logger): Promise<void> {
   clearScreen();
-  
+
   const lines = [
     '███╗   ███╗ █████╗  ██████╗ ██╗ ██████╗',
     '████╗ ████║██╔══██╗██╔════╝ ██║██╔════╝',
@@ -66,7 +68,7 @@ async function showAnimatedLogo(_logger: Logger): Promise<void> {
     '██║     ██║   ██║██║  ███╗██║  ███╗█████╗  ██████╔╝',
     '██║     ██║   ██║██║   ██║██║   ██║██╔══╝  ██╔══██╗',
     '███████╗╚██████╔╝╚██████╔╝╚██████╔╝███████╗██║  ██║',
-    '╚══════╝ ╚═════╝  ╚═════╝  ╚═════╝ ╚══════╝╚═╝  ╚═╝'
+    '╚══════╝ ╚═════╝  ╚═════╝  ╚═════╝ ╚══════╝╚═╝  ╚═╝',
   ];
 
   // Animated reveal with rainbow effect
@@ -75,14 +77,14 @@ async function showAnimatedLogo(_logger: Logger): Promise<void> {
     console.log(rainbowed);
     await sleep(100);
   }
-  
+
   await sleep(500);
   console.log('');
-  
+
   // Tagline with gradient
   const tagline = gradientText('✨ Beautiful Terminal Styling Made Magical ✨', 'cyan', 'magenta');
   console.log(tagline);
-  
+
   await sleep(1000);
 }
 
@@ -94,28 +96,32 @@ async function inlineStyleShowcase(logger: Logger): Promise<void> {
   await sleep(500);
 
   // Multiple styles in one message
-  logger.info('<red.bold>ERROR:</> <yellow>Warning level</> <green>OK status</> <cyan.underline>Information</> <magenta.italic>Note</>');
+  logger.info(
+    '<red.bold>ERROR:</> <yellow>Warning level</> <green>OK status</> <cyan.underline>Information</> <magenta.italic>Note</>'
+  );
   await sleep(300);
 
   // Gradient-like effect with multiple colors
   logger.info(
     '<red>R</><yellow>A</><green>I</><cyan>N</><blue>B</><magenta>O</><red>W</> ' +
-    '<dim>meets</> ' +
-    '<bold.underline>MagicLogger</>'
+      '<dim>meets</> ' +
+      '<bold.underline>MagicLogger</>'
   );
   await sleep(300);
 
   // Complex nested styling
-  logger.info('<bgBlue.white> SYSTEM </> <gray>|</> <green.bold>✓ Connected</> <gray>|</> <yellow>⚡ 42ms</> <gray>|</> <cyan.dim>user@host</>');
+  logger.info(
+    '<bgBlue.white> SYSTEM </> <gray>|</> <green.bold>✓ Connected</> <gray>|</> <yellow>⚡ 42ms</> <gray>|</> <cyan.dim>user@host</>'
+  );
   await sleep(300);
 
   // Status indicators with colors
   logger.info(
     '🔴 <red.bold>Critical</> ' +
-    '🟡 <yellow.bold>Warning</> ' +
-    '🟢 <green.bold>Success</> ' +
-    '🔵 <blue.bold>Info</> ' +
-    '🟣 <magenta.bold>Debug</>'
+      '🟡 <yellow.bold>Warning</> ' +
+      '🟢 <green.bold>Success</> ' +
+      '🔵 <blue.bold>Info</> ' +
+      '🟣 <magenta.bold>Debug</>'
   );
   await sleep(500);
 }
@@ -160,26 +166,30 @@ async function chainableStyleAPI(logger: Logger): Promise<void> {
   // Using the .s (style) API
   logger.info(
     logger.s.red.bold('Error: ') +
-    logger.s.yellow('File not found: ') +
-    logger.s.cyan.underline('/path/to/file.js')
+      logger.s.yellow('File not found: ') +
+      logger.s.cyan.underline('/path/to/file.js')
   );
   await sleep(300);
 
   logger.info(
     logger.s.green.bold('✓ Success: ') +
-    'Deployed ' +
-    logger.s.cyan.bold('v2.4.1') +
-    ' to ' +
-    logger.s.magenta.underline('production')
+      'Deployed ' +
+      logger.s.cyan.bold('v2.4.1') +
+      ' to ' +
+      logger.s.magenta.underline('production')
   );
   await sleep(300);
 
   // Complex chaining
   logger.info(
-    logger.s.bgBlue.white.bold(' STATUS ') + ' ' +
-    logger.s.green('●') + ' Active | ' +
-    logger.s.yellow('◐') + ' Pending | ' +
-    logger.s.red('●') + ' Failed'
+    logger.s.bgBlue.white.bold(' STATUS ') +
+      ' ' +
+      logger.s.green('●') +
+      ' Active | ' +
+      logger.s.yellow('◐') +
+      ' Pending | ' +
+      logger.s.red('●') +
+      ' Failed'
   );
   await sleep(500);
 }
@@ -205,7 +215,7 @@ async function templateLiteralStyling(logger: Logger): Promise<void> {
   const username = 'alice';
   const action = 'deployed';
   const environment = 'production';
-  
+
   logger.info(logger.fmt`
     @cyan.bold{${username}} @dim{successfully} @green.bold{${action}} @dim{to} @magenta.underline{${environment}}
   `);
@@ -222,11 +232,15 @@ async function realWorldExamples(logger: Logger): Promise<void> {
   // API Request Log
   logger.info('<bgGreen.black> GET </> <cyan>/api/users/123</> <green.bold>200 OK</> <dim>42ms</>');
   await sleep(200);
-  
-  logger.info('<bgYellow.black> POST </> <cyan>/api/auth/login</> <yellow.bold>401 Unauthorized</> <dim>15ms</>');
+
+  logger.info(
+    '<bgYellow.black> POST </> <cyan>/api/auth/login</> <yellow.bold>401 Unauthorized</> <dim>15ms</>'
+  );
   await sleep(200);
-  
-  logger.info('<bgRed.white> DELETE </> <cyan>/api/posts/456</> <red.bold>500 Error</> <dim>234ms</>');
+
+  logger.info(
+    '<bgRed.white> DELETE </> <cyan>/api/posts/456</> <red.bold>500 Error</> <dim>234ms</>'
+  );
   await sleep(300);
 
   // Deployment Status
@@ -247,11 +261,17 @@ async function realWorldExamples(logger: Logger): Promise<void> {
   const cpuUsage = 78;
   const memUsage = 45;
   const diskUsage = 92;
-  
+
   logger.info(
-    `CPU: ${cpuUsage > 80 ? logger.s.red.bold(`${cpuUsage}%`) : logger.s.green(`${cpuUsage}%`)} | ` +
-    `MEM: ${memUsage > 80 ? logger.s.red.bold(`${memUsage}%`) : logger.s.green(`${memUsage}%`)} | ` +
-    `DISK: ${diskUsage > 80 ? logger.s.red.bold(`${diskUsage}%`) : logger.s.green(`${diskUsage}%`)}`
+    `CPU: ${
+      cpuUsage > 80 ? logger.s.red.bold(`${cpuUsage}%`) : logger.s.green(`${cpuUsage}%`)
+    } | ` +
+      `MEM: ${
+        memUsage > 80 ? logger.s.red.bold(`${memUsage}%`) : logger.s.green(`${memUsage}%`)
+      } | ` +
+      `DISK: ${
+        diskUsage > 80 ? logger.s.red.bold(`${diskUsage}%`) : logger.s.green(`${diskUsage}%`)
+      }`
   );
   await sleep(500);
 }
@@ -265,13 +285,13 @@ async function colorfulTableDemo(logger: Logger): Promise<void> {
 
   // Performance metrics table
   const metrics = [
-    { 
+    {
       endpoint: logger.s.cyan('/api/users'),
       method: logger.s.green.bold('GET'),
       p50: logger.s.green('45ms'),
       p95: logger.s.yellow('120ms'),
       p99: logger.s.red('250ms'),
-      status: logger.s.green.bold('✓')
+      status: logger.s.green.bold('✓'),
     },
     {
       endpoint: logger.s.cyan('/api/posts'),
@@ -279,7 +299,7 @@ async function colorfulTableDemo(logger: Logger): Promise<void> {
       p50: logger.s.green('23ms'),
       p95: logger.s.green('67ms'),
       p99: logger.s.yellow('145ms'),
-      status: logger.s.green.bold('✓')
+      status: logger.s.green.bold('✓'),
     },
     {
       endpoint: logger.s.cyan('/api/auth'),
@@ -287,8 +307,8 @@ async function colorfulTableDemo(logger: Logger): Promise<void> {
       p50: logger.s.yellow('89ms'),
       p95: logger.s.red('203ms'),
       p99: logger.s.red.bold('412ms'),
-      status: logger.s.yellow.bold('!')
-    }
+      status: logger.s.yellow.bold('!'),
+    },
   ];
 
   logger.table(metrics, ['brightCyan', 'bold']);
@@ -306,7 +326,7 @@ async function asciiArtAnimations(logger: Logger): Promise<void> {
   const boxTop = '╔══════════════════════════════╗';
   const boxMid = '║  🌟 MagicLogger Features 🌟  ║';
   const boxBot = '╚══════════════════════════════╝';
-  
+
   logger.info(logger.s.cyan.bold(boxTop));
   await sleep(100);
   logger.info(logger.s.cyan.bold(boxMid));
@@ -321,7 +341,7 @@ async function asciiArtAnimations(logger: Logger): Promise<void> {
     { icon: '🔧', text: 'Flexible API', color: 'blue' },
     { icon: '📊', text: 'Beautiful tables', color: 'green' },
     { icon: '🌈', text: 'Rainbow effects', color: 'magenta' },
-    { icon: '✨', text: 'Pure magic', color: 'cyan' }
+    { icon: '✨', text: 'Pure magic', color: 'cyan' },
   ];
 
   for (const feature of features) {
@@ -354,15 +374,15 @@ async function grandFinale(logger: Logger): Promise<void> {
   const rainbow = rainbowText(finalMessage);
   console.log(rainbow);
   console.log('');
-  
+
   await sleep(500);
 
   // Links and info
   logger.link('https://github.com/manicinc/magiclogger', '🔗 GitHub Repository');
   logger.link('https://npmjs.com/package/magiclogger', '📦 NPM Package');
-  
+
   await sleep(500);
-  
+
   // Thank you message with gradient
   const thanks = gradientText('Thank you for watching! Happy logging! 🚀', 'magenta', 'cyan');
   console.log('\n' + thanks + '\n');
@@ -400,7 +420,6 @@ async function runAnimatedDemo(): Promise<void> {
     await sleep(1000);
 
     await grandFinale(logger);
-
   } catch (error) {
     logger.error('Demo encountered an error:', error);
   }

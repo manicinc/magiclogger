@@ -292,7 +292,7 @@ export class Formatter {
     const textLength = this.stripAnsi(text).length;
 
     if (textLength >= length) {
-      // If text is already at or over the desired length, 
+      // If text is already at or over the desired length,
       // we still need to ensure consistent visible length
       if (textLength > length) {
         // Text is too long, truncate it
@@ -495,10 +495,10 @@ export class Formatter {
     for (const line of lines) {
       // Get the visible length of the current line
       const visibleLength = this.stripAnsi(line).length;
-      
+
       // Calculate how much padding we need to reach maxLength
       const padNeeded = maxLength - visibleLength;
-      
+
       // Apply padding based on alignment
       let paddedLine: string;
       if (padNeeded > 0) {
