@@ -4,7 +4,7 @@
  * This demo showcases MagicLogger's rich styling capabilities through
  * dynamic, colorful animations and practical examples.
  *
- * Run with: npx ts-node examples/animated-demo.ts
+ * Run with: npx tsx examples/animated-demo.ts
  */
 
 import { Logger, COLORS, type ColorName } from '../dist/index.js';
@@ -82,7 +82,7 @@ async function showAnimatedLogo(_logger: Logger): Promise<void> {
   console.log('');
 
   // Tagline with gradient
-  const tagline = gradientText('✨ Beautiful Terminal Styling Made Magical ✨', 'cyan', 'magenta');
+  const tagline = gradientText('✨ Beautiful Terminal & Browser Logs Styling Made Magical ✨', 'cyan', 'magenta');
   console.log(tagline);
 
   await sleep(1000);
@@ -92,7 +92,10 @@ async function showAnimatedLogo(_logger: Logger): Promise<void> {
  * Demonstrate inline styling with multiple colors in one message
  */
 async function inlineStyleShowcase(logger: Logger): Promise<void> {
+  // Header
+  console.log();
   logger.header('  🎨 INLINE STYLE MIXING  ', ['brightWhite', 'bgMagenta', 'bold']);
+  console.log('═'.repeat(50));
   await sleep(500);
 
   // Multiple styles in one message
@@ -130,15 +133,18 @@ async function inlineStyleShowcase(logger: Logger): Promise<void> {
  * Show animated progress bars and loading effects
  */
 async function animatedProgressDemo(logger: Logger): Promise<void> {
+  console.log();
   logger.header('  ⚡ ANIMATED PROGRESS  ', ['brightWhite', 'bgBlue', 'bold']);
+  console.log('═'.repeat(50));
   await sleep(500);
 
   // Animated progress bar
-  logger.custom('Downloading packages...', ['cyan'], 'TASK');
+  logger.info(logger.s.cyan('Downloading packages...'));
   for (let i = 0; i <= 100; i += 10) {
-    logger.progressBar(i, 30);
+    process.stdout.write('\r' + logger.s.dim(`[${('█').repeat(Math.floor(i/3.3)).padEnd(30)}] ${i}%`));
     await sleep(100);
   }
+  process.stdout.write('\n');
   logger.success('✓ Download complete!');
   await sleep(300);
 
@@ -147,7 +153,7 @@ async function animatedProgressDemo(logger: Logger): Promise<void> {
   process.stdout.write('\n');
   for (let i = 0; i < 20; i++) {
     const spinner = spinners[i % spinners.length];
-    const colors = ['cyan', 'blue', 'magenta'];
+    const colors = ['cyan', 'blue', 'magenta'] as ColorName[];
     const color = colors[i % colors.length];
     process.stdout.write(`\r${COLORS[color]}${spinner}${COLORS.reset} Processing...`);
     await sleep(100);
@@ -160,7 +166,9 @@ async function animatedProgressDemo(logger: Logger): Promise<void> {
  * Demonstrate the chainable style API
  */
 async function chainableStyleAPI(logger: Logger): Promise<void> {
+  console.log();
   logger.header('  🔗 CHAINABLE STYLE API  ', ['brightWhite', 'bgGreen', 'bold']);
+  console.log('═'.repeat(50));
   await sleep(500);
 
   // Using the .s (style) API
@@ -198,27 +206,81 @@ async function chainableStyleAPI(logger: Logger): Promise<void> {
  * Template literal styling with fmt
  */
 async function templateLiteralStyling(logger: Logger): Promise<void> {
+  console.log();
   logger.header('  📝 TEMPLATE LITERALS  ', ['brightWhite', 'bgCyan', 'bold']);
+  console.log('═'.repeat(50));
   await sleep(500);
 
   const errorCount = 3;
   const warningCount = 7;
   const duration = 1234;
 
-  logger.info(logger.fmt`
-    @red.bold{Errors: ${errorCount}} | 
-    @yellow{Warnings: ${warningCount}} | 
-    @green{Duration: ${duration}ms}
-  `);
+  // Using template literals with @ syntax
+  logger.info(
+    logger.s.red.bold(`Errors: ${errorCount}`) + ' | ' +
+    logger.s.yellow(`Warnings: ${warningCount}`) + ' | ' +
+    logger.s.green(`Duration: ${duration}ms`)
+  );
   await sleep(300);
 
   const username = 'alice';
   const action = 'deployed';
   const environment = 'production';
 
-  logger.info(logger.fmt`
-    @cyan.bold{${username}} @dim{successfully} @green.bold{${action}} @dim{to} @magenta.underline{${environment}}
-  `);
+  logger.info(
+    logger.s.cyan.bold(username) + ' ' +
+    logger.s.dim('successfully') + ' ' +
+    logger.s.green.bold(action) + ' ' +
+    logger.s.dim('to') + ' ' +
+    logger.s.magenta.underline(environment)
+  );
+  await sleep(500);
+}
+
+/**
+ * Beautiful data table with colors and proper borders
+ */
+async function colorfulTableDemo(logger: Logger): Promise<void> {
+  console.log();
+  logger.header('  📊 COLORFUL DATA TABLES  ', ['brightWhite', 'bgMagenta', 'bold']);
+  logger.separator('═', 50, ['cyan']);
+  await sleep(500);
+
+  // Table data with pre-styled values using logger.s
+  const tableData = [
+    {
+      endpoint: logger.s.cyan('/api/users'),
+      method: logger.s.green.bold('GET'),
+      p50: logger.s.green('45ms'),
+      p95: logger.s.yellow('120ms'),
+      p99: logger.s.red('250ms'),
+      status: logger.s.green.bold('✓')
+    },
+    {
+      endpoint: logger.s.cyan('/api/posts'),
+      method: logger.s.blue.bold('POST'),
+      p50: logger.s.green('23ms'),
+      p95: logger.s.yellow('67ms'),
+      p99: logger.s.red('145ms'),
+      status: logger.s.green.bold('✓')
+    },
+    {
+      endpoint: logger.s.cyan('/api/auth'),
+      method: logger.s.magenta.bold('PUT'),
+      p50: logger.s.green('89ms'),
+      p95: logger.s.yellow('203ms'),
+      p99: logger.s.red('412ms'),
+      status: logger.s.yellow.bold('!')
+    }
+  ];
+
+  // Use the new table method with double borders
+  logger.table(tableData, {
+    border: 'double',
+    headerColor: ['brightWhite', 'bold'],
+    borderColor: ['blue']
+  });
+  
   await sleep(500);
 }
 
@@ -226,7 +288,9 @@ async function templateLiteralStyling(logger: Logger): Promise<void> {
  * Real-world examples with beautiful formatting
  */
 async function realWorldExamples(logger: Logger): Promise<void> {
+  console.log();
   logger.header('  🚀 REAL-WORLD EXAMPLES  ', ['brightWhite', 'bgRed', 'bold']);
+  console.log('═'.repeat(50));
   await sleep(500);
 
   // API Request Log
@@ -244,10 +308,12 @@ async function realWorldExamples(logger: Logger): Promise<void> {
   await sleep(300);
 
   // Deployment Status
-  logger.custom(
-    '<green>✓</> Deployment <cyan.bold>v3.2.1</> to <magenta.bold>production</> <green.bold>successful</>',
-    ['white'],
-    'DEPLOY'
+  logger.info(
+    logger.s.white('DEPLOY: ') +
+    logger.s.green('✓') + ' Deployment ' +
+    logger.s.cyan.bold('v3.2.1') + ' to ' +
+    logger.s.magenta.bold('production') + ' ' +
+    logger.s.green.bold('successful')
   );
   await sleep(300);
 
@@ -277,126 +343,80 @@ async function realWorldExamples(logger: Logger): Promise<void> {
 }
 
 /**
- * Beautiful data table with colors
+ * Show ASCII art and decorations
  */
-async function colorfulTableDemo(logger: Logger): Promise<void> {
-  logger.header('  📊 COLORFUL DATA TABLES  ', ['brightWhite', 'bgMagenta', 'bold']);
+async function asciiArtAndDecorations(logger: Logger): Promise<void> {
+  console.log();
+  logger.header('  🎭 ASCII ART & DECORATIONS  ', ['black', 'bgYellow', 'bold']);
+  logger.separator('═', 50, ['yellow']);
   await sleep(500);
 
-  // Performance metrics table
-  const metrics = [
-    {
-      endpoint: logger.s.cyan('/api/users'),
-      method: logger.s.green.bold('GET'),
-      p50: logger.s.green('45ms'),
-      p95: logger.s.yellow('120ms'),
-      p99: logger.s.red('250ms'),
-      status: logger.s.green.bold('✓'),
-    },
-    {
-      endpoint: logger.s.cyan('/api/posts'),
-      method: logger.s.blue.bold('POST'),
-      p50: logger.s.green('23ms'),
-      p95: logger.s.green('67ms'),
-      p99: logger.s.yellow('145ms'),
-      status: logger.s.green.bold('✓'),
-    },
-    {
-      endpoint: logger.s.cyan('/api/auth'),
-      method: logger.s.yellow.bold('PUT'),
-      p50: logger.s.yellow('89ms'),
-      p95: logger.s.red('203ms'),
-      p99: logger.s.red.bold('412ms'),
-      status: logger.s.yellow.bold('!'),
-    },
-  ];
-
-  logger.table(metrics, ['brightCyan', 'bold']);
-  await sleep(800);
-}
-
-/**
- * Animated art and decorations
- */
-async function asciiArtAnimations(logger: Logger): Promise<void> {
-  logger.header('  🎭 ASCII ART & DECORATIONS  ', ['brightWhite', 'bgBlue', 'bold']);
-  await sleep(500);
-
-  // Animated box drawing
-  const boxTop = '╔══════════════════════════════╗';
-  const boxMid = '║  🌟 MagicLogger Features 🌟  ║';
-  const boxBot = '╚══════════════════════════════╝';
-
-  logger.info(logger.s.cyan.bold(boxTop));
-  await sleep(100);
-  logger.info(logger.s.cyan.bold(boxMid));
-  await sleep(100);
-  logger.info(logger.s.cyan.bold(boxBot));
+  // Box drawing using the new box method
+  logger.box('🌟 MagicLogger Features 🌟', {
+    border: 'double',
+    borderColor: ['cyan'],
+    color: ['yellow', 'bold'],
+    padding: 2
+  });
   await sleep(300);
 
-  // Feature list with icons
-  const features = [
-    { icon: '🎨', text: 'Rich color support', color: 'red' },
-    { icon: '⚡', text: 'High performance', color: 'yellow' },
-    { icon: '🔧', text: 'Flexible API', color: 'blue' },
-    { icon: '📊', text: 'Beautiful tables', color: 'green' },
-    { icon: '🌈', text: 'Rainbow effects', color: 'magenta' },
-    { icon: '✨', text: 'Pure magic', color: 'cyan' },
-  ];
+  // Feature list using the new list method
+  logger.list([
+    'Rich color support',
+    'High performance',
+    'Flexible API',
+    'Beautiful tables',
+    'Rainbow effects',
+    'Pure magic'
+  ], {
+    bullet: '✨',
+    bulletColor: ['yellow'],
+    itemColor: ['white'],
+    indent: 2
+  });
 
-  for (const feature of features) {
-    const colored = logger.color(feature.color as ColorName, 'bold');
-    logger.info(`  ${feature.icon} ${colored(feature.text)}`);
-    await sleep(200);
-  }
   await sleep(500);
 }
 
 /**
- * Grand finale with all effects combined
+ * Grand finale with animation
  */
 async function grandFinale(logger: Logger): Promise<void> {
-  logger.header('  🎆 GRAND FINALE  ', ['brightWhite', 'bgRed', 'bold']);
+  console.log();
+  logger.header('  🎆 GRAND FINALE  ', ['brightWhite', 'bgMagenta', 'bold']);
+  console.log('═'.repeat(50));
   await sleep(500);
 
   // Countdown
   for (let i = 3; i > 0; i--) {
-    const size = 4 - i;
-    const color = ['red', 'yellow', 'green'][3 - i] as ColorName;
-    const text = '█'.repeat(size * 2);
-    logger.info(logger.color(color, 'bold')(`    ${i}... ${text}`));
+    console.log('  ' + logger.s.yellow.bold(`${i}...`) + ' ' + logger.s.red('█'.repeat(i * 2)));
     await sleep(500);
   }
 
-  // Explosion of colors
+  // Final message with rainbow effect
+  console.log('\n' + rainbowText('✨ 🌈 MagicLogger - Making Logs Beautiful! 🌈 ✨'));
   console.log('');
-  const finalMessage = '✨ 🌈 MagicLogger - Making Logs Beautiful! 🌈 ✨';
-  const rainbow = rainbowText(finalMessage);
-  console.log(rainbow);
-  console.log('');
-
   await sleep(500);
 
-  // Links and info
-  logger.link('https://github.com/manicinc/magiclogger', '🔗 GitHub Repository');
-  logger.link('https://npmjs.com/package/magiclogger', '📦 NPM Package');
+  // Links
+  logger.info('[Link] 🔗 GitHub Repository: ' + logger.s.cyan.underline('https://github.com/manicinc/magiclogger'));
+  logger.info('[Link] 📦 NPM Package: ' + logger.s.cyan.underline('https://npmjs.com/package/magiclogger'));
 
-  await sleep(500);
-
-  // Thank you message with gradient
-  const thanks = gradientText('Thank you for watching! Happy logging! 🚀', 'magenta', 'cyan');
-  console.log('\n' + thanks + '\n');
+  console.log('\n' + logger.s.green.bold('Thank you for watching! Happy logging! 🚀'));
 }
 
 /**
  * Main demo runner
  */
-async function runAnimatedDemo(): Promise<void> {
-  const logger = new Logger();
+async function runDemo(): Promise<void> {
+  const logger = new Logger({
+    useColors: true,
+    useConsole: true
+  });
 
   try {
     await showAnimatedLogo(logger);
-    await sleep(1000);
+    await sleep(500);
 
     await inlineStyleShowcase(logger);
     await sleep(1000);
@@ -416,16 +436,14 @@ async function runAnimatedDemo(): Promise<void> {
     await realWorldExamples(logger);
     await sleep(1000);
 
-    await asciiArtAnimations(logger);
+    await asciiArtAndDecorations(logger);
     await sleep(1000);
 
     await grandFinale(logger);
   } catch (error) {
-    logger.error('Demo encountered an error:', error);
+    logger.error('Demo failed:', error);
   }
 }
 
-// Run the demo if executed directly
-runAnimatedDemo().catch(console.error);
-
-export { runAnimatedDemo };
+// Run the demo
+runDemo().catch(console.error);

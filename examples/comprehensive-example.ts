@@ -198,13 +198,12 @@ console.log('\n' + '='.repeat(80));
 console.log('SECTION 3: VISUAL ELEMENTS');
 console.log('='.repeat(80) + '\n');
 
-// 3.1 Headers and footers
+// 3.1 Headers
 logger.header('🚀 DEPLOYMENT PROCESS', ['brightWhite', 'bgBlue', 'bold']);
-logger.footer('Process completed', ['gray', 'dim']);
 
-// 3.2 Separators
-logger.separator('=', 50);
-logger.separator('-');
+// 3.2 Separators (manual)
+console.log('='.repeat(50));
+console.log('-'.repeat(50));
 
 // 3.3 Progress bars
 console.log('\nProgress bar:');
@@ -224,16 +223,22 @@ logger.table(
   ['cyan', 'bold']
 );
 
-// 3.5 Links
-logger.link('https://github.com/your-repo', 'View on GitHub');
+// 3.5 Links (manual)
+logger.info(`🔗 View on GitHub: ${logger.s.cyan.underline('https://github.com/your-repo')}`);
 
-// 3.6 Object diff
+// 3.6 Object diff (manual)
 const oldState = { users: 100, status: 'active', plan: 'free' };
 const newState = { users: 150, status: 'active', plan: 'pro', features: ['api', 'support'] };
-logger.diff('State change', oldState, newState);
+logger.info('State change:');
+logger.info(`  Old: ${JSON.stringify(oldState)}`);
+logger.info(`  New: ${JSON.stringify(newState)}`);
 
-// 3.7 Box drawing
-logger.box('Important Message', ['yellow', 'bold']);
+// 3.7 Box drawing (manual)
+const boxMessage = 'Important Message';
+const boxWidth = boxMessage.length + 4;
+console.log(logger.s.yellow.bold('╔' + '═'.repeat(boxWidth - 2) + '╗'));
+console.log(logger.s.yellow.bold('║ ' + boxMessage + ' ║'));
+console.log(logger.s.yellow.bold('╚' + '═'.repeat(boxWidth - 2) + '╝'));
 
 // ============================================================================
 // SECTION 4: CONTEXT & TAGS

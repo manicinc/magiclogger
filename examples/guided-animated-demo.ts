@@ -88,7 +88,7 @@ async function introduction(logger: Logger): Promise<void> {
   await animateText('Welcome to the MagicLogger guided tour!', 'cyan', 40);
   await sleep(500);
 
-  logger.info('<dim>This interactive demo will guide you through:</dim>');
+  logger.info('<dim>This interactive demo will guide you through:</>');
   console.log('');
 
   const features = [
@@ -338,7 +338,7 @@ async function chapter4_DataVisualization(logger: Logger): Promise<void> {
           : logger.s.red.bold(m.value.toString()),
       Unit: logger.s.dim(m.unit),
     })),
-    ['brightMagenta', 'bold']
+    { headerColor: ['brightMagenta', 'bold'] }
   );
 
   await waitForEnter();
@@ -458,8 +458,8 @@ async function grandFinale(logger: Logger): Promise<void> {
   console.log('');
 
   // Links
-  logger.link('https://github.com/manicinc/magiclogger', '📚 Documentation');
-  logger.link('https://npmjs.com/package/magiclogger', '📦 NPM Package');
+  logger.info(`📚 Documentation: ${logger.s.cyan.underline('https://github.com/manicinc/magiclogger')}`);
+  logger.info(`📦 NPM Package: ${logger.s.cyan.underline('https://npmjs.com/package/magiclogger')}`);
   console.log('');
 
   await animateText('Thank you for taking the MagicLogger tour!', 'magenta', 40);

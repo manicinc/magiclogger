@@ -1,4 +1,0 @@
-{"id":"1725000001-abc123","timestamp":"2024-08-30T12:00:01.000Z","timestampMs":1725000001000,"level":"info","message":"✅ Success: Server started on port 3000","styles":[[0,10,"green.bold"],[36,40,"cyan"]]}
-{"id":"1725000002-def456","timestamp":"2024-08-30T12:00:02.000Z","timestampMs":1725000002000,"level":"warn","message":"⚠️ Warning: Memory usage at 85% capacity","styles":[[0,11,"yellow"],[27,30,"red.bold"]]}
-{"id":"1725000003-ghi789","timestamp":"2024-08-30T12:00:03.000Z","timestampMs":1725000003000,"level":"error","message":"❌ Error: Connection to api.example.com failed","styles":[[0,8,"red.bold"],[23,39,"yellow"]]}
-{"id":"1725000004-jkl012","timestamp":"2024-08-30T12:00:04.000Z","timestampMs":1725000004000,"level":"info","message":"User authentication completed","context":{"userId":"usr_123456","email":"john.doe@example.com","method":"OAuth2","duration":145}}

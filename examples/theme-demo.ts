@@ -59,7 +59,7 @@ for (const themeName of availableThemes) {
   );
 
   logger.progressBar(65);
-  logger.link('https://magiclogger.dev', 'Visit Docs');
+  logger.info(`Visit Docs: ${logger.s.cyan.underline('https://magiclogger.dev')}`);
 
   console.log('\n------------------------------\n');
 }
@@ -98,7 +98,7 @@ if (Object.keys(manualThemes).length > 0) {
     );
 
     logger.progressBar(65);
-    logger.link('https://magiclogger.dev', 'Visit Docs');
+    logger.info(`Visit Docs: ${logger.s.cyan.underline('https://magiclogger.dev')}`);
 
     console.log('\n------------------------------\n');
   }
