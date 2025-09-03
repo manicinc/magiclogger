@@ -96,7 +96,8 @@ export function createStream(stream: NodeJS.WritableStream, options?: Record<str
 export function createHTTP(url: string, options?: Record<string, unknown>) {
   try {
     const hostname = new URL(url).hostname;
-    return new HTTPTransport({ name: `http-${hostname}`, url, ...options });
+    // HTTPTransport expects 'endpoint' not 'url'
+    return new HTTPTransport({ name: `http-${hostname}`, endpoint: url, ...options });
   } catch (error) {
     throw new Error(`Invalid URL provided: ${url}`);
   }

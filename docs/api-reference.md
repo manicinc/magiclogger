@@ -112,7 +112,7 @@ logger.child(options: Partial<LoggerOptions>): Logger;     // Create child with 
 
 ### AsyncLogger
 
-High-performance asynchronous logger with ring buffer for maximum throughput.
+High-performance asynchronous logger that routes to transports for maximum throughput.
 
 ```typescript
 import { AsyncLogger, createAsyncLogger } from 'magiclogger';
@@ -126,27 +126,25 @@ const logger = createAsyncLogger(options?: AsyncLoggerOptions);
 
 ```typescript
 interface AsyncLoggerOptions extends LoggerOptions {
-  buffer?: {
-    size?: number;         // Ring buffer size (default: 16384)
-    flushInterval?: number; // Auto-flush interval in ms (default: 50)
-    flushSize?: number;     // Batch size threshold (default: 2000)
-    dropPolicy?: 'tail' | 'head'; // What to drop when full
-  };
+  transports?: Transport[];  // Array of transports to use
+  enableMetrics?: boolean;   // Enable performance metrics
+  id?: string;              // Logger identifier
   
-  onFlush?: (entries: LogEntry[]) => void | Promise<void>;
-  onDrop?: (entry: LogEntry) => void;
-  onError?: (error: Error) => void;
+  // Operational utilities (optional)
+  rateLimiter?: RateLimiter | RateLimiterOptions;
+  redactor?: Redactor | RedactorOptions;
+  sampler?: Sampler | SamplerOptions;
 }
 ```
 
-#### Ring Buffer Behavior
+#### Transport-Based Architecture
 
-The AsyncLogger uses a pre-allocated ring buffer for zero-allocation logging:
+The AsyncLogger routes logs to transports, each managing its own strategy:
 
-- **Fixed size**: No memory allocation during operation
-- **Automatic flushing**: Based on time or size triggers
-- **Overflow handling**: Drops oldest entries when full
-- **Backpressure**: Returns `{ success: boolean, reason?: string }`
+- **Console**: Synchronous for immediate feedback
+- **File**: Worker thread with internal buffering
+- **HTTP**: Worker thread with batching
+- **Each transport**: Manages its own threading and buffering
 
 ```typescript
 const result = logger.info('High volume log');
@@ -399,7 +397,7 @@ Factory functions with sensible defaults:
 ```typescript
 import { 
   createLogger,       // Smart logger (auto-detects best mode)
-  createAsyncLogger,  // Async logger with ring buffer
+  createAsyncLogger,  // Async logger that routes to transports
   createSyncLogger    // Synchronous logger
 } from 'magiclogger';
 

@@ -50,11 +50,8 @@ const logger = new Logger({
   
   // Async for performance
   async: {
-    enabled: true,
-    buffer: {
-      size: 100000,        // 100k entry ring buffer
-      flushInterval: 1000  // Flush every second
-    }
+    enabled: true
+    // Transports manage their own buffering strategy
   },
   
   transports: [

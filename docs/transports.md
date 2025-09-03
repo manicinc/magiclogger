@@ -36,13 +36,13 @@ sidebar_label: Transports
 
 ## Overview
 
-MagicLogger's transport system is designed from the ground up to be **asynchronous by default**, providing high-performance logging with minimal impact on your application. Unlike Pino's worker thread approach, MagicLogger uses an efficient **ring buffer with microtask-based flushing**, achieving comparable performance with simpler architecture.
+MagicLogger's transport system is designed from the ground up to be **transport-optimized**, providing high-performance logging with minimal impact on your application. Following Pino's proven approach, MagicLogger uses **worker threads for I/O operations**, achieving true parallelism and non-blocking performance.
 
 ### Key Features
 
 - 🚀 **Async-First**: All transports operate asynchronously by default for maximum throughput
 - 🎯 **Zero Overhead**: Tree-shakeable design - only pay for what you use  
-- 💪 **High Performance**: Ring buffer with batch processing matches Pino's performance
+- 💪 **High Performance**: Worker threads for I/O operations provide true parallelism
 - 🔄 **Backpressure Handling**: Explicit feedback when buffers are full
 - 📦 **Modular**: Each transport is independently importable for optimal bundle size
 - 🔌 **Extensible**: Simple interface for creating custom transports
@@ -73,10 +73,10 @@ Application Code
    • Rate Limiting (prevent flooding)  
    • Redaction (remove PII)
       ↓
-   AsyncBuffer (Ring Buffer)
-   • Zero-allocation design
-   • Microtask-based flushing
-   • Explicit backpressure
+   Transport Strategy
+   • Console: Synchronous for immediate feedback
+   • File/HTTP: Worker threads for I/O
+   • Each transport manages its own buffering
       ↓
    Transport Manager
    • Batch dispatch
@@ -133,10 +133,10 @@ logger.info('User logged in', { userId: 123 }); // Returns AddResult immediately
 ```
 
 **✅ PROS:**
-- **High Throughput**: ~130,000 ops/sec - 13x faster than sync with promises
+- **High Throughput**: Worker threads ensure main thread never blocks
 - **Non-blocking**: Never blocks main thread, perfect for production services
 - **Natural Batching**: Logs accumulate for efficient I/O operations
-- **Zero Promise Overhead**: Uses microtasks/timers, not promises in hot path
+- **Zero Main Thread Blocking**: All I/O happens in worker threads
 - **Explicit Backpressure**: Returns `AddResult` so you know if logs dropped
 - **Memory Efficient**: Pre-allocated ring buffer, minimal GC pressure
 

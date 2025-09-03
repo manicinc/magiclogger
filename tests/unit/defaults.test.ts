@@ -2,9 +2,13 @@ import { Logger, createAsyncLogger } from '../../src/index';
 
 describe('Default Console Transport', () => {
   let consoleLogSpy: jest.SpyInstance;
+  let consoleInfoSpy: jest.SpyInstance;
 
   beforeEach(() => {
     consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {
+      /* ignore */
+    });
+    consoleInfoSpy = jest.spyOn(console, 'info').mockImplementation(() => {
       /* ignore */
     });
     jest.spyOn(console, 'warn').mockImplementation(() => {
@@ -20,15 +24,18 @@ describe('Default Console Transport', () => {
   });
 
   describe('Logger class', () => {
-    it('should output to console by default', () => {
+    it('should output to console by default', async () => {
       const logger = new Logger();
 
       // By default, uses legacy output which goes to console
       // This is the expected behavior - console works out of the box
       logger.info('Test message');
 
-      // Should have logged to console (via legacy output)
-      expect(consoleLogSpy).toHaveBeenCalled();
+      // Wait for async transport
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      // Should have logged to console (via console transport)
+      expect(consoleInfoSpy).toHaveBeenCalled();
     });
 
     it('should allow disabling console transport', () => {

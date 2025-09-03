@@ -33,8 +33,20 @@ export type { LoggerOptions } from './types/logger';
  * Async logger implementation for high-performance buffering.
  * Use this when you explicitly need async/buffered logging.
  */
+// Export the new proper AsyncLogger
 export { AsyncLogger } from './async/AsyncLogger';
 export type { AsyncLoggerOptions } from './async/AsyncLogger';
+
+
+/**
+ * Production-ready transports using correct architecture.
+ * File and HTTP use worker threads, Console is synchronous.
+ */
+export { SyncConsoleTransport } from './transports/SyncConsoleTransport';
+export { FileTransport } from './transports/FileTransport';
+export { HTTPTransport } from './transports/HTTPTransport';
+export type { FileTransportOptions } from './transports/FileTransport';
+export type { HTTPTransportOptions } from './transports/HTTPTransport';
 
 
 /**
@@ -54,12 +66,11 @@ export type { LogEntry } from './types/transport';
 // ==========================================
 
 import { Logger } from './Logger';
+// Import the AsyncLogger
 import { AsyncLogger } from './async/AsyncLogger';
-import { SyncLogger } from './sync/SyncLogger';
 import type { AsyncLoggerOptions } from './async/AsyncLogger';
+import { SyncLogger } from './sync/SyncLogger';
 import type { LoggerOptions } from './types/logger';
-import type { LogEntry } from './types/transport';
-import type { LogLevel } from './types/logger';
 
 /**
  * Creates a logger with configurable behavior.
@@ -230,10 +241,8 @@ export type {
   RetryOptions,
   ConnectionState,
   ConsoleTransportOptions,
-  FileTransportOptions,
   BatchingTransportOptions,
   NetworkTransportOptions,
-  HTTPTransportOptions,
   StreamTransportOptions,
   WebSocketTransportOptions,
   MongoDBTransportOptions,
@@ -244,7 +253,6 @@ export type {
 // Utility Types
 // ==========================================
 
-export type { AddResult, BufferStats } from './async/AsyncBuffer';
 
 /**
  * Type guard to check if a logger is async.
@@ -265,48 +273,33 @@ export function isSyncLogger(logger: unknown): logger is SyncLogger {
 // ==========================================
 
 /**
- * Creates an async logger with high-performance buffering.
- * @deprecated Use createLogger() which defaults to async
- *
+ * Creates a high-performance async logger that routes directly to transports.
+ * Each transport manages its own buffering and threading strategy for optimal performance.
+ * 
  * @param options - Configuration options for async logger
- * @returns AsyncLogger instance
+ * @param options.transports - Array of transports to log to
+ * @param options.onFlush - Optional callback when transports flush
+ * @param options.redactor - Optional redactor for sensitive data
+ * @param options.rateLimiter - Optional rate limiter configuration
+ * @returns AsyncLogger instance that routes logs directly to transports
+ * 
+ * @example
+ * ```typescript
+ * // Create async logger with worker thread transports
+ * const logger = createAsyncLogger({
+ *   transports: [
+ *     new FileWorkerTransport({ filepath: 'app.log' }),
+ *     new HTTPWorkerTransport({ endpoint: 'https://logs.example.com' }),
+ *     new SyncConsoleTransport() // Immediate feedback in development
+ *   ]
+ * });
+ * 
+ * // Logs are routed directly to each transport
+ * logger.info('Each transport handles this independently');
+ * ```
  */
 export function createAsyncLogger(options: Partial<AsyncLoggerOptions> = {}): AsyncLogger {
-  // For backward compatibility, create AsyncLogger directly
-  const defaultBuffer = {
-    size: options.buffer?.size ?? 16384,
-    flushInterval: options.buffer?.flushInterval ?? 50,
-    flushSize: options.buffer?.flushSize ?? 2000,
-  };
-
-  const defaultOnFlush = async (_entries: LogEntry[]) => {
-    // Default: entries are already logged to console immediately
-  };
-
-  const createLogEntry = (level: LogLevel, message: string, meta?: Record<string, unknown>) => ({
-    id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    level,
-    message,
-    timestamp: new Date().toISOString(),
-    timestampMs: Date.now(),
-    // Note: styles extraction could be added here in the future
-    context: meta,
-  });
-
-  return new AsyncLogger(
-    {
-      buffer: defaultBuffer,
-      onFlush: options.onFlush ?? defaultOnFlush,
-      enableMetrics: options.enableMetrics ?? false,
-      redactor: options.redactor,
-      rateLimiter: options.rateLimiter,
-      sampler: options.sampler,
-      queueManager: options.queueManager,
-      fallbackToSync: options.fallbackToSync ?? false,
-      flushOnHighWater: options.flushOnHighWater ?? true,
-    },
-    createLogEntry
-  );
+  return new AsyncLogger(options);
 }
 
 /**

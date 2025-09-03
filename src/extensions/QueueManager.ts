@@ -344,10 +344,10 @@ export class QueueManager {
           }
         });
       }
-      // Avoid keeping event loop alive; schedule microtask for next pass
-      queueMicrotask(() => {
+      // Schedule next processing pass using setTimeout for proper async
+      setTimeout(() => {
         void this.processQueue();
-      });
+      }, 0);
     }
   }
 

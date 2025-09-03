@@ -239,7 +239,7 @@ export type AnySchema =
 export class SchemaValidator {
   private errors: ValidationError[] = [];
   private currentPath: string[] = [];
-  private compiledSchemas = new WeakMap<AnySchema, unknown>();
+  // private compiledSchemas = new WeakMap<AnySchema, unknown>(); // Removed unused variable
 
   /**
    * Validates data against a schema.
@@ -510,7 +510,10 @@ export class SchemaValidator {
       const properties = schema.properties;
       for (const key in properties) {
         this.currentPath.push(key);
-        result[key] = this.validateValue(obj[key], properties[key]);
+        const propertySchema = properties[key];
+        if (propertySchema) {
+          result[key] = this.validateValue(obj[key], propertySchema);
+        }
         this.currentPath.pop();
       }
     }
@@ -519,7 +522,7 @@ export class SchemaValidator {
     if (schema.required && schema.required.length > 0) {
       for (let i = 0; i < schema.required.length; i++) {
         const key = schema.required[i];
-        if (!(key in obj)) {
+        if (key && !(key in obj)) {
           this.currentPath.push(key);
           this.addError('Required field is missing');
           this.currentPath.pop();
@@ -535,7 +538,7 @@ export class SchemaValidator {
 
       for (let i = 0; i < objKeys.length; i++) {
         const key = objKeys[i];
-        if (!definedKeys.has(key)) {
+        if (key && !definedKeys.has(key)) {
           if (schema.additionalProperties === false) {
             this.currentPath.push(key);
             this.addError('Additional property not allowed');
@@ -721,8 +724,8 @@ export class SchemaValidator {
     // Optimize for common cases
     const len = this.currentPath.length;
     if (len === 0) return 'root';
-    if (len === 1) return this.currentPath[0];
-    if (len === 2) return `${this.currentPath[0]}.${this.currentPath[1]}`;
+    if (len === 1) return this.currentPath[0] || 'root';
+    if (len === 2) return `${this.currentPath[0] || ''}.${this.currentPath[1] || ''}`;
     return this.currentPath.join('.');
   }
 

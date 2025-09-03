@@ -35,7 +35,6 @@ export default defineConfig(options => {
 
     // Async utilities
     'async/logger': 'src/async/AsyncLogger.ts',
-    'async/buffer': 'src/async/AsyncBuffer.ts',
     
     // Sync utilities
     'sync/logger': 'src/sync/SyncLogger.ts',

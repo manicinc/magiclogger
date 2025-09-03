@@ -7,8 +7,8 @@ import type { LogEntry, Transport } from '../../../../src/types/transport';
 // Mock FileManager
 jest.mock('../../../../src/core/FileManager');
 
-// Mock dynamic imports
-jest.mock('../../../../src/transports/base/implementations/FileTransport', () => ({
+// Mock dynamic imports - use the correct path
+jest.mock('../../../../src/transports/FileTransport', () => ({
   FileTransport: jest.fn().mockImplementation(() => ({
     name: 'test-fallback',
     enabled: true,
@@ -18,8 +18,8 @@ jest.mock('../../../../src/transports/base/implementations/FileTransport', () =>
   })),
 }));
 
-jest.mock('../../../../src/transports/base/implementations/ConsoleTransport', () => ({
-  ConsoleTransport: jest.fn().mockImplementation(() => ({
+jest.mock('../../../../src/transports/SyncConsoleTransport', () => ({
+  SyncConsoleTransport: jest.fn().mockImplementation(() => ({
     name: 'test-fallback',
     enabled: true,
     init: jest.fn(),

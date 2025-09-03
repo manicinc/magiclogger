@@ -14,36 +14,43 @@ This guide covers advanced patterns and best practices for MagicLogger.
 
 ## Performance Optimization
 
-### Ring Buffer Tuning
+### Transport Optimization
 
-For high-throughput applications, tune the ring buffer for optimal performance:
+For high-throughput applications, optimize transport configuration:
 
 ```typescript
-import { AsyncLogger } from 'magiclogger';
+import { AsyncLogger, FileWorkerTransport, HTTPWorkerTransport } from 'magiclogger';
 
 const logger = new AsyncLogger({
-  buffer: {
-    size: 65536,        // Larger buffer for burst traffic
-    flushInterval: 10,  // More frequent flushes
-    flushSize: 5000,    // Larger batches
-    dropPolicy: 'tail'  // Drop newest when full
-  },
-  
-  onDrop: (entry) => {
-    // Monitor dropped logs
-    metrics.increment('logs.dropped');
-  }
+  transports: [
+    // File transport with worker thread
+    new FileWorkerTransport({
+      filepath: './logs/app.log',
+      bufferSize: 65536,     // Large buffer in worker
+      flushInterval: 10,      // Frequent flushes in worker
+      maxFileSize: 10485760   // 10MB rotation
+    }),
+    
+    // HTTP transport with batching
+    new HTTPWorkerTransport({
+      endpoint: 'https://logs.api.com',
+      batchSize: 5000,        // Large batches
+      flushInterval: 1000,    // Send every second
+      compress: true          // Compress payloads
+    })
+  ]
 });
 ```
 
 ### Memory Management
 
-Monitor and control memory usage:
+Monitor and control memory usage at transport level:
 
 ```typescript
 const logger = new AsyncLogger({
-  onFlush: async (entries) => {
-    // Track batch sizes
+  transports: [
+    new FileWorkerTransport({
+      // Worker manages its own memory
     metrics.histogram('log.batch.size', entries.length);
     
     // Process entries

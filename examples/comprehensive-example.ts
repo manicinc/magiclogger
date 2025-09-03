@@ -112,13 +112,12 @@ syncLogger.error('Guaranteed delivery for audit logs');
 // 1.3 Async Logger (High performance)
 console.log('\n1.3 Async Logger (High performance):');
 const asyncLogger = createAsyncLogger({
-  buffer: { size: 16384, flushInterval: 50 },
   onFlush: entries => {
     console.log(`  Flushed ${entries.length} log entries`);
   },
 });
-asyncLogger.info('Async logger uses ring buffer');
-asyncLogger.warn('Great for high-volume logging');
+asyncLogger.info('Async logger routes directly to transports');
+asyncLogger.warn('Each transport manages its own buffering');
 
 // 1.4 Smart Logger (Auto-detects environment)
 console.log('\n1.4 Smart Logger (Auto-detects):');
@@ -656,14 +655,11 @@ console.log('\n' + '='.repeat(80));
 console.log('SECTION 10: PERFORMANCE & OPTIMIZATION');
 console.log('='.repeat(80) + '\n');
 
-// 10.1 Ring buffer configuration
+// 10.1 Transport optimization configuration
 const performantLogger = createAsyncLogger({
-  buffer: {
-    size: 32768, // Larger buffer
-    flushInterval: 100, // Less frequent flushes
-    flushSize: 5000, // Bigger batches
-  },
-  dropPolicy: 'oldest', // Drop old logs when full
+  // Each transport can be configured with its own buffering strategy
+  // For example, FileWorkerTransport uses worker threads
+  // ConsoleTransport is synchronous for immediate feedback
 });
 
 // 10.2 Check buffer status

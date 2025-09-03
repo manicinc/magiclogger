@@ -178,7 +178,7 @@ describe('Package.json Exports', () => {
       const { Logger } = await import('../../src/index');
       const { createConsole, createFile } = await import('../../src/transports');
 
-      const logger = new Logger();
+      const logger = new Logger({ useConsole: false });
       const consoleTransport = await createConsole();
       const fileTransport = await createFile('/tmp/test.log');
 
@@ -200,7 +200,7 @@ describe('Package.json Exports', () => {
       // Combined transports
       const { createHTTP } = await import('../../src/transports');
 
-      const logger = new Logger();
+      const logger = new Logger({ useConsole: false });
       const console = new ConsoleTransport({ name: 'console' });
       const file = new FileTransport({ name: 'file', filepath: '/tmp/mixed.log' });
       const http = await createHTTP('https://api.example.com/logs');

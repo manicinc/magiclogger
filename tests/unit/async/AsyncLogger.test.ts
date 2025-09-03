@@ -1,349 +1,321 @@
-import { AsyncLogger, type AsyncLoggerOptions } from '../../../src/async/AsyncLogger';
-import { AsyncBuffer } from '../../../src/async/AsyncBuffer';
-import type { LogEntry, LogLevel } from '../../../src/types/transport';
+/**
+ * @fileoverview Tests for AsyncLogger implementation
+ * 
+ * Tests the correct async logger architecture where:
+ * - Logger only routes to transports, no buffering at logger level
+ * - Each transport manages its own buffering/threading strategy
+ * - No microtasks or fake async
+ */
 
-// Mock the AsyncBuffer
-jest.mock('../../../src/async/AsyncBuffer');
+import { AsyncLogger, type AsyncLoggerOptions } from '../../../src/async/AsyncLogger';
+import type { Transport } from '../../../src/types/transport';
+import type { LogEntry } from '../../../src/types/transport';
 
 describe('AsyncLogger', () => {
-  let asyncLogger: AsyncLogger;
-  let mockOnFlush: jest.Mock;
-  let mockCreateEntry: jest.Mock<LogEntry, [LogLevel, string, unknown?]>;
-  let mockAsyncBuffer: jest.Mocked<AsyncBuffer>;
-
+  let mockTransport: jest.Mocked<Transport>;
+  
   beforeEach(() => {
-    jest.clearAllMocks();
-
-    mockOnFlush = jest.fn();
-    mockCreateEntry = jest.fn<LogEntry, [LogLevel, string, unknown?]>(
-      (level: LogLevel, message: string, meta?: unknown) => ({
-        id: 'test-id',
-        level,
-        message,
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
-        context: meta as Record<string, unknown> | undefined,
-      })
-    );
-    // ensure LogEntry type import is used
-    const _unusedLogEntryShape: Partial<LogEntry> = {};
-    void _unusedLogEntryShape;
-
-    // Mock AsyncBuffer instance
-    mockAsyncBuffer = {
-      add: jest.fn().mockReturnValue(true), // Performance optimized: returns boolean, not AddResult
+    mockTransport = {
+      name: 'mock',
+      log: jest.fn(),
       flush: jest.fn(),
-      flushAndWait: jest.fn().mockResolvedValue(undefined),
-      close: jest.fn().mockResolvedValue(undefined),
-      getStats: jest.fn().mockReturnValue({
-        size: 0,
-        capacity: 8192,
-        utilization: 0,
-        metrics: {
-          totalAdded: 0,
-          totalFlushed: 0,
-          totalDropped: 0,
-          flushCount: 0,
-          lastFlushTime: 0,
-          avgFlushSize: 0,
-        },
-      }),
-      isEmpty: jest.fn().mockReturnValue(true),
-      isFull: jest.fn().mockReturnValue(false),
-      getSize: jest.fn().mockReturnValue(0),
-      resetMetrics: jest.fn(),
-      isBackpressured: jest.fn().mockReturnValue(false),
-    } as unknown as jest.Mocked<AsyncBuffer>;
-
-    (AsyncBuffer as jest.MockedClass<typeof AsyncBuffer>).mockImplementation(() => mockAsyncBuffer);
+      close: jest.fn(),
+    };
   });
 
-  afterEach(async () => {
-    if (asyncLogger) {
-      await asyncLogger.close();
-    }
-  });
+  describe('Core Functionality', () => {
+    it('should route logs directly to transports', () => {
+      const logger = new AsyncLogger({
+        transports: [mockTransport]
+      });
 
-  describe('constructor', () => {
-    it('should initialize with default options', () => {
-      const options: AsyncLoggerOptions = {
-        onFlush: mockOnFlush,
-      };
+      logger.info('Test message');
 
-      asyncLogger = new AsyncLogger(options, mockCreateEntry);
-
-      expect(AsyncBuffer).toHaveBeenCalledWith(
+      // Should immediately route to transport
+      expect(mockTransport.log).toHaveBeenCalledTimes(1);
+      expect(mockTransport.log).toHaveBeenCalledWith(
         expect.objectContaining({
-          size: 8192,
-          flushInterval: 100,
-          flushSize: 1000,
-          onFlush: expect.any(Function),
-          overflowStrategy: 'drop-oldest',
-          enableMetrics: true,
+          level: 'info',
+          message: 'Test message'
         })
       );
     });
 
-    it('should initialize with custom buffer options', () => {
-      const options: AsyncLoggerOptions = {
-        buffer: {
-          size: 16384,
-          flushInterval: 200,
-          flushSize: 2000,
-        },
-        enableMetrics: false,
-        onFlush: mockOnFlush,
+    it('should route to multiple transports', () => {
+      const transport1 = {
+        name: 'transport1',
+        log: jest.fn(),
+        flush: jest.fn(),
+        close: jest.fn(),
+      };
+      
+      const transport2 = {
+        name: 'transport2', 
+        log: jest.fn(),
+        flush: jest.fn(),
+        close: jest.fn(),
       };
 
-      asyncLogger = new AsyncLogger(options, mockCreateEntry);
-
-      expect(AsyncBuffer).toHaveBeenCalledWith({
-        size: 16384,
-        flushInterval: 200,
-        flushSize: 2000,
-        onFlush: expect.any(Function),
-        overflowStrategy: 'drop-oldest',
-        enableMetrics: false,
-        onDrop: expect.any(Function),
-        onHighWater: expect.any(Function),
-        onLowWater: expect.any(Function),
+      const logger = new AsyncLogger({
+        transports: [transport1, transport2]
       });
+
+      logger.error('Error occurred');
+
+      // Both transports should receive the log
+      expect(transport1.log).toHaveBeenCalledTimes(1);
+      expect(transport2.log).toHaveBeenCalledTimes(1);
+      
+      expect(transport1.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          level: 'error',
+          message: 'Error occurred'
+        })
+      );
     });
 
-    it('should initialize with operational utilities', () => {
-      const options: AsyncLoggerOptions = {
-        redactor: { preset: 'standard' },
-        rateLimiter: { max: 100, window: 60000 },
-        sampler: { rate: 0.5 },
-        onFlush: mockOnFlush,
+    it('should not buffer at logger level', () => {
+      const logger = new AsyncLogger({
+        transports: [mockTransport]
+      });
+
+      // Log multiple messages
+      logger.info('Message 1');
+      logger.info('Message 2');
+      logger.info('Message 3');
+
+      // All should be immediately routed
+      expect(mockTransport.log).toHaveBeenCalledTimes(3);
+    });
+  });
+
+  describe('Log Levels', () => {
+    it('should support all log levels', () => {
+      const logger = new AsyncLogger({
+        transports: [mockTransport]
+      });
+
+      logger.debug('Debug message');
+      logger.info('Info message');
+      logger.warn('Warning message');
+      logger.error('Error message');
+
+      expect(mockTransport.log).toHaveBeenCalledTimes(4);
+      
+      const calls = mockTransport.log.mock.calls;
+      expect(calls[0][0].level).toBe('debug');
+      expect(calls[1][0].level).toBe('info');
+      expect(calls[2][0].level).toBe('warn');
+      expect(calls[3][0].level).toBe('error');
+    });
+  });
+
+  describe('Metadata', () => {
+    it('should include metadata with logs', () => {
+      const logger = new AsyncLogger({
+        transports: [mockTransport]
+      });
+
+      logger.info('User action', { userId: 123, action: 'login' });
+
+      expect(mockTransport.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          level: 'info',
+          message: 'User action',
+          context: { userId: 123, action: 'login' }
+        })
+      );
+    });
+
+    it('should handle errors as metadata', () => {
+      const logger = new AsyncLogger({
+        transports: [mockTransport]
+      });
+
+      const error = new Error('Something went wrong');
+      logger.error('Operation failed', { error });
+
+      expect(mockTransport.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          level: 'error',
+          message: 'Operation failed',
+          context: { error }
+        })
+      );
+    });
+  });
+
+  describe('Transport Management', () => {
+    it('should add transports dynamically', () => {
+      const logger = new AsyncLogger();
+      
+      logger.info('Before transport');
+      expect(mockTransport.log).not.toHaveBeenCalled();
+
+      logger.addTransport(mockTransport);
+      logger.info('After transport');
+      
+      expect(mockTransport.log).toHaveBeenCalledTimes(1);
+    });
+
+    it('should remove transports', () => {
+      const logger = new AsyncLogger({
+        transports: [mockTransport]
+      });
+
+      logger.removeTransport('mock');
+      logger.info('Should not log');
+
+      expect(mockTransport.log).not.toHaveBeenCalled();
+    });
+
+    it('should list transport names', () => {
+      const transport1 = { ...mockTransport, name: 'file' };
+      const transport2 = { ...mockTransport, name: 'console' };
+
+      const logger = new AsyncLogger({
+        transports: [transport1, transport2]
+      });
+
+      const names = logger.listTransports();
+      expect(names).toEqual(['file', 'console']);
+    });
+  });
+
+  describe('Flush and Close', () => {
+    it('should flush all transports', async () => {
+      const transport1 = {
+        name: 'transport1',
+        log: jest.fn(),
+        flush: jest.fn().mockResolvedValue(undefined),
+        close: jest.fn(),
+      };
+      
+      const transport2 = {
+        name: 'transport2',
+        log: jest.fn(),
+        flush: jest.fn().mockResolvedValue(undefined),
+        close: jest.fn(),
       };
 
-      asyncLogger = new AsyncLogger(options, mockCreateEntry);
-
-      // Verify AsyncBuffer is initialized
-      expect(AsyncBuffer).toHaveBeenCalled();
-    });
-  });
-
-  describe('logging methods with explicit backpressure', () => {
-    beforeEach(() => {
-      asyncLogger = new AsyncLogger({ onFlush: mockOnFlush }, mockCreateEntry);
-    });
-
-    it('should return success result when buffer accepts entry', () => {
-      mockAsyncBuffer.add.mockReturnValue(true); // Fast path returns boolean
-
-      const result = asyncLogger.info('Test message');
-
-      expect(result.success).toBe(true);
-      // Fast path doesn't include buffer stats when successful
-      expect(result.bufferStats).toBeUndefined();
-      expect(mockCreateEntry).toHaveBeenCalledWith('info', 'Test message', undefined);
-    });
-
-    it('should return failure result when buffer is full', () => {
-      mockAsyncBuffer.add.mockReturnValue(false); // Fast path returns false on failure
-      mockAsyncBuffer.getStats.mockReturnValue({
-        size: 8192,
-        capacity: 8192,
-        utilization: 1.0,
+      const logger = new AsyncLogger({
+        transports: [transport1, transport2]
       });
 
-      const result = asyncLogger.info('Test message');
+      await logger.flush();
 
-      expect(result.success).toBe(false);
-      // Fast path provides buffer stats lazily when failed
-      expect(result.bufferStats?.utilization).toBe(1.0);
+      expect(transport1.flush).toHaveBeenCalledTimes(1);
+      expect(transport2.flush).toHaveBeenCalledTimes(1);
     });
 
-    it('should handle successful buffer add in fast path', () => {
-      mockAsyncBuffer.add.mockReturnValue(true); // Fast path success
-
-      const result = asyncLogger.warn('New message');
-
-      expect(result.success).toBe(true);
-      // Fast path doesn't provide extra metadata when successful
-      expect(result.reason).toBeUndefined();
-      expect(result.dropped).toBeUndefined();
-    });
-
-    it('should work with all log levels', () => {
-      mockAsyncBuffer.add.mockReturnValue(true); // Fast path returns boolean
-
-      const methods = ['info', 'warn', 'error', 'debug', 'success'] as const;
-
-      methods.forEach(method => {
-        const result = asyncLogger[method]('Test message', { extra: 'data' });
-        expect(result.success).toBe(true);
-        expect(mockCreateEntry).toHaveBeenCalledWith(method, 'Test message', { extra: 'data' });
-      });
-    });
-  });
-
-  describe('critical logging', () => {
-    beforeEach(() => {
-      asyncLogger = new AsyncLogger({ onFlush: mockOnFlush }, mockCreateEntry);
-      jest.useFakeTimers();
-    });
-
-    afterEach(() => {
-      jest.useRealTimers();
-    });
-
-    it('should succeed when buffer accepts entry on first try', async () => {
-      mockAsyncBuffer.add.mockReturnValue(true); // Fast path success
-
-      const promise = asyncLogger.logCritical('error', 'Critical error');
-      jest.runAllTimers();
-
-      await expect(promise).resolves.toBeUndefined();
-      expect(mockAsyncBuffer.add).toHaveBeenCalledTimes(1);
-    });
-
-    it('should retry and eventually succeed', async () => {
-      mockAsyncBuffer.add
-        .mockReturnValueOnce(false)
-        .mockReturnValueOnce(false)
-        .mockReturnValueOnce(true);
-
-      const promise = asyncLogger.logCritical('error', 'Critical error');
-      jest.runAllTimers();
-
-      await expect(promise).resolves.toBeUndefined();
-      expect(mockAsyncBuffer.add).toHaveBeenCalledTimes(3);
-    });
-
-    it('should throw error if buffer is closing', async () => {
-      mockAsyncBuffer.add.mockReturnValue(false);
-
-      const promise = asyncLogger.logCritical('error', 'Critical error');
-      jest.runAllTimers();
-
-      await expect(promise).rejects.toThrow('Failed to log after 10 attempts');
-    });
-
-    it('should throw error after max attempts', async () => {
-      mockAsyncBuffer.add.mockReturnValue(false);
-
-      const promise = asyncLogger.logCritical('error', 'Critical error');
-      jest.runAllTimers();
-
-      await expect(promise).rejects.toThrow('Failed to log after 10 attempts');
-      expect(mockAsyncBuffer.add).toHaveBeenCalledTimes(10);
-    });
-  });
-
-  describe('backpressure monitoring', () => {
-    beforeEach(() => {
-      asyncLogger = new AsyncLogger({ onFlush: mockOnFlush }, mockCreateEntry);
-    });
-
-    it('should report backpressure status', () => {
-      expect(asyncLogger.isBackpressured()).toBe(false);
-    });
-
-    it('should report drop statistics', () => {
-      const stats = asyncLogger.getDropStats();
-      expect(stats).toEqual({ total: 0, rate: 0 });
-    });
-  });
-
-  describe('statistics and monitoring', () => {
-    beforeEach(() => {
-      asyncLogger = new AsyncLogger({ onFlush: mockOnFlush }, mockCreateEntry);
-    });
-
-    it('should start with buffer statistics', () => {
-      const stats = asyncLogger.getStats();
-
-      expect(stats.buffer).toBeDefined();
-      expect(stats.buffer.capacity).toBe(8192);
-      expect(stats.buffer.utilization).toBe(0);
-    });
-
-    it('should report utilization percentage', () => {
-      mockAsyncBuffer.getStats.mockReturnValue({
-        size: 4096,
-        capacity: 8192,
-        utilization: 0.5,
-      });
-
-      const utilization = asyncLogger.getUtilization();
-      expect(utilization).toBe(50);
-    });
-
-    it('should report ready status based on buffer', () => {
-      mockAsyncBuffer.isEmpty.mockReturnValue(false);
-      expect(asyncLogger.isReady()).toBe(true);
-
-      mockAsyncBuffer.isEmpty.mockReturnValue(true);
-      expect(asyncLogger.isReady()).toBe(false);
-    });
-  });
-
-  describe('resource management', () => {
-    it('should flush manually', () => {
-      asyncLogger = new AsyncLogger({ onFlush: mockOnFlush }, mockCreateEntry);
-
-      asyncLogger.flush();
-
-      expect(mockAsyncBuffer.flush).toHaveBeenCalled();
-    });
-
-    it('should flush and wait', async () => {
-      asyncLogger = new AsyncLogger({ onFlush: mockOnFlush }, mockCreateEntry);
-
-      await asyncLogger.flushAndWait();
-
-      expect(mockAsyncBuffer.flushAndWait).toHaveBeenCalled();
-    });
-
-    it('should close gracefully', async () => {
-      asyncLogger = new AsyncLogger({ onFlush: mockOnFlush }, mockCreateEntry);
-
-      await asyncLogger.close();
-
-      expect(mockAsyncBuffer.close).toHaveBeenCalled();
-    });
-
-    it('should reset metrics', () => {
-      asyncLogger = new AsyncLogger({ onFlush: mockOnFlush }, mockCreateEntry);
-
-      asyncLogger.resetMetrics();
-
-      expect(mockAsyncBuffer.resetMetrics).toHaveBeenCalled();
-    });
-  });
-
-  describe('operational utilities integration', () => {
-    it('should handle sampling rejection', () => {
-      const options: AsyncLoggerOptions = {
-        sampler: { rate: 0 }, // Sample nothing
-        onFlush: mockOnFlush,
+    it('should close all transports', async () => {
+      const transport1 = {
+        name: 'transport1',
+        log: jest.fn(),
+        flush: jest.fn(),
+        close: jest.fn().mockResolvedValue(undefined),
+      };
+      
+      const transport2 = {
+        name: 'transport2',
+        log: jest.fn(),
+        flush: jest.fn(),
+        close: jest.fn().mockResolvedValue(undefined),
       };
 
-      asyncLogger = new AsyncLogger(options, mockCreateEntry);
+      const logger = new AsyncLogger({
+        transports: [transport1, transport2]
+      });
 
-      const result = asyncLogger.info('Should be sampled out');
+      await logger.close();
 
-      // Should be rejected by sampler before reaching buffer
-      expect(result.success).toBe(false);
-      expect(mockAsyncBuffer.add).not.toHaveBeenCalled();
+      expect(transport1.close).toHaveBeenCalledTimes(1);
+      expect(transport2.close).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('onFlush Callback', () => {
+    it('should call onFlush when transports flush', async () => {
+      const onFlush = jest.fn();
+      
+      const logger = new AsyncLogger({
+        transports: [mockTransport],
+        onFlush
+      });
+
+      // Log some entries
+      logger.info('Message 1');
+      logger.info('Message 2');
+
+      // Flush transports
+      await logger.flush();
+
+      // onFlush should be called with the entries
+      expect(onFlush).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({ message: 'Message 1' }),
+          expect.objectContaining({ message: 'Message 2' })
+        ])
+      );
+    });
+  });
+
+  describe('Correct Architecture', () => {
+    it('should not use queueMicrotask', () => {
+      // Spy on global queueMicrotask if it exists
+      const originalQueueMicrotask = global.queueMicrotask;
+      if (originalQueueMicrotask) {
+        global.queueMicrotask = jest.fn();
+      }
+
+      const logger = new AsyncLogger({
+        transports: [mockTransport]
+      });
+
+      logger.info('Test');
+
+      if (originalQueueMicrotask) {
+        expect(global.queueMicrotask).not.toHaveBeenCalled();
+        global.queueMicrotask = originalQueueMicrotask;
+      }
     });
 
-    it('should handle rate limiting', () => {
-      const options: AsyncLoggerOptions = {
-        rateLimiter: { max: 0, window: 1000 }, // Allow nothing
-        onFlush: mockOnFlush,
+    it('should not have buffer configuration at logger level', () => {
+      const logger = new AsyncLogger({
+        transports: [mockTransport]
+      });
+
+      // AsyncLogger should not have buffer-related properties
+      expect((logger as any).buffer).toBeUndefined();
+      expect((logger as any).ringBuffer).toBeUndefined();
+      expect((logger as any).flushInterval).toBeUndefined();
+    });
+
+    it('should let transports handle their own strategies', () => {
+      // Mock a transport with its own buffering
+      const bufferingTransport = {
+        name: 'buffering',
+        buffer: [],
+        log: jest.fn(function(entry: LogEntry) {
+          // Transport decides to buffer
+          this.buffer.push(entry);
+        }),
+        flush: jest.fn(function() {
+          // Transport flushes its own buffer
+          this.buffer = [];
+        }),
+        close: jest.fn(),
       };
 
-      asyncLogger = new AsyncLogger(options, mockCreateEntry);
+      const logger = new AsyncLogger({
+        transports: [bufferingTransport]
+      });
 
-      const result = asyncLogger.info('Should be rate limited');
+      logger.info('Buffered by transport');
 
-      // Should be rejected by rate limiter before reaching buffer
-      expect(result.success).toBe(false);
-      expect(mockAsyncBuffer.add).not.toHaveBeenCalled();
+      // Transport received the log and decided what to do
+      expect(bufferingTransport.log).toHaveBeenCalled();
+      expect(bufferingTransport.buffer.length).toBe(1);
     });
   });
 });

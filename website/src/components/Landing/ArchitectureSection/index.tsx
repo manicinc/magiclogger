@@ -24,12 +24,12 @@ const layers = [
     id: 'core',
     name: 'Logger Core',
     color: '#764ba2',
-    description: 'High-performance async ring buffer architecture with smart batching',
+    description: 'Lightweight routing layer that directs logs to transports efficiently',
     features: [
       '39KB gzipped core', 
       'Zero dependencies', 
-      'Ring buffer architecture',
-      '85K ops/s async performance',
+      'Direct transport routing',
+      'High performance',
       'MAGIC schema standard'
     ]
   },

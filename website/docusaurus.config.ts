@@ -15,11 +15,13 @@ const config: Config = {
   url: 'https://manicinc.github.io',
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
-  baseUrl: '/',
+  baseUrl: '/magiclogger/',
 
   // GitHub pages deployment config.
   organizationName: 'manicinc', // Usually your GitHub org/user name.
   projectName: 'magiclogger', // Usually your repo name.
+  deploymentBranch: 'gh-pages',
+  trailingSlash: false,
 
   onBrokenLinks: 'warn',
   onBrokenMarkdownLinks: 'warn',
