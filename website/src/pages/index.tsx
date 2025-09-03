@@ -13,6 +13,7 @@ import CodeExamplesSection from '@site/src/components/Landing/CodeExamplesSectio
 import IntegrationSection from '@site/src/components/Landing/IntegrationSection';
 import TestimonialsSection from '@site/src/components/Landing/TestimonialsSection';
 import CTASection from '@site/src/components/Landing/CTASection';
+import ScrollToTop from '@site/src/components/ScrollToTop';
 
 /**
  * MagicLog Landing Page - Home of MagicLogger
@@ -26,6 +27,7 @@ export default function Home(): JSX.Element {
     <Layout
       title="MagicLog - Beautiful Logging for JavaScript & TypeScript"
       description="Transform your console into a powerful debugging tool. MagicLogger brings color, structure, and intelligence to your logs with zero configuration.">
+      <ScrollToTop />
       <HeroSection />
       <main>
         <FeaturesSection />

@@ -1,17 +1,27 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import Heading from '@theme/Heading';
 import styles from './styles.module.css';
 
 export default function WaitlistSection() {
-  const [email, setEmail] = useState('');
-  const [submitted, setSubmitted] = useState(false);
+  const formRef = useRef<HTMLDivElement>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Here you would typically send the email to your backend
-    console.log('Waitlist signup:', email);
-    setSubmitted(true);
-  };
+  useEffect(() => {
+    // Load the newsletter widget script
+    if (formRef.current && typeof window !== 'undefined') {
+      const script = document.createElement('script');
+      script.src = 'https://eocampaign1.com/form/9262a386-6ef3-11f0-bd78-dff98cfe1a02.js';
+      script.async = true;
+      script.setAttribute('data-form', '9262a386-6ef3-11f0-bd78-dff98cfe1a02');
+      formRef.current.appendChild(script);
+
+      return () => {
+        // Cleanup on unmount
+        if (formRef.current && formRef.current.contains(script)) {
+          formRef.current.removeChild(script);
+        }
+      };
+    }
+  }, []);
 
   return (
     <section id="waitlist" className={styles.waitlistSection}>
@@ -24,31 +34,9 @@ export default function WaitlistSection() {
             Be the first to access the MagicLogger Dashboard when it launches
           </p>
 
-          {!submitted ? (
-            <form onSubmit={handleSubmit} className={styles.waitlistForm}>
-              <div className={styles.inputGroup}>
-                <input
-                  type="email"
-                  placeholder="Enter your email address"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className={styles.emailInput}
-                />
-                <button type="submit" className={styles.submitButton}>
-                  Join Waitlist 🎯
-                </button>
-              </div>
-              <p className={styles.privacyNote}>
-                We'll only email you about the dashboard launch. No spam, ever.
-              </p>
-            </form>
-          ) : (
-            <div className={styles.successMessage}>
-              <h3>🎉 You're on the list!</h3>
-              <p>We'll notify you as soon as the dashboard is ready.</p>
-            </div>
-          )}
+          <div ref={formRef} className={styles.waitlistForm}>
+            {/* Newsletter widget will be injected here */}
+          </div>
         </div>
       </div>
     </section>

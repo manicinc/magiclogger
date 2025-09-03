@@ -459,12 +459,38 @@
 .statyellow .statValue { color: #ffcc00; }
 
 /* Demo Container */
-.demoContainer {
+/* MAGIC Schema subtitle */
+.magicSchema {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ifm-color-primary);
+  margin: 0.5rem 0 0 0;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  opacity: 0.8;
+}
+
+/* Demo Containers */
+.desktopDemoContainer {
   position: relative;
+  display: block;
+}
+
+.mobileDemoContainer {
+  display: none;
+  margin: 2rem 0;
 }
 
 /* Responsive */
 @media (max-width: 1200px) {
+  /* Hide desktop demo, show mobile demo */
+  .desktopDemoContainer {
+    display: none;
+  }
+  
+  .mobileDemoContainer {
+    display: block;
+  }
   .heroGrid {
     grid-template-columns: 1fr;
     text-align: center;

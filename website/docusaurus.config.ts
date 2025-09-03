@@ -86,7 +86,7 @@ const config: Config = {
           label: 'Documentation',
         },
         {
-          to: '/docs/api-reference',
+          to: '/docs/api/',
           label: 'API Reference',
           position: 'left',
         },
@@ -143,7 +143,7 @@ const config: Config = {
             },
             {
               label: 'Contact',
-              href: 'mailto:team@manic.agency',
+              href: 'https://manic.agency/contact',
             },
           ],
         },

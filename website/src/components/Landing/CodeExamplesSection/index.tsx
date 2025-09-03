@@ -457,56 +457,8 @@ export default function CodeExamplesSection() {
           </div>
         </div>
 
-        {/* Pro tips */}
-        <div className={styles.proTips}>
-          <h3 className={styles.tipsTitle}>💡 Pro Tips</h3>
-          <div className={styles.tipsGrid}>
-            <TipCard 
-              icon="🎯"
-              title="Structure Everything"
-              description="Always pass metadata as the second parameter for better searchability and filtering."
-            />
-            <TipCard 
-              icon="🏷️"
-              title="Tag Strategically"
-              description="Use hierarchical tags like 'api', 'api.auth', 'api.auth.login' for powerful filtering."
-            />
-            <TipCard 
-              icon="👶"
-              title="Child Loggers Rock"
-              description="Create scoped loggers for requests, jobs, or features to automatically include context."
-            />
-            <TipCard 
-              icon="⚡"
-              title="Async When Needed"
-              description="Enable async mode for high-volume logging. Your app will thank you."
-            />
-            <TipCard 
-              icon="🔍"
-              title="Search Everything"
-              description="Use structured logging to make every log searchable and actionable."
-            />
-            <TipCard 
-              icon="📊"
-              title="Measure What Matters"
-              description="Built-in performance tracking means you're always ready to optimize."
-            />
-          </div>
-        </div>
       </div>
     </section>
-  );
-}
-
-function TipCard({ icon, title, description }) {
-  return (
-    <div className={styles.tip}>
-      <span className={styles.tipIcon}>{icon}</span>
-      <div className={styles.tipContent}>
-        <strong>{title}</strong>
-        <p>{description}</p>
-      </div>
-    </div>
   );
 }
 

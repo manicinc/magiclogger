@@ -1,8 +1,28 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import Layout from '@theme/Layout';
 import styles from './dashboard.module.css';
 
 export default function Dashboard(): JSX.Element {
+  const formRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Load the newsletter widget script
+    if (formRef.current && typeof window !== 'undefined') {
+      const script = document.createElement('script');
+      script.src = 'https://eocampaign1.com/form/9262a386-6ef3-11f0-bd78-dff98cfe1a02.js';
+      script.async = true;
+      script.setAttribute('data-form', '9262a386-6ef3-11f0-bd78-dff98cfe1a02');
+      formRef.current.appendChild(script);
+
+      return () => {
+        // Cleanup on unmount
+        if (formRef.current && formRef.current.contains(script)) {
+          formRef.current.removeChild(script);
+        }
+      };
+    }
+  }, []);
+
   return (
     <Layout
       title="Magic Dashboard - Coming Soon"
@@ -57,16 +77,8 @@ export default function Dashboard(): JSX.Element {
                 Subscribe to get early access when it launches.
               </p>
               
-              <div className={styles.emailForm}>
-                <input 
-                  type="email" 
-                  placeholder="Enter your email for updates"
-                  className={styles.emailInput}
-                  disabled
-                />
-                <button className={styles.notifyButton} disabled>
-                  Notify Me
-                </button>
+              <div ref={formRef} className={styles.emailForm}>
+                {/* Newsletter widget will be injected here */}
               </div>
               
               <p className={styles.launchDate}>

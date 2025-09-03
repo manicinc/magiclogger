@@ -7,7 +7,6 @@ import styles from './styles.module.css';
 
 const features = [
   {
-    icon: '🎨',
     title: 'Beautiful by Default',
     description: 'Turn your console into a work of art. Automatic colors, emojis, tables, and formatting that makes debugging a joy.',
     demo: `logger.rainbow('🌈 Colorful logging');
@@ -17,56 +16,48 @@ logger.progress(0.75);`,
     highlights: ['256 Colors', 'Smart Tables', 'Progress Bars', 'Emoji Support']
   },
   {
-    icon: '⚡',
-    title: 'Blazing Fast Performance',
-    description: 'High-performance async logging that never crashes from memory issues. Synchronous logging for secure auditing.',
-    stats: ['85K ops/s async styled', '22K ops/s sync styled', 'Zero dependencies', 'Tree-shakeable'],
+    title: 'Async by Default',
+    description: 'Async by default for maximum performance. 238K ops/s styled logging that never blocks your app. Sync mode available for auditing.',
+    stats: ['238K ops/s async styled', '57K ops/s sync plain', 'Zero dependencies', 'Tree-shakeable'],
     gradient: 'lightning'
   },
   {
-    icon: '🧠',
     title: 'MAGIC Schema',
     description: 'Universal style preservation with our MAGIC schema. Maintain consistent formatting across all transports.',
     features: ['Style Preservation', 'Cross-Transport', 'Universal Format', 'Color Consistency'],
     gradient: 'brain'
   },
   {
-    icon: '🚀',
     title: 'Ship Anywhere',
     description: 'One logger, infinite destinations. From console to cloud, we support all major transports.',
     transports: ['Console', 'File', 'HTTP/S', 'S3', 'MongoDB', 'PostgreSQL', 'WebSocket', 'OTLP', 'Stream'],
     gradient: 'rocket'
   },
   {
-    icon: '🛡️',
     title: 'Production Ready',
     description: 'Battle-tested with built-in extensions for rate limiting, sampling, redaction, and queue management.',
     features: ['Rate Limiter', 'Sampler', 'Redactor', 'Queue Manager'],
     gradient: 'shield'
   },
   {
-    icon: '🌐',
     title: 'Works Everywhere',
     description: 'Node.js, browsers, workers, serverless - if it runs JavaScript, MagicLogger runs on it.',
     platforms: ['Node.js', 'Browser', 'Deno', 'Workers', 'React Native', 'Electron'],
     gradient: 'universal'
   },
   {
-    icon: '📊',
     title: 'OpenTelemetry Support',
     description: 'Native OpenTelemetry integration for distributed tracing and observability.',
     features: ['Trace Context', 'Span Integration', 'OTLP Export', 'W3C Standards'],
     gradient: 'analytics'
   },
   {
-    icon: '🔧',
     title: 'Flexible Architecture',
     description: 'Extensible design with custom transports, formatters, and processors.',
     features: ['Custom Transports', 'Custom Formatters', 'Middleware Support', 'Plugin System'],
     gradient: 'tools'
   },
   {
-    icon: '🎯',
     title: 'TypeScript First',
     description: '100% TypeScript with full type safety, autocomplete, and IntelliSense support.',
     features: ['Full Type Safety', 'Autocomplete', 'IntelliSense', 'Type Guards'],
@@ -104,7 +95,6 @@ function FeatureCard({ feature, index }) {
       style={{ animationDelay: `${index * 0.1}s` }}>
       
       <div className={styles.featureHeader}>
-        <span className={styles.featureIcon}>{feature.icon}</span>
         <h3 className={styles.featureTitle}>{feature.title}</h3>
       </div>
       
@@ -136,7 +126,7 @@ function FeatureCard({ feature, index }) {
         <div className={styles.featureList}>
           {feature.features.map((item, i) => (
             <div key={i} className={styles.featureItem}>
-              <span className={styles.checkmark}>✓</span>
+              <span className={styles.checkmark}></span>
               {item}
             </div>
           ))}

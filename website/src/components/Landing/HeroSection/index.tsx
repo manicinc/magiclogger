@@ -10,7 +10,7 @@ import { useColorMode } from '@docusaurus/theme-common';
 import styles from './styles.module.css';
 
 export default function HeroSection() {
-  const { displayedText } = useTypingEffect('High-performance async and sync logging for modern JavaScript', 40);
+  const { displayedText } = useTypingEffect('Async by default with blazing fast styled logging for modern JavaScript', 40);
   const { colorMode } = useColorMode();
   const isDarkTheme = colorMode === 'dark';
   const [copied, setCopied] = React.useState(false);
@@ -33,10 +33,16 @@ export default function HeroSection() {
                 <span className={styles.magicText}>Magic</span>
                 <span className={styles.loggerText}>Logger</span>
               </h1>
+              <p className={styles.magicSchema}>MAGIC Schema</p>
+            </div>
+
+            {/* Mobile Demo - shows only on mobile, right after title */}
+            <div className={styles.mobileDemoContainer}>
+              <InteractiveDemo />
             </div>
 
             <p className={styles.heroTagline}>
-              The Universal Color Logging Standard
+              Visual Dashboard for Beautiful Logs End-to-End
             </p>
 
             <p className={styles.heroDescription}>
@@ -45,9 +51,9 @@ export default function HeroSection() {
             </p>
 
             <p className={styles.heroSubDescription}>
-              <span className={styles.highlight}>High-performance async logging</span> that never crashes from memory issues.{' '}
-              <span className={styles.highlight}>Synchronous logging</span> for secure auditing and guaranteed delivery.{' '}
-              Built with the <span className={styles.highlight}>MAGIC schema</span> for universal style preservation.
+              We built MagicLogger because we believe logs should be as <span className={styles.highlight}>visually informative and beautiful</span> in production as they are during development.{' '}
+              The <span className={styles.highlight}>MAGIC Schema</span> preserves your styled logs across any transport or platform.{' '}
+              <span className={styles.highlight}>238,199 ops/sec</span> for async styled logging - 2x faster than Winston!
             </p>
 
             {/* CTA Buttons */}
@@ -111,23 +117,23 @@ export default function HeroSection() {
             {/* Updated Stats with correct performance numbers */}
             <div className={styles.heroStats}>
               <StatCard 
-                value={39} 
+                value={39.4} 
                 unit="KB" 
                 label="Core (gzip)" 
                 icon={<PackageIcon />}
                 color="purple" 
               />
               <StatCard 
-                value={85} 
+                value={238.2} 
                 unit="K ops/s" 
                 label="Async Styled" 
                 icon={<SpeedIcon />}
                 color="cyan" 
               />
               <StatCard 
-                value={22} 
+                value={57.7} 
                 unit="K ops/s" 
-                label="Sync Styled" 
+                label="Sync Plain" 
                 icon={<SyncIcon />}
                 color="green" 
               />
@@ -139,36 +145,10 @@ export default function HeroSection() {
               />
             </div>
 
-            {/* Newsletter CTA Section */}
-            <div className={styles.newsletterCTA}>
-              <div className={styles.newsletterContent}>
-                <div className={styles.sponsorshipText}>
-                  <span className={styles.developmentText}>Development of</span>
-                  <span className={styles.magicLoggerText}>MagicLogger</span>
-                  <span className={styles.sponsoredText}>is sponsored by</span>
-                  <a 
-                    href="https://manic.agency" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className={styles.manicLink}>
-                    Manic Agency
-                  </a>
-                </div>
-                <a 
-                  href="https://manic.agency/newsletter"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={styles.newsletterButton}>
-                  <MailIcon />
-                  <span>Subscribe to Newsletter</span>
-                  <span className={styles.shimmer}></span>
-                </a>
-              </div>
-            </div>
           </div>
 
-          {/* Interactive Demo */}
-          <div className={styles.demoContainer}>
+          {/* Desktop Demo - hidden on mobile */}
+          <div className={styles.desktopDemoContainer}>
             <InteractiveDemo />
           </div>
         </div>
