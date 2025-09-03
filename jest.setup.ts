@@ -215,12 +215,18 @@ jest.mock('fs', () => {
 import * as fsModule from 'fs';
 import * as pathModule from 'path';
 
+// Import necessary types to fix TS4023 error
+import type { ReadStreamOptions, WriteStreamOptions } from 'fs';
+
 // ----------------------
 // FS mocks helper API
 // ----------------------
-export const fsMocks = fsModule as jest.Mocked<typeof fsModule> & {
+// Type assertion without export to avoid TS4023 naming issue
+const typedFsMocks = fsModule as jest.Mocked<typeof fsModule> & {
   resetAll: () => void;
 };
+
+export const fsMocks = typedFsMocks;
 
 // Dynamically attach resetAll helper
 fsMocks.resetAll = () => {

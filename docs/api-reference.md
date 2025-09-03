@@ -55,10 +55,9 @@ logger.fatal(message: string, meta?: any): void;
 
 // Visual elements
 logger.header(text: string, styles?: string[]): void;
-logger.separator(char?: string, length?: number): void;
-logger.progressBar(percent: number, width?: number): void;
-logger.table(data: any[]): void;
-logger.diff(label: string, oldObj: any, newObj: any): void;
+logger.progressBar(percent: number, width?: number, fillChar?: string, emptyChar?: string): void;
+logger.table(data: any[], headerColor?: ColorName[]): void;
+// Note: separator, diff, link, box methods don't exist - use manual implementations
 ```
 
 ##### Styling Methods
@@ -207,19 +206,33 @@ const transport = new ConsoleTransport({
 
 ### FileTransport
 
-Writes logs to files with rotation support.
+Writes logs to files with rotation support. Supports **NDJSON format** for structured logging.
 
 ```typescript
 import { FileTransport } from 'magiclogger/transports';
 
 const transport = new FileTransport({
   filepath: string;        // Required: log file path
+  format?: 'json' | 'plain' | 'custom'; // Output format (default: 'plain')
   maxFiles?: number;       // Max rotated files to keep
   maxSize?: string;        // Max file size (e.g., '10MB')
   compress?: boolean;      // Compress rotated files
   encoding?: BufferEncoding;
+  eol?: string;           // End of line character (default: '\n')
   mode?: number;          // File permissions
 });
+
+// NDJSON format for structured logging (like Pino)
+const structuredTransport = new FileTransport({
+  filepath: './logs/app.log',
+  format: 'json',  // Each log entry as a complete JSON object per line
+  maxSize: '100MB',
+  maxFiles: 7
+});
+
+// Example NDJSON output:
+// {"id":"abc123","timestamp":"2024-01-20T10:30:00Z","level":"info","message":"Server started","context":{"port":3000}}
+// {"id":"def456","timestamp":"2024-01-20T10:30:01Z","level":"error","message":"Database error","error":{"name":"ConnectionError","message":"ECONNREFUSED"}}
 ```
 
 ### HTTPTransport
@@ -404,13 +417,66 @@ const syncLogger = createSyncLogger({
 });
 ```
 
+### Style Reconstruction Functions
+
+Functions for working with MAGIC schema styled text:
+
+```typescript
+import { 
+  extractStyles, 
+  applyStyles, 
+  optimizeStyleRanges,
+  validateStyleRanges 
+} from 'magiclogger';
+
+// Extract styles from angle-bracket formatted text
+const result = extractStyles('<red.bold>Error:</> User <cyan>john@example.com</> not found');
+// Returns: {
+//   plainText: "Error: User john@example.com not found",
+//   styles: [[0, 6, "red.bold"], [12, 29, "cyan"]]
+// }
+
+// Reconstruct styled text from MAGIC log entry
+const styled = applyStyles(
+  "Error: User john@example.com not found",
+  [[0, 6, "red.bold"], [12, 29, "cyan"]]
+);
+// Returns: "<red.bold>Error:</> User <cyan>john@example.com</> not found"
+
+// Apply with custom formatter (e.g., for ANSI output)
+const ansiStyled = applyStyles(
+  "Error: User john@example.com not found",
+  [[0, 6, "red.bold"], [12, 29, "cyan"]],
+  (text, style) => {
+    // Custom ANSI formatter
+    const codes = getAnsiCodes(style); // Your ANSI mapping
+    return `${codes}${text}\x1b[0m`;
+  }
+);
+
+// Optimize overlapping or redundant style ranges
+const optimized = optimizeStyleRanges([
+  [0, 10, "red"],
+  [5, 15, "red"],  // Overlaps with first
+  [20, 25, "blue"]
+]);
+// Returns: [[0, 15, "red"], [20, 25, "blue"]]
+
+// Validate style ranges are within text bounds
+const isValid = validateStyleRanges(
+  "Hello world",
+  [[0, 5, "red"], [6, 11, "blue"]]
+);
+// Returns: true
+```
+
 ---
 
 ## Types
 
 ### LogEntry
 
-The structured format for all log entries:
+The structured format for all log entries. MagicLogger outputs entries in **NDJSON (Newline Delimited JSON)** format when using JSON file transports - each log entry is a complete JSON object on its own line, making it compatible with log aggregation tools and stream processing:
 
 ```typescript
 interface LogEntry {

@@ -152,6 +152,7 @@ export { ANSI } from './constants/ansi';
 export { PRESETS } from './constants/preset';
 export { Colorizer } from './core/Colorizer';
 export { StyleBuilder } from './core/StyleBuilder';
+export { ContextManager } from './core/ContextManager';
 export { meta, err } from './utils/meta';
 
 export type { ColorName } from './types/colors';
@@ -196,6 +197,23 @@ export type { SamplerOptions, SamplingStrategy } from './extensions/Sampler';
  */
 export { EnhancedConsole, enhanceConsole } from './utils/EnhancedConsole';
 export type { EnhanceConsoleOptions } from './utils/EnhancedConsole';
+
+/**
+ * Table formatting utilities for beautiful tables, boxes, and lists.
+ */
+export { TableFormatter } from './utils/TableFormatter';
+export type { TableOptions } from './utils/TableFormatter';
+
+/**
+ * Style extraction and reconstruction utilities for MAGIC schema.
+ * These functions enable parsing styled text and reconstructing it from MAGIC log entries.
+ */
+export {
+  extractStyles,
+  applyStyles,
+  optimizeStyleRanges,
+  validateStyleRanges
+} from './utils/style-extractor';
 
 // ==========================================
 // Transport Types

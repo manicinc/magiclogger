@@ -257,13 +257,15 @@ function getHeader(
 ): string | undefined {
   // Try exact match first
   if (headers[name]) {
-    return Array.isArray(headers[name]) ? headers[name][0] : (headers[name] as string);
+    const value = headers[name];
+    return Array.isArray(value) ? value[0] : (value as string);
   }
 
   // Try lowercase
   const lower = name.toLowerCase();
   if (headers[lower]) {
-    return Array.isArray(headers[lower]) ? headers[lower][0] : (headers[lower] as string);
+    const value = headers[lower];
+    return Array.isArray(value) ? value[0] : (value as string);
   }
 
   // Search case-insensitive

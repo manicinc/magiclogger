@@ -242,7 +242,6 @@ export class MongoDBTransport extends NetworkTransport {
       } catch {
         // Fall back to dynamic import if require fails (ESM environments)
         try {
-          // @ts-expect-error MongoDB is an optional dependency
           const mod = await import('mongodb');
           MongoClientCtor = (
             mod as unknown as { MongoClient: new (...args: unknown[]) => MongoClient }

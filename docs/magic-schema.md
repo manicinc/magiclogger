@@ -550,7 +550,7 @@ MagicLogger provides highly efficient APIs for extracting and applying styles, e
 ### Extracting Styles from Styled Text
 
 ```typescript
-import { extractStyles } from 'magiclogger/utils';
+import { extractStyles } from 'magiclogger';
 
 const result = extractStyles('<red.bold>Error:</> User <cyan>john@example.com</> not found');
 // Returns:
@@ -563,7 +563,7 @@ const result = extractStyles('<red.bold>Error:</> User <cyan>john@example.com</>
 ### Applying Styles to Plain Text
 
 ```typescript
-import { applyStyles } from 'magiclogger/utils';
+import { applyStyles } from 'magiclogger';
 
 // Reconstruct styled text with angle brackets
 const styled = applyStyles(
@@ -595,7 +595,7 @@ const ansiStyled = applyStyles(
 ### Optimizing Style Ranges
 
 ```typescript
-import { optimizeStyleRanges } from 'magiclogger/utils';
+import { optimizeStyleRanges } from 'magiclogger';
 
 // Merge adjacent/overlapping ranges with same style
 const optimized = optimizeStyleRanges([
@@ -644,16 +644,6 @@ const reconstructed = applyStyles(
 );
 console.log(reconstructed); // Shows with colors in terminal!
 ```
-
-### Why These APIs Are Efficient
-
-1. **Zero-Copy Design**: Style ranges use integer indices, not string copies
-2. **Single-Pass Extraction**: O(n) regex processing with no backtracking
-3. **Pre-Allocated Buffers**: Ring buffer never allocates during operation
-4. **Monomorphic Functions**: Consistent types for JIT optimization
-5. **Efficient String Building**: Array join avoids O(n²) concatenation
-
-Performance: 500K+ logs/second with full style preservation.
 
 <!-- WIP FOR POSSIBLE ROADMAP -->
 <!-- 

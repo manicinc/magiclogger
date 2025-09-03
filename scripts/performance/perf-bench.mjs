@@ -10,7 +10,7 @@
 */
 
 // Use local built dist to avoid requiring an installed package
-import { FullLogger as Logger, AsyncLogger } from '../../dist/index.js';
+import { Logger, AsyncLogger, createAsyncLogger } from '../../dist/index.js';
 import { Writable } from 'stream';
 import { fileURLToPath } from 'url';
 import path from 'path';

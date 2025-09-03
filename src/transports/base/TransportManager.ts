@@ -482,6 +482,32 @@ export class TransportManager extends EventEmitter {
   }
 
   /**
+   * Registers a transport synchronously (without init).
+   * Use for transports that don't require async initialization.
+   *
+   * @param {Transport} transport - Transport to register
+   */
+  public registerTransportSync(transport: Transport): void {
+    const name = transport.name;
+
+    if (this.transports.has(name)) {
+      throw new Error(`Transport '${name}' already exists`);
+    }
+
+    // Set initial state
+    this.transportStates.set(name, 'active');
+    this.setupTransportHandlers(transport);
+    this.transports.set(name, transport);
+    this.performanceData.set(name, {
+      count: 0,
+      totalTime: 0,
+      errors: 0,
+    });
+
+    this.emit('transportRegistered', transport);
+  }
+
+  /**
    * Register an already instantiated transport with the manager.
    *
    * @param {Transport} transport - Transport instance to register

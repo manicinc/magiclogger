@@ -470,6 +470,30 @@ interface MAGICValidator {
 
 ## Data Flow Architecture
 
+### Structured Logging Format (NDJSON)
+
+MagicLogger supports **NDJSON (Newline Delimited JSON)** format, similar to Pino and other modern logging libraries. This enables:
+
+- **Stream Processing**: Each log entry is a complete JSON object on its own line
+- **Easy Parsing**: Line-by-line processing without JSON array parsing
+- **Log Aggregation**: Compatible with ELK stack, Splunk, DataDog, and other log aggregators
+- **Efficient Storage**: No need to parse entire files, can read line by line
+- **Standard Format**: Industry-standard format for structured logging
+
+When using `format: 'json'` with FileTransport, logs are written as NDJSON:
+
+```json
+{"id":"abc123","timestamp":"2024-01-20T10:30:00Z","level":"info","message":"User login","context":{"userId":123}}
+{"id":"def456","timestamp":"2024-01-20T10:30:01Z","level":"error","message":"Database connection failed","context":{"error":"ECONNREFUSED"}}
+{"id":"ghi789","timestamp":"2024-01-20T10:30:02Z","level":"warn","message":"High memory usage","context":{"memoryUsed":1073741824}}
+```
+
+Each line is a complete, valid JSON object that can be parsed independently. This format is ideal for:
+- Log streaming and tailing
+- Real-time log processing
+- Log rotation without corrupting JSON structure
+- Integration with log management systems
+
 ### Synchronous Data Flow
 
 The synchronous path is optimized for minimal overhead:

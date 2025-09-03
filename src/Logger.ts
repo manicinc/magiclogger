@@ -2,6 +2,7 @@
 
 import { TransportManager } from './transports/base/TransportManager';
 import type { Transport } from './types/transport';
+import { ConsoleTransport } from './transports/base/implementations/ConsoleTransport';
 import { Colorizer } from './core/Colorizer';
 import { Formatter } from './core/Formatter';
 import { StyleBuilder } from './core/StyleBuilder';
@@ -163,6 +164,7 @@ export class Logger {
   private nodeUtilInspect?:
     | ((val: unknown, opts?: { colors?: boolean; depth?: number }) => string)
     | null;
+
 
   /**
    * Theme manager instance for handling themes.
@@ -348,34 +350,30 @@ export class Logger {
   }
 
   /**
-   * Creates default console transport asynchronously.
+   * Creates default console transport.
    * @private
    */
   private createDefaultConsoleTransport(): void {
-    // Load console transport asynchronously to avoid bundling issues
-    import('./transports/base/implementations/ConsoleTransport')
-      .then(({ ConsoleTransport }) => {
-        const consoleTransport = new ConsoleTransport({
-          name: 'console',
-          enabled: true,
-          level: this.options.verbose ? 'debug' : 'info',
-          useColors: this.options.useColors ?? true,
-          format: 'plain', // Use plain format for styled console output
-          showTimestamp: true,
-          showLevel: true,
-          showLoggerId: false,
-          showTags: true,
-          showMetadata: false,
-        });
+    // Create console transport synchronously since it's now imported
+    const consoleTransport = new ConsoleTransport({
+      name: 'console',
+      enabled: true,
+      level: this.options.verbose ? 'debug' : 'info',
+      useColors: this.options.useColors ?? true,
+      format: 'plain', // Use plain format for styled console output
+      showTimestamp: true,
+      showLevel: true,
+      showLoggerId: false,
+      showTags: true,
+      showMetadata: false,
+    });
 
-        this.transportManager.registerTransport(consoleTransport).catch(error => {
-          console.warn('[Logger] Failed to register console transport:', error);
-        });
-      })
-      .catch(() => {
-        // Fallback: console transport not available (shouldn't happen)
-        console.warn('[Logger] Console transport not available');
-      });
+    // Register transport synchronously for immediate availability
+    try {
+      this.transportManager.registerTransportSync(consoleTransport);
+    } catch (error) {
+      console.warn('[Logger] Failed to register console transport:', error);
+    }
   }
 
   /**
@@ -804,8 +802,20 @@ export class Logger {
       // Store the styled version for console output
       (entry as unknown as Record<string, unknown>)._styledMessage = result.styledText;
     } else {
-      // No angle brackets, just create entry normally
-      entry = this.createLogEntry(level, msg, meta, undefined);
+      // Check if the message already contains ANSI escape codes
+      const ansiRegex = /\x1b\[[0-9;]*m/;
+      if (msg && ansiRegex.test(msg)) {
+        // Message already has ANSI codes, preserve them
+        // Strip ANSI codes for the plain text version
+        const plainText = msg.replace(/\x1b\[[0-9;]*m/g, '');
+        entry = this.createLogEntry(level, plainText, meta, undefined);
+        
+        // Store the original message with ANSI codes as the styled message
+        (entry as unknown as Record<string, unknown>)._styledMessage = msg;
+      } else {
+        // No angle brackets or ANSI codes, just create entry normally
+        entry = this.createLogEntry(level, msg, meta, undefined);
+      }
     }
 
     // Send to transports if available
@@ -1070,26 +1080,135 @@ export class Logger {
   }
 
   /**
-   * Prints a table from an array of objects (legacy method).
+   * Prints a formatted table with borders and proper alignment.
+   * Automatically handles ANSI escape codes and column width calculation.
+   * 
+   * @param data - Array of objects to display as table rows
+   * @param options - Table formatting options
+   * @param options.border - Border style: 'single' | 'double' | 'rounded' | 'heavy' | 'none' (default: 'single')
+   * @param options.headerColor - Colors for header row (default: ['brightWhite', 'bold'])
+   * @param options.borderColor - Colors for borders (default: ['dim'])
+   * @param options.alternateRowColors - Enable alternating row colors
+   * @param options.alignment - Text alignment: 'left' | 'center' | 'right' (default: 'left')
+   * 
+   * @example
+   * ```typescript
+   * logger.table([
+   *   { name: 'Alice', age: 30, city: 'NYC' },
+   *   { name: 'Bob', age: 25, city: 'LA' }
+   * ], {
+   *   border: 'double',
+   *   headerColor: ['cyan', 'bold'],
+   *   borderColor: ['blue']
+   * });
+   * ```
    * @public
    */
   public table(
     data: Record<string, unknown>[],
-    headerColor: ColorName[] = ['brightWhite', 'bold']
+    options: {
+      border?: 'single' | 'double' | 'rounded' | 'heavy' | 'none';
+      headerColor?: ColorName[];
+      borderColor?: ColorName[];
+      alternateRowColors?: boolean;
+      alignment?: 'left' | 'center' | 'right';
+    } = {}
   ): void {
     // Avoid printing when there is no data to display
     if (!Array.isArray(data) || data.length === 0) {
       return;
     }
-    // Simple table implementation for transport compatibility
-    const keys = Object.keys(data[0] || {});
-    const header = keys.join(' | ');
-    const styledHeader = TextStyler.styleParts([[header, ...headerColor]], this.useColors);
-    this.log(styledHeader, 'info', { type: 'table-header' });
+    
+    // Use TableFormatter for proper formatting
+    const { TableFormatter } = require('./utils/TableFormatter.js');
+    const lines = TableFormatter.format(data, {
+      border: options.border || 'single',
+      headerColor: options.headerColor || ['brightWhite', 'bold'],
+      borderColor: options.borderColor || ['dim'],
+      alternateRowColors: options.alternateRowColors,
+      alignment: options.alignment || 'left',
+      padding: 1
+    }, this.useColors);
+    
+    // Log each line
+    lines.forEach((line: string) => {
+      this.log(line, 'info', { type: 'table' });
+    });
+  }
 
-    data.forEach((row, index) => {
-      const rowText = keys.map(key => String(row[key] || '')).join(' | ');
-      this.log(rowText, 'info', { type: 'table-row', rowIndex: index });
+  /**
+   * Prints a separator line.
+   * 
+   * @param char - Character to use for the separator (default: '─')
+   * @param width - Width of the separator line (default: 50)
+   * @param color - Optional colors to apply to the separator
+   * 
+   * @example
+   * ```typescript
+   * logger.separator('═', 60, ['cyan']);
+   * logger.separator(); // Uses defaults: '─' repeated 50 times
+   * ```
+   * @public
+   */
+  public separator(char: string = '─', width: number = 50, color?: ColorName[]): void {
+    const { TableFormatter } = require('./utils/TableFormatter.js');
+    const line = TableFormatter.separator(char, width, color);
+    this.log(line, 'info', { type: 'separator' });
+  }
+
+  /**
+   * Prints text in a decorative box with customizable borders.
+   * 
+   * @param text - Text to display inside the box (supports multiline)
+   * @param options - Box formatting options
+   * @param options.border - Border style: 'single' | 'double' | 'rounded' | 'heavy' (default: 'single')
+   * @param options.color - Colors for the text inside the box
+   * @param options.borderColor - Colors for the box borders
+   * @param options.padding - Padding around the text (default: 1)
+   * 
+   * @example
+   * ```typescript
+   * logger.box('Success!', {
+   *   border: 'double',
+   *   borderColor: ['green'],
+   *   color: ['green', 'bold']
+   * });
+   * ```
+   * @public
+   */
+  public box(
+    text: string,
+    options: {
+      border?: 'single' | 'double' | 'rounded' | 'heavy';
+      color?: ColorName[];
+      borderColor?: ColorName[];
+      padding?: number;
+    } = {}
+  ): void {
+    const { TableFormatter } = require('./utils/TableFormatter.js');
+    const lines = TableFormatter.box(text, options, this.useColors);
+    lines.forEach((line: string) => {
+      this.log(line, 'info', { type: 'box' });
+    });
+  }
+
+  /**
+   * Prints a formatted list with bullets.
+   * @public
+   */
+  public list(
+    items: string[],
+    options: {
+      bullet?: string;
+      indent?: number;
+      bulletColor?: ColorName[];
+      itemColor?: ColorName[];
+    } = {}
+  ): void {
+    const { TableFormatter } = require('./utils/TableFormatter.js');
+    const lines = TableFormatter.list(items, options, this.useColors);
+    lines.forEach((line: string) => {
+      this.log(line, 'info', { type: 'list' });
     });
   }
 

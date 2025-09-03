@@ -221,7 +221,9 @@ export class EnhancedConsole {
   }
 
   table(data: Record<string, unknown>[]): void {
-    this.logger.table(data, ['brightWhite', 'bold']);
+    this.logger.table(data, {
+      headerColor: ['brightWhite', 'bold']
+    });
   }
 
   custom(msg: string, colors?: ColorName[], prefix?: string): void {

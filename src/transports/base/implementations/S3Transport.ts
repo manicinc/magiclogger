@@ -241,17 +241,12 @@ export class S3Transport extends NetworkTransport {
         { ListObjectsV2Command },
         { DeleteObjectsCommand },
       ] = await Promise.all([
-        // @ts-expect-error AWS SDK is an optional dependency
         import('@aws-sdk/client-s3').then(m => ({ S3Client: m.S3Client })),
-        // @ts-expect-error AWS SDK is an optional dependency
         import('@aws-sdk/client-s3').then(m => ({ PutObjectCommand: m.PutObjectCommand })),
-        // @ts-expect-error AWS SDK is an optional dependency
         import('@aws-sdk/client-s3').then(m => ({ HeadBucketCommand: m.HeadBucketCommand })),
-        // @ts-expect-error AWS SDK is an optional dependency
         import('@aws-sdk/client-s3').then(m => ({
           ListObjectsV2Command: m.ListObjectsV2Command,
         })),
-        // @ts-expect-error AWS SDK is an optional dependency
         import('@aws-sdk/client-s3').then(m => ({
           DeleteObjectsCommand: m.DeleteObjectsCommand,
         })),

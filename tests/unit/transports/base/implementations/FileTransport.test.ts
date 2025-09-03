@@ -610,6 +610,106 @@ describe('FileTransport', () => {
     });
   });
 
+  describe('NDJSON format', () => {
+    it('should output NDJSON format when format is json', async () => {
+      const jsonTransport = new FileTransport({
+        name: 'json-test',
+        filepath: './logs/test.log',
+        format: 'json'
+      });
+      await jsonTransport.init();
+      
+      const entry1: LogEntry = {
+        ...mockEntry,
+        message: 'First log',
+        context: { userId: 123 }
+      };
+      
+      const entry2: LogEntry = {
+        ...mockEntry,
+        id: 'entry2',
+        level: 'error',
+        message: 'Second log',
+        error: { name: 'TestError', message: 'Something failed' }
+      };
+      
+      await jsonTransport.log(entry1);
+      await jsonTransport.log(entry2);
+      
+      // Check that each write was a complete JSON object with newline
+      const writeCalls = (mockWriteStream.write as jest.Mock).mock.calls;
+      expect(writeCalls.length).toBeGreaterThanOrEqual(2);
+      
+      // Parse each line to ensure it's valid JSON
+      const line1 = writeCalls[0][0];
+      const line2 = writeCalls[1][0];
+      
+      expect(line1).toContain('\n');
+      expect(line2).toContain('\n');
+      
+      // Remove newline and parse as JSON
+      const json1 = JSON.parse(line1.replace('\n', ''));
+      const json2 = JSON.parse(line2.replace('\n', ''));
+      
+      expect(json1.message).toBe('First log');
+      expect(json1.context.userId).toBe(123);
+      expect(json2.message).toBe('Second log');
+      expect(json2.error.name).toBe('TestError');
+    });
+    
+    it('should handle each log entry as independent JSON object', async () => {
+      const jsonTransport = new FileTransport({
+        name: 'json-test',
+        filepath: './logs/test.log',
+        format: 'json'
+      });
+      await jsonTransport.init();
+      
+      // Log multiple entries
+      const entries = Array.from({ length: 5 }, (_, i) => ({
+        ...mockEntry,
+        id: `entry-${i}`,
+        message: `Message ${i}`,
+        context: { index: i }
+      }));
+      
+      for (const entry of entries) {
+        await jsonTransport.log(entry);
+      }
+      
+      // Each write should be parseable as independent JSON
+      const writeCalls = (mockWriteStream.write as jest.Mock).mock.calls;
+      expect(writeCalls.length).toBe(5);
+      
+      writeCalls.forEach((call, index) => {
+        const line = call[0];
+        expect(line).toContain('\n');
+        const json = JSON.parse(line.replace('\n', ''));
+        expect(json.message).toBe(`Message ${index}`);
+        expect(json.context.index).toBe(index);
+      });
+    });
+    
+    it('should exclude timestamp when includeTimestamp is false', async () => {
+      const jsonTransport = new FileTransport({
+        name: 'json-test',
+        filepath: './logs/test.log',
+        format: 'json',
+        includeTimestamp: false
+      });
+      await jsonTransport.init();
+      
+      await jsonTransport.log(mockEntry);
+      
+      const writeCall = (mockWriteStream.write as jest.Mock).mock.calls[0][0];
+      const json = JSON.parse(writeCall.replace('\n', ''));
+      
+      expect(json.timestamp).toBeUndefined();
+      expect(json.timestampMs).toBeUndefined();
+      expect(json.message).toBe('Test message');
+    });
+  });
+
   describe('factory function', () => {
     it('should create transport with defaults', () => {
       const t = createFileTransport();

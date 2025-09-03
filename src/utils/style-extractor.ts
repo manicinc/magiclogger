@@ -39,14 +39,16 @@ export function extractStyles(styledMessage: string): {
     plainText += beforeText;
 
     // Record style range if text is not empty
-    if (text.length > 0 && style && style !== '/') {
+    if (text && text.length > 0 && style && style !== '/') {
       const startIndex = plainText.length;
       const endIndex = startIndex + text.length;
       styles.push([startIndex, endIndex, style]);
     }
 
     // Add the matched text content (without style tags)
-    plainText += text;
+    if (text) {
+      plainText += text;
+    }
 
     // Move past this match
     workingMessage = workingMessage.slice(matchStart + fullMatch.length);
@@ -133,9 +135,13 @@ export function optimizeStyleRanges(styles: StyleRange[]): StyleRange[] {
   const optimized: StyleRange[] = [];
 
   let current = sorted[0];
+  if (!current) {
+    return optimized;
+  }
 
   for (let i = 1; i < sorted.length; i++) {
     const next = sorted[i];
+    if (!next) continue;
 
     // Check if ranges can be merged (same style and adjacent/overlapping)
     if (current[2] === next[2] && current[1] >= next[0]) {

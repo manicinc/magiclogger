@@ -32,7 +32,7 @@ class MockWritableStream extends EventEmitter {
     this.writableLength = this.buffer.length;
 
     if (cb) {
-      setImmediate(() => cb(null));
+      setImmediate(() => cb?.(null));
     }
 
     // Simulate backpressure
