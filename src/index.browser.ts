@@ -103,6 +103,47 @@ export class Logger {
     }
   }
 
+  // Unified API methods
+  public progressBar(progress: number, length?: number, completeChar?: string, incompleteChar?: string): void {
+    this.impl.progressBar(progress, length, completeChar, incompleteChar);
+  }
+
+  public count(label?: string): void {
+    this.impl.count(label);
+  }
+
+  public countReset(label?: string): void {
+    this.impl.countReset(label);
+  }
+
+  public group(label: string, collapsed?: boolean): void {
+    this.impl.group(label, collapsed);
+  }
+
+  public groupEnd(): void {
+    this.impl.groupEnd();
+  }
+
+  public box(text: string, options?: any): void {
+    this.impl.box(text, options);
+  }
+
+  public list(items: string[], options?: any): void {
+    this.impl.list(items, options);
+  }
+
+  public custom(msg: string, colors?: ColorName[], prefix?: string): void {
+    this.impl.custom(msg, colors, prefix);
+  }
+
+  public styled(msg: string, preset: any): void {
+    this.impl.styled(msg, preset);
+  }
+
+  public colorParts(message: string, colorMap: Record<string, ColorName[]>): string {
+    return this.impl.colorParts(message, colorMap);
+  }
+
   // Theme passthroughs for compatibility if needed in future
   public setColorsEnabled(enabled: boolean): void {
     this.impl.setColorsEnabled(enabled);

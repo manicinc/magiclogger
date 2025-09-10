@@ -11,7 +11,7 @@ const layers = [
     id: 'app',
     name: 'Your Application',
     color: '#667eea',
-    description: 'Import only what you need with perfect tree-shaking and zero dependencies',
+    description: 'Import only what you need with perfect tree-shaking and minimal dependencies',
     features: [
       'Tree-shakeable imports', 
       'TypeScript support', 
@@ -27,7 +27,7 @@ const layers = [
     description: 'Lightweight routing layer that directs logs to transports efficiently',
     features: [
       '39KB gzipped core', 
-      'Zero dependencies', 
+      'Minimal dependencies', 
       'Direct transport routing',
       'High performance',
       'MAGIC schema standard'
@@ -73,7 +73,7 @@ export default function ArchitectureSection() {
             Architecture that <span className={styles.gradient}>scales</span>
           </Heading>
           <p className={styles.sectionSubtitle}>
-            Async ring buffer architecture • Smart batching • Zero dependencies • Tree-shakeable
+            Worker thread architecture • Smart batching • Minimal dependencies • Tree-shakeable
           </p>
         </div>
 

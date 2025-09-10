@@ -333,16 +333,30 @@ export class ConsoleTransport extends Transport {
 
     let output = parts.join(' ');
 
-    // Error details
-    if (entry.error) {
-      try {
-        const errorOutput =
-          typeof this.formatError === 'function'
-            ? this.formatError(entry.error)
-            : String(entry.error);
-        output += '\n' + errorOutput;
-      } catch {
-        /* ignore formatting errors */
+    // Error details - check multiple locations where error might be stored
+    const error = entry.error || 
+                  (entry.context && ((entry.context as any).err || (entry.context as any).error));
+    if (error) {
+      // Display as "Error: name - message" format
+      if (typeof error === 'object' && 'message' in error) {
+        const errorName = error.name || 'Error';
+        const errorLine = this.useColors
+          ? Colorizer.color(`Error: ${errorName} - ${error.message}`, 'red', true)
+          : `Error: ${errorName} - ${error.message}`;
+        output += ' ' + errorLine;
+        if (error.stack) {
+          output += '\n' + error.stack;
+        }
+      } else {
+        try {
+          const errorOutput =
+            typeof this.formatError === 'function'
+              ? this.formatError(error)
+              : String(error);
+          output += '\n' + errorOutput;
+        } catch {
+          /* ignore formatting errors */
+        }
       }
     }
 
@@ -402,9 +416,25 @@ export class ConsoleTransport extends Transport {
    * @private
    */
   private formatMetadata(label: string, data?: Record<string, unknown>): string {
+    // Filter out internal fields and error (which is displayed separately)
+    const filteredData = { ...data };
+    delete (filteredData as any).err;
+    delete (filteredData as any).error;
+    delete (filteredData as any).level;
+    delete (filteredData as any).time;
+    delete (filteredData as any).msg;
+    delete (filteredData as any).plainMsg;
+    delete (filteredData as any).loggerId;
+    delete (filteredData as any).styles;
+    
+    // Skip if no data left after filtering
+    if (Object.keys(filteredData).length === 0) {
+      return '';
+    }
+    
     const header = this.useColors ? Colorizer.color(`${label}:`, 'gray', true) : `${label}:`;
 
-    const json = JSON.stringify(data ?? {}, null, 2);
+    const json = JSON.stringify(filteredData, null, 2);
     const indented = json
       .split('\n')
       .map(line => '  ' + line)

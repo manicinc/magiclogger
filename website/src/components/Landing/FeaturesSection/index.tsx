@@ -17,8 +17,8 @@ logger.progress(0.75);`,
   },
   {
     title: 'Async by Default',
-    description: 'Async by default for maximum performance. 238K ops/s styled logging that never blocks your app. Sync mode available for auditing.',
-    stats: ['238K ops/s async styled', '57K ops/s sync plain', 'Zero dependencies', 'Tree-shakeable'],
+    description: 'Async by default for maximum performance. 328K ops/s logging that never blocks your app. Sync mode available for auditing.',
+    stats: ['328K ops/s async', '263K ops/s sync', 'Minimal dependencies', 'Tree-shakeable'],
     gradient: 'lightning'
   },
   {

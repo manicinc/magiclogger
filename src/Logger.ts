@@ -11,17 +11,16 @@ import { TextStyler } from './utils/TextStyler';
 import type { LoggerOptions, LogLevel } from './types/logger';
 import type { StylePreset } from './types/preset';
 import type { ColorName } from './types/colors';
-import type { LogEntry } from './types/transport';
 import type { StyledPart, WordStyleMap, TemplateFormatter, IStyleBuilder } from './types/styling';
 import { IS_PATH_REGEX } from './constants/paths';
 import { META_WRAPPER, type MetaArg } from './utils/meta';
 import { ThemeManager } from './theme/ThemeManager';
 import type { ThemeDefinition } from './types/theme';
+// Object pooling removed - minimal objects don't need pooling
 
-// Conditional imports for Node.js modules
+// Performance-optimized imports for Node.js modules
 let path: typeof import('path') | undefined;
 let fs: typeof import('fs') | undefined;
-let os: typeof import('os') | undefined;
 
 // Only import Node.js modules if we're in a Node.js environment
 if (typeof process !== 'undefined' && typeof require !== 'undefined') {
@@ -30,10 +29,8 @@ if (typeof process !== 'undefined' && typeof require !== 'undefined') {
     path = require('path');
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     fs = require('fs');
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    os = require('os');
   } catch {
-    // Ignore import errors in browser environments
+    // Browser environment
   }
 }
 
@@ -130,40 +127,58 @@ export class Logger {
    */
   private readonly options: LoggerOptions;
 
-  /**
-   * Function for generating unique IDs for log entries.
-   * @private
-   * @readonly
-   */
-  private readonly idGenerator: IdGenerator;
 
   /**
    * Formatter instance for text formatting and styling.
+   * Pre-initialized for performance.
    * @private
    */
-  private formatter?: Formatter;
+  private formatter: Formatter;
 
   /**
    * Style builder instance for chainable styling.
+   * Pre-initialized for performance.
    * @private
    */
-  private styleBuilder?: StyleBuilder;
+  private styleBuilder: StyleBuilder;
 
   /**
    * Template parser instance for template literal styling.
+   * Pre-initialized for performance.
    * @private
    */
-  private templateParser?: TemplateParser;
+  private templateParser: TemplateParser;
 
   /**
    * Cached template formatter function.
+   * Pre-initialized for performance.
    * @private
    */
-  private templateFormatter?: TemplateFormatter;
+  private templateFormatter: TemplateFormatter;
   /** Cached Node.js util.inspect function when available */
   private nodeUtilInspect?:
     | ((val: unknown, opts?: { colors?: boolean; depth?: number }) => string)
     | null;
+  
+  // Performance optimizations: cache frequently used values
+  private cachedTransportCount: number = -1;
+  private hasTransports: boolean = false;
+  private useConsoleOutput: boolean = false;
+  
+  // Object pooling removed - minimal objects are fast to create
+  
+  // Integer log level mapping - always used for performance
+  private static readonly LEVEL_TO_INT: Record<LogLevel, number> = {
+    trace: 10,
+    debug: 20,
+    info: 30,
+    warn: 40,
+    error: 50,
+    fatal: 60,
+    success: 35
+  };
+  
+  
 
 
   /**
@@ -197,7 +212,13 @@ export class Logger {
     // Validate and normalize options
     this.options = this.validateOptions(this.options);
 
-    this.idGenerator = this.options.idGenerator ?? this.defaultIdGenerator;
+
+    // Pre-initialize all styling components for performance
+    this.formatter = new Formatter(this.useColors);
+    this.styleBuilder = new StyleBuilder(this.useColors);
+    this.templateParser = new TemplateParser(this.useColors);
+    this.templateFormatter = this.templateParser.createFormatter();
+
 
     // Initialize transport manager
     this.transportManager = new TransportManager();
@@ -335,16 +356,18 @@ export class Logger {
 
   /**
    * Initializes transports based on configuration.
+   * Uses synchronous registration for immediate availability.
    * @private
    */
   private initializeTransports(): void {
     if (this.options.transports && this.options.transports.length > 0) {
-      // Use provided transports
+      // Register provided transports synchronously
       this.options.transports.forEach(transport => {
-        this.addTransport(transport);
+        this.transportManager.registerTransportSync(transport);
+        this.cachedTransportCount = -1; // Invalidate cache
       });
     } else if (this.options.useConsole !== false) {
-      // Create default console transport using MAGIC schema
+      // Create default console transport
       this.createDefaultConsoleTransport();
     }
   }
@@ -376,111 +399,9 @@ export class Logger {
     }
   }
 
-  /**
-   * Default ID generator for log entries.
-   * @private
-   */
-  private defaultIdGenerator(): string {
-    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  }
+  
 
-  /**
-   * Creates a structured log entry from raw log data.
-   * @private
-   * @param {LogLevel} level - Log level
-   * @param {string} message - Message with ANSI codes
-   * @param {LogEntryMeta} meta - Optional metadata
-   * @param {StyleRange[]} styles - Optional extracted styles
-   */
-  private createLogEntry(
-    level: LogLevel,
-    message: string,
-    meta?: LogEntryMeta,
-    styles?: import('./types/transport').StyleRange[]
-  ): LogEntry {
-    const now = new Date();
 
-    // Extract error and context from metadata
-    let error: LogEntry['error'];
-    let context: Record<string, unknown> | undefined;
-
-    if (meta instanceof Error) {
-      // Direct error object
-      error = {
-        name: meta.name,
-        message: meta.message,
-        stack: meta.stack,
-      };
-      context = undefined;
-    } else if (meta && typeof meta === 'object' && 'error' in meta && meta.error instanceof Error) {
-      // Metadata object containing an error
-      error = {
-        name: meta.error.name,
-        message: meta.error.message,
-        stack: meta.error.stack,
-      };
-      context = { ...meta };
-      delete context.error;
-    } else {
-      // Plain metadata object
-      context = meta as Record<string, unknown> | undefined;
-    }
-
-    // Extract plain message (no ANSI codes)
-    const plainMessage = this.stripAnsiCodes(message);
-
-    // Create complete log entry
-    const entry: LogEntry = {
-      id: this.idGenerator(),
-      timestamp: now.toISOString(),
-      timestampMs: now.getTime(),
-      level,
-      message: plainMessage, // Store plain text as primary message
-      styles: styles, // Store extracted styles if provided
-      loggerId: this.options.id,
-      tags: this.options.tags,
-      context: context || this.options.context,
-      error,
-      metadata: this.getMetadata(),
-    };
-
-    return entry;
-  }
-
-  /**
-   * Gathers environment metadata for log entries.
-   * @private
-   */
-  private getMetadata(): LogMetadata {
-    const metadata: LogMetadata = {};
-
-    if (typeof window !== 'undefined') {
-      // Browser metadata
-      metadata.userAgent = navigator.userAgent;
-      metadata.platform = navigator.platform;
-    } else if (typeof process !== 'undefined' && os) {
-      // Node.js metadata
-      metadata.hostname = os.hostname();
-      metadata.pid = process.pid;
-      metadata.platform = process.platform;
-      metadata.nodeVersion = process.version;
-    }
-
-    return metadata;
-  }
-
-  /**
-   * Strips ANSI escape codes from a string.
-   * @private
-   */
-  private stripAnsiCodes(str: string): string {
-    // Handle non-string inputs
-    if (typeof str !== 'string') {
-      str = String(str);
-    }
-    // eslint-disable-next-line no-control-regex
-    return str.replace(/\x1b\[[0-9;]*m/g, '');
-  }
 
   // ============================================================
   // Variadic argument support helpers
@@ -653,7 +574,7 @@ export class Logger {
 
   /**
    * Chainable style builder for creating styled strings.
-   * Similar to Chalk's API, allows intuitive chaining of styles.
+   * Pre-initialized for performance.
    *
    * @returns {IStyleBuilder} Chainable style builder
    *
@@ -668,9 +589,7 @@ export class Logger {
    * ```
    */
   public get s(): IStyleBuilder {
-    if (!this.styleBuilder) {
-      this.styleBuilder = new StyleBuilder(this.useColors);
-    }
+    // Already pre-initialized in constructor for performance
     return this.styleBuilder as unknown as IStyleBuilder;
   }
 
@@ -686,7 +605,7 @@ export class Logger {
 
   /**
    * Template literal formatter for inline styling.
-   * Uses @style{content} syntax for applying styles.
+   * Pre-initialized for performance.
    *
    * @returns {TemplateFormatter} Template formatter function
    *
@@ -698,12 +617,7 @@ export class Logger {
    * ```
    */
   public get fmt(): TemplateFormatter {
-    if (!this.templateFormatter) {
-      if (!this.templateParser) {
-        this.templateParser = new TemplateParser(this.useColors);
-      }
-      this.templateFormatter = this.templateParser.createFormatter();
-    }
+    // Already pre-initialized in constructor for performance
     return this.templateFormatter;
   }
 
@@ -772,6 +686,10 @@ export class Logger {
    * ```
    */
   public parseBrackets(text: string): string {
+    // Skip parsing in performance mode
+    if (this.options.performanceMode) {
+      return text.replace(/<([^>]*?)>(.*?)<\/>/g, '$2');
+    }
     return TextStyler.parseBrackets(text, this.useColors);
   }
 
@@ -780,8 +698,9 @@ export class Logger {
   // ============================================================
 
   /**
-   * Core logging method that handles all log operations.
-   * Enhanced to support angle bracket syntax in messages.
+   * High-performance core logging method optimized for speed.
+   * Implements fast paths for plain messages (90% of use cases).
+   * Supports angle bracket syntax for styled messages.
    *
    * @public
    * @param {string} msg - The message to log (supports <style> syntax)
@@ -790,48 +709,61 @@ export class Logger {
    * @returns {void}
    */
   public log(msg: string, level: LogLevel = 'info', meta?: LogEntryMeta): void {
-    let entry: LogEntry;
-
-    // Parse angle bracket syntax if present and extract styles
-    if (msg && msg.includes('<')) {
-      const result = TextStyler.parseBracketsWithExtraction(msg, this.useColors);
-
-      // Create structured log entry with extracted plain text and styles
-      entry = this.createLogEntry(level, result.plainText, meta, result.styles);
-
-      // Store the styled version for console output
-      (entry as unknown as Record<string, unknown>)._styledMessage = result.styledText;
+    // Fast path: Cache transport count and boolean flags
+    if (this.cachedTransportCount === -1 && this.transportManager) {
+      this.cachedTransportCount = this.transportManager.getTransportNames().length;
+      this.hasTransports = this.transportManager !== null && this.cachedTransportCount > 0;
+      this.useConsoleOutput = this.cachedTransportCount === 0 && this.options.useConsole !== false;
+    }
+    
+    // Early exit if no outputs
+    if (!this.hasTransports && !this.useConsoleOutput) {
+      return;
+    }
+    
+    // Fast path: Create minimal entry - ONLY required fields
+    const entry: any = {
+      level: Logger.LEVEL_TO_INT[level] || 30,
+      time: Date.now(),
+      msg: msg
+    };
+    
+    // Fast path: Skip style processing entirely for messages without style markers
+    // This avoids expensive regex operations for 90% of logs
+    // OPTIMIZATION: Check for closing tag too to avoid false positives
+    const hasStyleMarkers = msg.includes('<') && msg.includes('>') && msg.includes('</>');
+    
+    if (this.useColors && !this.options.performanceMode && hasStyleMarkers) {
+      // Only parse styles if we actually have style markers
+      const extracted = TextStyler.parseBracketsWithExtraction(msg, true);
+      entry.msg = extracted.styledText;
+      entry.plainMsg = extracted.plainText;
+      if (extracted.styles && extracted.styles.length > 0) {
+        entry.styles = extracted.styles;
+      }
     } else {
-      // Check if the message already contains ANSI escape codes
-      const ansiRegex = /\x1b\[[0-9;]*m/;
-      if (msg && ansiRegex.test(msg)) {
-        // Message already has ANSI codes, preserve them
-        // Strip ANSI codes for the plain text version
-        const plainText = msg.replace(/\x1b\[[0-9;]*m/g, '');
-        entry = this.createLogEntry(level, plainText, meta, undefined);
-        
-        // Store the original message with ANSI codes as the styled message
-        (entry as unknown as Record<string, unknown>)._styledMessage = msg;
+      // Fast path: No styling needed, direct assignment
+      entry.msg = msg;
+      entry.plainMsg = msg;
+    }
+    
+    // Fast metadata handling
+    if (meta) {
+      // Special handling for Error objects
+      if (meta instanceof Error) {
+        entry.error = meta;
       } else {
-        // No angle brackets or ANSI codes, just create entry normally
-        entry = this.createLogEntry(level, msg, meta, undefined);
+        // Copy all properties
+        Object.assign(entry, meta);
       }
     }
-
-    // Send to transports if available
-    if (this.transportManager && this.transportManager.getTransportNames().length > 0) {
-      // For sync logger, we should wait for transports to complete
-      // But we can't make this method async without breaking the API
-      // So we use Promise.resolve().then() to ensure it runs after current sync code
-      // but still handle errors properly
-      void this.transportManager.log(entry).catch(error => {
-        console.error('[Logger] Failed to log to transports:', error);
-      });
-    }
-
-    // Fallback to simple console if no transports (shouldn't happen with default console transport)
-    if (this.transportManager.getTransportNames().length === 0) {
-      console.log(`[${level.toUpperCase()}] ${msg}`);
+    
+    // Direct dispatch - optimized hot path
+    // Use cached boolean to avoid repeated checks
+    if (this.hasTransports) {
+      this.transportManager!.logSync(entry); // Safe to use ! since hasTransports guarantees it exists
+    } else if (this.useConsoleOutput) {
+      console.log(`[${entry.level}] ${entry.msg}`);
     }
   }
 
@@ -844,10 +776,14 @@ export class Logger {
    * @param {LogEntryMeta} [meta] - Additional metadata
    * @returns {void}
    */
-  public info(msg: string, meta?: LogEntryMeta): void;
-  public info(...args: unknown[]): void;
-  public info(...args: unknown[]): void {
-    if (typeof args[0] === 'string' && (args.length === 1 || args.length === 2)) {
+  public info(...args: any[]): void {
+    // Fast path for single string argument (most common case)
+    if (args.length === 1 && typeof args[0] === 'string') {
+      this.log(args[0], 'info');
+      return;
+    }
+    // Handle two arguments
+    if (typeof args[0] === 'string' && args.length === 2) {
       const maybeMeta = args[1] as unknown;
       const unwrapped = this.isMetaWrapper(maybeMeta)
         ? ((maybeMeta as MetaArg).value as LogEntryMeta)
@@ -871,7 +807,12 @@ export class Logger {
   public success(msg: string, meta?: LogEntryMeta): void;
   public success(...args: unknown[]): void;
   public success(...args: unknown[]): void {
-    if (typeof args[0] === 'string' && (args.length === 1 || args.length === 2)) {
+    // Fast path for single string argument
+    if (args.length === 1 && typeof args[0] === 'string') {
+      this.log(args[0], 'success');
+      return;
+    }
+    if (typeof args[0] === 'string' && args.length === 2) {
       const maybeMeta = args[1] as unknown;
       const unwrapped = this.isMetaWrapper(maybeMeta)
         ? ((maybeMeta as MetaArg).value as LogEntryMeta)
@@ -895,7 +836,12 @@ export class Logger {
   public warn(msg: string, meta?: LogEntryMeta): void;
   public warn(...args: unknown[]): void;
   public warn(...args: unknown[]): void {
-    if (typeof args[0] === 'string' && (args.length === 1 || args.length === 2)) {
+    // Fast path for single string argument
+    if (args.length === 1 && typeof args[0] === 'string') {
+      this.log(args[0], 'warn');
+      return;
+    }
+    if (typeof args[0] === 'string' && args.length === 2) {
       const maybeMeta = args[1] as unknown;
       const unwrapped = this.isMetaWrapper(maybeMeta)
         ? ((maybeMeta as MetaArg).value as LogEntryMeta)
@@ -919,7 +865,12 @@ export class Logger {
   public error(msg: string, meta?: LogEntryMeta): void;
   public error(...args: unknown[]): void;
   public error(...args: unknown[]): void {
-    if (typeof args[0] === 'string' && (args.length === 1 || args.length === 2)) {
+    // Fast path for single string argument
+    if (args.length === 1 && typeof args[0] === 'string') {
+      this.log(args[0], 'error');
+      return;
+    }
+    if (typeof args[0] === 'string' && args.length === 2) {
       const maybeMeta = args[1] as unknown;
       const unwrapped = this.isMetaWrapper(maybeMeta)
         ? ((maybeMeta as MetaArg).value as LogEntryMeta)
@@ -944,7 +895,12 @@ export class Logger {
   public debug(msg: string, meta?: LogEntryMeta): void;
   public debug(...args: unknown[]): void;
   public debug(...args: unknown[]): void {
-    if (typeof args[0] === 'string' && (args.length === 1 || args.length === 2)) {
+    // Fast path for single string argument
+    if (args.length === 1 && typeof args[0] === 'string') {
+      this.log(args[0], 'debug');
+      return;
+    }
+    if (typeof args[0] === 'string' && args.length === 2) {
       const maybeMeta = args[1] as unknown;
       const unwrapped = this.isMetaWrapper(maybeMeta)
         ? ((maybeMeta as MetaArg).value as LogEntryMeta)
@@ -967,6 +923,9 @@ export class Logger {
    */
   public async addTransport(transport: Transport): Promise<void> {
     await this.transportManager.registerTransport(transport);
+    this.cachedTransportCount = -1; // Invalidate cache
+    this.hasTransports = false; // Reset cached flags
+    this.useConsoleOutput = false;
   }
 
   /**
@@ -976,6 +935,9 @@ export class Logger {
    */
   public async removeTransport(name: string): Promise<void> {
     await this.transportManager.removeTransport(name);
+    this.cachedTransportCount = -1; // Invalidate cache
+    this.hasTransports = false; // Reset cached flags
+    this.useConsoleOutput = false;
   }
 
   /**
@@ -1728,8 +1690,13 @@ export class Logger {
    * @returns {boolean} Whether colors are enabled
    */
   public get useColors(): boolean {
+    // In performance mode, disable all colors
+    if (this.options.performanceMode) {
+      return false;
+    }
     return this.options.useColors ?? true;
   }
+
 
   /**
    * Gets the log retention days setting (deprecated).
@@ -2003,6 +1970,129 @@ export class Logger {
     } catch (err) {
       console.error(`Error cleaning directory ${dir}:`, err);
     }
+  }
+
+  // Timer support
+  private timers = new Map<string, number>();
+  
+  /**
+   * Starts a timer with the given label.
+   * Use timeEnd() to stop the timer and log the elapsed time.
+   * 
+   * @param label - Label for the timer
+   * 
+   * @example
+   * ```typescript
+   * logger.time('database-query');
+   * const results = await db.query('SELECT * FROM users');
+   * logger.timeEnd('database-query'); // Logs: "database-query: 145ms"
+   * ```
+   * @public
+   */
+  public time(label: string): void {
+    this.timers.set(label, Date.now());
+  }
+
+  /**
+   * Stops a timer and logs the elapsed time.
+   * 
+   * @param label - Label of the timer to stop
+   * 
+   * @example
+   * ```typescript
+   * logger.time('api-call');
+   * await fetch('https://api.example.com/data');
+   * logger.timeEnd('api-call'); // Logs: "api-call: 234ms"
+   * ```
+   * @public
+   */
+  public timeEnd(label: string): void {
+    const start = this.timers.get(label);
+    if (start) {
+      const duration = Date.now() - start;
+      this.timers.delete(label);
+      this.log(`${label}: ${duration}ms`, 'info', { type: 'timer', duration });
+    }
+  }
+
+  // Counter support
+  private counters = new Map<string, number>();
+  
+  /**
+   * Counts the number of times this method is called with the same label.
+   * 
+   * @param label - Label for the counter (default: 'default')
+   * 
+   * @example
+   * ```typescript
+   * logger.count('api-calls'); // Logs: "api-calls: 1"
+   * logger.count('api-calls'); // Logs: "api-calls: 2"
+   * logger.count('api-calls'); // Logs: "api-calls: 3"
+   * logger.countReset('api-calls');
+   * logger.count('api-calls'); // Logs: "api-calls: 1"
+   * ```
+   * @public
+   */
+  public count(label = 'default'): void {
+    const current = this.counters.get(label) || 0;
+    const next = current + 1;
+    this.counters.set(label, next);
+    this.log(`${label}: ${next}`, 'info', { type: 'counter', count: next });
+  }
+
+  /**
+   * Resets a counter to zero.
+   * 
+   * @param label - Label of the counter to reset (default: 'default')
+   * 
+   * @example
+   * ```typescript
+   * logger.count('errors'); // "errors: 1"
+   * logger.count('errors'); // "errors: 2"
+   * logger.countReset('errors');
+   * logger.count('errors'); // "errors: 1"
+   * ```
+   * @public
+   */
+  public countReset(label = 'default'): void {
+    this.counters.delete(label);
+  }
+
+  /**
+   * Creates a collapsible group of log messages.
+   * All logs after group() and before groupEnd() are visually grouped.
+   * 
+   * @param label - Label for the group
+   * 
+   * @example
+   * ```typescript
+   * logger.group('Processing batch');
+   * logger.info('Item 1 processed');
+   * logger.info('Item 2 processed');
+   * logger.info('Item 3 processed');
+   * logger.groupEnd();
+   * ```
+   * @public
+   */
+  public group(label: string): void {
+    this.log(`▼ ${label}`, 'info', { type: 'group-start' });
+  }
+
+  /**
+   * Ends the current log group.
+   * 
+   * @example
+   * ```typescript
+   * logger.group('Database operations');
+   * logger.info('Connected to database');
+   * logger.info('Query executed');
+   * logger.groupEnd();
+   * ```
+   * @public
+   */
+  public groupEnd(): void {
+    // Just for API compatibility - could be extended with indentation
+    this.log('', 'info', { type: 'group-end' });
   }
 }
 

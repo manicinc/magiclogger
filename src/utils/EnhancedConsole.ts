@@ -37,10 +37,28 @@ function isStylePreset(value: string): value is StylePreset {
  * Enhanced console that extends the standard console with additional formatting and logging capabilities.
  */
 export class EnhancedConsole {
+  private static instance: EnhancedConsole | null = null;
   public logger: Logger;
   private useColors = true;
   private originalConsole: Console;
   private exitHandler?: () => void;
+
+  /**
+   * Get singleton instance of EnhancedConsole
+   */
+  public static getInstance(options?: EnhanceConsoleOptions): EnhancedConsole {
+    if (!EnhancedConsole.instance) {
+      EnhancedConsole.instance = new EnhancedConsole(options);
+    }
+    return EnhancedConsole.instance;
+  }
+
+  /**
+   * Reset singleton instance (for testing)
+   */
+  public static resetInstance(): void {
+    EnhancedConsole.instance = null;
+  }
 
   constructor(options: EnhanceConsoleOptions = {}) {
     this.logger = new Logger(options);
@@ -53,163 +71,119 @@ export class EnhancedConsole {
     }
   }
 
-  private safeStringify(value: unknown): string {
-    if (typeof value === 'string') {
-      return value;
-    } else if (typeof value === 'symbol') {
-      return value.toString();
-    } else if (typeof value === 'bigint') {
-      return value.toString();
-    } else if (value === null) {
-      return 'null';
-    } else if (value === undefined) {
-      return 'undefined';
-    } else {
-      try {
-        return String(value);
-      } catch {
-        return '[Object]';
+  log(message?: unknown, ...args: unknown[]): void {
+    // Always delegate to original console.log
+    try {
+      if (arguments.length === 0) {
+        this.originalConsole.log();
+      } else {
+        this.originalConsole.log(message, ...args);
       }
-    }
-  }
-
-  log(message: unknown, ...args: unknown[]): void {
-    // Check for recursion guard
-    const recursionGuard = Symbol.for('recursionGuard');
-    const consoleWithGuard = console as Console & Record<symbol, boolean>;
-    if (consoleWithGuard[recursionGuard]) {
-      // We're in a recursive call, use original console
-      this.originalConsole.log(message, ...args);
-      return;
-    }
-
-    // If there are additional arguments, delegate to original console
-    if (args.length > 0) {
-      this.originalConsole.log(message, ...args);
-    } else {
-      // Set recursion guard
-      consoleWithGuard[recursionGuard] = true;
-      try {
-        // Convert message to string safely for logger
-        const messageStr = this.safeStringify(message);
-        this.logger.info(messageStr);
-      } finally {
-        // Clear recursion guard
-        consoleWithGuard[recursionGuard] = false;
-      }
+    } catch (error) {
+      // Silently ignore errors
     }
   }
 
   info(message: unknown, ...args: unknown[]): void {
-    // Check for recursion guard
-    const recursionGuard = Symbol.for('recursionGuard');
-    const consoleWithGuard = console as Console & Record<symbol, boolean>;
-    if (consoleWithGuard[recursionGuard]) {
-      // We're in a recursive call, use original console
-      this.originalConsole.info(message, ...args);
-      return;
-    }
-
-    // If there are additional arguments, delegate to original console
-    if (args.length > 0) {
-      this.originalConsole.info(message, ...args);
-    } else {
-      // Set recursion guard
-      consoleWithGuard[recursionGuard] = true;
-      try {
-        // Convert message to string safely for logger
-        const messageStr = this.safeStringify(message);
-        this.logger.info(messageStr);
-      } finally {
-        // Clear recursion guard
-        consoleWithGuard[recursionGuard] = false;
-      }
-    }
+    // Always delegate to original console.info
+    this.originalConsole.info(message, ...args);
   }
 
   warn(message: unknown, ...args: unknown[]): void {
-    // Check for recursion guard
-    const recursionGuard = Symbol.for('recursionGuard');
-    const consoleWithGuard = console as Console & Record<symbol, boolean>;
-    if (consoleWithGuard[recursionGuard]) {
-      // We're in a recursive call, use original console
-      this.originalConsole.warn(message, ...args);
-      return;
-    }
-
-    // If there are additional arguments, delegate to original console
-    if (args.length > 0) {
-      this.originalConsole.warn(message, ...args);
-    } else {
-      // Set recursion guard
-      consoleWithGuard[recursionGuard] = true;
-      try {
-        // Convert message to string safely for logger
-        const messageStr = this.safeStringify(message);
-        this.logger.warn(messageStr);
-      } finally {
-        // Clear recursion guard
-        consoleWithGuard[recursionGuard] = false;
-      }
-    }
+    // Always delegate to original console.warn
+    this.originalConsole.warn(message, ...args);
   }
 
   error(message: unknown, ...args: unknown[]): void {
-    // Check for recursion guard
-    const recursionGuard = Symbol.for('recursionGuard');
-    const consoleWithGuard = console as Console & Record<symbol, boolean>;
-    if (consoleWithGuard[recursionGuard]) {
-      // We're in a recursive call, use original console
-      this.originalConsole.error(message, ...args);
-      return;
-    }
-
-    // If there are additional arguments, delegate to original console
-    if (args.length > 0) {
-      this.originalConsole.error(message, ...args);
-    } else {
-      // Set recursion guard
-      consoleWithGuard[recursionGuard] = true;
-      try {
-        // Convert message to string safely for logger
-        const messageStr = this.safeStringify(message);
-        this.logger.error(messageStr);
-      } finally {
-        // Clear recursion guard
-        consoleWithGuard[recursionGuard] = false;
-      }
-    }
+    // Always delegate to original console.error
+    this.originalConsole.error(message, ...args);
   }
 
   debug(message: unknown, ...args: unknown[]): void {
-    // Check for recursion guard
-    const recursionGuard = Symbol.for('recursionGuard');
-    const consoleWithGuard = console as Console & Record<symbol, boolean>;
-    if (consoleWithGuard[recursionGuard]) {
-      // We're in a recursive call, use original console
-      this.originalConsole.debug(message, ...args);
-      return;
-    }
+    // Always delegate to original console.debug
+    this.originalConsole.debug(message, ...args);
+  }
 
-    // If there are additional arguments, delegate to original console
-    if (args.length > 0) {
-      this.originalConsole.debug(message, ...args);
-    } else {
-      // Set recursion guard
-      consoleWithGuard[recursionGuard] = true;
-      try {
-        // Convert message to string safely for logger
-        const messageStr = this.safeStringify(message);
-        this.logger.debug(messageStr);
-      } finally {
-        // Clear recursion guard
-        consoleWithGuard[recursionGuard] = false;
-      }
+  trace(message?: unknown, ...args: unknown[]): void {
+    this.originalConsole.trace(message, ...args);
+  }
+
+  group(label?: string): void {
+    this.originalConsole.group(label);
+  }
+
+  groupEnd(): void {
+    this.originalConsole.groupEnd();
+  }
+
+  time(label?: string): void {
+    this.originalConsole.time(label);
+  }
+
+  timeEnd(label?: string): void {
+    this.originalConsole.timeEnd(label);
+  }
+
+  timeLog(label?: string, ...data: unknown[]): void {
+    if (typeof this.originalConsole.timeLog === 'function') {
+      this.originalConsole.timeLog(label, ...data);
+    }
+  }
+
+  clear(): void {
+    this.originalConsole.clear();
+  }
+
+  dir(obj: unknown, options?: any): void {
+    this.originalConsole.dir(obj, options);
+  }
+
+  dirxml(...data: unknown[]): void {
+    if (typeof this.originalConsole.dirxml === 'function') {
+      this.originalConsole.dirxml(...data);
+    }
+  }
+
+  count(label?: string): void {
+    this.originalConsole.count(label);
+  }
+
+  countReset(label?: string): void {
+    this.originalConsole.countReset(label);
+  }
+
+  assert(condition?: boolean, ...data: unknown[]): void {
+    this.originalConsole.assert(condition, ...data);
+  }
+
+  profile(label?: string): void {
+    if (typeof (this.originalConsole as any).profile === 'function') {
+      (this.originalConsole as any).profile(label);
+    }
+  }
+
+  profileEnd(label?: string): void {
+    if (typeof (this.originalConsole as any).profileEnd === 'function') {
+      (this.originalConsole as any).profileEnd(label);
     }
   }
 
   success(message: string, ..._args: unknown[]): void {
     this.logger.success(message);
+  }
+
+  failure(message: string, ..._args: unknown[]): void {
+    this.logger.error(message);
+  }
+
+  highlight(message: string, ..._args: unknown[]): void {
+    // For now, just log the message without styling
+    this.originalConsole.log(message);
+  }
+
+  box(message: string, ..._args: unknown[]): void {
+    // For now, just log the message without box formatting to avoid import issues
+    this.originalConsole.log(message);
   }
 
   header(title: string, colors?: ColorName[]): void {
@@ -220,10 +194,12 @@ export class EnhancedConsole {
     this.logger.progressBar(value, length, completeChar, incompleteChar);
   }
 
-  table(data: Record<string, unknown>[]): void {
-    this.logger.table(data, {
-      headerColor: ['brightWhite', 'bold']
-    });
+  table(data: any, columns?: string[]): void {
+    if (columns !== undefined) {
+      this.originalConsole.table(data, columns);
+    } else {
+      this.originalConsole.table(data);
+    }
   }
 
   custom(msg: string, colors?: ColorName[], prefix?: string): void {

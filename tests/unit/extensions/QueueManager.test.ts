@@ -320,8 +320,8 @@ describe('QueueManager', () => {
 
       queueManager.enqueue(createEntry('1'));
 
-      // Wait for retries
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Wait for retries - need more time for 3 retry attempts with async processing
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       expect(attempts).toBe(3);
     });
@@ -344,8 +344,9 @@ describe('QueueManager', () => {
 
       queueManager.enqueue(createEntry('1'));
 
-      // Wait for max retries
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Wait for max retries - need more time for 3 retry attempts with async processing
+      // Each retry uses setTimeout(..., 0) which requires multiple event loop ticks
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       expect(dropped.map(e => e.id)).toEqual(['1']);
     });

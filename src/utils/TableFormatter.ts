@@ -70,6 +70,64 @@ const BORDERS: Record<string, BorderChars> = {
 };
 
 export class TableFormatter {
+  /**
+   * Main public API for formatting data as a table
+   */
+  static formatTable(
+    data: any,
+    options: TableOptions = {}
+  ): string {
+    const useColors = false; // Disable colors by default for tests
+    // Handle invalid input
+    if (!data || !Array.isArray(data) || data.length === 0) {
+      return '';
+    }
+    
+    // Filter out non-objects
+    const validData = data.filter(item => 
+      item && typeof item === 'object' && !Array.isArray(item)
+    );
+    
+    if (validData.length === 0) {
+      return '';
+    }
+    
+    // Convert objects to record format and handle special values
+    const records = validData.map(item => {
+      const record: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(item)) {
+        // Handle different value types
+        if (value === null || value === undefined) {
+          record[key] = '';
+        } else if (Array.isArray(value)) {
+          // For arrays containing strings, use JSON.stringify to include quotes
+          if (value.some(v => typeof v === 'string')) {
+            record[key] = JSON.stringify(value);
+          } else {
+            record[key] = `[${value.join(',')}]`;
+          }
+        } else if (typeof value === 'object') {
+          if (value instanceof Date) {
+            record[key] = value.toISOString();
+          } else {
+            record[key] = '[object Object]';
+          }
+        } else if (typeof value === 'function') {
+          record[key] = '[function]';
+        } else if (typeof value === 'symbol') {
+          record[key] = '[symbol]';
+        } else {
+          record[key] = String(value);
+        }
+      }
+      return record;
+    });
+    
+    // Use the format method to create the table
+    const lines = this.format(records, options, useColors);
+    return lines.join('\n');
+  }
+
   static stripAnsi(str: string): string {
     // eslint-disable-next-line no-control-regex
     return str.replace(/\x1b\[[0-9;]*m/g, '');

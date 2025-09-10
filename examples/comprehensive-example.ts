@@ -14,7 +14,7 @@ import {
 
   // Factory functions
   createAsyncLogger,
-  createSmartLogger,
+  createLogger,
 
   // Utilities
   meta,
@@ -92,8 +92,9 @@ logger.warn('WARNING: Memory usage at 75%');
 logger.error('ERROR: Failed to connect to database');
 logger.debug('DEBUG: Processing user request');
 logger.success('SUCCESS: Task completed');
-logger.trace('TRACE: Entering function processData()');
-logger.fatal('FATAL: System crash imminent');
+// Note: trace and fatal methods don't exist in the current API
+// logger.trace('TRACE: Entering function processData()');
+// logger.fatal('FATAL: System crash imminent');
 
 // Custom log levels
 logger.custom('Custom message', ['magenta', 'bold'], 'CUSTOM');
@@ -121,7 +122,7 @@ asyncLogger.warn('Each transport manages its own buffering');
 
 // 1.4 Smart Logger (Auto-detects environment)
 console.log('\n1.4 Smart Logger (Auto-detects):');
-const smartLogger = createSmartLogger();
+const smartLogger = createLogger({ mode: 'auto' });
 smartLogger.info('Smart logger picks best mode automatically');
 
 // Type guards
@@ -207,7 +208,7 @@ console.log('-'.repeat(50));
 // 3.3 Progress bars
 console.log('\nProgress bar:');
 for (let i = 0; i <= 100; i += 25) {
-  logger.progressBar(i, 100, 30);
+  logger.progressBar(i / 100, 30);
 }
 
 // 3.4 Tables
@@ -311,8 +312,8 @@ const tagManager = new TagManager({
   maxTagLength: 50,
 });
 
-// Generate tags from path
-const pathTags = tagManager.fromPath('src/services/payment/stripe.ts');
+// Parse tags from a path string
+const pathTags = tagManager.parse('src/services/payment/stripe.ts', '/');
 console.log('Tags from path:', pathTags);
 
 // Normalize tags
@@ -353,13 +354,13 @@ const httpTransport = new HTTPTransport({
   retry: { attempts: 3, delay: 1000 },
 });
 
-// 5.4 WebSocket Transport
-const wsTransport = new WebSocketTransport({
-  name: 'websocket',
-  url: 'wss://logs.example.com/stream',
-  reconnect: true,
-  batch: { size: 50, timeout: 2000 },
-});
+// 5.4 WebSocket Transport (browser-only, not available in Node.js)
+// const wsTransport = new WebSocketTransport({
+//   name: 'websocket',
+//   url: 'wss://logs.example.com/stream',
+//   reconnect: true,
+//   batch: { size: 50, timeout: 2000 },
+// });
 
 // 5.5 Stream Transport
 const streamTransport = new StreamTransport({
@@ -400,7 +401,7 @@ const multiTransportLogger = new Logger({
 });
 
 // 5.7 Transport management
-multiTransportLogger.addTransport(wsTransport);
+// multiTransportLogger.addTransport(wsTransport); // WebSocket not available in Node.js
 multiTransportLogger.removeTransport('file');
 const transportList = multiTransportLogger.listTransports();
 console.log('Active transports:', transportList);

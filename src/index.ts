@@ -164,6 +164,7 @@ export { PRESETS } from './constants/preset';
 export { Colorizer } from './core/Colorizer';
 export { StyleBuilder } from './core/StyleBuilder';
 export { ContextManager } from './core/ContextManager';
+export { TagManager } from './core/TagManager';
 export { meta, err } from './utils/meta';
 
 export type { ColorName } from './types/colors';

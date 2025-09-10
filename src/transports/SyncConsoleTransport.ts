@@ -8,6 +8,7 @@
  * @module transports/SyncConsoleTransport
  */
 
+import { Transport } from './base/Transport';
 import type { LogEntry, LogLevel } from '../types/transport';
 
 /**
@@ -21,6 +22,12 @@ export interface SyncConsoleTransportOptions {
    * @default 'sync-console'
    */
   name?: string;
+  
+  /**
+   * Whether the transport is enabled.
+   * @default true
+   */
+  enabled?: boolean;
   
   /**
    * Whether to use colors.
@@ -66,6 +73,7 @@ export interface SyncConsoleTransportOptions {
  * essential for development and debugging.
  * 
  * @class SyncConsoleTransport
+ * @extends {Transport}
  * 
  * @example
  * ```typescript
@@ -79,31 +87,12 @@ export interface SyncConsoleTransportOptions {
  * consoleTransport.log(entry);  // Appears immediately
  * ```
  */
-export class SyncConsoleTransport {
+export class SyncConsoleTransport extends Transport {
   /**
-   * Transport name.
-   */
-  public readonly name: string;
-  
-  /**
-   * Configuration options.
+   * Console-specific options.
    * @private
    */
-  private readonly options: SyncConsoleTransportOptions;
-  
-  /**
-   * Log level priority map.
-   * @private
-   */
-  private readonly levelPriority: Record<LogLevel, number> = {
-    trace: 0,
-    debug: 1,
-    info: 2,
-    success: 2,
-    warn: 3,
-    error: 4,
-    fatal: 5
-  };
+  private readonly consoleOptions: SyncConsoleTransportOptions;
   
   /**
    * ANSI color codes for each log level.
@@ -123,10 +112,10 @@ export class SyncConsoleTransport {
    * Console methods for each log level.
    * @private
    */
-  private readonly consoleMethods: Record<LogLevel, 'log' | 'info' | 'warn' | 'error'> = {
+  private readonly consoleMethods: Record<LogLevel, 'log' | 'info' | 'warn' | 'error' | 'debug'> = {
     trace: 'log',
-    debug: 'log',
-    info: 'info',
+    debug: 'debug',
+    info: 'log',
     success: 'log',
     warn: 'warn',
     error: 'error',
@@ -139,12 +128,18 @@ export class SyncConsoleTransport {
    * @param {SyncConsoleTransportOptions} [options] - Transport configuration.
    */
   constructor(options: SyncConsoleTransportOptions = {}) {
-    this.name = options.name || 'sync-console';
-    this.options = {
+    super({
+      name: options.name || 'sync-console',
+      enabled: options.enabled !== false,
+      level: options.level || 'debug',
+      format: 'plain'  // Console should use plain format by default
+    });
+    
+    this.consoleOptions = {
       useColors: options.useColors !== false,
       showTimestamp: options.showTimestamp || false,
       showLevel: options.showLevel !== false,
-      showMetadata: options.showMetadata || false,
+      showMetadata: options.showMetadata !== false, // Default to true for compatibility
       level: options.level || 'debug',
       prefix: options.prefix,
       ...options
@@ -158,16 +153,13 @@ export class SyncConsoleTransport {
    * completely synchronous with no promises or async operations.
    * 
    * @param {LogEntry} entry - The log entry.
-   * @returns {void} Nothing - this is a synchronous operation.
+   * @returns {Promise<void>} Resolves immediately since this is synchronous.
+   * @protected
+   * @override
    */
-  public log(entry: LogEntry): void {
-    // Check log level
-    if (!this.shouldLog(entry.level)) {
-      return;
-    }
-    
+  protected async doLog(entry: LogEntry): Promise<void> {
     // Format the log line
-    const line = this.formatEntry(entry);
+    const line = this.formatConsoleEntry(entry);
     
     // Get the appropriate console method
     const method = this.consoleMethods[entry.level] || 'log';
@@ -175,18 +167,39 @@ export class SyncConsoleTransport {
     // Direct, synchronous output
     console[method](line);
   }
-
+  
   /**
-   * Checks if a log level should be logged.
+   * High-performance synchronous log method.
    * 
-   * @param {LogLevel} level - The log level to check.
-   * @returns {boolean} True if should log.
-   * @private
+   * Called directly by TransportManager.logSync() to avoid async overhead.
+   * This method provides maximum performance by skipping Promise allocation.
+   * 
+   * @param {LogEntry} entry - The log entry.
+   * @returns {void}
+   * @public
    */
-  private shouldLog(level: LogLevel): boolean {
-    const entryPriority = this.levelPriority[level] ?? 2;
-    const configPriority = this.levelPriority[this.options.level!] ?? 0;
-    return entryPriority >= configPriority;
+  public logSync(entry: LogEntry): void {
+    if (!this.enabled || !this.shouldLog(entry)) {
+      return;
+    }
+    
+    this.stats.processed++;
+    
+    try {
+      // Format the log line
+      const line = this.formatConsoleEntry(entry);
+      
+      // Get the appropriate console method
+      const method = this.consoleMethods[entry.level] || 'log';
+      
+      // Direct, synchronous output
+      console[method](line);
+      
+      this.stats.succeeded++;
+    } catch (error) {
+      this.stats.failed++;
+      this.handleError(error as Error);
+    }
   }
 
   /**
@@ -196,18 +209,18 @@ export class SyncConsoleTransport {
    * @returns {string} Formatted log line.
    * @private
    */
-  private formatEntry(entry: LogEntry): string {
+  private formatConsoleEntry(entry: LogEntry): string {
     const parts: string[] = [];
     
     // Add prefix if configured
-    if (this.options.prefix) {
-      parts.push(this.options.prefix);
+    if (this.consoleOptions.prefix) {
+      parts.push(this.consoleOptions.prefix);
     }
     
     // Add timestamp if configured
-    if (this.options.showTimestamp) {
+    if (this.consoleOptions.showTimestamp) {
       const timestamp = entry.timestamp || new Date().toISOString();
-      if (this.options.useColors) {
+      if (this.consoleOptions.useColors) {
         parts.push(`\x1b[90m${timestamp}\x1b[0m`);
       } else {
         parts.push(`[${timestamp}]`);
@@ -215,9 +228,9 @@ export class SyncConsoleTransport {
     }
     
     // Add log level if configured
-    if (this.options.showLevel) {
+    if (this.consoleOptions.showLevel) {
       const level = entry.level.toUpperCase().padEnd(7);
-      if (this.options.useColors) {
+      if (this.consoleOptions.useColors) {
         const color = this.levelColors[entry.level] || '\x1b[37m';
         parts.push(`${color}${level}\x1b[0m`);
       } else {
@@ -229,16 +242,28 @@ export class SyncConsoleTransport {
     parts.push(entry.message);
     
     // Add metadata if configured
-    if (this.options.showMetadata && entry.context) {
+    if (this.consoleOptions.showMetadata && entry.context) {
       const meta = this.formatMetadata(entry.context);
       if (meta) {
         parts.push(meta);
       }
     }
     
-    // Add error stack if present
-    if (entry.error && entry.error.stack) {
-      parts.push('\n' + entry.error.stack);
+    // Add error stack if present - check both entry.error and entry.context.err
+    const error = entry.error || (entry.context && (entry.context as any).err);
+    if (error) {
+      // Format error display
+      if (typeof error === 'object' && 'message' in error) {
+        // Display as "Error - message" format
+        const errorObj = error as { message: string; stack?: string };
+        parts.push(`Error - ${errorObj.message}`);
+        if (errorObj.stack) {
+          parts.push('\n' + errorObj.stack);
+        }
+      } else if (typeof error === 'object' && 'stack' in error) {
+        const errorObj = error as { stack: string };
+        parts.push('\n' + errorObj.stack);
+      }
     }
     
     return parts.join(' ');
@@ -256,22 +281,31 @@ export class SyncConsoleTransport {
       return '';
     }
     
+    // Filter out internal fields and error (which is displayed separately)
+    const filteredMeta = { ...metadata };
+    delete filteredMeta.err;
+    delete filteredMeta.error;
+    delete filteredMeta.level;
+    delete filteredMeta.time;
+    delete filteredMeta.msg;
+    delete filteredMeta.loggerId;
+    
     // For simple objects, inline them
-    const keys = Object.keys(metadata);
+    const keys = Object.keys(filteredMeta);
     if (keys.length === 0) {
       return '';
     }
     
     if (keys.length <= 3) {
       const pairs = keys.map(key => {
-        const value = metadata[key];
+        const value = filteredMeta[key];
         if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
           return `${key}=${value}`;
         }
         return `${key}=[object]`;
       });
       
-      if (this.options.useColors) {
+      if (this.consoleOptions.useColors) {
         return `\x1b[90m{${pairs.join(', ')}}\x1b[0m`;
       } else {
         return `{${pairs.join(', ')}}`;
@@ -280,8 +314,8 @@ export class SyncConsoleTransport {
     
     // For complex objects, use JSON
     try {
-      const json = JSON.stringify(metadata, null, 2);
-      if (this.options.useColors) {
+      const json = JSON.stringify(filteredMeta, null, 2);
+      if (this.consoleOptions.useColors) {
         return `\n\x1b[90m${json}\x1b[0m`;
       } else {
         return `\n${json}`;
@@ -292,22 +326,14 @@ export class SyncConsoleTransport {
   }
 
   /**
-   * Checks if transport is enabled.
-   * This transport is always enabled unless explicitly disabled.
-   * 
-   * @returns {boolean} True if enabled.
-   */
-  public get enabled(): boolean {
-    return true;
-  }
-
-  /**
    * Initializes the transport.
    * No-op for console transport.
    * 
-   * @returns {void}
+   * @returns {Promise<void>}
+   * @protected
+   * @override
    */
-  public init(): void {
+  protected async doInit(): Promise<void> {
     // No initialization needed for console
   }
 
@@ -315,32 +341,11 @@ export class SyncConsoleTransport {
    * Closes the transport.
    * No-op for console transport.
    * 
-   * @returns {void}
+   * @returns {Promise<void>}
+   * @protected
+   * @override
    */
-  public close(): void {
+  protected async doClose(): Promise<void> {
     // No cleanup needed for console
-  }
-
-  /**
-   * Flushes any pending output.
-   * No-op for console transport since it's always synchronous.
-   * 
-   * @returns {void}
-   */
-  public flush(): void {
-    // Console is always synchronous, nothing to flush
-  }
-
-  /**
-   * Gets transport statistics.
-   * 
-   * @returns {object} Transport stats.
-   */
-  public getStats(): object {
-    return {
-      name: this.name,
-      type: 'sync-console',
-      enabled: true
-    };
   }
 }

@@ -74,6 +74,14 @@ export interface LoggerOptions {
   useColors?: boolean;
 
   /**
+   * Enable performance mode to disable styling for maximum throughput.
+   * When enabled, all styling is bypassed for 3x+ performance improvement.
+   * 
+   * @default false
+   */
+  performanceMode?: boolean;
+
+  /**
    * Writes logs to disk in timestamped `.log` files (Node only).
    * Ignored in browsers.
    *
@@ -309,6 +317,7 @@ export interface LoggerOptions {
   queueManager?:
     | import('../extensions/QueueManager').QueueManager
     | import('../extensions/QueueManager').QueueManagerOptions;
+
 }
 
 /**

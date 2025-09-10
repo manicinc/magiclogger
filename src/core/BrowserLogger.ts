@@ -1267,4 +1267,185 @@ export class BrowserLogger extends LoggerBase {
     this.styleCache.clear();
     this.storageQueue.length = 0;
   }
+
+  // Timer support for unified API
+  private timers = new Map<string, number>();
+  
+  /**
+   * Starts a timer with the given label.
+   * Uses browser's performance.now() for high precision.
+   * 
+   * @param label - Label for the timer
+   * 
+   * @example
+   * ```typescript
+   * logger.time('api-call');
+   * await fetch('/api/data');
+   * logger.timeEnd('api-call'); // Logs: "api-call: 234.5ms"
+   * ```
+   * @public
+   */
+  public time(label: string): void {
+    this.timers.set(label, performance.now());
+  }
+
+  /**
+   * Stops a timer and logs the elapsed time.
+   * 
+   * @param label - Label of the timer to stop
+   * @public
+   */
+  public timeEnd(label: string): void {
+    const start = this.timers.get(label);
+    if (start) {
+      const duration = performance.now() - start;
+      this.timers.delete(label);
+      this.info(`${label}: ${duration.toFixed(2)}ms`);
+    }
+  }
+
+  // Counter support for unified API
+  private counters = new Map<string, number>();
+  
+  /**
+   * Counts the number of times this method is called with the same label.
+   * 
+   * @param label - Label for the counter (default: 'default')
+   * 
+   * @example
+   * ```typescript
+   * logger.count('button-clicks'); // "button-clicks: 1"
+   * logger.count('button-clicks'); // "button-clicks: 2"
+   * ```
+   * @public
+   */
+  public count(label = 'default'): void {
+    const current = this.counters.get(label) || 0;
+    const next = current + 1;
+    this.counters.set(label, next);
+    this.info(`${label}: ${next}`);
+  }
+
+  /**
+   * Resets a counter to zero.
+   * 
+   * @param label - Label of the counter to reset
+   * @public
+   */
+  public countReset(label = 'default'): void {
+    this.counters.delete(label);
+  }
+
+  /**
+   * Displays text in a decorative box (browser console limitation).
+   * Falls back to styled console output.
+   * 
+   * @param text - Text to display in box
+   * @param options - Box formatting options
+   * 
+   * @example
+   * ```typescript
+   * logger.box('Success!', {
+   *   borderColor: ['green']
+   * });
+   * ```
+   * @public
+   */
+  public box(
+    text: string,
+    options: {
+      border?: 'single' | 'double' | 'rounded' | 'heavy';
+      color?: ColorName[];
+      borderColor?: ColorName[];
+      padding?: number;
+    } = {}
+  ): void {
+    // Browser console doesn't support box drawing, use styled output
+    const borderColor = options.borderColor || ['cyan'];
+    const color = options.color || ['white'];
+    
+    // Create a visual separator
+    console.log('%c' + '═'.repeat(text.length + 4), this.getConsoleStyle(borderColor));
+    console.log('%c║ ' + text + ' ║', this.getConsoleStyle(color));
+    console.log('%c' + '═'.repeat(text.length + 4), this.getConsoleStyle(borderColor));
+  }
+
+  /**
+   * Prints a formatted list with bullets.
+   * 
+   * @param items - Array of items to display
+   * @param options - List formatting options
+   * 
+   * @example
+   * ```typescript
+   * logger.list(['Item 1', 'Item 2', 'Item 3']);
+   * ```
+   * @public
+   */
+  public list(
+    items: string[],
+    options: {
+      bullet?: string;
+      indent?: number;
+      bulletColor?: ColorName[];
+      itemColor?: ColorName[];
+    } = {}
+  ): void {
+    const bullet = options.bullet || '•';
+    const bulletColor = options.bulletColor || ['cyan'];
+    const itemColor = options.itemColor || ['white'];
+    const indent = ' '.repeat(options.indent || 2);
+    
+    items.forEach(item => {
+      console.log(
+        '%c' + indent + bullet + ' %c' + item,
+        this.getConsoleStyle(bulletColor),
+        this.getConsoleStyle(itemColor)
+      );
+    });
+  }
+
+  /**
+   * Helper to get console style string from color names.
+   * @private
+   */
+  private getConsoleStyle(colors: ColorName[]): string {
+    const styles: string[] = [];
+    
+    for (const color of colors) {
+      switch (color) {
+        case 'red': styles.push('color: #ff5555'); break;
+        case 'green': styles.push('color: #50fa7b'); break;
+        case 'yellow': styles.push('color: #f1fa8c'); break;
+        case 'blue': styles.push('color: #8be9fd'); break;
+        case 'magenta': styles.push('color: #ff79c6'); break;
+        case 'cyan': styles.push('color: #8be9fd'); break;
+        case 'white': styles.push('color: #f8f8f2'); break;
+        case 'gray': styles.push('color: #6272a4'); break;
+        case 'bold': styles.push('font-weight: bold'); break;
+        case 'italic': styles.push('font-style: italic'); break;
+        case 'underline': styles.push('text-decoration: underline'); break;
+        default: break;
+      }
+    }
+    
+    return styles.join('; ');
+  }
+
+  /**
+   * Prints a separator line (browser console limitation).
+   * 
+   * @param char - Character to use for separator
+   * @param width - Width of separator
+   * @param color - Colors to apply
+   * @public
+   */
+  public separator(char = '─', width = 50, color?: ColorName[]): void {
+    const line = char.repeat(width);
+    if (color) {
+      console.log('%c' + line, this.getConsoleStyle(color));
+    } else {
+      console.log(line);
+    }
+  }
 }

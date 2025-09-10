@@ -28,9 +28,9 @@ interface LoggerOptions {
   theme?: string | ThemeDefinition;
   
   // Performance features
-  buffer?: BufferOptions;
-  sampling?: SamplingOptions;
-  rateLimit?: RateLimitOptions;
+  buffer?: BufferOptions;         // Buffer configuration for batching
+  sampling?: SamplingOptions;      // Sample logs to reduce volume
+  rateLimit?: RateLimitOptions;    // Rate limiting to prevent log flooding
   
   // Security
   redaction?: RedactionOptions;
@@ -648,6 +648,34 @@ MagicLogger outputs logs in the MAGIC Schema format, preserving styling informat
 ```
 
 The `styles` array contains `[startIndex, endIndex, styleString]` tuples that preserve text formatting across any transport or platform.
+
+---
+
+## Performance Notes
+
+### Optimization Techniques
+
+MagicLogger employs several optimizations for competitive performance:
+
+- **Fast-path detection**: Plain messages without `<` or `\x1b` characters skip all parsing
+- **Timestamp caching**: Reuses Date objects and ISO strings within the same millisecond
+- **Lazy style evaluation**: Only parses styles when angle brackets or ANSI codes are detected
+- **Transport caching**: Caches transport count to avoid repeated array operations
+
+### Performance Tips
+
+For maximum throughput:
+```typescript
+// Use plain messages when possible
+logger.info('Plain message');  // Fastest
+
+// Avoid unnecessary metadata
+logger.info('Message');  // Fast
+logger.info('Message', { data: 123 });  // Slower
+
+// Disable colors if not needed
+const logger = new Logger({ useColors: false });
+```
 
 ---
 

@@ -157,7 +157,7 @@ async function measureAllScenarios() {
   };
   
   const results = {};
-  console.log('📏 Measuring bundle sizes...');
+  console.log('📏 Measuring bundle sizes (all scenarios for console output)...');
   
   for (const [name, imports] of Object.entries(scenarios)) {
     try {
@@ -168,6 +168,32 @@ async function measureAllScenarios() {
       console.warn(`  ⚠️ Could not measure ${name}`);
     }
   }
+  
+  // Log detailed breakdown to console for visibility
+  console.log('\n📊 Detailed Bundle Analysis:');
+  console.log('\nCore Scenarios:');
+  ['Core (bare minimum)', 'Core + Console Transport', 'Core + File Transport', 'Core + HTTP Transport', 'Core + All Basic Transports']
+    .forEach(name => {
+      if (results[name]) console.log(`  ${name}: ${prettyBytes(results[name])}`);
+    });
+  
+  console.log('\nIndividual Transports:');
+  ['Console Transport Only', 'File Transport Only', 'HTTP Transport Only']
+    .forEach(name => {
+      if (results[name]) console.log(`  ${name}: ${prettyBytes(results[name])}`);
+    });
+  
+  console.log('\nOptional Features:');
+  ['Core + Schema Validation', 'Validation Module Only']
+    .forEach(name => {
+      if (results[name]) console.log(`  ${name}: ${prettyBytes(results[name])}`);
+    });
+  
+  console.log('\nExtensions:');
+  ['Extensions: Sampler Only', 'Extensions: RateLimiter Only', 'Extensions: Redactor Only']
+    .forEach(name => {
+      if (results[name]) console.log(`  ${name}: ${prettyBytes(results[name])}`);
+    });
   
   return results;
 }
@@ -249,71 +275,25 @@ async function injectIntoReadme(table) {
     console.warn('  ⚠️ No badges block found in README');
   }
 
-  // UPDATE BUILD OUTPUT SECTION
-  console.log('📊 Updating build output section...');
+  // UPDATE BUILD OUTPUT SECTION - Only write essential core info to README
+  console.log('📊 Updating build output section with essential info only...');
   const sectionHeader = `## 📦 Build Output Sizes`;
   const sectionRegex = new RegExp(
     `${sectionHeader}[\\s\\S]*?(?=\\n## |$)`,
     'm'
   );
   
-  // Build core scenarios table
-  const coreScenarios = [
+  // Only include the most essential core scenarios in README
+  const essentialScenarios = [
     ['Core (bare minimum)', allMeasurements['Core (bare minimum)']],
     ['Core + Console Transport', allMeasurements['Core + Console Transport']],
-    ['Core + File Transport', allMeasurements['Core + File Transport']],
-    ['Core + HTTP Transport', allMeasurements['Core + HTTP Transport']],
     ['Core + All Basic Transports', allMeasurements['Core + All Basic Transports']],
   ].filter(([_, size]) => size)
     .map(([name, size]) => `| ${name} | ${prettyBytes(size)} |`)
     .join('\n');
   
-  // Build transport sizes table (individual)
-  const transportScenarios = [
-    ['Console Transport Only', allMeasurements['Console Transport Only']],
-    ['File Transport Only', allMeasurements['File Transport Only']],
-    ['HTTP Transport Only', allMeasurements['HTTP Transport Only']],
-  ].filter(([_, size]) => size)
-    .map(([name, size]) => `| ${name} | ${prettyBytes(size)} |`)
-    .join('\n');
-  
-  
-  // Build validation table
-  const validationScenarios = [
-    ['Core + Schema Validation', allMeasurements['Core + Schema Validation']],
-    ['Validation Module Only', allMeasurements['Validation Module Only']],
-  ].filter(([_, size]) => size)
-    .map(([name, size]) => `| ${name} | ${prettyBytes(size)} |`)
-    .join('\n');
-  
-  // Build extensions table
-  const extensionScenarios = [
-    ['Sampler', allMeasurements['Extensions: Sampler Only']],
-    ['RateLimiter', allMeasurements['Extensions: RateLimiter Only']],
-    ['Redactor', allMeasurements['Extensions: Redactor Only']],
-  ].filter(([_, size]) => size)
-    .map(([name, size]) => `| ${name} | ${prettyBytes(size)} |`)
-    .join('\n');
-  
-  let scenarioBlocks = '';
-  
-  if (coreScenarios) {
-    scenarioBlocks += `\n\n### Core Bundle Sizes (gzipped)\n\n| Scenario | Size |\n|----------|------|\n${coreScenarios}`;
-  }
-  
-  if (transportScenarios) {
-    scenarioBlocks += `\n\n### Individual Transport Sizes (gzipped)\n\n| Transport | Size |\n|-----------|------|\n${transportScenarios}`;
-  }
-  
-  if (validationScenarios) {
-    scenarioBlocks += `\n\n### Schema Validation (Optional, Lazy-loaded)\n\n| Scenario | Size |\n|----------|------|\n${validationScenarios}\n\n*Note: Validation is only loaded when schemas are explicitly set on ContextManager or TagManager.*`;
-  }
-  
-  if (extensionScenarios) {
-    scenarioBlocks += `\n\n### Extension Sizes (gzipped)\n\n| Extension | Size |\n|-----------|------|\n${extensionScenarios}`;
-  }
-  
-  const newSection = `${sectionHeader}\n\n${table}${scenarioBlocks}\n\n*Generated via \`scripts/analyze-build.js\`.*`;
+  // Simple, clean section with only essential info
+  const newSection = `${sectionHeader}\n\n${table}\n\n### Core Bundle Sizes (gzipped)\n\n| Scenario | Size |\n|----------|------|\n${essentialScenarios}\n\n*Generated via \`scripts/analyze-build.js\`.*`;
   
   if (sectionRegex.test(readme)) {
     // Replace existing section

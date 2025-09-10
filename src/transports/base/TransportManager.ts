@@ -6,6 +6,7 @@ import { isBrowserEnvironment } from '../../utils/environment';
 import type {
   TransportConfig,
   LogEntry,
+  MinimalLogEntry,
   TransportType,
   TransportStats,
 } from '../../types/transport';
@@ -659,32 +660,190 @@ export class TransportManager extends EventEmitter {
   }
 
   /**
-   * Log an entry to all transports.
+   * Convert minimal log entry to full LogEntry format if needed.
+   * @private
+   */
+  private toLogEntry(entry: MinimalLogEntry | LogEntry): LogEntry {
+    // If it's already a full LogEntry, return as-is
+    if ('id' in entry && 'timestamp' in entry) {
+      return entry as LogEntry;
+    }
+    
+    // Convert MinimalLogEntry to LogEntry
+    const minimal = entry as MinimalLogEntry;
+    const time = minimal.time || Date.now();
+    const levelMap: Record<number, string> = {
+      10: 'trace',
+      20: 'debug',
+      30: 'info',
+      35: 'success',
+      40: 'warn',
+      50: 'error',
+      60: 'fatal'
+    };
+    
+    const logEntry: LogEntry = {
+      id: `${time}-${Math.random().toString(36).substr(2, 9)}`,
+      timestamp: new Date(time).toISOString(),
+      timestampMs: time,
+      level: levelMap[minimal.level] || 'info',
+      message: minimal.plainMsg || minimal.msg || '',  // Use plain text if available
+      context: minimal,
+      loggerId: minimal.loggerId
+    };
+    
+    // Preserve styles if present
+    if (minimal.styles) {
+      logEntry.styles = minimal.styles;
+    }
+    
+    return logEntry;
+  }
+
+  /**
+   * High-performance synchronous log dispatch optimized for minimal overhead.
+   * 
+   * Performance optimizations:
+   * - Early exit conditions to avoid unnecessary processing
+   * - Cached transport list to reduce iteration overhead  
+   * - Minimal object allocation in hot path
+   * - Direct dispatch without promise overhead
+   * 
+   * @param {LogEntry} entry - Log entry to dispatch
+   * @returns {void}
+   */
+  public logSync(entry: MinimalLogEntry | LogEntry): void {
+    /**
+     * Fast path: Skip all processing if manager is closing.
+     */
+    if (this.isClosing) {
+      return;
+    }
+
+    /**
+     * Handle paused state - queue the raw entry without conversion
+     */
+    if (this.paused) {
+      // Only convert if we're actually queueing
+      this.queueEntry(this.toLogEntry(entry));
+      return;
+    }
+
+    /**
+     * Fast path: If no filters or transformers, skip conversion entirely
+     */
+    const hasFilters = this.globalFilters.length > 0;
+    const hasTransformers = this.globalTransformers.length > 0;
+    
+    // Only convert to full LogEntry if filters/transformers need it
+    let processedEntry: MinimalLogEntry | LogEntry = entry;
+    
+    if (hasFilters || hasTransformers) {
+      // Convert once for filters and transformers
+      const logEntry = this.toLogEntry(entry);
+      
+      // Apply filters
+      if (hasFilters) {
+        for (let i = 0; i < this.globalFilters.length; i++) {
+          if (!this.globalFilters[i]!(logEntry)) {
+            return;
+          }
+        }
+      }
+      
+      // Apply transformers
+      processedEntry = logEntry;
+      if (hasTransformers) {
+        for (let i = 0; i < this.globalTransformers.length; i++) {
+          processedEntry = this.globalTransformers[i]!(processedEntry as LogEntry);
+        }
+      }
+    }
+
+    /**
+     * Dispatch to all enabled transports.
+     * Pass MinimalLogEntry when possible to avoid conversion overhead.
+     */
+    for (const transport of this.transports.values()) {
+      if (!transport.enabled) {
+        continue;
+      }
+      
+      // Most transports can work with MinimalLogEntry
+      // Only convert to LogEntry if transport.shouldLog needs it
+      let entryToLog = processedEntry;
+      
+      // Check if transport needs full LogEntry for shouldLog check
+      if (!transport.shouldLog(processedEntry as LogEntry)) {
+        continue;
+      }
+      
+      try {
+        // Use synchronous method if available
+        if ('logSync' in transport && typeof (transport as any).logSync === 'function') {
+          (transport as any).logSync(entryToLog);
+        } else {
+          // Only convert to full LogEntry if transport.log needs it
+          if (!('id' in entryToLog)) {
+            entryToLog = this.toLogEntry(entryToLog as MinimalLogEntry);
+          }
+          transport.log(entryToLog as LogEntry);
+        }
+      } catch (error) {
+        this.handleError(error as Error, transport, entryToLog as LogEntry);
+      }
+    }
+
+    /**
+     * Add to aggregation buffer if enabled.
+     * Aggregation is used for metrics and statistics.
+     */
+    if (this.aggregationManager?.enabled) {
+      this.aggregationManager.logBuffer.push(processedEntry as LogEntry);
+      
+      /**
+       * Limit buffer size to prevent memory issues.
+       * Oldest entries are removed when limit is exceeded.
+       */
+      const maxBufferSize = 10000;
+      if (this.aggregationManager.logBuffer.length > maxBufferSize) {
+        this.aggregationManager.logBuffer = 
+          this.aggregationManager.logBuffer.slice(-maxBufferSize);
+      }
+    }
+  }
+
+  /**
+   * Asynchronous log method for backward compatibility.
+   * Modern transports use worker threads internally for async operations.
    *
    * @param {LogEntry} entry - Log entry
    * @returns {Promise<void>} Resolves when logged
    */
-  public async log(entry: LogEntry): Promise<void> {
+  public async log(entry: MinimalLogEntry | LogEntry): Promise<void> {
     // Check if closing
     if (this.isClosing) {
       return;
     }
 
+    // Convert to LogEntry if needed
+    const logEntry = this.toLogEntry(entry);
+
     // Check if paused
     if (this.paused) {
-      this.queueEntry(entry);
+      this.queueEntry(logEntry);
       return;
     }
 
     // Apply global filters
     for (const filter of this.globalFilters) {
-      if (!filter(entry)) {
+      if (!filter(logEntry)) {
         return; // Skip this entry
       }
     }
 
     // Apply global transformers
-    let transformedEntry = entry;
+    let transformedEntry = logEntry;
     for (const transformer of this.globalTransformers) {
       transformedEntry = transformer(transformedEntry);
     }

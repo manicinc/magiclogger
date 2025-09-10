@@ -1039,8 +1039,8 @@ describe('OTLPTransport', () => {
       // Should not send immediately
       expect(mockFetch).not.toHaveBeenCalled();
 
-      // Wait for batch timeout
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Wait for batch timeout (maxBatchTime is 50ms, wait a bit longer)
+      await new Promise(resolve => setTimeout(resolve, 150));
 
       expect(mockFetch).toHaveBeenCalledTimes(1);
     });

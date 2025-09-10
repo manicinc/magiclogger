@@ -847,7 +847,7 @@ logger.info('test'); // Comparable performance, simpler architecture
 
 **The Result:** Both achieve excellent performance. The choice comes down to whether you prioritize isolation (Pino) or simplicity (MagicLogger).
 
-#### When Worker Threads Actually Make Sense
+#### When Worker Threads Make Sense
 
 Despite choosing ring buffers by default, Worker Threads are valuable for:
 

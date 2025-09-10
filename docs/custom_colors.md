@@ -228,7 +228,7 @@ console.log('Custom colors in use:', customColors);
 
 Custom colors are **lazily loaded** and **tree-shakeable**:
 
-1. **No Bundle Impact**: The CustomColorRegistry is only loaded when you actually use custom colors
+1. **No Bundle Impact**: The CustomColorRegistry is only loaded when you use custom colors
 2. **Cached ANSI Codes**: Color codes are generated once and cached
 3. **Minimal Overhead**: Fallback resolution is fast and efficient
 

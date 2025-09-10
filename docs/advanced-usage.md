@@ -14,6 +14,32 @@ This guide covers advanced patterns and best practices for MagicLogger.
 
 ## Performance Optimization
 
+### Understanding MagicLogger's Performance Model
+
+MagicLogger uses several optimization techniques to achieve competitive performance:
+
+1. **Fast-path detection** - Plain messages bypass all styling overhead
+2. **Timestamp caching** - Reuses timestamps for burst logging
+3. **Lazy evaluation** - Only processes styles when needed
+4. **Worker threads** - File/HTTP transports use non-blocking I/O
+
+```typescript
+// High-performance configuration with styled output
+const logger = new AsyncLogger({
+  useColors: true,         // Styled output with minimal overhead in async mode
+  useConsole: false,       // Use only transports
+  transports: [
+    new AsyncFileTransport()  // High-performance file transport
+  ]
+});
+
+// Styled messages in async mode have only 13% overhead!
+logger.info('<green>✓</> Server started');  // 317K ops/sec
+
+// Our optimizations make styling nearly free
+logger.info('<cyan>User:</> <yellow>john@example.com</> <green>logged in</>');
+```
+
 ### Transport Optimization
 
 For high-throughput applications, optimize transport configuration:
@@ -50,18 +76,25 @@ Monitor and control memory usage at transport level:
 const logger = new AsyncLogger({
   transports: [
     new FileWorkerTransport({
-      // Worker manages its own memory
-    metrics.histogram('log.batch.size', entries.length);
-    
-    // Process entries
-    await transport.sendBatch(entries);
-    
-    // Force GC if needed (Node.js with --expose-gc)
-    if (global.gc && entries.length > 10000) {
-      global.gc();
-    }
-  }
+      filepath: './logs/app.log',
+      bufferSize: 65536
+    })
+  ]
 });
+
+// Custom batch processing with memory management
+async function processBatch(entries: LogEntry[]) {
+  // Track batch size
+  metrics.histogram('log.batch.size', entries.length);
+  
+  // Process entries
+  await transport.sendBatch(entries);
+  
+  // Force GC if needed (Node.js with --expose-gc)
+  if (global.gc && entries.length > 10000) {
+    global.gc();
+  }
+}
 
 // Monitor buffer stats
 setInterval(() => {

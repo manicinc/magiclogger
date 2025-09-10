@@ -19,10 +19,13 @@ export default defineConfig(options => {
     'transports/mongodb': 'src/transports/mongodb.ts',
     'transports/stream': 'src/transports/stream.ts',
     'transports/websocket': 'src/transports/websocket.ts',
-    'transports/null': 'src/transports/null.ts',
+    'transports/null': 'src/transports/null/index.ts',
     'transports/otlp': 'src/transports/otlp.ts',
     'transports/postgresql': 'src/transports/postgresql.ts',
     'transports/base': 'src/transports/index.ts', // registry + base classes
+    'transports/SyncFileTransport': 'src/transports/SyncFileTransport.ts', // High-performance sync file transport
+    'transports/AsyncFileTransport': 'src/transports/AsyncFileTransport.ts', // High-perf async with sonic-boom
+    'transports/FastAsyncFileTransport': 'src/transports/FastAsyncFileTransport.ts', // Optimized async transport
 
     // Theme system
     'theme/theme': 'src/theme/theme.ts',
@@ -35,6 +38,11 @@ export default defineConfig(options => {
 
     // Async utilities
     'async/logger': 'src/async/AsyncLogger.ts',
+    'async/AsyncLoggerWorker': 'src/async/AsyncLoggerWorker.ts',
+    
+    // Worker transports
+    'transports/worker/FileWorkerTransport': 'src/transports/worker/FileWorkerTransport.ts',
+    'transports/worker/FileWorker': 'src/transports/worker/FileWorker.ts',
     
     // Sync utilities
     'sync/logger': 'src/sync/SyncLogger.ts',

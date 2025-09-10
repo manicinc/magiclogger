@@ -166,3 +166,7 @@ repomix-output.txt
 # Windows NUL device file (created by accident in benchmarks)
 NUL
 nul
+
+# Performance benchmark test files and temporary directories
+scripts/performance/tmp-bench/
+scripts/performance/test-*.log

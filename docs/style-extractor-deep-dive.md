@@ -176,7 +176,7 @@ for (let i = 0; i < message.length; i++) {
   }
 }
 ```
-**Why rejected**: More code, harder to maintain, and actually slower in JavaScript than regex for this use case.
+**Why rejected**: More code, harder to maintain, and slower in JavaScript than regex for this use case.
 
 ### Approach 2: Recursive Descent Parser (Rejected)
 ```typescript

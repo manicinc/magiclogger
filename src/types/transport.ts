@@ -6,6 +6,22 @@ import type { LogLevel } from './logger';
 export type { LogLevel };
 
 /**
+ * Minimal log entry for maximum performance.
+ * This is what Logger creates internally.
+ * Transports can enrich this to full LogEntry if needed.
+ */
+export interface MinimalLogEntry {
+  /** Integer log level (10=trace, 20=debug, 30=info, 40=warn, 50=error, 60=fatal) */
+  level: number;
+  /** Unix timestamp in milliseconds */
+  time: number;
+  /** Log message */
+  msg: string;
+  /** Any additional properties are metadata */
+  [key: string]: any;
+}
+
+/**
  * Style range for efficient storage of formatting information.
  * Tuple format: [startIndex, endIndex, styleDescriptor]
  */

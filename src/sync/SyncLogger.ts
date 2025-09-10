@@ -13,10 +13,14 @@ import { Formatter } from '../core/Formatter';
 import { Printer } from '../core/Printer';
 import { StyleBuilder } from '../core/StyleBuilder';
 import { TemplateParser } from '../parsers/TemplateParser';
+import { TextStyler } from '../utils/TextStyler';
+import { TableFormatter } from '../utils/TableFormatter';
 import type { LoggerOptions, LogLevel } from '../types/logger';
 import type { ColorName } from '../types/colors';
 import type { IStyleBuilder } from '../types/styling';
+import type { StylePreset } from '../types/preset';
 import { ThemeManager } from '../theme/ThemeManager';
+import { PRESETS } from '../constants/preset';
 
 // Node.js imports for synchronous file operations
 // Import modules at the top for TypeScript
@@ -708,6 +712,255 @@ export class SyncLogger {
     const bar = fillChar.repeat(filled) + emptyChar.repeat(empty);
     const output = `[${bar}] ${percentage}%`;
     Printer.print(output);
+  }
+
+  /**
+   * Logs a custom styled message with optional prefix.
+   * Supports arbitrary color combinations and custom prefixes.
+   * 
+   * @param msg - Message to log
+   * @param colors - Array of color names to apply (default: ['white'])
+   * @param prefix - Custom prefix for the message (default: 'LOG')
+   * 
+   * @example
+   * ```typescript
+   * logger.custom('Database connected', ['green', 'bold'], 'DB');
+   * logger.custom('API rate limit warning', ['yellow', 'italic'], 'RATE');
+   * ```
+   * @public
+   */
+  public custom(msg: string, colors: ColorName[] = ['white'], prefix = 'LOG'): void {
+    const styled = TextStyler.styleParts([[msg, ...colors]], this.options.useColors);
+    const prefixStyled = this.s.dim(`[${prefix}]`);
+    this.log(`${prefixStyled} ${styled}`, 'info', { type: 'custom', prefix });
+  }
+
+  /**
+   * Logs a message with a predefined style preset.
+   * 
+   * @param msg - Message to log
+   * @param preset - Style preset name
+   * 
+   * @example
+   * ```typescript
+   * logger.styled('Critical system failure', 'error');
+   * logger.styled('Operation completed', 'success');
+   * ```
+   * @public
+   */
+  public styled(msg: string, preset: StylePreset): void {
+    const colors = PRESETS[preset] || PRESETS.info;
+    const styled = TextStyler.styleParts([[msg, ...colors]], this.options.useColors);
+    this.log(styled, 'info', { type: 'styled', preset });
+  }
+
+  /**
+   * Colors specific parts of a message based on a color map.
+   * 
+   * @param message - The message to log
+   * @param colorMap - Map of text patterns to color arrays
+   * @returns The styled message string
+   * 
+   * @example
+   * ```typescript
+   * logger.colorParts('User john_doe uploaded data.json', {
+   *   'john_doe': ['cyan', 'bold'],
+   *   'data.json': ['yellow']
+   * });
+   * ```
+   * @public
+   */
+  public colorParts(message: string, colorMap: Record<string, ColorName[]>): string {
+    let result = message;
+    for (const [text, colors] of Object.entries(colorMap)) {
+      const styled = TextStyler.styleParts([[text, ...colors]], this.options.useColors);
+      result = result.replace(new RegExp(text, 'g'), styled);
+    }
+    this.log(result, 'info', { type: 'colored-parts' });
+    return result;
+  }
+
+  /**
+   * Displays data in a formatted table.
+   * 
+   * @param data - Array of objects to display
+   * @param options - Table formatting options
+   * 
+   * @example
+   * ```typescript
+   * logger.table([
+   *   { name: 'Alice', role: 'Admin' },
+   *   { name: 'Bob', role: 'User' }
+   * ]);
+   * ```
+   * @public
+   */
+  public table(
+    data: Record<string, unknown>[],
+    options: {
+      border?: 'single' | 'double' | 'rounded' | 'heavy' | 'none';
+      headerColor?: ColorName[];
+      borderColor?: ColorName[];
+      alternateRowColors?: boolean;
+      alignment?: 'left' | 'center' | 'right';
+    } = {}
+  ): void {
+    if (!Array.isArray(data) || data.length === 0) {
+      return;
+    }
+    
+    const lines = TableFormatter.format(data, {
+      border: options.border || 'single',
+      headerColor: options.headerColor || ['brightWhite', 'bold'],
+      borderColor: options.borderColor || ['dim'],
+      alternateRowColors: options.alternateRowColors,
+      alignment: options.alignment || 'left',
+      padding: 1
+    }, this.options.useColors);
+    
+    lines.forEach((line: string) => {
+      this.log(line, 'info', { type: 'table' });
+    });
+  }
+
+  /**
+   * Prints text in a decorative box.
+   * 
+   * @param text - Text to display in box
+   * @param options - Box formatting options
+   * 
+   * @example
+   * ```typescript
+   * logger.box('Success!', {
+   *   border: 'double',
+   *   borderColor: ['green']
+   * });
+   * ```
+   * @public
+   */
+  public box(
+    text: string,
+    options: {
+      border?: 'single' | 'double' | 'rounded' | 'heavy';
+      color?: ColorName[];
+      borderColor?: ColorName[];
+      padding?: number;
+    } = {}
+  ): void {
+    const lines = TableFormatter.box(text, options, this.options.useColors);
+    lines.forEach((line: string) => {
+      this.log(line, 'info', { type: 'box' });
+    });
+  }
+
+  /**
+   * Prints a formatted list with bullets.
+   * 
+   * @param items - Array of items to display
+   * @param options - List formatting options
+   * 
+   * @example
+   * ```typescript
+   * logger.list(['Item 1', 'Item 2', 'Item 3']);
+   * ```
+   * @public
+   */
+  public list(
+    items: string[],
+    options: {
+      bullet?: string;
+      indent?: number;
+      bulletColor?: ColorName[];
+      itemColor?: ColorName[];
+    } = {}
+  ): void {
+    const lines = TableFormatter.list(items, options, this.options.useColors);
+    lines.forEach((line: string) => {
+      this.log(line, 'info', { type: 'list' });
+    });
+  }
+
+  // Timer support
+  private timers = new Map<string, number>();
+  
+  /**
+   * Starts a timer with the given label.
+   * 
+   * @param label - Timer label
+   * @example
+   * ```typescript
+   * logger.time('operation');
+   * // ... do work ...
+   * logger.timeEnd('operation');
+   * ```
+   * @public
+   */
+  public time(label: string): void {
+    this.timers.set(label, Date.now());
+  }
+
+  /**
+   * Stops a timer and logs elapsed time.
+   * 
+   * @param label - Timer label to stop
+   * @public
+   */
+  public timeEnd(label: string): void {
+    const start = this.timers.get(label);
+    if (start) {
+      const duration = Date.now() - start;
+      this.timers.delete(label);
+      this.log(`${label}: ${duration}ms`, 'info', { type: 'timer', duration });
+    }
+  }
+
+  // Counter support
+  private counters = new Map<string, number>();
+  
+  /**
+   * Counts occurrences with a label.
+   * 
+   * @param label - Counter label
+   * @example
+   * ```typescript
+   * logger.count('api-calls'); // "api-calls: 1"
+   * logger.count('api-calls'); // "api-calls: 2"
+   * ```
+   * @public
+   */
+  public count(label = 'default'): void {
+    const current = this.counters.get(label) || 0;
+    const next = current + 1;
+    this.counters.set(label, next);
+    this.log(`${label}: ${next}`, 'info', { type: 'counter', count: next });
+  }
+
+  /**
+   * Resets a counter.
+   * 
+   * @param label - Counter label to reset
+   * @public
+   */
+  public countReset(label = 'default'): void {
+    this.counters.delete(label);
+  }
+
+  /**
+   * Creates a log group (for API compatibility).
+   * 
+   * @param label - Group label
+   * @public
+   */
+  public group(label: string): void {
+    this.log(`▼ ${label}`, 'info', { type: 'group-start' });
+  }
+
+  /**
+   * Ends a log group (for API compatibility).
+   * @public
+   */
+  public groupEnd(): void {
+    // Just for API compatibility
   }
 }
 

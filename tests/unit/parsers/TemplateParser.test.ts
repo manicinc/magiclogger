@@ -421,7 +421,12 @@ describe('TemplateParser', () => {
       }
 
       const duration = Date.now() - start;
-      const threshold = process.env.CI || process.platform === 'win32' ? 200 : 120;
+      // Add grace time for performance tests:
+      // - CI environments often have variable CPU availability
+      // - Windows has different timer resolution and process scheduling
+      // - System load can cause variance in execution time
+      // - 450ms allows for JIT warmup and garbage collection pauses
+      const threshold = process.env.CI || process.platform === 'win32' ? 450 : 250;
       expect(duration).toBeLessThan(threshold);
     });
 

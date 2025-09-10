@@ -21,21 +21,18 @@ export class NullTransport extends Transport {
 
   /**
    * Override log to bypass unnecessary checks for performance.
-   * Returns already resolved promise for maximum speed.
+   * Returns pre-resolved promise for minimum overhead.
    */
   public async log(_entry: LogEntry): Promise<void> {
-    // Ultra-fast path: return void directly (implicitly wrapped in Promise)
-    if (!this.enabled) return;
-    // No-op - the mere return is the fastest possible operation
+    // Fast path - immediate return, no checks for maximum performance
+    // The async keyword makes this return a resolved promise instantly
   }
 
   /**
    * Override logBatch for performance.
    */
   public async logBatch(_entries: LogEntry[]): Promise<void> {
-    // Ultra-fast path for batch
-    if (!this.enabled) return;
-    // No-op
+    // Fast path for batch - immediate return
   }
 
   protected async doInit(): Promise<void> {

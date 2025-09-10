@@ -281,8 +281,8 @@ export class Colorizer {
       return true;
     }
 
-    // Check if stdout is a TTY
-    if (typeof process !== 'undefined' && process.stdout && !process.stdout.isTTY) {
+    // Check if stdout is explicitly NOT a TTY (not just undefined)
+    if (typeof process !== 'undefined' && process.stdout && process.stdout.isTTY === false) {
       this._supportsColor = false;
       return false;
     }
