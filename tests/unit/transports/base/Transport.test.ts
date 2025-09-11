@@ -764,7 +764,8 @@ describe('Transport', () => {
       const id2 = transport.testGenerateId();
 
       expect(id1).not.toBe(id2);
-      expect(id1).toMatch(/^\d+-[a-z0-9]+$/);
+      // Should match UUID format or fallback format (timestamp-counter-hex)
+      expect(id1).toMatch(/^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|\d+-\d{5}-[0-9a-f]{6})$/);
     });
   });
 

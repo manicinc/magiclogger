@@ -21,6 +21,7 @@ import type { IStyleBuilder } from '../types/styling';
 import type { StylePreset } from '../types/preset';
 import { ThemeManager } from '../theme/ThemeManager';
 import { PRESETS } from '../constants/preset';
+import { generateId } from '../utils/idGenerator';
 
 // Node.js imports for synchronous file operations
 // Import modules at the top for TypeScript
@@ -282,7 +283,7 @@ export class SyncLogger {
     const msg = typeof message === 'string' ? message : String(message);
     // Keep both context and meta keys for compatibility with transports/tests
     const entry = {
-      id: `${epochMs}-${Math.random().toString(36).slice(2, 9)}`,
+      id: generateId(),
       timestamp: isoTimestamp,
       timestampMs: epochMs,
       level: String(level),

@@ -140,7 +140,8 @@ describe('ObservabilityMiddleware', () => {
 
       const result = middleware.process(mockEntry, mockContext);
 
-      expect(result.entry?.context?.correlationId).toMatch(/^\d+-[a-z0-9]+$/);
+      // Should match UUID format or fallback format (timestamp-counter-hex)
+      expect(result.entry?.context?.correlationId).toMatch(/^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|\d+-\d{5}-[0-9a-f]{6})$/);
     });
   });
 

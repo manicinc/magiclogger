@@ -2,6 +2,7 @@
 
 import { Middleware, type MiddlewareResult, type MiddlewareContext } from './Middleware';
 import type { LogEntry } from '../types/transport';
+import { generateId } from '../utils/idGenerator';
 
 /**
  * Metrics collector interface for observability.
@@ -299,8 +300,8 @@ export class ObservabilityMiddleware extends Middleware {
       return crypto.randomUUID();
     }
 
-    // Fallback to timestamp + random
-    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    // Fallback to our ID generator
+    return generateId();
   }
 
   /**

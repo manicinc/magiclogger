@@ -22,7 +22,26 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { Transport } from './base/Transport';
-import type { LogEntry, LogLevel, MinimalLogEntry } from '../types/transport';
+import type { LogEntry, LogLevel, MinimalLogEntry, TransportStats } from '../types/transport';
+
+/**
+ * Extended statistics interface for SyncFileTransport
+ * Includes file-specific metrics in addition to base transport stats
+ */
+export interface SyncFileTransportStats extends TransportStats {
+  filepath: string;
+  currentFileSize: number;
+  bufferSize: number;
+  flushInterval: number;
+  writeCount: number;
+  bytesWritten: number;
+  avgWriteTime: number;
+  lastWriteTime: number;
+  rotations: number;
+  compressions: number;
+  totalBytesCompressed: number;
+  totalBytesWritten: number;
+}
 
 /**
  * Configuration options for the synchronous file transport.
@@ -623,10 +642,9 @@ export class SyncFileTransport extends Transport {
    *
    * @public
    * @override
-   * @returns {Record<string, any>} Transport statistics with file metrics
+   * @returns {SyncFileTransportStats} Transport statistics with file metrics
    */
-  // @ts-expect-error - Intentionally extending return type with additional metrics
-  public getStats(): Record<string, any> {
+  public getStats(): SyncFileTransportStats {
     const baseStats = super.getStats();
 
     /**

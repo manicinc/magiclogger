@@ -11,6 +11,7 @@
  */
 
 import { EventEmitter } from 'events';
+import { generateId } from '../../utils/idGenerator';
 import type {
   Transport as ITransport,
   TransportOptions,
@@ -587,7 +588,7 @@ export abstract class Transport extends EventEmitter implements ITransport {
    * @protected
    */
   protected generateId(): string {
-    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    return generateId();
   }
 
   /**

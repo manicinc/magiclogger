@@ -3,6 +3,7 @@
 import { EventEmitter } from 'events';
 import type { Transport } from '../../types/transport';
 import { isBrowserEnvironment } from '../../utils/environment';
+import { generateId } from '../../utils/idGenerator';
 import type {
   TransportConfig,
   LogEntry,
@@ -683,7 +684,7 @@ export class TransportManager extends EventEmitter {
     };
 
     const logEntry: LogEntry = {
-      id: `${time}-${Math.random().toString(36).substr(2, 9)}`,
+      id: generateId(),
       timestamp: new Date(time).toISOString(),
       timestampMs: time,
       level: levelMap[minimal.level] || 'info',
@@ -1480,7 +1481,7 @@ export class TransportManager extends EventEmitter {
    * @private
    */
   private generateId(): string {
-    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    return generateId();
   }
 
   /**
