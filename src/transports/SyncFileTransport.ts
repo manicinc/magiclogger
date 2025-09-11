@@ -35,12 +35,11 @@ export interface SyncFileTransportStats extends TransportStats {
   flushInterval: number;
   writeCount: number;
   bytesWritten: number;
-  avgWriteTime: number;
-  lastWriteTime: number;
+  bufferLength: number;
+  flushCount: number;
+  averageFlushSize: number;
   rotations: number;
-  compressions: number;
-  totalBytesCompressed: number;
-  totalBytesWritten: number;
+  lastWrite: number;
 }
 
 /**
