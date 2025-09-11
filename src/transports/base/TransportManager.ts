@@ -745,7 +745,8 @@ export class TransportManager extends EventEmitter {
       // Apply filters
       if (hasFilters) {
         for (let i = 0; i < this.globalFilters.length; i++) {
-          if (!this.globalFilters[i]!(logEntry)) {
+          const filter = this.globalFilters[i];
+          if (filter && !filter(logEntry)) {
             return;
           }
         }
@@ -755,7 +756,10 @@ export class TransportManager extends EventEmitter {
       processedEntry = logEntry;
       if (hasTransformers) {
         for (let i = 0; i < this.globalTransformers.length; i++) {
-          processedEntry = this.globalTransformers[i]!(processedEntry as LogEntry);
+          const transformer = this.globalTransformers[i];
+          if (transformer) {
+            processedEntry = transformer(processedEntry as LogEntry);
+          }
         }
       }
     }
@@ -780,8 +784,8 @@ export class TransportManager extends EventEmitter {
       
       try {
         // Use synchronous method if available
-        if ('logSync' in transport && typeof (transport as any).logSync === 'function') {
-          (transport as any).logSync(entryToLog);
+        if ('logSync' in transport && typeof (transport as Record<string, unknown>).logSync === 'function') {
+          (transport as Record<string, unknown> & { logSync: (entry: unknown) => void }).logSync(entryToLog);
         } else {
           // Only convert to full LogEntry if transport.log needs it
           if (!('id' in entryToLog)) {

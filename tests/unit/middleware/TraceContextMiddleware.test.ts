@@ -9,7 +9,6 @@ import type { W3CTraceContext } from '../../../src/utils/trace-context';
 import type { MiddlewareContext } from '../../../src/middleware/Middleware';
 
 describe('TraceContextMiddleware', () => {
-  let middleware: TraceContextMiddleware;
   
   const createMockEntry = (overrides?: Partial<LogEntry>): LogEntry => ({
     id: 'test-id',

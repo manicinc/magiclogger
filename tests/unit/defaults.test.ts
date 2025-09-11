@@ -1,11 +1,10 @@
 import { Logger, createAsyncLogger } from '../../src/index';
 
 describe('Default Console Transport', () => {
-  let consoleLogSpy: jest.SpyInstance;
   let consoleInfoSpy: jest.SpyInstance;
 
   beforeEach(() => {
-    consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {
+    jest.spyOn(console, 'log').mockImplementation(() => {
       /* ignore */
     });
     consoleInfoSpy = jest.spyOn(console, 'info').mockImplementation(() => {

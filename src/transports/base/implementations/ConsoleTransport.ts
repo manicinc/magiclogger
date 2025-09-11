@@ -335,7 +335,7 @@ export class ConsoleTransport extends Transport {
 
     // Error details - check multiple locations where error might be stored
     const error = entry.error || 
-                  (entry.context && ((entry.context as any).err || (entry.context as any).error));
+                  (entry.context && ((entry.context as Record<string, unknown>).err || (entry.context as Record<string, unknown>).error));
     if (error) {
       // Display as "Error: name - message" format
       if (typeof error === 'object' && 'message' in error) {
@@ -417,15 +417,15 @@ export class ConsoleTransport extends Transport {
    */
   private formatMetadata(label: string, data?: Record<string, unknown>): string {
     // Filter out internal fields and error (which is displayed separately)
-    const filteredData = { ...data };
-    delete (filteredData as any).err;
-    delete (filteredData as any).error;
-    delete (filteredData as any).level;
-    delete (filteredData as any).time;
-    delete (filteredData as any).msg;
-    delete (filteredData as any).plainMsg;
-    delete (filteredData as any).loggerId;
-    delete (filteredData as any).styles;
+    const filteredData = { ...data } as Record<string, unknown>;
+    delete filteredData.err;
+    delete filteredData.error;
+    delete filteredData.level;
+    delete filteredData.time;
+    delete filteredData.msg;
+    delete filteredData.plainMsg;
+    delete filteredData.loggerId;
+    delete filteredData.styles;
     
     // Skip if no data left after filtering
     if (Object.keys(filteredData).length === 0) {

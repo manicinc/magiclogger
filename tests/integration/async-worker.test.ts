@@ -65,7 +65,7 @@ class TestTransport {
    * @param {LogEntry} entry - Entry to check
    * @returns {boolean} Always true for testing
    */
-  shouldLog(entry: LogEntry): boolean {
+  shouldLog(_entry: LogEntry): boolean {
     return true;
   }
 }
@@ -168,8 +168,8 @@ describe('AsyncLogger Worker Thread Integration', () => {
           await new Promise(resolve => setTimeout(resolve, 10));
           this.entries.push(entry);
         },
-        async flush(): Promise<void> {},
-        async close(): Promise<void> {},
+        async flush(): Promise<void> { /* No-op for test */ },
+        async close(): Promise<void> { /* No-op for test */ },
         shouldLog(): boolean { return true; }
       };
       

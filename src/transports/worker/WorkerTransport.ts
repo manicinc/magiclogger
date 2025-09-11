@@ -93,9 +93,9 @@ export class WorkerTransport implements Transport {
   async close(): Promise<void> {
     this.closing = true;
     
-    if (this.worker) {
+    if (this.worker && this.metaBuffer) {
       // Signal worker to flush and exit
-      const meta = new Int32Array(this.metaBuffer!);
+      const meta = new Int32Array(this.metaBuffer);
       Atomics.store(meta, 0, -1); // Shutdown signal
       Atomics.notify(meta, 0, 1);
       
@@ -130,8 +130,9 @@ export class WorkerTransport implements Transport {
   }
 
   private writeToRingBuffer(data: Uint8Array): void {
-    const buffer = new Uint8Array(this.ringBuffer!);
-    const meta = new Int32Array(this.metaBuffer!);
+    if (!this.ringBuffer || !this.metaBuffer) return;
+    const buffer = new Uint8Array(this.ringBuffer);
+    const meta = new Int32Array(this.metaBuffer);
     const bufferSize = this.options.bufferSize || RING_BUFFER_SIZE;
     
     // Calculate write position
@@ -165,7 +166,7 @@ export class WorkerTransport implements Transport {
     }
     
     // Write header
-    const header = new DataView(this.ringBuffer!, this.writeIndex, HEADER_SIZE);
+    const header = new DataView(this.ringBuffer, this.writeIndex, HEADER_SIZE);
     header.setUint32(0, dataLen, true);
     header.setUint32(4, BufferState.WRITING, true);
     
@@ -197,10 +198,10 @@ export function createWorkerTransport(options?: any): Transport {
     return {
       name: 'worker-fallback',
       enabled: false,
-      init: async () => {},
-      close: async () => {},
+      init: async () => { /* Fallback: no-op */ },
+      close: async () => { /* Fallback: no-op */ },
       shouldLog: () => false,
-      log: async () => {},
+      log: async () => { /* Fallback: no-op */ },
     };
   }
   
@@ -211,10 +212,10 @@ export function createWorkerTransport(options?: any): Transport {
     return {
       name: 'worker-fallback',
       enabled: false,
-      init: async () => {},
-      close: async () => {},
+      init: async () => { /* Fallback: no-op */ },
+      close: async () => { /* Fallback: no-op */ },
       shouldLog: () => false,
-      log: async () => {},
+      log: async () => { /* Fallback: no-op */ },
     };
   }
 }

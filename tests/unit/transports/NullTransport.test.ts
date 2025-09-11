@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from '@jest/globals';
 import { NullTransport } from '../../../src/transports/null';
-import type { LogEntry, TransportOptions } from '../../../src/types/transport';
+import type { LogEntry } from '../../../src/types/transport';
 
 describe('NullTransport', () => {
   let transport: NullTransport;

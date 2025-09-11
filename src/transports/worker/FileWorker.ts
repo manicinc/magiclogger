@@ -122,7 +122,8 @@ class FileWorkerHandler {
     
     // Write buffered data
     while (this.writeBuffer.length > 0) {
-      const line = this.writeBuffer.shift()!;
+      const line = this.writeBuffer.shift();
+      if (!line) break;
       const canContinue = this.stream.write(line);
       this.totalWritten++;
       
@@ -158,7 +159,11 @@ class FileWorkerHandler {
     // Flush the stream
     if (this.stream) {
       await new Promise<void>((resolve, reject) => {
-        this.stream!.write('', (error) => {
+        if (!this.stream) {
+          resolve();
+          return;
+        }
+        this.stream.write('', (error) => {
           if (error) reject(error);
           else resolve();
         });
@@ -178,7 +183,11 @@ class FileWorkerHandler {
     // Close stream
     if (this.stream) {
       await new Promise<void>((resolve) => {
-        this.stream!.end(() => resolve());
+        if (!this.stream) {
+          resolve();
+          return;
+        }
+        this.stream.end(() => resolve());
       });
       this.stream = null;
     }

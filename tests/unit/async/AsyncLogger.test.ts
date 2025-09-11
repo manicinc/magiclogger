@@ -7,7 +7,7 @@
  * - No microtasks or fake async
  */
 
-import { AsyncLogger, type AsyncLoggerOptions } from '../../../src/async/AsyncLogger';
+import { AsyncLogger } from '../../../src/async/AsyncLogger';
 import type { Transport } from '../../../src/types/transport';
 import type { LogEntry } from '../../../src/types/transport';
 

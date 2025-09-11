@@ -229,7 +229,7 @@ describe('FileTransport', () => {
       (transport as any).level = 'debug';
 
       const levels: LogEntry['level'][] = ['info', 'warn', 'error', 'debug', 'success'];
-      const entries: LogEntry[] = levels.map((level, index) => ({
+      const entries: LogEntry[] = levels.map((level, _index) => ({
         id: `test-${level}`,
         timestamp: new Date().toISOString(),
         timestampMs: Date.now(),

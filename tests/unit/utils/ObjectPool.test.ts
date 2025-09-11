@@ -4,7 +4,6 @@
  */
 
 import { LogEntryPool, getGlobalPool, resetGlobalPool } from '../../../src/utils/ObjectPool';
-import type { LogEntry } from '../../../src/types/transport';
 
 describe('ObjectPool', () => {
   describe('LogEntryPool', () => {
@@ -43,7 +42,8 @@ describe('ObjectPool', () => {
       const pool = new LogEntryPool();
       
       const initialStats = pool.getStats();
-      const initialSize = initialStats.poolSize;
+      // Track initial pool size for validation
+      expect(initialStats.poolSize).toBeGreaterThan(0);
       
       const entry = pool.acquire();
       entry.id = 'test-123';
@@ -102,7 +102,7 @@ describe('ObjectPool', () => {
       // Acquire some entries
       const entry1 = pool.acquire();
       const entry2 = pool.acquire();
-      const entry3 = pool.acquire();
+      pool.acquire(); // entry3 is acquired but not released
       
       // Release some back
       pool.release(entry1);
