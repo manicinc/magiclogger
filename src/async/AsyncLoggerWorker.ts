@@ -219,7 +219,7 @@ class WorkerState {
       
       for (const entry of this.buffer) {
         // Process styles in worker thread (if needed)
-        let processedEntry = { ...entry };
+        const processedEntry = { ...entry };
         
         // Check if we need to process styles
         if (entry.useColors && entry.message && 

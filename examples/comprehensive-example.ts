@@ -44,7 +44,7 @@ import {
   FileTransport,
   HTTPTransport,
   StreamTransport,
-  WebSocketTransport,
+  // WebSocketTransport,  // Not available in Node.js environment
 
   // Factory functions
   createConsole,

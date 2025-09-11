@@ -521,7 +521,7 @@ export class AsyncLogger extends EventEmitter {
      * Resolve worker script path based on the runtime environment.
      * The worker script must be a compiled JavaScript file.
      */
-    let workerPath: string = '';
+    let workerPath = '';
     
     /**
      * Strategy 1: Check for __dirname (CommonJS environments).

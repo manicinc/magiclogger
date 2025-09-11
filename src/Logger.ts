@@ -8,6 +8,7 @@ import { Formatter } from './core/Formatter';
 import { StyleBuilder } from './core/StyleBuilder';
 import { TemplateParser } from './parsers/TemplateParser';
 import { TextStyler } from './utils/TextStyler';
+import { TableFormatter } from './utils/TableFormatter';
 import type { LoggerOptions, LogLevel } from './types/logger';
 import type { StylePreset } from './types/preset';
 import type { ColorName } from './types/colors';
@@ -161,9 +162,9 @@ export class Logger {
     | null;
   
   // Performance optimizations: cache frequently used values
-  private cachedTransportCount: number = -1;
-  private hasTransports: boolean = false;
-  private useConsoleOutput: boolean = false;
+  private cachedTransportCount = -1;
+  private hasTransports = false;
+  private useConsoleOutput = false;
   
   // Object pooling removed - minimal objects are fast to create
   
@@ -1082,7 +1083,6 @@ export class Logger {
     }
     
     // Use TableFormatter for proper formatting
-    const { TableFormatter } = require('./utils/TableFormatter.js');
     const lines = TableFormatter.format(data, {
       border: options.border || 'single',
       headerColor: options.headerColor || ['brightWhite', 'bold'],
@@ -1112,8 +1112,7 @@ export class Logger {
    * ```
    * @public
    */
-  public separator(char: string = '─', width: number = 50, color?: ColorName[]): void {
-    const { TableFormatter } = require('./utils/TableFormatter.js');
+  public separator(char = '─', width = 50, color?: ColorName[]): void {
     const line = TableFormatter.separator(char, width, color);
     this.log(line, 'info', { type: 'separator' });
   }
@@ -1147,7 +1146,6 @@ export class Logger {
       padding?: number;
     } = {}
   ): void {
-    const { TableFormatter } = require('./utils/TableFormatter.js');
     const lines = TableFormatter.box(text, options, this.useColors);
     lines.forEach((line: string) => {
       this.log(line, 'info', { type: 'box' });
@@ -1167,7 +1165,6 @@ export class Logger {
       itemColor?: ColorName[];
     } = {}
   ): void {
-    const { TableFormatter } = require('./utils/TableFormatter.js');
     const lines = TableFormatter.list(items, options, this.useColors);
     lines.forEach((line: string) => {
       this.log(line, 'info', { type: 'list' });

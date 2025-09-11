@@ -133,7 +133,7 @@ export class TableFormatter {
     return str.replace(/\x1b\[[0-9;]*m/g, '');
   }
 
-  static padString(str: string, width: number, align: string = 'left'): string {
+  static padString(str: string, width: number, align = 'left'): string {
     const visibleLength = this.stripAnsi(str).length;
     const padTotal = Math.max(0, width - visibleLength);
     
@@ -151,7 +151,7 @@ export class TableFormatter {
   static format(
     data: Record<string, unknown>[],
     options: TableOptions = {},
-    useColors: boolean = true
+    useColors = true
   ): string[] {
     if (!data || data.length === 0) return [];
 
@@ -259,7 +259,7 @@ export class TableFormatter {
     return lines;
   }
 
-  static separator(char: string = '─', width: number = 50, color?: ColorName[], useColors: boolean = true): string {
+  static separator(char = '─', width = 50, color?: ColorName[], useColors = true): string {
     const line = char.repeat(width);
     return color && useColors ? TextStyler.styleParts([[line, ...color]], useColors) : line;
   }
@@ -272,7 +272,7 @@ export class TableFormatter {
       borderColor?: ColorName[];
       padding?: number;
     } = {},
-    useColors: boolean = true
+    useColors = true
   ): string[] {
     const {
       border = 'single',
@@ -328,7 +328,7 @@ export class TableFormatter {
       bulletColor?: ColorName[];
       itemColor?: ColorName[];
     } = {},
-    useColors: boolean = true
+    useColors = true
   ): string[] {
     const {
       bullet = '•',

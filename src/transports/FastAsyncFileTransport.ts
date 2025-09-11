@@ -26,12 +26,12 @@ export class FastAsyncFileTransport extends Transport {
   private readonly filepath: string;
   private fd: number | null = null;
   private buffer: string[] = [];
-  private bufferSize: number = 0;
+  private bufferSize = 0;
   private readonly maxBufferSize: number;
   private readonly maxWrite: number;
-  private isWriting: boolean = false;
+  private isWriting = false;
   private writeQueue: string[] = [];
-  private closing: boolean = false;
+  private closing = false;
 
   constructor(options: FastAsyncFileTransportOptions) {
     super({
