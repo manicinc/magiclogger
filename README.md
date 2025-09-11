@@ -1,19 +1,26 @@
 # MagicLogger
 
 <p align="center">
- <img src="website/static/img/magiclog-primary-no-subtitle-transparent-4x.png" alt="MagicLog" width="520"/>
- <img src="https://img.shields.io/badge/core_gzip-36kb-brightgreen.svg" alt="core_gzip">
- <img src="https://img.shields.io/badge/core_console_gzip-36kb-brightgreen.svg" alt="core_console_gzip">
- <img src="https://img.shields.io/badge/core_transports_gzip-41kb-brightgreen.svg" alt="core_transports_gzip">
+  <img src="website/static/img/magiclog-primary-no-subtitle-transparent-4x.png" alt="MagicLog" width="520"/>
 </p>
+
 <p align="center">
-  <!-- GitHub stats and features -->
+  <!-- Bundle Sizes -->
+  <img src="https://img.shields.io/badge/core_gzip-36kb-brightgreen.svg" alt="core_gzip">
+  <img src="https://img.shields.io/badge/core_console_gzip-36kb-brightgreen.svg" alt="core_console_gzip">
+  <img src="https://img.shields.io/badge/core_transports_gzip-41kb-brightgreen.svg" alt="core_transports_gzip">
+</p>
+
+<p align="center">
+  <!-- Project Stats -->
   <a href="https://github.com/manicinc/magiclogger"><img src="https://img.shields.io/github/stars/manicinc/magiclogger?style=social" alt="GitHub Stars"></a>
+  <img src="https://img.shields.io/npm/v/magiclogger" alt="npm version">
+  <a href="https://codecov.io/gh/manicinc/magiclogger"><img src="https://codecov.io/gh/manicinc/magiclogger/branch/master/graph/badge.svg" alt="codecov"/></a>
+  <br />
+  <!-- Tech Stack -->
   <img src="https://img.shields.io/badge/typescript-100%25-blue" alt="TypeScript"> 
   <img src="https://img.shields.io/badge/node-14+-green" alt="Node.js"> 
-  <img src="https://img.shields.io/npm/v/magiclogger" alt="npm version">
-  <img src="https://img.shields.io/badge/license-MIT-blue" alt="License"> 
-  <a href="https://codecov.io/gh/manicinc/magiclogger"><img src="https://codecov.io/gh/manicinc/magiclogger/branch/master/graph/badge.svg" alt="codecov"/></a>
+  <img src="https://img.shields.io/badge/license-MIT-blue" alt="License">
 </p>
 
 ## 🚀 Universal Color Logging Standard
@@ -116,7 +123,7 @@ logger.info(logger.s.blue.bold('INFO:') + ' Processing ' + logger.s.cyan(filenam
 
 ## Key Features
 
-### Structured Logging wi
+### Structured Logging with NDJSON
 
 MagicLogger supports **NDJSON (Newline Delimited JSON)** format: each log entry is a complete JSON object on its own line.
 
@@ -1308,6 +1315,8 @@ MagicLogger achieves high performance through efficient batching, optional worke
 | **MagicLogger (Sync)** | 135,311 | 0.007 | 0.005 | Plain, sync |
 | **MagicLogger (Sync + Styles)** | 51,415 | 0.019 | 0.026 | Styled, sync |
 
+*Generated via `npm run perf:update` - see [scripts/performance/](./scripts/performance/)*
+
 #### How Styling Works
 
 **Default Mode (Logger/SyncLogger):**
@@ -1315,6 +1324,7 @@ MagicLogger achieves high performance through efficient batching, optional worke
 - Uses efficient regex-based parsing to extract `<style>text</>` markup
 - Produces plain text + style ranges array for the MAGIC schema
 - LRU cache reduces repeated style generation overhead
+- [Deep dive into our style optimization techniques →](./docs/performance-design.md#styling-optimizations)
 
 **AsyncLogger with Worker Threads (optional):**
 - When `worker.enabled: true`, style extraction moves to worker thread

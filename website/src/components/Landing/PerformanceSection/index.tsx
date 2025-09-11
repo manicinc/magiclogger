@@ -10,22 +10,22 @@ const benchmarks = {
     title: 'Synchronous Performance',
     description: 'Direct logging throughput - immediate output for development',
     data: [
-      { name: 'Bunyan (Styled)', value: 113824, percentage: 100, color: '#fa709a' },
-      { name: 'Winston (Styled)', value: 108775, percentage: 96, color: '#fee140' },
-      { name: 'Pino (Plain)', value: 85096, percentage: 75, color: '#4facfe' },
-      { name: 'MagicLogger (Plain)', value: 57671, percentage: 51, color: '#667eea' },
-      { name: 'MagicLogger (Styled)', value: 50316, percentage: 44, color: '#9945ff' }
+      { name: 'Winston (Styled)', value: 287066, percentage: 100, color: '#fee140' },
+      { name: 'Winston (Plain)', value: 212986, percentage: 74, color: '#ffd700' },
+      { name: 'MagicLogger (Plain)', value: 135311, percentage: 47, color: '#667eea' },
+      { name: 'Pino (Manual ANSI)', value: 85714, percentage: 30, color: '#4facfe' },
+      { name: 'MagicLogger (Styled)', value: 51415, percentage: 18, color: '#9945ff' }
     ]
   },
   async: {
     title: 'Async Performance',
-    description: 'Production performance with full color styling and MAGIC Schema',
+    description: 'Production performance with real file I/O',
     data: [
-      { name: 'Pino (Styled)', value: 255949, percentage: 100, color: '#4facfe' },
-      { name: 'MagicLogger (Styled)', value: 238199, percentage: 93, color: '#667eea' },
-      { name: 'MagicLogger (Plain)', value: 211947, percentage: 83, color: '#9945ff' },
-      { name: 'Winston (Styled)', value: 114647, percentage: 45, color: '#fee140' },
-      { name: 'Winston (Plain)', value: 103252, percentage: 40, color: '#ffd700' }
+      { name: 'Pino (Plain)', value: 443133, percentage: 100, color: '#4facfe' },
+      { name: 'Pino (Manual ANSI)', value: 316090, percentage: 71, color: '#00d4ff' },
+      { name: 'Pino (Pretty)', value: 231927, percentage: 52, color: '#40a9ff' },
+      { name: 'MagicLogger (Plain)', value: 196760, percentage: 44, color: '#667eea' },
+      { name: 'MagicLogger (Styled)', value: 169096, percentage: 38, color: '#9945ff' }
     ]
   },
   bundle: {
@@ -110,9 +110,12 @@ export default function PerformanceSection() {
           <div className={styles.insight}>
             <h4>Performance Note</h4>
             <p>
-              MagicLogger is built for developers who want beautiful, styled logs preserved end-to-end through production.
-              With 238,199 ops/sec async styled performance (2x faster than Winston!), the MAGIC Schema ensures your carefully
-              crafted colored logs display perfectly in dashboards, not just your terminal. The future of logging is visual.
+              MagicLogger prioritizes developer experience with beautiful, styled logs preserved end-to-end through production.
+              While Pino leads in raw throughput (443k ops/sec), MagicLogger achieves respectable performance (169k ops/sec styled)
+              with the MAGIC Schema ensuring your colored logs display perfectly in dashboards. 
+              <a href="/docs/performance-design#styling-optimizations" style={{ marginLeft: '8px', color: '#667eea' }}>
+                Learn about our style optimization techniques →
+              </a>
             </p>
           </div>
         </div>
