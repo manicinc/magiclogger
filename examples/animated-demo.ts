@@ -1,1167 +1,472 @@
 /**
- * MagicLogger Animated Demo
+ * MagicLogger Animated Demo - Visual Spectacle Edition
  *
- * This script showcases MagicLogger's visual capabilities through
- * animated demonstrations with eye-catching effects and practical examples.
- * Each demo includes the API calls used, making it educational as well.
+ * This demo showcases MagicLogger's rich styling capabilities through
+ * dynamic, colorful animations and practical examples.
  *
- * Run with one of these commands:
- *   - ESM:       node dist/examples/animated-demo.js
- *   - TypeScript: npx ts-node examples/animated-demo.ts
+ * Run with: npx tsx examples/animated-demo.ts
  */
 
-import { Logger, COLORS, ColorName, StylePreset } from '../src';
-import { ANSI } from '../src/constants/ansi';
+import { Logger, COLORS, type ColorName } from '../dist/index.js';
 
 // Helper function to pause execution
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
 
+// Clear screen helper
+const clearScreen = () => process.stdout.write('\x1Bc');
+
 /**
- * Creates a rainbow text effect by applying different colors to each character
+ * Creates a rainbow gradient effect across text
  */
 function rainbowText(text: string): string {
   const colors: ColorName[] = ['red', 'yellow', 'green', 'cyan', 'blue', 'magenta'];
-
   return Array.from(text)
     .map((char, i) => {
-      const colorIndex = i % colors.length;
-      const color = colors[colorIndex];
-      return `${COLORS[color as keyof typeof COLORS]}${char}${COLORS.reset}`;
+      if (char === ' ') return char;
+      const color = colors[i % colors.length];
+      return `${COLORS[color]}${char}${COLORS.reset}`;
     })
     .join('');
 }
 
 /**
- * Creates a typewriter effect by revealing text character by character
+ * Creates a gradient effect between two colors
  */
-async function typewriterEffect(text: string, speed = 10): Promise<void> {
-  for (let i = 0; i <= text.length; i++) {
-    // Clear line and write partial text
-    process.stdout.write(`\r${ANSI.ERASE_LINE}${text.substring(0, i)}`);
-    await sleep(speed);
-  }
-  console.log(); // New line after complete
+function gradientText(text: string, _startColor: ColorName, _endColor: ColorName): string {
+  const startRGB = { r: 255, g: 0, b: 0 }; // Simplified for demo
+  const endRGB = { r: 0, g: 0, b: 255 };
+  const steps = text.length;
+
+  return Array.from(text)
+    .map((char, i) => {
+      if (char === ' ') return char;
+      const progress = i / steps;
+      const r = Math.round(startRGB.r + (endRGB.r - startRGB.r) * progress);
+      const g = Math.round(startRGB.g + (endRGB.g - startRGB.g) * progress);
+      const b = Math.round(startRGB.b + (endRGB.b - startRGB.b) * progress);
+      return `\x1b[38;2;${r};${g};${b}m${char}\x1b[0m`;
+    })
+    .join('');
 }
 
 /**
- * Creates a spinning animation
+ * Show the MagicLogger logo with animated effects
  */
-async function spinnerAnimation(text: string, duration = 2000): Promise<void> {
-  const frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
-  const colors: ColorName[] = ['cyan', 'green', 'yellow', 'blue', 'magenta'];
-  const startTime = Date.now();
-  let i = 0;
+async function showAnimatedLogo(_logger: Logger): Promise<void> {
+  clearScreen();
 
-  while (Date.now() - startTime < duration) {
-    const frame = frames[i % frames.length];
-    const color = colors[Math.floor(i / 2) % colors.length];
-    process.stdout.write(
-      `\r${COLORS[color as keyof typeof COLORS]}${frame}${COLORS.reset} ${text}`
-    );
-    i++;
-    await sleep(80);
-  }
-
-  process.stdout.write(`\r${ANSI.ERASE_LINE}${COLORS.green}✓${COLORS.reset} ${text}\n`);
-}
-
-/**
- * Creates a pulsing text effect
- */
-async function pulsingText(text: string, cycles = 5): Promise<void> {
-  const brightColors: ColorName[] = [
-    'brightRed',
-    'brightYellow',
-    'brightGreen',
-    'brightCyan',
-    'brightBlue',
-    'brightMagenta',
+  const lines = [
+    '███╗   ███╗ █████╗  ██████╗ ██╗ ██████╗',
+    '████╗ ████║██╔══██╗██╔════╝ ██║██╔════╝',
+    '██╔████╔██║███████║██║  ███╗██║██║     ',
+    '██║╚██╔╝██║██╔══██║██║   ██║██║██║     ',
+    '██║ ╚═╝ ██║██║  ██║╚██████╔╝██║╚██████╗',
+    '╚═╝     ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═╝ ╚═════╝',
+    '',
+    '██╗      ██████╗  ██████╗  ██████╗ ███████╗██████╗ ',
+    '██║     ██╔═══██╗██╔════╝ ██╔════╝ ██╔════╝██╔══██╗',
+    '██║     ██║   ██║██║  ███╗██║  ███╗█████╗  ██████╔╝',
+    '██║     ██║   ██║██║   ██║██║   ██║██╔══╝  ██╔══██╗',
+    '███████╗╚██████╔╝╚██████╔╝╚██████╔╝███████╗██║  ██║',
+    '╚══════╝ ╚═════╝  ╚═════╝  ╚═════╝ ╚══════╝╚═╝  ╚═╝',
   ];
-  const normalColors: ColorName[] = ['red', 'yellow', 'green', 'cyan', 'blue', 'magenta'];
 
-  for (let i = 0; i < cycles; i++) {
-    for (let phase = 0; phase < 2; phase++) {
-      const colorSet = phase === 0 ? normalColors : brightColors;
-      const colorIndex = i % colorSet.length;
-      const color = colorSet[colorIndex];
-
-      process.stdout.write(
-        `\r${ANSI.ERASE_LINE}${COLORS[color as keyof typeof COLORS]}${text}${COLORS.reset}`
-      );
-      await sleep(200);
-    }
+  // Animated reveal with rainbow effect
+  for (let i = 0; i < lines.length; i++) {
+    const rainbowed = rainbowText(lines[i]);
+    console.log(rainbowed);
+    await sleep(100);
   }
-  console.log(); // New line after complete
+
+  await sleep(500);
+  console.log('');
+
+  // Tagline with gradient
+  const tagline = gradientText(
+    '✨ Beautiful Terminal & Browser Logs Styling Made Magical ✨',
+    'cyan',
+    'magenta'
+  );
+  console.log(tagline);
+
+  await sleep(1000);
 }
 
 /**
- * Displays API usage example in a styled box
+ * Demonstrate inline styling with multiple colors in one message
  */
-function showApiUsage(title: string, code: string): void {
-  const lines = code.trim().split('\n');
-  const width = Math.max(...lines.map(line => line.length)) + 4;
-
-  const topBorder = `┌${'─'.repeat(width)}┐`;
-  const bottomBorder = `└${'─'.repeat(width)}┘`;
-
+async function inlineStyleShowcase(logger: Logger): Promise<void> {
+  // Header
   console.log();
-  console.log(`${COLORS.brightCyan}${COLORS.bold}🔍 API Usage: ${title}${COLORS.reset}`);
-  console.log(`${COLORS.cyan}${topBorder}${COLORS.reset}`);
+  logger.header('  🎨 INLINE STYLE MIXING  ', ['brightWhite', 'bgMagenta', 'bold']);
+  console.log('═'.repeat(50));
+  await sleep(500);
 
-  lines.forEach(line => {
-    // Apply syntax highlighting for keywords
-    const coloredLine = line
-      .replace(
-        /(\bconst\b|\blet\b|\bfunction\b|\bawait\b|\breturn\b|\basync\b|\bfor\b|\bif\b)/g,
-        `${COLORS.brightMagenta}$1${COLORS.brightGreen}`
-      )
-      .replace(/(\blogger\.[\w.]+)/g, `${COLORS.brightYellow}$1${COLORS.brightGreen}`)
-      .replace(/(["'`].*?["'`])/g, `${COLORS.brightCyan}$1${COLORS.brightGreen}`);
+  // Multiple styles in one message
+  logger.info(
+    '<red.bold>ERROR:</> <yellow>Warning level</> <green>OK status</> <cyan.underline>Information</> <magenta.italic>Note</>'
+  );
+  await sleep(300);
 
-    console.log(
-      `${COLORS.cyan}│${COLORS.reset} ${COLORS.brightGreen}${coloredLine.padEnd(width - 1)}${
-        COLORS.reset
-      }${COLORS.cyan}│${COLORS.reset}`
+  // Gradient-like effect with multiple colors
+  logger.info(
+    '<red>R</><yellow>A</><green>I</><cyan>N</><blue>B</><magenta>O</><red>W</> ' +
+      '<dim>meets</> ' +
+      '<bold.underline>MagicLogger</>'
+  );
+  await sleep(300);
+
+  // Complex nested styling
+  logger.info(
+    '<bgBlue.white> SYSTEM </> <gray>|</> <green.bold>✓ Connected</> <gray>|</> <yellow>⚡ 42ms</> <gray>|</> <cyan.dim>user@host</>'
+  );
+  await sleep(300);
+
+  // Status indicators with colors
+  logger.info(
+    '🔴 <red.bold>Critical</> ' +
+      '🟡 <yellow.bold>Warning</> ' +
+      '🟢 <green.bold>Success</> ' +
+      '🔵 <blue.bold>Info</> ' +
+      '🟣 <magenta.bold>Debug</>'
+  );
+  await sleep(500);
+}
+
+/**
+ * Show animated progress bars and loading effects
+ */
+async function animatedProgressDemo(logger: Logger): Promise<void> {
+  console.log();
+  logger.header('  ⚡ ANIMATED PROGRESS  ', ['brightWhite', 'bgBlue', 'bold']);
+  console.log('═'.repeat(50));
+  await sleep(500);
+
+  // Animated progress bar
+  logger.info(logger.s.cyan('Downloading packages...'));
+  for (let i = 0; i <= 100; i += 10) {
+    process.stdout.write(
+      '\r' + logger.s.dim(`[${'█'.repeat(Math.floor(i / 3.3)).padEnd(30)}] ${i}%`)
     );
+    await sleep(100);
+  }
+  process.stdout.write('\n');
+  logger.success('✓ Download complete!');
+  await sleep(300);
+
+  // Loading spinner simulation
+  const spinners = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+  process.stdout.write('\n');
+  for (let i = 0; i < 20; i++) {
+    const spinner = spinners[i % spinners.length];
+    const colors = ['cyan', 'blue', 'magenta'] as ColorName[];
+    const color = colors[i % colors.length];
+    process.stdout.write(`\r${COLORS[color]}${spinner}${COLORS.reset} Processing...`);
+    await sleep(100);
+  }
+  process.stdout.write('\r✅ Processing complete!    \n');
+  await sleep(500);
+}
+
+/**
+ * Demonstrate the chainable style API
+ */
+async function chainableStyleAPI(logger: Logger): Promise<void> {
+  console.log();
+  logger.header('  🔗 CHAINABLE STYLE API  ', ['brightWhite', 'bgGreen', 'bold']);
+  console.log('═'.repeat(50));
+  await sleep(500);
+
+  // Using the .s (style) API
+  logger.info(
+    logger.s.red.bold('Error: ') +
+      logger.s.yellow('File not found: ') +
+      logger.s.cyan.underline('/path/to/file.js')
+  );
+  await sleep(300);
+
+  logger.info(
+    logger.s.green.bold('✓ Success: ') +
+      'Deployed ' +
+      logger.s.cyan.bold('v2.4.1') +
+      ' to ' +
+      logger.s.magenta.underline('production')
+  );
+  await sleep(300);
+
+  // Complex chaining
+  logger.info(
+    logger.s.bgBlue.white.bold(' STATUS ') +
+      ' ' +
+      logger.s.green('●') +
+      ' Active | ' +
+      logger.s.yellow('◐') +
+      ' Pending | ' +
+      logger.s.red('●') +
+      ' Failed'
+  );
+  await sleep(500);
+}
+
+/**
+ * Template literal styling with fmt
+ */
+async function templateLiteralStyling(logger: Logger): Promise<void> {
+  console.log();
+  logger.header('  📝 TEMPLATE LITERALS  ', ['brightWhite', 'bgCyan', 'bold']);
+  console.log('═'.repeat(50));
+  await sleep(500);
+
+  const errorCount = 3;
+  const warningCount = 7;
+  const duration = 1234;
+
+  // Using template literals with @ syntax
+  logger.info(
+    logger.s.red.bold(`Errors: ${errorCount}`) +
+      ' | ' +
+      logger.s.yellow(`Warnings: ${warningCount}`) +
+      ' | ' +
+      logger.s.green(`Duration: ${duration}ms`)
+  );
+  await sleep(300);
+
+  const username = 'alice';
+  const action = 'deployed';
+  const environment = 'production';
+
+  logger.info(
+    logger.s.cyan.bold(username) +
+      ' ' +
+      logger.s.dim('successfully') +
+      ' ' +
+      logger.s.green.bold(action) +
+      ' ' +
+      logger.s.dim('to') +
+      ' ' +
+      logger.s.magenta.underline(environment)
+  );
+  await sleep(500);
+}
+
+/**
+ * Beautiful data table with colors and proper borders
+ */
+async function colorfulTableDemo(logger: Logger): Promise<void> {
+  console.log();
+  logger.header('  📊 COLORFUL DATA TABLES  ', ['brightWhite', 'bgMagenta', 'bold']);
+  logger.separator('═', 50, ['cyan']);
+  await sleep(500);
+
+  // Table data with pre-styled values using logger.s
+  const tableData = [
+    {
+      endpoint: logger.s.cyan('/api/users'),
+      method: logger.s.green.bold('GET'),
+      p50: logger.s.green('45ms'),
+      p95: logger.s.yellow('120ms'),
+      p99: logger.s.red('250ms'),
+      status: logger.s.green.bold('✓'),
+    },
+    {
+      endpoint: logger.s.cyan('/api/posts'),
+      method: logger.s.blue.bold('POST'),
+      p50: logger.s.green('23ms'),
+      p95: logger.s.yellow('67ms'),
+      p99: logger.s.red('145ms'),
+      status: logger.s.green.bold('✓'),
+    },
+    {
+      endpoint: logger.s.cyan('/api/auth'),
+      method: logger.s.magenta.bold('PUT'),
+      p50: logger.s.green('89ms'),
+      p95: logger.s.yellow('203ms'),
+      p99: logger.s.red('412ms'),
+      status: logger.s.yellow.bold('!'),
+    },
+  ];
+
+  // Use the new table method with double borders
+  logger.table(tableData, {
+    border: 'double',
+    headerColor: ['brightWhite', 'bold'],
+    borderColor: ['blue'],
   });
 
-  console.log(`${COLORS.cyan}${bottomBorder}${COLORS.reset}`);
+  await sleep(500);
+}
+
+/**
+ * Real-world examples with beautiful formatting
+ */
+async function realWorldExamples(logger: Logger): Promise<void> {
   console.log();
+  logger.header('  🚀 REAL-WORLD EXAMPLES  ', ['brightWhite', 'bgRed', 'bold']);
+  console.log('═'.repeat(50));
+  await sleep(500);
+
+  // API Request Log
+  logger.info('<bgGreen.black> GET </> <cyan>/api/users/123</> <green.bold>200 OK</> <dim>42ms</>');
+  await sleep(200);
+
+  logger.info(
+    '<bgYellow.black> POST </> <cyan>/api/auth/login</> <yellow.bold>401 Unauthorized</> <dim>15ms</>'
+  );
+  await sleep(200);
+
+  logger.info(
+    '<bgRed.white> DELETE </> <cyan>/api/posts/456</> <red.bold>500 Error</> <dim>234ms</>'
+  );
+  await sleep(300);
+
+  // Deployment Status
+  logger.info(
+    logger.s.white('DEPLOY: ') +
+      logger.s.green('✓') +
+      ' Deployment ' +
+      logger.s.cyan.bold('v3.2.1') +
+      ' to ' +
+      logger.s.magenta.bold('production') +
+      ' ' +
+      logger.s.green.bold('successful')
+  );
+  await sleep(300);
+
+  // Git-style diff
+  logger.info('<green>+ Added new feature: Dark mode support</>');
+  logger.info('<red>- Removed deprecated API endpoint</>');
+  logger.info('<yellow>~ Modified user authentication flow</>');
+  await sleep(300);
+
+  // System monitoring
+  const cpuUsage = 78;
+  const memUsage = 45;
+  const diskUsage = 92;
+
+  logger.info(
+    `CPU: ${
+      cpuUsage > 80 ? logger.s.red.bold(`${cpuUsage}%`) : logger.s.green(`${cpuUsage}%`)
+    } | ` +
+      `MEM: ${
+        memUsage > 80 ? logger.s.red.bold(`${memUsage}%`) : logger.s.green(`${memUsage}%`)
+      } | ` +
+      `DISK: ${
+        diskUsage > 80 ? logger.s.red.bold(`${diskUsage}%`) : logger.s.green(`${diskUsage}%`)
+      }`
+  );
+  await sleep(500);
 }
 
 /**
- * Show formatted table example
+ * Show ASCII art and decorations
  */
-async function showTableExample(logger: Logger): Promise<void> {
-  logger.header('  TABLE FORMATTING  ', ['brightWhite', 'bgBlue', 'bold']);
+async function asciiArtAndDecorations(logger: Logger): Promise<void> {
+  console.log();
+  logger.header('  🎭 ASCII ART & DECORATIONS  ', ['black', 'bgYellow', 'bold']);
+  logger.separator('═', 50, ['yellow']);
   await sleep(500);
 
-  logger.custom(
-    'MagicLogger provides beautiful table formatting for structured data',
-    ['cyan'],
-    'TABLES'
-  );
+  // Box drawing using the new box method
+  logger.box('🌟 MagicLogger Features 🌟', {
+    border: 'double',
+    borderColor: ['cyan'],
+    color: ['yellow', 'bold'],
+    padding: 2,
+  });
   await sleep(300);
 
-  // Show API usage
-  showApiUsage(
-    'Table Formatting',
-    `
-// Create a data array of objects with consistent properties
-const userData = [
-  { id: 1, username: 'alice', role: 'Admin', lastLogin: '2023-05-15', status: 'Active' },
-  { id: 2, username: 'bob', role: 'User', lastLogin: '2023-05-10', status: 'Inactive' },
-  { id: 3, username: 'charlie', role: 'Editor', lastLogin: '2023-05-14', status: 'Active' }
-];
-
-// Display the data as a formatted table with custom header colors
-logger.table(userData, ['brightGreen', 'bold']);
-  `
-  );
-
-  await sleep(500);
-
-  // Sample data for the table
-  const userData = [
-    { id: 1, username: 'alice', role: 'Admin', lastLogin: '2023-05-15', status: 'Active' },
-    { id: 2, username: 'bob', role: 'User', lastLogin: '2023-05-10', status: 'Inactive' },
-    { id: 3, username: 'charlie', role: 'Editor', lastLogin: '2023-05-14', status: 'Active' },
-    { id: 4, username: 'dave', role: 'User', lastLogin: '2023-05-01', status: 'Locked' },
-    { id: 5, username: 'eve', role: 'Moderator', lastLogin: '2023-05-12', status: 'Active' },
-  ];
-
-  // Print the table with custom header colors
-  logger.table(userData, ['brightGreen', 'bold']);
-
-  await sleep(800);
-}
-
-/**
- * Demonstrate color factory functions
- */
-async function colorFactoryDemo(logger: Logger): Promise<void> {
-  logger.header('  COLOR FACTORY FUNCTIONS  ', ['brightWhite', 'bgBlue', 'bold']);
-  await sleep(500);
-
-  logger.custom('Create reusable color functions for consistent styling', ['cyan'], 'COLORS');
-  await sleep(300);
-
-  // Show API usage
-  showApiUsage(
-    'Color Factory',
-    `
-// Create reusable color functions
-const highlight = logger.color('yellow', 'bold');
-const code = logger.color('brightGreen');
-const error = logger.color('brightRed', 'bold');
-const path = logger.color('brightCyan', 'underline');
-
-// Use them in your output for consistent styling
-console.log(\`\${highlight('Important:')} Check the logs at \${path('./logs/app.log')}\`);
-console.log(\`Use \${code('logger.color()')} to create reusable styles\`);
-  `
-  );
-
-  await sleep(500);
-
-  // Create the color functions
-  const highlight = logger.color('yellow', 'bold');
-  const code = logger.color('brightGreen');
-  const error = logger.color('brightRed', 'bold');
-  const path = logger.color('brightCyan', 'underline');
-  const success = logger.color('green', 'bold');
-
-  // Use them in examples
-  console.log(`${highlight('Important:')} MagicLogger provides powerful styling capabilities`);
-  await sleep(300);
-
-  console.log(`Create styled text with ${code("logger.color('colorName', 'styleName')")}`);
-  await sleep(300);
-
-  console.log(
-    `${error('Warning:')} Once you start using MagicLogger, other loggers will seem boring!`
-  );
-  await sleep(300);
-
-  console.log(`Check documentation at ${path('https://github.com/yourusername/magiclogger')}`);
-  await sleep(300);
-
-  console.log(`${success('Pro tip:')} Combine with ${code('colorParts()')} for selective styling`);
-  await sleep(800);
-}
-
-/**
- * Demonstrate selective colorization
- */
-async function colorPartsDemo(logger: Logger): Promise<void> {
-  logger.header('  SELECTIVE COLORIZATION  ', ['brightWhite', 'bgBlue', 'bold']);
-  await sleep(500);
-
-  logger.custom('Apply different colors to specific parts of messages', ['cyan'], 'COLORIZE');
-  await sleep(300);
-
-  // Show API usage
-  showApiUsage(
-    'Selective Color Parts',
-    `
-// Apply different colors to specific parts of a message
-const formattedLog = logger.colorParts(
-  'Error: Failed to connect to database "users_db" on localhost:5432 - Connection timeout',
-  {
-    'Error:': ['brightRed', 'bold'],             // Error prefix in bright red and bold
-    'users_db': ['yellow', 'underline'],         // Database name highlighted and underlined
-    'localhost:5432': ['cyan'],                  // Server address in cyan
-    'Connection timeout': ['red', 'italic']      // Error description in red italic
-  }
-);
-
-console.log(formattedLog);
-  `
-  );
-
-  await sleep(500);
-
-  // Show examples of colorParts
-  console.log(
-    logger.colorParts(
-      'Error: Failed to connect to database "users_db" on localhost:5432 - Connection timeout',
-      {
-        'Error:': ['brightRed', 'bold'],
-        users_db: ['yellow', 'underline'],
-        'localhost:5432': ['cyan'],
-        'Connection timeout': ['red', 'italic'],
-      }
-    )
-  );
-  await sleep(400);
-
-  console.log(
-    logger.colorParts('Success: User signup completed for john.doe@example.com (User ID: 12345)', {
-      'Success:': ['green', 'bold'],
-      'john.doe@example.com': ['brightYellow', 'underline'],
-      'User ID: 12345': ['cyan', 'bold'],
-    })
-  );
-  await sleep(400);
-
-  console.log(
-    logger.colorParts('API Request: GET /api/users?page=1&limit=10 - Response: 200 OK (45ms)', {
-      'API Request:': ['blue', 'bold'],
-      GET: ['brightBlue', 'bold'],
-      '/api/users?page=1&limit=10': ['brightBlue', 'underline'],
-      '200 OK': ['green', 'bold'],
-      '45ms': ['magenta'],
-    })
-  );
-  await sleep(800);
-}
-
-/**
- * Demonstrate progress bars
- */
-async function progressBarDemo(logger: Logger): Promise<void> {
-  logger.header('  PROGRESS TRACKING  ', ['brightWhite', 'bgBlue', 'bold']);
-  await sleep(500);
-
-  logger.custom('Visualize progress with customizable progress bars', ['cyan'], 'PROGRESS');
-  await sleep(300);
-
-  // Show API usage
-  showApiUsage(
-    'Progress Bars',
-    `
-// Basic progress bar
-logger.progressBar(50);  // 50% complete with default style
-
-// Customized progress bar
-logger.progressBar(
-  75,                // Progress percentage (0-100)
-  30,                // Length of the bar in characters
-  '▓',               // Character for completed portion
-  '░'                // Character for incomplete portion
-);
-
-// Animated progress example
-for (let i = 0; i <= 100; i += 10) {
-  logger.progressBar(i, 40, '█', '░');
-  await sleep(200);  // Update every 200ms
-}
-  `
-  );
-
-  await sleep(500);
-
-  // Basic progress example
-  logger.custom('Basic progress bar (50%)', ['blue'], 'EXAMPLE 1');
-  logger.progressBar(50);
-  await sleep(500);
-
-  // Custom styling example
-  logger.custom('Custom progress bar styling (75%)', ['blue'], 'EXAMPLE 2');
-  logger.progressBar(75, 30, '▓', '░');
-  await sleep(500);
-
-  // Animated progress example
-  logger.custom('Animated progress (with delay between updates)', ['blue'], 'EXAMPLE 3');
-  for (let i = 0; i <= 100; i += 5) {
-    logger.progressBar(i, 40, '█', '░');
-    await sleep(50);
-  }
-
-  await sleep(500);
-  logger.success('Progress tracking complete');
-  await sleep(800);
-}
-
-/**
- * Demonstrate styled presets
- */
-async function stylePresetsDemo(logger: Logger): Promise<void> {
-  logger.header('  STYLE PRESETS  ', ['brightWhite', 'bgBlue', 'bold']);
-  await sleep(500);
-
-  logger.custom('Use predefined style combinations for consistent visuals', ['cyan'], 'PRESETS');
-  await sleep(300);
-
-  // Show API usage
-  showApiUsage(
-    'Style Presets',
-    `
-// Use predefined style combinations with logger.styled()
-logger.styled('This is important information', 'important');
-logger.styled('Operation completed successfully', 'success');
-logger.styled('Warning about potential issues', 'warning');
-logger.styled('Error message for failures', 'error');
-logger.styled('Subtle information or context', 'muted');
-logger.styled('Code sample or command', 'code');
-
-// Available presets:
-// 'info', 'success', 'warning', 'error', 'debug', 
-// 'important', 'highlight', 'muted', 'special', 'code', 'header'
-  `
-  );
-
-  await sleep(500);
-
-  // Display all available style presets with examples and their component styles
-  const allPresets: StylePreset[] = [
-    'info',
-    'success',
-    'warning',
-    'error',
-    'debug',
-    'important',
-    'highlight',
-    'muted',
-    'special',
-    'code',
-    'header',
-  ];
-
-  for (const preset of allPresets) {
-    logger.styled(`This message uses the "${preset}" preset style with logger.styled()`, preset);
-    await sleep(300);
-  }
-
-  await sleep(800);
-}
-
-/**
- * Demonstrate custom prefixes and styling
- */
-async function customStyleDemo(logger: Logger): Promise<void> {
-  logger.header('  CUSTOM STYLING WITH PREFIXES  ', ['brightWhite', 'bgBlue', 'bold']);
-  await sleep(500);
-
-  logger.custom('Create messages with custom prefixes and styling', ['cyan'], 'CUSTOM');
-  await sleep(300);
-
-  // Show API usage
-  showApiUsage(
-    'Custom Styling',
-    `
-// Basic custom styling with default white color
-logger.custom('Custom message with default styling', ['white'], 'PREFIX');
-
-// Custom styling with multiple colors/styles combined
-logger.custom(
-  'Message with multiple styles applied',
-  ['brightGreen', 'bold', 'italic'],  // Array of styles to apply
-  'STYLED'                            // Custom prefix label
-);
-
-// Domain-specific styling examples
-logger.custom('Database connected successfully', ['green', 'bold'], 'DB');
-logger.custom('Authentication token expired', ['red', 'bold'], 'AUTH');
-logger.custom('Request processed in 45ms', ['blue'], 'API');
-  `
-  );
-
-  await sleep(500);
-
-  // Basic custom styling
-  logger.custom('Basic custom message with default white color', ['white'], 'BASIC');
-  await sleep(300);
-
-  // Custom styling with multiple colors/styles
-  logger.custom(
-    'Custom styling with multiple attributes combined',
-    ['brightGreen', 'bold', 'italic'],
-    'COMBINED'
-  );
-  await sleep(300);
-
-  // Domain-specific styling examples
-  logger.custom(
-    'Database connection established to mongodb://localhost:27017',
-    ['cyan', 'bold'],
-    'DATABASE'
-  );
-  await sleep(300);
-
-  logger.custom('Authentication token verified for user@example.com', ['green', 'bold'], 'AUTH');
-  await sleep(300);
-
-  logger.custom('Token validation failed: signature mismatch', ['red', 'bold'], 'AUTH');
-  await sleep(300);
-
-  logger.custom('GET /api/users?page=1&limit=10 (200 OK, 45ms)', ['blue'], 'API');
-  await sleep(300);
-
-  logger.custom('Memory usage: 128MB (24% increase)', ['magenta'], 'SYSTEM');
-  await sleep(800);
-}
-
-/**
- * Demonstrate server monitoring with live updates and API usage
- */
-async function serverMonitoringDemo(logger: Logger): Promise<void> {
-  logger.header('  LIVE SERVER MONITORING  ', ['brightWhite', 'bgBlue', 'bold']);
-  await sleep(500);
-
-  logger.custom('Real-time server metrics monitoring example', ['cyan', 'bold'], 'MONITOR');
-  await sleep(300);
-
-  // Show API usage
-  showApiUsage(
-    'Server Monitoring',
-    `
-// Create color functions for different status levels
-const criticalColor = logger.color('red', 'bold');
-const warningColor = logger.color('yellow');
-const goodColor = logger.color('green');
-
-// Display color-coded metrics based on thresholds
-console.log(\`CPU Usage: \${
-  metrics.cpu > 30 ? criticalColor(\`\${metrics.cpu}%\`) :
-  metrics.cpu > 20 ? warningColor(\`\${metrics.cpu}%\`) :
-  goodColor(\`\${metrics.cpu}%\`)
-}\`);
-
-// Log appropriate warning level based on metrics
-if (metrics.cpu > 30) {
-  logger.warn(\`High CPU usage detected: \${metrics.cpu}%\`);
-}
-  `
-  );
-
-  await sleep(700);
-
-  // Server metrics
-  const metrics = {
-    cpu: 12,
-    memory: 34,
-    requests: 0,
-    responseTime: 45,
-    errorRate: 0,
-  };
-
-  // Update metrics over time
-  for (let i = 0; i < 8; i++) {
-    // Clear previous metrics
-    for (let j = 0; j < 5; j++) {
-      process.stdout.write(ANSI.CURSOR_UP(1));
-      process.stdout.write(ANSI.ERASE_LINE);
+  // Feature list using the new list method
+  logger.list(
+    [
+      'Rich color support',
+      'High performance',
+      'Flexible API',
+      'Beautiful tables',
+      'Rainbow effects',
+      'Pure magic',
+    ],
+    {
+      bullet: '✨',
+      bulletColor: ['yellow'],
+      itemColor: ['white'],
+      indent: 2,
     }
+  );
 
-    // Update metric values
-    metrics.cpu = 10 + Math.floor(Math.random() * 30);
-    metrics.memory = 30 + Math.floor(Math.random() * 15);
-    metrics.requests += Math.floor(Math.random() * 50);
-    metrics.responseTime = 40 + Math.floor(Math.random() * 80);
-    metrics.errorRate = Math.random() < 0.3 ? Math.random() * 2 : 0;
+  await sleep(500);
+}
 
-    // Display metrics with appropriate colors
-    const cpuColor: ColorName = metrics.cpu > 30 ? 'red' : metrics.cpu > 20 ? 'yellow' : 'green';
-    const memColor: ColorName =
-      metrics.memory > 40 ? 'red' : metrics.memory > 35 ? 'yellow' : 'green';
-    const rtColor: ColorName =
-      metrics.responseTime > 90 ? 'red' : metrics.responseTime > 60 ? 'yellow' : 'green';
-    const errColor: ColorName =
-      metrics.errorRate > 1 ? 'red' : metrics.errorRate > 0 ? 'yellow' : 'green';
+/**
+ * Grand finale with animation
+ */
+async function grandFinale(logger: Logger): Promise<void> {
+  console.log();
+  logger.header('  🎆 GRAND FINALE  ', ['brightWhite', 'bgMagenta', 'bold']);
+  console.log('═'.repeat(50));
+  await sleep(500);
 
-    console.log(`CPU Usage:      ${logger.color(cpuColor)(`${metrics.cpu}%`)}`);
-    console.log(`Memory Usage:   ${logger.color(memColor)(`${metrics.memory}%`)}`);
-    console.log(`Requests:       ${metrics.requests} total`);
-    console.log(`Response Time:  ${logger.color(rtColor)(`${metrics.responseTime}ms`)}`);
-    console.log(`Error Rate:     ${logger.color(errColor)(`${metrics.errorRate.toFixed(2)}%`)}`);
-
-    // Add alerts for concerning metrics
-    if (metrics.cpu > 30) {
-      logger.warn(`High CPU usage detected: ${metrics.cpu}%`);
-    }
-
-    if (metrics.responseTime > 90) {
-      logger.warn(`Slow response times: ${metrics.responseTime}ms`);
-    }
-
-    if (metrics.errorRate > 1) {
-      logger.error(`Elevated error rate: ${metrics.errorRate.toFixed(2)}%`);
-    }
-
+  // Countdown
+  for (let i = 3; i > 0; i--) {
+    console.log('  ' + logger.s.yellow.bold(`${i}...`) + ' ' + logger.s.red('█'.repeat(i * 2)));
     await sleep(500);
   }
 
-  logger.success('Monitoring completed');
+  // Final message with rainbow effect
+  console.log('\n' + rainbowText('✨ 🌈 MagicLogger - Making Logs Beautiful! 🌈 ✨'));
+  console.log('');
+  await sleep(500);
+
+  // Links
+  logger.info(
+    '[Link] 🔗 GitHub Repository: ' +
+      logger.s.cyan.underline('https://github.com/manicinc/magiclogger')
+  );
+  logger.info(
+    '[Link] 📦 NPM Package: ' + logger.s.cyan.underline('https://npmjs.com/package/magiclogger')
+  );
+
+  console.log('\n' + logger.s.green.bold('Thank you for watching! Happy logging! 🚀'));
 }
 
 /**
- * Show a realistic log analysis demo
+ * Main demo runner
  */
-async function logAnalysisDemo(logger: Logger): Promise<void> {
-  logger.header('  LOG ANALYSIS  ', ['brightWhite', 'bgBlue', 'bold']);
-  await sleep(500);
-
-  // Show API usage
-  showApiUsage(
-    'Log Analysis',
-    `
-// Use colorParts for highlighting specific elements in log entries
-console.log(
-  logger.colorParts(
-    '[2023-05-15 14:32:01] ERROR: Failed login attempt for user admin from 198.51.100.32',
-    {
-      'ERROR': ['brightRed', 'bold'],
-      'Failed login attempt': ['red'],
-      'admin': ['brightYellow', 'underline'],
-      '198.51.100.32': ['cyan', 'bold']
-    }
-  )
-);
-
-// Display analysis results as a formatted table
-logger.table([
-  { severity: 'CRITICAL', category: 'Security', count: 3, source: 'Auth Service' },
-  { severity: 'WARNING', category: 'Performance', count: 12, source: 'API Gateway' }
-]);
-  `
-  );
-
-  await sleep(700);
-
-  // Start log processing animation
-  logger.custom('Processing application logs...', ['cyan'], 'ANALYSIS');
-  await spinnerAnimation('Scanning logfiles for patterns', 2000);
-  await sleep(300);
-
-  // Show log examples with selective colorization
-  logger.custom('Found suspicious log patterns:', ['yellow', 'bold'], 'SECURITY');
-  await sleep(500);
-
-  console.log(
-    logger.colorParts(
-      '[2023-05-15 14:32:01] ERROR: Failed login attempt for user admin from 198.51.100.32 - Invalid credentials',
-      {
-        ERROR: ['brightRed', 'bold'],
-        'Failed login attempt': ['red'],
-        admin: ['brightYellow', 'underline'],
-        '198.51.100.32': ['cyan', 'bold'],
-      }
-    )
-  );
-  await sleep(300);
-
-  console.log(
-    logger.colorParts(
-      '[2023-05-15 14:35:12] ERROR: Failed login attempt for user admin from 198.51.100.32 - Invalid credentials',
-      {
-        ERROR: ['brightRed', 'bold'],
-        'Failed login attempt': ['red'],
-        admin: ['brightYellow', 'underline'],
-        '198.51.100.32': ['cyan', 'bold'],
-      }
-    )
-  );
-  await sleep(300);
-
-  console.log(
-    logger.colorParts(
-      '[2023-05-15 14:38:45] ERROR: Failed login attempt for user admin from 198.51.100.32 - Account locked',
-      {
-        ERROR: ['brightRed', 'bold'],
-        'Failed login attempt': ['red'],
-        admin: ['brightYellow', 'underline'],
-        '198.51.100.32': ['cyan', 'bold'],
-        'Account locked': ['brightRed', 'bold'],
-      }
-    )
-  );
-  await sleep(500);
-
-  // Show analysis results
-  logger.custom('Analysis complete', ['green'], 'ANALYSIS');
-  await sleep(300);
-
-  logger.table([
-    { severity: 'CRITICAL', category: 'Security', count: 3, source: 'Auth Service' },
-    { severity: 'WARNING', category: 'Performance', count: 12, source: 'API Gateway' },
-    { severity: 'INFO', category: 'System', count: 156, source: 'Various' },
-  ]);
-
-  await sleep(500);
-  logger.custom(
-    'Possible brute force attack detected from IP 198.51.100.32',
-    ['red', 'bold'],
-    'ALERT'
-  );
-  await sleep(300);
-  logger.custom('Added IP to blocklist', ['green'], 'ACTION');
-}
-
-/**
- * Enhanced deployment demo with visual effects
- */
-async function deploymentDemo(logger: Logger): Promise<void> {
-  logger.header('  DEPLOYMENT PIPELINE  ', ['brightWhite', 'bgBlue', 'bold']);
-  await sleep(500);
-
-  // Show API usage
-  showApiUsage(
-    'Deployment Pipeline',
-    `
-// Create a progress bar with custom characters and length
-for (let i = 0; i <= 100; i += 5) {
-  logger.progressBar(i, 40, '█', '░');
-  await sleep(50);
-}
-
-// Use a spinner animation for tasks without precise progress
-await spinnerAnimation('Optimizing build assets', 1500);
-
-// Use typewriter effect for step-by-step processes
-await typewriterEffect('Uploading assets to CDN...', 5);
-
-// Style success messages
-logger.header('  DEPLOYMENT SUCCESSFUL  ', ['brightWhite', 'bgGreen', 'bold']);
-  `
-  );
-
-  await sleep(700);
-
-  logger.custom('Starting deployment to production', ['cyan', 'bold'], 'DEPLOY');
-  await sleep(500);
-
-  // Stage 1: Build
-  logger.custom('Building application...', ['blue'], 'STAGE 1/4');
-  await sleep(300);
-
-  for (let i = 0; i <= 100; i += 5) {
-    logger.progressBar(i, 40, '█', '░');
-    await sleep(50);
-  }
-
-  await spinnerAnimation('Optimizing build assets', 1500);
-  logger.success('Build completed successfully (450 files, 2.3MB)');
-  await sleep(500);
-
-  // Stage 2: Testing
-  logger.custom('Running automated tests...', ['blue'], 'STAGE 2/4');
-  await sleep(300);
-
-  const testingSummary = [
-    { type: 'Unit Tests', status: 'PASS', count: 342 },
-    { type: 'Integration Tests', status: 'PASS', count: 128 },
-    { type: 'E2E Tests', status: 'PASS', count: 24 },
-  ];
-
-  for (const testSuite of testingSummary) {
-    await sleep(300);
-    console.log(
-      logger.colorParts(`${testSuite.status} ${testSuite.type} (${testSuite.count} tests)`, {
-        PASS: ['green', 'bold'],
-        [testSuite.count.toString()]: ['cyan'],
-      })
-    );
-  }
-
-  logger.success('All tests passed successfully');
-  await sleep(500);
-
-  // Stage 3: Database Migration
-  logger.custom('Running database migrations...', ['blue'], 'STAGE 3/4');
-  await sleep(300);
-
-  console.log(
-    logger.colorParts('Migration: Add user_preferences table...', {
-      'Migration:': ['cyan', 'bold'],
-      'Add user_preferences table': ['brightWhite'],
-    })
-  );
-  await sleep(200);
-
-  console.log(
-    logger.colorParts('Migration: Update authentication schema...', {
-      'Migration:': ['cyan', 'bold'],
-      'Update authentication schema': ['brightWhite'],
-    })
-  );
-  await sleep(200);
-
-  console.log(
-    logger.colorParts('Migration: Create indices for performance...', {
-      'Migration:': ['cyan', 'bold'],
-      'Create indices for performance': ['brightWhite'],
-    })
-  );
-  await sleep(500);
-
-  await spinnerAnimation('Verifying database integrity', 1000);
-  logger.success('Database migrations completed successfully');
-  await sleep(500);
-
-  // Stage 4: Deployment
-  logger.custom('Deploying to production servers...', ['blue'], 'STAGE 4/4');
-  await sleep(300);
-
-  await typewriterEffect('Uploading assets to CDN...', 5);
-  await sleep(300);
-
-  await typewriterEffect('Updating load balancer configuration...', 5);
-  await sleep(300);
-
-  await typewriterEffect('Performing canary deployment to 10% of servers...', 5);
-  await sleep(300);
-
-  await typewriterEffect('Monitoring health checks...', 5);
-  await sleep(300);
-
-  await typewriterEffect('Scaling to 100% of production fleet...', 5);
-  await sleep(500);
-
-  // Final success message
-  logger.header('  DEPLOYMENT SUCCESSFUL  ', ['brightWhite', 'bgGreen', 'bold']);
-  await sleep(300);
-
-  console.log();
-  console.log(
-    logger.colorParts(
-      'Deployment completed in 3m 42s (Build: 1m 15s, Test: 45s, DB: 32s, Deploy: 1m 10s)',
-      {
-        '3m 42s': ['brightGreen', 'bold'],
-        'Build: 1m 15s': ['cyan'],
-        'Test: 45s': ['cyan'],
-        'DB: 32s': ['cyan'],
-        'Deploy: 1m 10s': ['cyan'],
-      }
-    )
-  );
-  console.log();
-
-  logger.custom('Application is now live at https://example.com', ['green', 'bold'], 'URL');
-}
-
-/**
- * Service health check demo with visual status indicators
- */
-async function healthCheckDemo(logger: Logger): Promise<void> {
-  logger.header('  SYSTEM HEALTH CHECK  ', ['brightWhite', 'bgBlue', 'bold']);
-  await sleep(500);
-
-  // Show API usage
-  showApiUsage(
-    'Health Check Status',
-    `
-// Use color functions for dynamic status indicators
-const statusColor = 
-  service.status === 'ONLINE' ? 'green' :
-  service.status === 'DEGRADED' ? 'yellow' : 'red';
-
-// Display colored status text
-console.log(\`\${logger.color(statusColor)(statusText)}\`);
-
-// Log appropriate message based on status
-if (service.status === 'DEGRADED') {
-  logger.warn(\`\${service.name} is experiencing high latency\`);
-} else if (service.status === 'OFFLINE') {
-  logger.error(\`\${service.name} is not responding\`);
-}
-  `
-  );
-
-  await sleep(700);
-
-  logger.custom('Performing comprehensive health check of all services...', ['cyan'], 'HEALTH');
-  await sleep(300);
-
-  // Define services with random status
-  const services = [
-    { name: 'API Gateway', status: Math.random() > 0.2 ? 'ONLINE' : 'DEGRADED' },
-    { name: 'Authentication Service', status: Math.random() > 0.1 ? 'ONLINE' : 'OFFLINE' },
-    { name: 'User Database', status: 'ONLINE' },
-    { name: 'Payment Processor', status: Math.random() > 0.3 ? 'ONLINE' : 'DEGRADED' },
-    { name: 'Notification Service', status: Math.random() > 0.2 ? 'ONLINE' : 'OFFLINE' },
-    { name: 'Content Delivery Network', status: 'ONLINE' },
-    { name: 'Analytics Engine', status: Math.random() > 0.1 ? 'ONLINE' : 'DEGRADED' },
-    { name: 'Search Service', status: Math.random() > 0.2 ? 'ONLINE' : 'OFFLINE' },
-  ];
-
-  // Check each service with a spinner animation
-  for (const service of services) {
-    await spinnerAnimation(`Checking ${service.name}`, 800);
-
-    // Display status with appropriate color
-    const statusColor: ColorName =
-      service.status === 'ONLINE' ? 'green' : service.status === 'DEGRADED' ? 'yellow' : 'red';
-
-    const statusText = `${service.name.padEnd(25)}: ${service.status}`;
-    console.log(`  ${logger.color(statusColor)(statusText)}`);
-
-    // Add detailed message for non-online services
-    if (service.status === 'DEGRADED') {
-      logger.warn(`${service.name} is experiencing high latency`);
-    } else if (service.status === 'OFFLINE') {
-      logger.error(`${service.name} is not responding`);
-    }
-
-    await sleep(200);
-  }
-
-  await sleep(500);
-
-  // Summary section
-  console.log();
-  logger.custom('Health Check Summary', ['brightWhite', 'bgBlue'], 'SUMMARY');
-
-  const onlineCount = services.filter(s => s.status === 'ONLINE').length;
-  const degradedCount = services.filter(s => s.status === 'DEGRADED').length;
-  const offlineCount = services.filter(s => s.status === 'OFFLINE').length;
-
-  console.log(`  ${logger.color('green')(`✓ Online:   ${onlineCount}/${services.length}`)}`);
-  if (degradedCount > 0) {
-    console.log(`  ${logger.color('yellow')(`⚠ Degraded: ${degradedCount}/${services.length}`)}`);
-  }
-  if (offlineCount > 0) {
-    console.log(`  ${logger.color('red')(`✗ Offline:  ${offlineCount}/${services.length}`)}`);
-  }
-
-  console.log();
-
-  // Overall status
-  if (offlineCount > 0) {
-    logger.error('System is in CRITICAL state - Immediate attention required');
-  } else if (degradedCount > 0) {
-    logger.warn('System is in DEGRADED state - Monitor closely');
-  } else {
-    logger.success('System is HEALTHY - All services operating normally');
-  }
-}
-
-/**
- * Basic logging methods demo
- */
-async function basicLoggingDemo(logger: Logger): Promise<void> {
-  logger.header('  BASIC LOGGING METHODS  ', ['brightWhite', 'bgBlue', 'bold']);
-  await sleep(500);
-
-  // Show API usage
-  showApiUsage(
-    'Basic Logging',
-    `
-// Standard info message
-logger.info('Application started successfully');
-
-// Success message with green styling
-logger.success('User registration completed');
-
-// Warning message with yellow styling
-logger.warn('Disk space is running low (15% remaining)');
-
-// Error message with bright red styling
-logger.error('Failed to connect to database');
-
-// Debug message (only shown when verbose:true)
-logger.debug('Auth token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ...');
-
-// Universal log method with different levels
-logger.log('Message with default info level');
-logger.log('Warning message example', 'warn');
-logger.log('Error message example', 'error');
-  `
-  );
-
-  await sleep(700);
-
-  logger.custom(
-    'MagicLogger provides standard logging levels with enhanced styling',
-    ['cyan'],
-    'BASICS'
-  );
-  await sleep(300);
-
-  // Standard logging methods
-  logger.info('Application started successfully');
-  await sleep(300);
-
-  logger.success('User registration completed');
-  await sleep(300);
-
-  logger.warn('Disk space is running low (15% remaining)');
-  await sleep(300);
-
-  logger.error('Failed to connect to database');
-  await sleep(300);
-
-  logger.debug('Auth token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...');
-  await sleep(500);
-
-  // Universal log method
-  logger.custom('Universal log method with different levels:', ['blue'], 'UNIVERSAL');
-  await sleep(300);
-
-  logger.log('Message with default info level');
-  await sleep(300);
-
-  logger.log('Warning message example', 'warn');
-  await sleep(300);
-
-  logger.log('Error message example', 'error');
-  await sleep(300);
-
-  logger.log('Debug message example', 'debug');
-  await sleep(300);
-
-  logger.log('Success message example', 'success');
-  await sleep(500);
-}
-
-/**
- * Rainbow text demo
- */
-async function rainbowDemo(logger: Logger): Promise<void> {
-  logger.header('  RAINBOW TEXT EFFECTS  ', ['brightWhite', 'bgBlue', 'bold']);
-  await sleep(500);
-
-  // Show API usage
-  showApiUsage(
-    'Rainbow Text Effect',
-    `
-// Rainbow text using ANSI color codes
-function rainbowText(text) {
-  const colors = ['red', 'yellow', 'green', 'cyan', 'blue', 'magenta'];
-  
-  return Array.from(text).map((char, i) => {
-    const colorIndex = i % colors.length;
-    const color = colors[colorIndex];
-    return \`\${COLORS[color]}\${char}\${COLORS.reset}\`;
-  }).join('');
-}
-
-// Example usage
-console.log(rainbowText('✨ MagicLogger - Beautiful terminal styling ✨'));
-  `
-  );
-
-  await sleep(700);
-
-  logger.custom('Create eye-catching multicolored text with rainbow effects', ['cyan'], 'RAINBOW');
-  await sleep(300);
-
-  console.log(rainbowText('✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨'));
-  await sleep(300);
-
-  console.log(rainbowText('▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄'));
-  await sleep(300);
-
-  console.log();
-  console.log(rainbowText('  ✨  MagicLogger - Beautiful terminal styling  ✨  '));
-  console.log();
-
-  await sleep(300);
-  console.log(rainbowText('▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄'));
-  await sleep(300);
-
-  console.log(rainbowText('✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨'));
-  await sleep(500);
-}
-
-/**
- * Main demo function that showcases all features with visual flair
- */
-async function runAnimatedDemo(): Promise<void> {
-  // Create a logger with colors enabled
+async function runDemo(): Promise<void> {
   const logger = new Logger({
     useColors: true,
-    verbose: true,
+    useConsole: true,
   });
 
-  // Clear screen and show title
-  console.clear();
-  console.log('\n');
+  try {
+    await showAnimatedLogo(logger);
+    await sleep(500);
 
-  // Animated title sequence
-  await pulsingText('✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨', 3);
-  console.log('\n');
+    await inlineStyleShowcase(logger);
+    await sleep(1000);
 
-  console.log(rainbowText('       ███╗   ███╗ █████╗  ██████╗ ██╗ ██████╗'));
-  console.log(rainbowText('       ████╗ ████║██╔══██╗██╔════╝ ██║██╔════╝'));
-  console.log(rainbowText('       ██╔████╔██║███████║██║  ███╗██║██║     '));
-  console.log(rainbowText('       ██║╚██╔╝██║██╔══██║██║   ██║██║██║     '));
-  console.log(rainbowText('       ██║ ╚═╝ ██║██║  ██║╚██████╔╝██║╚██████╗'));
-  console.log(rainbowText('       ╚═╝     ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═╝ ╚═════╝'));
-  console.log('\n');
-  console.log(rainbowText('  ██╗      ██████╗  ██████╗  ██████╗ ███████╗██████╗'));
-  console.log(rainbowText('  ██║     ██╔═══██╗██╔════╝ ██╔════╝ ██╔════╝██╔══██╗'));
-  console.log(rainbowText('  ██║     ██║   ██║██║  ███╗██║  ███╗█████╗  ██████╔╝'));
-  console.log(rainbowText('  ██║     ██║   ██║██║   ██║██║   ██║██╔══╝  ██╔══██╗'));
-  console.log(rainbowText('  ███████╗╚██████╔╝╚██████╔╝╚██████╔╝███████╗██║  ██║'));
-  console.log(rainbowText('  ╚══════╝ ╚═════╝  ╚═════╝  ╚═════╝ ╚══════╝╚═╝  ╚═╝'));
-  console.log('\n');
+    await chainableStyleAPI(logger);
+    await sleep(1000);
 
-  await pulsingText('✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨', 3);
-  console.log('\n');
+    await templateLiteralStyling(logger);
+    await sleep(1000);
 
-  await sleep(1000);
+    await animatedProgressDemo(logger);
+    await sleep(1000);
 
-  // Introduction
-  logger.header('  WELCOME TO MAGICLOGGER  ', ['brightWhite', 'bgMagenta', 'bold']);
-  await sleep(800);
+    await colorfulTableDemo(logger);
+    await sleep(1000);
 
-  logger.info('Starting enhanced demonstration of MagicLogger capabilities');
-  await sleep(500);
+    await realWorldExamples(logger);
+    await sleep(1000);
 
-  logger.custom(
-    'This demo showcases API usage, animations, and practical use cases',
-    ['cyan'],
-    'DEMO'
-  );
-  await sleep(1000);
+    await asciiArtAndDecorations(logger);
+    await sleep(1000);
 
-  // Run the basic logging demo
-  await basicLoggingDemo(logger);
-  console.log('\n');
-  await sleep(1000);
-
-  // Run the rainbow text demo
-  await rainbowDemo(logger);
-  console.log('\n');
-  await sleep(1000);
-
-  // Run the style presets demo
-  await stylePresetsDemo(logger);
-  console.log('\n');
-  await sleep(1000);
-
-  // Run the custom styling demo
-  await customStyleDemo(logger);
-  console.log('\n');
-  await sleep(1000);
-
-  // Run the table formatting demo
-  await showTableExample(logger);
-  console.log('\n');
-  await sleep(1000);
-
-  // Run the color factory demo
-  await colorFactoryDemo(logger);
-  console.log('\n');
-  await sleep(1000);
-
-  // Run the color parts demo
-  await colorPartsDemo(logger);
-  console.log('\n');
-  await sleep(1000);
-
-  // Run the progress bar demo
-  await progressBarDemo(logger);
-  console.log('\n');
-  await sleep(1000);
-
-  // Run server monitoring demo
-  await serverMonitoringDemo(logger);
-  console.log('\n');
-  await sleep(1000);
-
-  // Run log analysis demo
-  await logAnalysisDemo(logger);
-  console.log('\n');
-  await sleep(1000);
-
-  // Run deployment demo
-  await deploymentDemo(logger);
-  console.log('\n');
-  await sleep(1000);
-
-  // Run health check demo
-  await healthCheckDemo(logger);
-  console.log('\n');
-  await sleep(1000);
-
-  // Final flourish
-  logger.header('  DEMO COMPLETE!  ', ['brightWhite', 'bgMagenta', 'bold']);
-  await sleep(500);
-
-  console.log(rainbowText('Thank you for exploring MagicLogger!'));
-  await sleep(300);
-
-  logger.custom('For more information and documentation, visit:', ['cyan'], 'INFO');
-  logger.custom('https://github.com/yourusername/magiclogger', ['brightCyan', 'underline'], 'URL');
-
-  await sleep(500);
-  console.log('\n');
-
-  logger.styled('MagicLogger - Beautiful terminal styling made simple', 'special');
-  console.log('\n');
+    await grandFinale(logger);
+  } catch (error) {
+    logger.error('Demo failed:', error);
+  }
 }
 
 // Run the demo
-runAnimatedDemo().catch(console.error);
+runDemo().catch(console.error);

@@ -10,7 +10,8 @@
  */
 
 // Re-export all types from specific type modules
-export * from './logger';
+// Avoid re-exporting logger to prevent circular chunking issues.
+// Import specific types directly from './logger' where needed.
 export * from './transport';
 export * from './colors';
 export * from './console';
@@ -52,23 +53,6 @@ export interface AsyncOptions {
      */
     flushSize?: number;
   };
-
-  /**
-   * Use worker threads for processing.
-   * @default false
-   */
-  useWorkers?: boolean;
-
-  /**
-   * Number of worker threads.
-   * @default 2
-   */
-  workerCount?: number;
-
-  /**
-   * Path to worker script.
-   */
-  workerPath?: string;
 }
 
 // Context types

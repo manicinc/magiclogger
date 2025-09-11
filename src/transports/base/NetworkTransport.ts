@@ -2,11 +2,11 @@
 
 /**
  * Abstract base class for network-based transports.
- * 
+ *
  * This module extends BatchingTransport and provides additional functionality
  * specific to network operations such as connection management, health checking,
  * retries with exponential backoff, and offline queue management.
- * 
+ *
  * @module transports/base
  */
 
@@ -24,16 +24,18 @@ import type { EventEmitter } from 'events';
 
 /**
  * Extended options for network transports.
- * 
+ *
  * @interface NetworkTransportOptionsExtended
  * @extends {BatchingTransportOptions}
  * @extends {NetworkTransportOptions}
  */
-interface NetworkTransportOptionsExtended extends BatchingTransportOptions, NetworkTransportOptions {}
+interface NetworkTransportOptionsExtended
+  extends BatchingTransportOptions,
+    NetworkTransportOptions {}
 
 /**
  * Network transport base class for sending logs over network protocols.
- * 
+ *
  * Features:
  * - Automatic connection management with reconnection
  * - Health checking and circuit breaker pattern
@@ -42,18 +44,18 @@ interface NetworkTransportOptionsExtended extends BatchingTransportOptions, Netw
  * - Connection pooling support
  * - TLS/SSL configuration
  * - Request/response transformation
- * 
+ *
  * @abstract
  * @class NetworkTransport
  * @extends {BatchingTransport}
- * 
+ *
  * @example
  * ```typescript
  * class MyNetworkTransport extends NetworkTransport {
  *   protected async connect(): Promise<void> {
  *     this.client = await createConnection(this.url);
  *   }
- *   
+ *
  *   protected async sendData(data: unknown): Promise<void> {
  *     await this.client.send(data);
  *   }
@@ -236,13 +238,13 @@ export abstract class NetworkTransport extends BatchingTransport {
    * @protected
    */
   protected circuitBreakerOpenUntil = 0;
-  
+
   // Ensure we only invoke network-specific close once
   private _networkClosedOnce = false;
-  
+
   /**
    * Creates a new NetworkTransport instance.
-   * 
+   *
    * @param {NetworkTransportOptionsExtended} options - Transport configuration
    */
   constructor(options: NetworkTransportOptionsExtended) {
@@ -263,7 +265,7 @@ export abstract class NetworkTransport extends BatchingTransport {
     this.circuitBreaker = options.circuitBreaker;
     this.dlq = options.dlq;
     this.fallbackConfig = options.fallback;
-    
+
     // Initialize retry options
     this.retry = {
       maxRetries: options.retry?.maxRetries ?? 3,
@@ -291,23 +293,23 @@ export abstract class NetworkTransport extends BatchingTransport {
 
   /**
    * Initialize the network transport.
-   * 
+   *
    * @returns {Promise<void>} Resolves when initialized
    * @protected
    */
   protected async doInit(): Promise<void> {
     await this.initializeNetwork();
-    
+
     // Initialize DLQ if enabled
     if (this.dlq?.enabled) {
       await this.initializeDLQ();
     }
-    
+
     // Initialize fallback transport
     if (this.fallbackConfig) {
       await this.initializeFallback();
     }
-    
+
     await this.establishConnection();
     this.startHealthChecking();
     this.startKeepAlive();
@@ -315,7 +317,7 @@ export abstract class NetworkTransport extends BatchingTransport {
 
   /**
    * Initialize network-specific resources.
-   * 
+   *
    * @returns {Promise<void>} Resolves when initialized
    * @protected
    */
@@ -325,38 +327,39 @@ export abstract class NetworkTransport extends BatchingTransport {
 
   /**
    * Initialize dead letter queue.
-   * 
+   *
    * @returns {Promise<void>} Resolves when DLQ is initialized
    * @private
    */
   private async initializeDLQ(): Promise<void> {
     if (!this.dlq?.enabled || !this.dlq.filepath) return;
-    
+
     const { FileManager } = await import('../../core/FileManager');
     const path = await import('path');
-    
+
     const dir = path.dirname(this.dlq.filepath);
     this.dlqFileManager = new FileManager(dir, 7); // 7 days retention
-    await (this.dlqFileManager as { initLogFile(filepath: string): Promise<void> }).initLogFile(this.dlq.filepath);
+    await (this.dlqFileManager as { initLogFile(filepath: string): Promise<void> }).initLogFile(
+      this.dlq.filepath
+    );
   }
 
   /**
    * Initialize fallback transport.
-   * 
+   *
    * @returns {Promise<void>} Resolves when fallback is initialized
    * @private
    */
   private async initializeFallback(): Promise<void> {
     if (!this.fallbackConfig) return;
-    
+
     if (typeof this.fallbackConfig === 'string') {
       switch (this.fallbackConfig) {
         case 'file': {
-          const { FileTransport } = await import('./implementations/FileTransport');
+          const { FileTransport } = await import('../FileTransport');
           this.fallbackTransport = new FileTransport({
             name: `${this.name}-fallback`,
             filepath: './logs/fallback.log',
-            isDirectory: false,
           });
           break;
         }
@@ -370,7 +373,7 @@ export abstract class NetworkTransport extends BatchingTransport {
         default:
           throw new Error(`Unknown fallback transport: ${this.fallbackConfig}`);
       }
-      
+
       if (this.fallbackTransport.init) {
         await this.fallbackTransport.init();
       }
@@ -384,7 +387,7 @@ export abstract class NetworkTransport extends BatchingTransport {
 
   /**
    * Establish network connection with retry logic.
-   * 
+   *
    * @returns {Promise<void>} Resolves when connected
    * @private
    */
@@ -397,15 +400,14 @@ export abstract class NetworkTransport extends BatchingTransport {
 
     try {
       await this.withTimeout(this.connect(), this.connectionTimeout);
-      
+
       this.connectionState = 'connected';
       this.reconnectAttempts = 0;
-      
+
       this.emitExtended('connected');
-      
+
       // Process offline queue if any
       await this.processOfflineQueue();
-      
     } catch (error) {
       this.connectionState = 'disconnected';
       this.handleConnectionError(error as Error);
@@ -415,7 +417,7 @@ export abstract class NetworkTransport extends BatchingTransport {
 
   /**
    * Handle connection errors and trigger reconnection.
-   * 
+   *
    * @param {Error} error - Connection error
    * @private
    */
@@ -434,7 +436,7 @@ export abstract class NetworkTransport extends BatchingTransport {
 
   /**
    * Schedule a reconnection attempt.
-   * 
+   *
    * @private
    */
   private scheduleReconnect(): void {
@@ -446,14 +448,14 @@ export abstract class NetworkTransport extends BatchingTransport {
     this.reconnectAttempts++;
 
     let delay = this.reconnectDelay;
-    
+
     if (this.reconnectBackoff) {
       // Exponential backoff with jitter
       delay = Math.min(
         this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1),
         60000 // Max 1 minute
       );
-      
+
       // Add jitter (±25%)
       delay = delay * (0.75 + Math.random() * 0.5);
     }
@@ -465,7 +467,7 @@ export abstract class NetworkTransport extends BatchingTransport {
 
     this.reconnectTimer = setTimeout(async () => {
       this.reconnectTimer = undefined;
-      
+
       try {
         await this.establishConnection();
       } catch (error) {
@@ -476,7 +478,7 @@ export abstract class NetworkTransport extends BatchingTransport {
 
   /**
    * Process queued logs after reconnection.
-   * 
+   *
    * @returns {Promise<void>} Resolves when queue is processed
    * @private
    */
@@ -512,7 +514,7 @@ export abstract class NetworkTransport extends BatchingTransport {
 
   /**
    * Start health checking.
-   * 
+   *
    * @private
    */
   private startHealthChecking(): void {
@@ -530,7 +532,7 @@ export abstract class NetworkTransport extends BatchingTransport {
         this.emitExtended('healthCheckPassed');
       } catch (error) {
         this.emitExtended('healthCheckFailed', error);
-        
+
         // Trigger reconnection if health check fails
         this.connectionState = 'disconnected';
         await this.disconnect();
@@ -541,7 +543,7 @@ export abstract class NetworkTransport extends BatchingTransport {
 
   /**
    * Start keep-alive mechanism.
-   * 
+   *
    * @private
    */
   private startKeepAlive(): void {
@@ -565,7 +567,7 @@ export abstract class NetworkTransport extends BatchingTransport {
 
   /**
    * Send keep-alive signal.
-   * 
+   *
    * @returns {Promise<void>} Resolves when sent
    * @protected
    */
@@ -575,7 +577,7 @@ export abstract class NetworkTransport extends BatchingTransport {
 
   /**
    * Send a batch of log entries over the network.
-   * 
+   *
    * @param {unknown} data - Data to send
    * @param {unknown} [batch] - Optional batch metadata
    * @returns {Promise<void>} Resolves when sent
@@ -602,10 +604,7 @@ export abstract class NetworkTransport extends BatchingTransport {
     while (retryCount <= (this.retry.maxRetries ?? 3)) {
       try {
         // Perform the actual network request
-        await this.withTimeout(
-          this.performNetworkRequest(data, batch),
-          this.requestTimeout
-        );
+        await this.withTimeout(this.performNetworkRequest(data, batch), this.requestTimeout);
 
         // Reset circuit breaker on success
         this.consecutiveFailures = 0;
@@ -613,10 +612,9 @@ export abstract class NetworkTransport extends BatchingTransport {
         // Keep circuitBreakerState.failures for observability; tests rely on open state persisting until cooldown
 
         return;
-
       } catch (error) {
         lastError = error as Error;
-        
+
         // Check if we should retry
         if (this.shouldRetryError(lastError, retryCount)) {
           // Track failure per-attempt and possibly open circuit breaker
@@ -640,7 +638,7 @@ export abstract class NetworkTransport extends BatchingTransport {
 
           retryCount++;
           const delay = this.calculateRetryDelay(retryCount);
-          
+
           this.emitExtended('retry', {
             transport: this.name,
             batch: (batch as { id?: string })?.id || 'unknown',
@@ -648,7 +646,7 @@ export abstract class NetworkTransport extends BatchingTransport {
             delay,
             error: lastError.message,
           });
-          
+
           await this.sleepMs(delay);
         } else {
           break;
@@ -663,7 +661,7 @@ export abstract class NetworkTransport extends BatchingTransport {
 
   /**
    * Check if circuit breaker is open.
-   * 
+   *
    * @returns {boolean} True if circuit breaker is open
    * @protected
    */
@@ -688,7 +686,7 @@ export abstract class NetworkTransport extends BatchingTransport {
 
   /**
    * Handle network failure.
-   * 
+   *
    * @param {Error} error - The error
    * @param {unknown} [batch] - The batch that failed
    * @protected
@@ -697,7 +695,7 @@ export abstract class NetworkTransport extends BatchingTransport {
     this.consecutiveFailures++;
     this.circuitBreakerState.failures++;
     this.circuitBreakerState.lastFailureTime = Date.now();
-    
+
     // Update circuit breaker (enabled by default unless explicitly disabled)
     const enabled = this.circuitBreaker?.enabled !== false;
     const threshold = this.circuitBreaker?.errorThreshold ?? 5;
@@ -708,19 +706,19 @@ export abstract class NetworkTransport extends BatchingTransport {
       this.circuitBreakerOpenUntil = Date.now() + resetTimeout;
       this.circuitBreakerState.isOpen = true;
       this.circuitBreakerState.nextRetryTime = this.circuitBreakerOpenUntil;
-      
+
       this.emitExtended('circuitBreakerOpen', {
         transport: this.name,
         failures: this.consecutiveFailures,
         until: new Date(this.circuitBreakerOpenUntil),
       });
     }
-    
+
     // Write to DLQ
     if (batch) {
       this.writeToDLQ(batch, error);
     }
-    
+
     // Send to fallback
     if (batch) {
       this.sendToFallback(batch).catch(() => {
@@ -731,14 +729,14 @@ export abstract class NetworkTransport extends BatchingTransport {
 
   /**
    * Write batch to dead letter queue.
-   * 
+   *
    * @param {unknown} batch - The failed batch
    * @param {Error} error - The error
    * @protected
    */
   protected writeToDLQ(batch: unknown, error: Error): void {
     if (!this.dlq?.enabled || !this.dlqFileManager) return;
-    
+
     try {
       const dlqEntry = {
         timestamp: new Date().toISOString(),
@@ -751,8 +749,10 @@ export abstract class NetworkTransport extends BatchingTransport {
         batch: (batch as { id?: string })?.id,
         entries: (batch as { entries?: unknown[] })?.entries || [],
       };
-      
-      (this.dlqFileManager as { appendToFile(content: string): void }).appendToFile(JSON.stringify(dlqEntry) + '\n');
+
+      (this.dlqFileManager as { appendToFile(content: string): void }).appendToFile(
+        JSON.stringify(dlqEntry) + '\n'
+      );
     } catch (dlqError) {
       const wrapped = new Error(`DLQ write failed: ${dlqError}`);
       // Emit directly with second undefined argument to satisfy test expectations
@@ -768,21 +768,21 @@ export abstract class NetworkTransport extends BatchingTransport {
 
   /**
    * Send batch to fallback transport.
-   * 
+   *
    * @param {unknown} batch - The batch to send
    * @returns {Promise<void>} Resolves when sent
    * @protected
    */
   protected async sendToFallback(batch: unknown): Promise<void> {
     if (!this.fallbackTransport || !this.fallbackTransport.enabled) return;
-    
+
     try {
       const entries = (batch as { entries?: LogEntry[] })?.entries || [];
-      
+
       for (const entry of entries) {
         await this.fallbackTransport.log(entry);
       }
-      
+
       this.emitExtended('fallback', {
         transport: this.name,
         fallback: this.fallbackTransport.name,
@@ -802,13 +802,13 @@ export abstract class NetworkTransport extends BatchingTransport {
 
   /**
    * Queue entries for offline processing.
-   * 
+   *
    * @param {LogEntry[]} entries - Entries to queue
    * @private
    */
   private queueOffline(entries: LogEntry[]): void {
     const availableSpace = this.maxOfflineQueueSize - this.offlineQueue.length;
-    
+
     if (availableSpace <= 0) {
       this.emitExtended('offlineQueueFull', {
         dropped: entries.length,
@@ -831,7 +831,7 @@ export abstract class NetworkTransport extends BatchingTransport {
 
   /**
    * Check if error is retryable.
-   * 
+   *
    * @param {Error} error - Error to check
    * @param {number} retryCount - Current retry count
    * @returns {boolean} True if retryable
@@ -841,10 +841,14 @@ export abstract class NetworkTransport extends BatchingTransport {
     if (retryCount >= (this.retry.maxRetries ?? 3)) {
       return false;
     }
-    
+
     // Check custom retry condition
     if (this.retry.retryCondition) {
-      return this.retry.retryCondition(error);
+      try {
+        return !!this.retry.retryCondition(error);
+      } catch {
+        return false;
+      }
     }
 
     return this.defaultRetryCondition(error);
@@ -852,14 +856,14 @@ export abstract class NetworkTransport extends BatchingTransport {
 
   /**
    * Default retry condition.
-   * 
+   *
    * @param {Error} error - Error to check
    * @returns {boolean} True if retryable
    * @protected
    */
   protected defaultRetryCondition(error: Error): boolean {
-    const message = error.message.toLowerCase();
-    
+    const message = (error && typeof error.message === 'string' ? error.message : '').toLowerCase();
+
     // Retry on connection errors
     if (this.isConnectionError(error)) {
       return true;
@@ -877,8 +881,9 @@ export abstract class NetworkTransport extends BatchingTransport {
 
     // Retry on specific HTTP status codes
     const statusMatch = message.match(/status[:\s]+(\d+)/i);
-    if (statusMatch) {
-      const status = parseInt(statusMatch[1], 10);
+    if (statusMatch && statusMatch[1]) {
+      const statusStr = statusMatch[1];
+      const status = Number.parseInt(statusStr, 10);
       // Retry 5xx and specific 4xx (429 Too Many Requests, 408 Request Timeout)
       if (status >= 500 || status === 429 || status === 408) {
         return true;
@@ -893,14 +898,14 @@ export abstract class NetworkTransport extends BatchingTransport {
 
   /**
    * Check if error is a connection error.
-   * 
+   *
    * @param {Error} error - Error to check
    * @returns {boolean} True if connection error
    * @protected
    */
   protected isConnectionError(error: Error): boolean {
     const message = error.message.toLowerCase();
-    
+
     return (
       message.includes('econnrefused') ||
       message.includes('enotfound') ||
@@ -913,7 +918,7 @@ export abstract class NetworkTransport extends BatchingTransport {
 
   /**
    * Calculate retry delay with exponential backoff.
-   * 
+   *
    * @param {number} retryCount - Current retry count
    * @returns {number} Delay in milliseconds
    * @protected
@@ -922,38 +927,46 @@ export abstract class NetworkTransport extends BatchingTransport {
     const initialDelay = this.retry.initialDelay ?? 1000;
     const backoffFactor = this.retry.backoffFactor ?? 2;
     const maxDelay = this.retry.maxDelay ?? 30000;
-    
+
     let delay = initialDelay * Math.pow(backoffFactor, retryCount - 1);
-    
+
     // Cap at max delay
     delay = Math.min(delay, maxDelay);
-    
+
     // Add jitter if enabled
     if (this.retry.jitter) {
       const jitter = delay * 0.25;
       delay = delay + (Math.random() * 2 - 1) * jitter;
     }
-    
+
     return Math.round(delay);
   }
 
   /**
    * Build request headers.
-   * 
+   *
    * @returns {Promise<Record<string, string>>} Headers object
    * @protected
    */
   protected async buildHeaders(): Promise<Record<string, string>> {
-    return {
+    const base: Record<string, string> = {
       'User-Agent': `MagicLogger/${this.constructor.name}`,
       'X-Transport-Name': this.name,
-      ...this.headers,
     };
+    // Copy only defined header values
+    if (this.headers) {
+      for (const [k, v] of Object.entries(this.headers)) {
+        if (typeof v === 'string') {
+          base[k] = v;
+        }
+      }
+    }
+    return base;
   }
 
   /**
    * Sleep for specified duration.
-   * 
+   *
    * @param {number} ms - Duration in milliseconds
    * @returns {Promise<void>} Resolves after delay
    * @protected
@@ -964,7 +977,9 @@ export abstract class NetworkTransport extends BatchingTransport {
 
     // Try Atomics.wait when fake timers are active to avoid advancing fake timers incorrectly
     try {
-      const isFake = typeof setTimeout === 'function' && !/\[native code\]/.test(Function.prototype.toString.call(setTimeout));
+      const isFake =
+        typeof setTimeout === 'function' &&
+        !/\[native code\]/.test(Function.prototype.toString.call(setTimeout));
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const SAB: any = (global as unknown as { SharedArrayBuffer?: unknown }).SharedArrayBuffer;
       if (isFake && typeof SAB !== 'undefined') {
@@ -975,38 +990,40 @@ export abstract class NetworkTransport extends BatchingTransport {
         (Atomics as any).wait(ia, 0, 0, ms);
         return Promise.resolve();
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
-    // For short waits use a hybrid: long tail setTimeout then tight finish spin to improve accuracy without overshoot.
+    // For short waits (<200ms) use adaptive re-scheduling to minimize overshoot without busy spinning.
+    // We avoid a single coarse timeout which in CI can drift badly (causing >200ms for a 150ms request).
     if (ms < 200) {
       const nowFn = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
       const target = nowFn() + ms;
-      // If very tiny just spin immediately
-      if (ms <= 8) {
-        return new Promise(resolve => {
-          while (nowFn() < target) { /* busy wait minimal */ }
-          resolve();
-        });
-      }
-      const coarse = Math.max(0, ms - 10); // leave ~10ms for fine phase
       return new Promise(resolve => {
-        const scheduleFine = () => {
-          const fineLoop = () => {
-            if (nowFn() >= target) return resolve();
-            // 0 or 1ms timeout depending on remaining time
-            const remaining = target - nowFn();
-            setTimeout(fineLoop, remaining > 4 ? 1 : 0);
-          };
-          fineLoop();
-        };
-        if (coarse === 0) {
-          scheduleFine();
-        } else {
-          const t = setTimeout(scheduleFine, coarse);
+        const step = () => {
+          const remaining = target - nowFn();
+          if (remaining <= 0) return resolve();
+          let delay: number;
+          if (remaining > 48) {
+            // Large remaining: schedule a chunk but keep some headroom.
+            delay = Math.min(remaining - 24, 48);
+          } else if (remaining > 16) {
+            delay = 8;
+          } else if (remaining > 8) {
+            delay = 4;
+          } else if (remaining > 4) {
+            delay = 2;
+          } else if (remaining > 2) {
+            delay = 1;
+          } else {
+            delay = 0; // final tight loop via next tick
+          }
+          const t = setTimeout(step, delay);
           if (typeof (t as unknown as { unref?: () => void }).unref === 'function') {
             (t as unknown as { unref: () => void }).unref();
           }
-        }
+        };
+        step();
       });
     }
 
@@ -1020,7 +1037,7 @@ export abstract class NetworkTransport extends BatchingTransport {
 
   /**
    * Close network transport.
-   * 
+   *
    * @returns {Promise<void>} Resolves when closed
    * @protected
    */
@@ -1073,7 +1090,7 @@ export abstract class NetworkTransport extends BatchingTransport {
 
   /**
    * Close network-specific resources.
-   * 
+   *
    * @returns {Promise<void>} Resolves when closed
    * @protected
    */
@@ -1087,15 +1104,15 @@ export abstract class NetworkTransport extends BatchingTransport {
     this._networkClosedOnce = true;
     await this.closeNetwork();
   }
-  
+
   /**
    * Get transport statistics including network-specific stats.
-   * 
+   *
    * @returns {TransportStats} Current statistics
    */
   public getStats(): TransportStats {
     const stats = super.getStats();
-    
+
     return {
       ...stats,
       custom: {
@@ -1117,11 +1134,11 @@ export abstract class NetworkTransport extends BatchingTransport {
 
   /**
    * Check if transport is healthy.
-   * 
+   *
    * @returns {Promise<boolean>} True if healthy
    */
   public async isHealthy(): Promise<boolean> {
-    if (!await super.isHealthy()) {
+    if (!(await super.isHealthy())) {
       return false;
     }
 
@@ -1129,11 +1146,13 @@ export abstract class NetworkTransport extends BatchingTransport {
   }
 
   /** @inheritdoc */
-  protected shouldPropagateErrors(): boolean { return true; }
+  protected shouldPropagateErrors(): boolean {
+    return true;
+  }
 
   /**
    * Force reconnection.
-   * 
+   *
    * @returns {Promise<void>} Resolves when reconnected
    */
   public async reconnect(): Promise<void> {
@@ -1147,7 +1166,7 @@ export abstract class NetworkTransport extends BatchingTransport {
 
   /**
    * Emit extended events that may not be in base TransportEvents.
-   * 
+   *
    * @param {string} event - Event name
    * @param {...unknown[]} args - Event arguments
    * @protected
@@ -1173,7 +1192,7 @@ export abstract class NetworkTransport extends BatchingTransport {
 
   /**
    * Abstract method to establish connection.
-   * 
+   *
    * @returns {Promise<void>} Resolves when connected
    * @protected
    * @abstract
@@ -1182,7 +1201,7 @@ export abstract class NetworkTransport extends BatchingTransport {
 
   /**
    * Abstract method to close connection.
-   * 
+   *
    * @returns {Promise<void>} Resolves when disconnected
    * @protected
    * @abstract
@@ -1191,7 +1210,7 @@ export abstract class NetworkTransport extends BatchingTransport {
 
   /**
    * Abstract method to send data over the network.
-   * 
+   *
    * @param {unknown} data - Data to send
    * @returns {Promise<void>} Resolves when sent
    * @protected
@@ -1201,7 +1220,7 @@ export abstract class NetworkTransport extends BatchingTransport {
 
   /**
    * Abstract method to check connection health.
-   * 
+   *
    * @returns {Promise<void>} Resolves if healthy, rejects if not
    * @protected
    * @abstract
@@ -1210,7 +1229,7 @@ export abstract class NetworkTransport extends BatchingTransport {
 
   /**
    * Abstract method to perform the actual network request.
-   * 
+   *
    * @param {unknown} data - Data to send
    * @param {unknown} [batch] - Optional batch metadata
    * @returns {Promise<void>} Resolves when sent

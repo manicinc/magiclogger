@@ -1,405 +1,61 @@
-# MagicLogger Architecture & Documentation
-
-## Tree Shaking & Optimal Imports Strategy
-
-Before diving into the implementation, here's our approach for optimal bundle sizes:
-
-### 1. ESM-First with Tree Shaking
-
-```json
-{
-  "exports": {
-    ".": {
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs",
-      "types": "./dist/index.d.ts"
-    },
-    "./transports/console": {
-      "import": "./dist/transports/console.js",
-      "types": "./dist/transports/console.d.ts"
-    },
-    "./transports/file": {
-      "import": "./dist/transports/file.js",
-      "types": "./dist/transports/file.d.ts"
-    },
-    "./transports/http": {
-      "import": "./dist/transports/http.js",
-      "types": "./dist/transports/http.d.ts"
-    },
-    "./transports/s3": {
-      "import": "./dist/transports/s3.js",
-      "types": "./dist/transports/s3.d.ts"
-    },
-    "./transports/mongodb": {
-      "import": "./dist/transports/mongodb.js",
-      "types": "./dist/transports/mongodb.d.ts"
-    },
-    "./compatibility/winston": {
-      "import": "./dist/compatibility/winston.js",
-      "types": "./dist/compatibility/winston.d.ts"
-    },
-    "./compatibility/bunyan": {
-      "import": "./dist/compatibility/bunyan.js",
-      "types": "./dist/compatibility/bunyan.d.ts"
-    },
-    "./compatibility/pino": {
-      "import": "./dist/compatibility/pino.js",
-      "types": "./dist/compatibility/pino.d.ts"
-    }
-  },
-  "sideEffects": false
-}
-```
-
-### 2. Smart Import Patterns
-
-```typescript
-// ❌ Bad - imports everything
-import { Logger, ConsoleTransport, FileTransport } from 'magiclogger';
-
-// ✅ Good - tree-shakeable
-import { Logger } from 'magiclogger';
-import { ConsoleTransport } from 'magiclogger/transports/console';
-import { FileTransport } from 'magiclogger/transports/file';
-import { createWinstonCompatible } from 'magiclogger/compatibility/winston';
-```
-
-# MagicLogger 🪄
+# MagicLogger
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/manicinc/magiclogger/main/assets/logo.svg" alt="MagicLogger" width="400">
+  <img src="website/static/img/magiclog-primary-no-subtitle-transparent-4x.png" alt="MagicLog" width="520"/>
 </p>
 
 <p align="center">
-  <strong>Zero-overhead, structured logging for modern JavaScript</strong><br>
-  <em>Simple API → Powerful Features • Tree-Shakeable • Type-Safe</em>
+  <!-- Bundle Sizes -->
+  <img src="https://img.shields.io/badge/core_gzip-36kb-brightgreen.svg" alt="core_gzip">
+  <img src="https://img.shields.io/badge/core_console_gzip-36kb-brightgreen.svg" alt="core_console_gzip">
+  <img src="https://img.shields.io/badge/core_transports_gzip-41kb-brightgreen.svg" alt="core_transports_gzip">
 </p>
 
 <p align="center">
-  <a href="#features">Features</a> •
-  <a href="#quick-start">Quick Start</a> •
-  <a href="#architecture">Architecture</a> •
-  <a href="#api">API</a> •
-  <a href="#performance">Performance</a>
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/bundle_size-12kb-brightgreen" alt="Bundle Size">
-  <img src="https://img.shields.io/badge/zero_dependencies-✓-blue" alt="Zero Dependencies">
-  <img src="https://img.shields.io/badge/typescript-5.0+-blue" alt="TypeScript">
-  <img src="https://img.shields.io/badge/node-14+-green" alt="Node.js">
+  <!-- Project Stats -->
+  <a href="https://github.com/manicinc/magiclogger"><img src="https://img.shields.io/github/stars/manicinc/magiclogger?style=social" alt="GitHub Stars"></a>
+  <img src="https://img.shields.io/npm/v/magiclogger" alt="npm version">
+  <a href="https://codecov.io/gh/manicinc/magiclogger"><img src="https://codecov.io/gh/manicinc/magiclogger/branch/master/graph/badge.svg" alt="codecov"/></a>
+  <br />
+  <!-- Tech Stack -->
+  <img src="https://img.shields.io/badge/typescript-100%25-blue" alt="TypeScript"> 
+  <img src="https://img.shields.io/badge/node-14+-green" alt="Node.js"> 
   <img src="https://img.shields.io/badge/license-MIT-blue" alt="License">
 </p>
 
-## Why MagicLogger?
+## 🚀 Universal Color Logging Standard
 
-### The Problem
-Modern applications need structured logging for observability, but existing solutions either:
+**MagicLogger** is a TypeScript logger built on a [universal color logging standard](./docs/magic-schema.md) that preserves styled text across any language, transport, or platform.
 
-- Have large bundle sizes and many dependencies
-- Require complex configuration
-- Force you to choose between performance and features
-- Don't support modern JavaScript patterns
+Traditional prod environments suppress / strip styling / pretty print in logs, dropping presumed unnecessary bundling and load.
 
-### The Solution
-MagicLogger provides:
+Using this library generally means you're okay with these assumptions:
 
-- 🎯 Zero-overhead sync logging by default
-- ⚡ Optional async logging with ring buffers (like Pino)
-- 🌲 Perfect tree-shaking - only pay for what you use
-- 🔄 Drop-in compatibility with Winston/Bunyan/Pino
-- 🎨 Beautiful console output with smart color detection
-- 📊 Structured data from simple string logs
-- 🚀 Transport system for any destination
-- 🤖 AI/ML-ready with context minification
+  - Storage is cheap, some extra kb in many web apps makes little difference (if you don't care about an image being 1.1 vs 1.0 mb this likely applies)
+  - Some logs sent in production will require human review consistently
+  - When you analyze logs at a high-level you want to have a visually appealing experience
 
-## Quick Start
+Those most interested in using this might be small teams without enterprise logging, managing many services where a dashboard that shows aggregated streams beautifully will probably be rewarding.
 
-### Basic Usage (Tree-Shakeable)
+## Table of Contents
 
-```typescript
-// Import only what you need for minimal bundle size
-import { Logger } from 'magiclogger';
-import { ConsoleTransport } from 'magiclogger/transports/console';
-import { FileTransport } from 'magiclogger/transports/file';
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Styling APIs](#styling-apis)
+- [Key Features](#key-features)
+- [MAGIC Schema](#magic-schema)
+- [Transports](#transports)
+- [Advanced Features](#advanced-features)
+- [Theming & Custom Colors](#-theming--custom-colors)
+- [Context & Tags](#-context--tags)
+- [Validation & Schema Enforcement](#️-validation--schema-enforcement)
+- [Performance](#performance)
+- [Examples](#examples)
+- [API Reference](#api-reference)
+- [Contributing](#contributing)
 
-// Or use compatibility layers
-import { createWinstonCompatible } from 'magiclogger/compatibility/winston';
-import { createPinoCompatible } from 'magiclogger/compatibility/pino';
-import { createBunyanCompatible } from 'magiclogger/compatibility/bunyan';
 
-// Create logger
-const logger = new Logger();
-
-// Method 1: Direct transport creation
-logger.addTransport(new ConsoleTransport({
-  name: 'console',
-  colorize: true
-}));
-
-logger.addTransport(new FileTransport({
-  name: 'file',
-  filepath: './logs/app.log',
-  maxFileSize: 10485760, // 10MB
-  maxFiles: 5
-}));
-
-// Method 2: Factory functions with sensible defaults
-logger.addTransport(await createConsole());
-logger.addTransport(await createFile('./logs/app.log'));
-
-// Start logging
-logger.info('Application started', { version: '1.0.0' });
-logger.error('Something went wrong', new Error('Database connection failed'));
-```
-
-### Production Setup with Cloud Storage
-
-```typescript
-import { Logger } from 'magiclogger';
-import { ConsoleTransport } from 'magiclogger/transports/console';
-import { FileTransport } from 'magiclogger/transports/file';
-
-const logger = new Logger();
-
-// Always include console for development
-if (process.env.NODE_ENV !== 'production') {
-  logger.addTransport(new ConsoleTransport({ name: 'console' }));
-}
-
-// Local file logging
-logger.addTransport(new FileTransport({
-  name: 'file',
-  filepath: './logs/app.log',
-  maxFileSize: 10485760, // 10MB
-  maxFiles: 5
-}));
-
-// Add cloud storage in production (loaded dynamically)
-if (process.env.NODE_ENV === 'production') {
-  const { S3Transport } = await import('magiclogger/transports');
-  logger.addTransport(new S3Transport({
-    name: 's3',
-    bucket: process.env.LOG_BUCKET,
-    region: process.env.AWS_REGION,
-    prefix: 'logs/',
-    maxBatchSize: 1000
-  }));
-}
-```
-
-### Winston/Pino Migration (Drop-in Replacement)
-
-```typescript
-// Replace this:
-// import winston from 'winston';
-
-// With this (tree-shakeable):
-import { createWinstonCompatible } from 'magiclogger/compatibility/winston';
-const winston = createWinstonCompatible();
-
-// Your existing Winston code works unchanged
-winston.info('Hello world');
-winston.error('Error message', new Error('Something failed'));
-```
-
-## 🌲 Tree-Shaking & Bundle Optimization
-
-MagicLogger is designed from the ground up for **perfect tree-shaking** and minimal bundle impact. You only pay for what you use.
-
-### Import Strategies
-
-#### 📦 **Main Package Import**
-```typescript
-// All-in-one import (includes core logger + common utilities)
-import { Logger, COLORS, TransportManager } from 'magiclogger';
-// Bundle size: ~15KB
-```
-
-#### 🎯 **Tree-Shakeable Transport Import**
-```typescript
-// Import only the transports you need
-import { ConsoleTransport } from 'magiclogger/transports/console';
-import { FileTransport } from 'magiclogger/transports/file';
-import { HTTPTransport } from 'magiclogger/transports/http';
-// Bundle size: ~8KB (core transports only)
-
-// Optional transports (larger dependencies)
-import { S3Transport } from 'magiclogger/transports/s3';
-import { MongoDBTransport } from 'magiclogger/transports/mongodb';
-// Bundle size: +500KB (S3), +2MB (MongoDB) - only when imported
-```
-
-#### ⚡ **Convenience Factories**
-```typescript
-// Use direct imports for better tree-shaking
-import { ConsoleTransport } from 'magiclogger/transports/console';
-import { FileTransport } from 'magiclogger/transports/file';
-import { HTTPTransport } from 'magiclogger/transports/http';
-
-const console = new ConsoleTransport({ name: 'console' });
-const file = new FileTransport({ name: 'file', filepath: './app.log' });
-const http = new HTTPTransport({ name: 'http', url: 'https://api.logs.com' });
-```
-
-### Transport Categories
-
-#### 🔧 **Core Transports** (Always Available)
-These have **zero external dependencies** and are available by default:
-
-- **Console** - Beautiful terminal output with colors (~2KB)
-- **File** - High-performance file logging with rotation (~3KB)
-- **Stream** - Write to any Node.js stream (~1KB)
-- **HTTP** - REST API endpoints using built-in http/https (~4KB)
-
-```typescript
-// Total: ~10KB for all core transports
-import { 
-  ConsoleTransport, 
-  FileTransport, 
-  StreamTransport, 
-  HTTPTransport 
-} from 'magiclogger/transports';
-```
-
-#### 📦 **Optional Transports** (Tree-Shakeable)
-These require external dependencies and are only bundled when explicitly imported:
-
-- **S3Transport** - AWS S3 logging (~15KB + aws-sdk ~500KB)
-- **MongoDBTransport** - MongoDB logging (~8KB + mongodb ~2MB)
-- **WebSocketTransport** - Real-time logging (~6KB + ws ~50KB)
-
-```typescript
-// Only bundled when imported
-import { S3Transport } from 'magiclogger/transports/s3';
-import { MongoDBTransport } from 'magiclogger/transports/mongodb';
-import { WebSocketTransport } from 'magiclogger/transports/websocket';
-```
-
-### Bundle Size Analysis
-
-| Import Strategy | Bundle Size | Use Case |
-|----------------|-------------|----------|
-| `import { Logger } from 'magiclogger'` | ~15KB | Simple apps, development |
-| `import { ConsoleTransport } from 'magiclogger/transports/console'` | ~2KB | Console-only logging |
-| `import { FileTransport } from 'magiclogger/transports/file'` | ~3KB | File-only logging |
-| Core transports (all 4) | ~10KB | Production apps |
-| + S3Transport | ~510KB | Cloud logging |
-| + MongoDBTransport | ~2MB | Database logging |
-
-```typescript
-// These only add to bundle when imported
-import { S3Transport } from 'magiclogger/transports/s3';        // +~150KB (AWS SDK)
-import { MongoDBTransport } from 'magiclogger/transports/mongodb'; // +~90KB (MongoDB driver)
-```
-
-### Bundle Size Impact
-
-| Import Pattern | Bundle Size | Dependencies |
-|----------------|------------|--------------|
-| Core only | **~8KB** | Zero |
-| + Console & File | **~12KB** | colorette |
-| + All Core Transports | **~18KB** | None |
-| + MongoDB | **~108KB** | mongodb |
-| + S3 | **~168KB** | @aws-sdk/client-s3 |
-| Full Winston equivalent | **~45KB** | vs 180KB+ |
-
-### Smart Import Examples
-
-```typescript
-// ✅ Minimal - Only core logger (~8KB)
-import { Logger } from 'magiclogger';
-const logger = new Logger();
-
-// ✅ Add console output (~12KB total)
-import { ConsoleTransport } from 'magiclogger/transports/console';
-logger.addTransport(new ConsoleTransport({ name: 'console' }));
-
-// ✅ Add file logging (~18KB total)
-import { FileTransport } from 'magiclogger/transports/file';
-logger.addTransport(new FileTransport({
-  name: 'file',
-  filepath: './logs/app.log'
-}));
-
-// ✅ Add HTTP endpoint (~22KB total)
-import { HTTPTransport } from 'magiclogger/transports/http';
-logger.addTransport(new HTTPTransport({
-  name: 'http',
-  url: 'https://logs.example.com/api'
-}));
-
-// ✅ Add cloud storage (only when needed - +~150KB)
-import { S3Transport } from 'magiclogger/transports/s3';
-logger.addTransport(new S3Transport({
-  name: 's3',
-  bucket: 'my-logs',
-  region: 'us-east-1'
-}));
-
-// ✅ Use compatibility layers
-import { createWinstonCompatible } from 'magiclogger/compatibility/winston';
-import { createPinoCompatible } from 'magiclogger/compatibility/pino';
-const winston = createWinstonCompatible();
-const pino = createPinoCompatible();
-
-// ❌ Avoid - imports everything (if this existed)
-import { Logger, ConsoleTransport, S3Transport } from 'magiclogger';
-```
-
-### Dynamic Loading
-
-For even better performance, load optional transports dynamically:
-
-```typescript
-const logger = new Logger();
-
-// Always available
-logger.addTransport(new ConsoleTransport({ name: 'console' }));
-
-// Load S3 transport only when needed
-if (process.env.NODE_ENV === 'production') {
-  const { S3Transport } = await import('magiclogger/transports');
-  logger.addTransport(new S3Transport({
-    name: 's3',
-    bucket: 'my-logs',
-    region: 'us-east-1'
-  }));
-}
-```
-
-## Features
-
-### Core Features
-
-- ✅ **Structured Logging** - Automatic metadata, context, and error tracking
-- ✅ **Multiple Transports** - Console, File, HTTP, S3, MongoDB, WebSocket, and more
-- ✅ **Smart Batching** - Intelligent batching with size/time/count triggers
-- ✅ **Retry & Fallback** - Network resilience with exponential backoff
-- ✅ **Context & Tags** - Powerful filtering and organization
-- ✅ **Type Safety** - Full TypeScript support with inference
-- ✅ **Tree-Shakeable** - Zero-overhead imports, pay only for what you use
-- ✅ **Cross-Platform** - Node.js, Browser, Deno, and Worker environments
-
-### Performance Features
-
-- ✅ **Zero Allocation** - Ring buffer for high-frequency logging
-- ✅ **Async Options** - Non-blocking logging when you need it
-- ✅ **Worker Threads** - Offload heavy transports (opt-in)
-- ✅ **Tree Shaking** - Only include what you use
-- ✅ **Lazy Loading** - Transports load on-demand
-
-### Developer Experience
-
-- ✅ **Simple API** - Intuitive methods that just work
-- ✅ **Color Support** - 16/256/RGB with automatic detection
-- ✅ **Progress Bars** - Built-in progress indicators
-- ✅ **Tables** - Formatted data tables
-- ✅ **Compatibility** - Drop-in replacement for popular loggers
-
-## Quick Start
-
-### Installation
+## Installation
 
 ```bash
 npm install magiclogger
@@ -409,359 +65,1283 @@ yarn add magiclogger
 pnpm add magiclogger
 ```
 
-### Basic Usage
+Supports both ESM and CommonJS:
+
+```typescript
+import { Logger } from 'magiclogger';          // ESM/TypeScript
+const { Logger } = require('magiclogger');     // CommonJS
+```
+
+## Quick Start
+
+```typescript
+import { Logger, SyncLogger, createLogger, createSyncLogger } from 'magiclogger';
+
+// Async logger (default) - high performance with batching
+const logger = new Logger();
+logger.info('Application started');
+
+// Logger with automatic console transport (enabled by default)
+const logger = new Logger({
+  useConsole: true,   // Console transport is enabled by default (can be disabled with false)
+  useColors: true,    // Enable colored output (default: true)
+  verbose: false      // Show debug messages (default: false)
+});
+
+// Or simply use with defaults - console is automatically enabled
+const logger = new Logger();  // Console transport created automatically
+
+// Sync logger - blocking I/O for guaranteed delivery
+const auditLogger = new SyncLogger({ 
+  file: './audit.log',
+  forceFlush: true  // fsync after each write
+});
+
+// Smart logger - auto-detects best mode
+import { createSmartLogger } from 'magiclogger';
+const smartLogger = createSmartLogger();
+// Dev/TTY: Sync for immediate feedback
+// Production: Async for performance
+```
+
+## Styling APIs
+Choose the styling approach that fits your code style:
+
+```typescript
+import { Logger } from 'magiclogger';
+const logger = new Logger();
+
+// 1. Inline angle brackets - simplest, works everywhere
+logger.info('<green.bold>✅ Success:</> User <cyan>john@example.com</> authenticated');
+
+// 2. Template literals - clean interpolation
+logger.info(logger.fmt`@red.bold{ERROR:} Failed to connect to @yellow{${database}}`);
+
+// 3. Chainable API - programmatic styling
+logger.info(logger.s.blue.bold('INFO:') + ' Processing ' + logger.s.cyan(filename));
+```
+
+## Key Features
+
+### Structured Logging with NDJSON
+
+MagicLogger supports **NDJSON (Newline Delimited JSON)** format: each log entry is a complete JSON object on its own line.
+
+```typescript
+// Configure NDJSON output
+const logger = new Logger({
+  transports: [
+    new FileTransport({
+      filepath: './logs/app.log',
+      format: 'json'  // NDJSON format
+    })
+  ]
+});
+
+// Output (each line is a complete JSON object):
+// {"id":"abc123","timestamp":"2024-01-20T10:30:00Z","level":"info","message":"Server started","context":{"port":3000}}
+// {"id":"def456","timestamp":"2024-01-20T10:30:01Z","level":"error","message":"Database error","error":{"message":"Connection refused"}}
+```
+
+### Structured JSON with Optional Validation
+Every log outputs structured JSON following the MAGIC Schema:
+
+```typescript
+// With optional schema validation (lazy-loaded)
+const logger = new Logger({
+  schemas: {
+    user: z.object({
+      userId: z.string().uuid(),
+      email: z.string().email()
+    })
+  },
+  onSchemaViolation: 'warn'  // 'warn' | 'error' | 'throw'
+});
+
+logger.info('User login', { tag: 'user', userId: '550e8400...', email: 'john@example.com' });
+```
+
+### 🎯 Tagging & Theming
+Auto-style logs based on semantic tags:
+
+```typescript
+const logger = new Logger({
+  theme: {
+    tags: {
+      api: ['cyan', 'bold'],
+      database: ['yellow'],
+      critical: ['white', 'bgRed', 'bold']
+    }
+  }
+});
+
+logger.info('Request received', { tags: ['api'] });  // Auto-styled
+```
+
+### Transport-Optimized Architecture
+MagicLogger uses transport-specific optimization for maximum performance:
+
+#### Each Transport Manages Its Own Strategy
+Transports decide their own threading and buffering approach:
+
+```typescript
+const logger = new Logger({
+  transports: [
+    // Console: synchronous for immediate feedback
+    new SyncConsoleTransport(),
+    
+    // File: worker thread with internal buffering
+    new FileWorkerTransport({
+      filepath: './app.log',
+      bufferSize: 16384,      // Buffer in worker thread
+      flushInterval: 50       // Flush in worker thread
+    }),
+    
+    // HTTP: worker thread with batching
+    new HTTPWorkerTransport({
+      endpoint: 'https://logs.example.com',
+      batchSize: 100,         // Batch in worker thread
+      flushInterval: 5000     // Send every 5s
+    })
+  ]
+});
+```
+
+#### Stage 2: Transport Batching
+Network transports implement their own independent batching:
+
+```typescript
+// Transport batching happens automatically for network transports
+const httpTransport = new HTTPTransport({
+  batch: { size: 100, timeout: 5000 }  // Batch 100 logs or flush every 5s
+});
+```
+
+Note: Each transport handles backpressure independently. File and HTTP transports use worker threads to prevent blocking the main thread.
+
+### Log Delivery Guarantees
+
+**AsyncLogger (default)**: 
+- Batches logs in memory for performance (default: 1000 entries or 10ms timeout)
+- **With graceful shutdown** (`await logger.close()`): All logs are flushed and saved
+- **Without graceful shutdown** (crash/SIGKILL): Buffered logs may be lost (up to 100ms worth)
+
+**SyncLogger**: 
+- Blocks until each log is written to disk (using `fs.appendFileSync`)
+- **Always guarantees delivery** - logs are never lost unless OS crashes
+- Trade-off: Significantly slower performance (30K vs 200K+ ops/sec)
+
+**For critical logs that must never be lost**:
+```typescript
+// Option 1: Use SyncLogger for audit/security logs
+const auditLogger = new SyncLogger({ file: './audit.log' });
+
+// Option 2: Ensure graceful shutdown for AsyncLogger
+process.on('SIGTERM', async () => {
+  await logger.close();  // Flushes all pending logs
+  process.exit(0);
+});
+
+// Option 3: Use synchronous transports with AsyncLogger
+const logger = new AsyncLogger({
+  transports: [new SyncFileTransport({ filepath: './critical.log' })]
+});
+```
+
+
+## MAGIC Schema - Universal Styled Logging Standard
+
+The **[MAGIC Schema](./docs/magic-schema.md)** is a universal JSON format that preserves text styling across any language, transport, or platform. Any language can produce MAGIC-compliant logs that MagicLogger (or any MAGIC-compatible system) can ingest and display with full color preservation.
+
+### The MAGIC Schema provides:
+
+- **Style Preservation**: Colors and formatting survive serialization as structured data
+- **Language Agnostic**: Any language can implement the MAGIC producer specification
+- **Ingestion Ready**: MagicLogger can consume logs from any MAGIC-compliant source
+- **Consistent Structure**: Same JSON format across all languages and transports
+- **OpenTelemetry Ready**: Direct compatibility with OTLP (OpenTelemetry Protocol)
+- **Distributed Tracing**: Built-in W3C Trace Context support
+- **Rich Metadata**: Automatic capture of system, process, and environment info
+
+### Schema Structure
+
+Every log entry outputs this JSON structure:
+
+```typescript
+logger.info('User authenticated', { 
+  userId: 'u_123', 
+  method: 'OAuth',
+  provider: 'google'
+});
+```
+
+Produces:
+```json
+{
+  "id": "1733938475123-abc123xyz",
+  "timestamp": "2025-08-14T12:34:35.123Z",
+  "timestampMs": 1765769675123,
+  "level": "info",
+  "message": "User authenticated",      // Plain text message
+  "styles": [[0, 4, "green.bold"]],     // Preserved styling info
+  "service": "auth-api",
+  "environment": "production",
+  "loggerId": "api-service",
+  "context": { 
+    "userId": "u_123",
+    "method": "OAuth",
+    "provider": "google"
+  },
+  "metadata": {
+    "hostname": "api-server-01",
+    "pid": 12345,
+    "platform": "linux",
+    "nodeVersion": "v20.10.0"
+  },
+  "trace": {
+    "traceId": "0af7651916cd43dd8448eb211c80319c",
+    "spanId": "b7ad6b7169203331"
+  }
+}
+```
+
+### OpenTelemetry Compatibility
+
+The MAGIC Schema maps directly to OpenTelemetry's log data model:
+
+```typescript
+// MAGIC fields → OTLP mapping
+{
+  "id"           → attributes["log.id"]
+  "timestamp"    → timeUnixNano  
+  "level"        → severityNumber
+  "message"      → body
+  "trace.traceId" → traceId (root level)
+  "trace.spanId"  → spanId (root level)
+  "service"      → resource.attributes["service.name"]
+}
+```
+
+**Full Documentation**: See the [MAGIC Schema Specification](./docs/magic-schema.md) for complete field definitions, examples, and integration guides.
+
+## 🌍 Cross-Language SDK Compatibility
+
+### The MAGIC Format Specification
+
+The MAGIC Schema is an open specification that any language can implement:
+
+```json
+{
+  "id": "unique-identifier",
+  "timestamp": "2024-01-15T10:30:00.000Z",
+  "timestampMs": 1705316400000,
+  "level": "info|warn|error|debug|trace|fatal",
+  "message": "Plain text without formatting",
+  "styles": [
+    [0, 6, "red.bold"],      // Apply red.bold to characters 0-6
+    [12, 28, "cyan"]         // Apply cyan to characters 12-28
+  ]
+}
+```
 
 ```typescript
 import { Logger } from 'magiclogger';
 
 const logger = new Logger();
 
-// Simple logging - automatically structured
-logger.info('Server started', { port: 3000 });
-logger.error('Database connection failed', new Error('Connection timeout'));
-```
+// Input with styles
+logger.error('<red.bold>Error:</> Database <yellow>timeout</>');
 
-**Output:**
-```
-[2024-01-20 10:30:45] INFO Server started port=3000
-[2024-01-20 10:30:46] ERROR Database connection failed error="Connection timeout"
-```
-
-**But transports receive:**
-```json
+// Outputs MAGIC JSON
 {
-  "id": "log-1705746645000-abc123",
-  "timestamp": "2024-01-20T10:30:45.000Z",
-  "level": "info",
-  "message": "Server started",
-  "context": { "port": 3000 },
-  "metadata": { "hostname": "server-01", "pid": 1234 }
+  "message": "Error: Database timeout",
+  "styles": [[0, 6, "red.bold"], [16, 23, "yellow"]],
+  // ... other fields
 }
+
+// Can reconstruct styled output
+import { applyStyles } from 'magiclogger';
+const styled = applyStyles(entry.message, entry.styles);
+console.log(styled); // Shows with colors!
 ```
 
-### Real-World Example
+### MAGIC Compliance Requirements
+
+For a logger to be MAGIC-compliant, it must:
+
+1. **Output Valid MAGIC Schema JSON**
+   ```json
+   {
+     "message": "Error: Database connection failed",
+     "styles": [[0, 6, "red.bold"], [7, 35, "yellow"]],
+     "level": "error",
+     "timestamp": "2024-01-15T10:30:00.000Z"
+   }
+   ```
+
+2. **Preserve Style Information**
+   - Extract styles from markup (e.g., `<red>text</>`)
+   - Store as `[startIndex, endIndex, style]` tuples
+   - Keep plain text in `message` field
+
+3. **Include Required Fields**
+   - `id`, `timestamp`, `level`, `message`
+   - Optional but recommended: `service`, `environment`, `trace`
+
+## Transports
+
+### Core Transports
 
 ```typescript
-import { Logger, ConsoleTransport, FileTransport, HTTPTransport } from 'magiclogger';
+import { 
+  ConsoleTransport,
+  FileTransport, 
+  HTTPTransport,
+  WebSocketTransport
+} from 'magiclogger/transports';
 
+// Note: Console transport is added automatically by default unless disabled
 const logger = new Logger({
-  id: 'api-service',
-  tags: ['production', 'api'],
-  context: { version: '2.1.0', region: 'us-east-1' },
-  
-  // Enable async logging for high throughput
-  async: {
-    enabled: true,
-    buffer: { size: 10000 }
-  },
-  
   transports: [
-    // Console for development
-    new ConsoleTransport({ 
-      level: 'debug',
-      useColors: true 
+    // Console with colors (optional - added by default if no transports specified)
+    new ConsoleTransport({ useColors: true }),  // This overrides the default console transport
+    
+    // File with rotation
+    new FileTransport({ 
+      filepath: './logs/app.log',
+      maxFiles: 7,
+      maxSize: '10MB'
     }),
     
-    // Rotating file logs
-    new FileTransport({
-      filepath: './logs',
-      rotation: 'daily',
-      compress: true,
-      retentionDays: 30
-    }),
-    
-    // Central log aggregation
-    new HTTPTransport({
+    // HTTP with batching
+    new HTTPTransport({ 
       url: 'https://logs.example.com',
-      batch: { maxSize: 100, maxTime: 5000 },
-      retry: { maxRetries: 3 },
-      fallback: 'file'
+      batch: { size: 100, timeout: 5000 }
+    })
+  ]
+});
+```
+
+### Advanced Transports
+
+These are optional dependencies.
+
+```typescript
+// Database transports
+import { PostgreSQLTransport, MongoDBTransport } from 'magiclogger/transports';
+
+// Cloud storage
+import { S3Transport } from 'magiclogger/transports';
+
+// Messaging systems
+import { KafkaTransport, SyslogTransport } from 'magiclogger/transports';
+
+// Observability platforms
+import { OTLPTransport } from 'magiclogger/transports/otlp';
+
+const otlpTransport = new OTLPTransport({
+  endpoint: 'http://localhost:4318',
+  serviceName: 'my-service',
+  includeTraceContext: true  // W3C Trace Context support
+});
+```
+
+### Console Transport Behavior
+
+By default, MagicLogger automatically creates a console transport unless explicitly disabled:
+
+```typescript
+// Default behavior - console transport is automatically created
+const logger = new Logger();  // Console output enabled
+
+// Explicitly disable console for file-only logging (better performance)
+const fileOnlyLogger = new Logger({
+  useConsole: false,  // Disable automatic console transport
+  transports: [
+    new FileTransport({ 
+      filepath: './app.log',
+      buffer: { size: 1000 }  // Buffer for better write performance
     })
   ]
 });
 
-// Sync logging (default, zero overhead)
-logger.info('Request received', { 
-  method: 'GET', 
-  path: '/api/users',
-  ip: req.ip 
-});
-
-// Async logging for heavy operations
-await logger.async.info('Large dataset processed', {
-  records: 1000000,
-  duration: 5423,
-  memoryUsed: process.memoryUsage()
-});
-
-// Or use async flag
-logger.info('Background job completed', { 
-  async: true,
-  jobId: 'job-123',
-  priority: 1 
+// Production setup - disable console
+const prodLogger = new Logger({
+  useConsole: false,  // No console overhead in production
+  transports: [
+    new HTTPTransport({ 
+      url: process.env.LOG_ENDPOINT,
+      batch: { size: 1000, timeout: 10000 }
+    }),
+    new S3Transport({ 
+      bucket: 'logs',
+      compress: true
+    })
+  ]
 });
 ```
 
-## Architecture
+## Advanced Features
 
-### Module Structure
-
-```
-magiclogger/
-├── core/                 # Core logging functionality
-│   ├── Logger.ts         # Main logger class
-│   ├── AsyncLogBuffer.ts # Ring buffer for async
-│   ├── ContextManager.ts # Context utilities
-│   └── TagManager.ts     # Tag utilities
-├── transports/           # Log destinations
-│   ├── console.ts        # Console transport
-│   ├── file.ts           # File transport
-│   ├── http.ts           # HTTP transport
-│   └── ...               # Other transports
-├── compatibility/        # Drop-in replacements
-│   ├── winston.ts        # Winston compatibility
-│   ├── bunyan.ts         # Bunyan compatibility
-│   └── pino.ts           # Pino compatibility
-└── index.ts              # Main exports
-```
-
-### Import Strategies
-
-#### 1. Minimal Import (Recommended)
+### Visual Elements
 
 ```typescript
-// Only import what you need - best for bundle size
-import { Logger } from 'magiclogger';
-import { ConsoleTransport } from 'magiclogger/transports';
+// Headers and separators
+logger.header('🚀 DEPLOYMENT PROCESS');
+logger.separator('=', 50);
 
-const logger = new Logger({
-  transports: [new ConsoleTransport()]
-});
-```
-
-#### 2. Convenience Import
-
-```typescript
-// Import common functionality
-import { createLogger } from 'magiclogger';
-
-const logger = createLogger('my-app', {
-  console: true,
-  file: './logs/app.log'
-});
-```
-
-#### 3. Full Import (Development)
-
-```typescript
-// Import everything for experimentation
-import * as MagicLogger from 'magiclogger';
-```
-
-#### 4. Compatibility Imports
-
-```typescript
-// Only loaded if you import them
-import { createWinstonCompatible } from 'magiclogger/compatibility/winston';
-import { createBunyanCompatible } from 'magiclogger/compatibility/bunyan';
-import { createPinoCompatible } from 'magiclogger/compatibility/pino';
-```
-
-## Advanced Examples
-
-### High-Performance Async Logging
-
-```typescript
-const logger = new Logger({
-  async: {
-    enabled: true,
-    buffer: {
-      size: 100000,        // 100k entries
-      flushInterval: 1000, // Flush every second
-      flushSize: 1000      // Or every 1000 logs
-    },
-    useWorkers: true,      // Offload to worker threads
-    workerCount: 2
-  }
-});
-
-// Handles millions of logs per second
-for (let i = 0; i < 1000000; i++) {
-  logger.info('High frequency log', { index: i });
+// Progress bars
+for (let i = 0; i <= 100; i += 10) {
+  logger.progressBar(i);
+  await delay(100);
 }
 
-// Critical logs can bypass the buffer
-logger.error('Critical error', { 
-  async: false,  // Force sync
-  error: new Error('System failure')
+// Tables
+logger.table([
+  { name: 'API', status: 'healthy', cpu: '12%' },
+  { name: 'Database', status: 'healthy', cpu: '45%' }
+]);
+
+// Object diffs
+logger.diff('State change', oldState, newState);
+```
+
+## 🎨 Theming & Custom Colors
+
+### Theme System
+
+MagicLogger's theme system provides consistent, semantic styling across your application. 
+
+#### Built-in Themes
+
+```typescript
+const logger = new Logger({ theme: 'ocean' });
+// Available themes: ocean, forest, sunset, minimal, cyberpunk, dark, default
+
+// Each theme provides consistent colors for semantic log types
+logger.info('Information');     // Themed as info style
+logger.success('Completed');    // Themed as success style
+logger.warning('Caution');      // Themed as warning style
+logger.error('Failed');         // Themed as error style
+```
+
+#### Custom Theme Definition
+
+```typescript
+const logger = new Logger({
+  theme: {
+    // Log level styles
+    info: ['cyan'],
+    success: ['green', 'bold'],
+    warning: ['yellow'],
+    error: ['red', 'bold'],
+    debug: ['gray', 'dim'],
+    
+    // UI element styles
+    header: ['brightWhite', 'bold', 'underline'],
+    footer: ['gray', 'dim'],
+    separator: ['blue'],
+    highlight: ['brightYellow', 'bold'],
+    muted: ['gray', 'dim'],
+    
+    // Custom semantic styles
+    api: ['cyan', 'bold'],
+    database: ['yellow'],
+    cache: ['magenta'],
+    network: ['blue'],
+    security: ['red', 'bold', 'underline']
+  }
 });
 ```
 
-### Context & Tag Management
+#### Tag-Based Theming
+
+Combine themes with tags for automatic styling based on log categories:
 
 ```typescript
-// Global context for all logs
 const logger = new Logger({
-  context: { 
-    service: 'payment-api',
-    environment: 'production' 
-  },
-  tags: ['payments', 'critical'],
-  
-  // Minify context for efficiency (Hatchet-ready)
-  contextMinification: {
-    enabled: true,
-    rules: {
-      'service': 'svc',
-      'environment': 'env',
-      'userId': 'uid'
+  theme: {
+    tags: {
+      'api': ['cyan', 'bold'],
+      'api.request': ['cyan'],
+      'api.response': ['brightCyan'],
+      'database': ['yellow'],
+      'database.query': ['yellow', 'dim'],
+      'database.error': ['red', 'bold'],
+      'security': ['red', 'bold', 'bgYellow'],
+      'performance': ['magenta', 'bold']
     }
   }
 });
 
-// Request-scoped logger
-app.use((req, res, next) => {
-  req.logger = logger.child({
-    context: {
-      requestId: req.id,
-      userId: req.user?.id,
-      path: req.path
-    },
-    tags: ['http', req.method.toLowerCase()]
-  });
-  next();
-});
-
-// Logs automatically include all context
-req.logger.info('Payment processed', {
-  amount: 99.99,
-  currency: 'USD'
-});
+// Tags automatically apply themed styles
+logger.info('Request received', { tags: ['api', 'api.request'] });
+logger.error('Query timeout', { tags: ['database', 'database.error'] });
+logger.warn('Unauthorized access attempt', { tags: ['security'] });
 ```
 
-### Transport Filtering & Routing
+### Custom Colors (Advanced)
+
+MagicLogger supports custom color registration for brand-specific palettes and advanced terminal features.
+
+#### Registering Custom Colors
 
 ```typescript
-const logger = new Logger({
-  transports: [
-    // Debug logs only in development
-    new ConsoleTransport({
-      level: 'debug',
-      enabled: process.env.NODE_ENV === 'development'
-    }),
-    
-    // Errors to Slack
-    new HTTPTransport({
-      name: 'slack-errors',
-      url: process.env.SLACK_WEBHOOK,
-      levels: ['error', 'fatal'],
-      formatter: (entry) => ({
-        text: `🚨 ${entry.message}`,
-        attachments: [{
-          color: 'danger',
-          fields: Object.entries(entry.context || {})
-            .map(([k, v]) => ({ title: k, value: v, short: true }))
-        }]
-      })
-    }),
-    
-    // Audit logs to secure storage
-    new S3Transport({
-      name: 'audit-s3',
-      bucket: 'audit-logs',
-      tags: ['audit', 'compliance'],
-      encryption: { type: 'AES256' },
-      contextRequirements: ['userId', 'action'] // Must have these
-    }),
-    
-    // Metrics to time-series DB
-    new HTTPTransport({
-      name: 'metrics',
-      url: 'https://metrics.example.com',
-      filter: (entry) => entry.context?.metric !== undefined,
-      transformer: (entry) => ({
-        metric: entry.context.metric,
-        value: entry.context.value,
-        tags: entry.tags,
-        timestamp: entry.timestampMs
-      })
-    })
-  ]
+// Register individual custom color
+logger.registerCustomColor('brandPrimary', {
+  hex: '#FF5733',        // 24-bit RGB color (for modern terminals)
+  fallback: 'orange'     // Required fallback for limited terminals
 });
-```
 
-### Browser Logging with Storage
-
-```typescript
-// Browser-specific features
-const logger = new Logger({
-  storeInBrowser: true,
-  maxStoredLogs: 1000,
+// Register multiple custom colors
+logger.registerCustomColors({
+  // Using RGB values
+  brandBlue: { 
+    rgb: [51, 102, 255],
+    fallback: 'blue',
+    description: 'Primary brand blue'
+  },
   
-  transports: [
-    new ConsoleTransport({ useColors: true }),
-    
-    // Send errors to backend
-    new HTTPTransport({
-      url: '/api/logs',
-      levels: ['error'],
-      batch: { maxSize: 10, maxTime: 10000 }
-    })
-  ]
+  // Using 256-color palette
+  darkOlive: { 
+    code256: 58,        // 256-color palette code
+    fallback: 'green',
+    description: 'Secondary accent color'
+  },
+  
+  // Direct ANSI sequence (advanced)
+  brandGradient: {
+    ansi: '\x1b[38;2;255;87;51m', // Direct ANSI escape
+    fallback: 'red'
+  }
+});
+```
+
+#### Using Custom Colors
+
+```typescript
+// In themes
+logger.setTheme({
+  header: ['brandPrimary', 'bold'],
+  success: ['brandBlue'],
+  accent: ['darkOlive', 'italic']
 });
 
-// Download logs for debugging
-document.getElementById('download-logs').onclick = () => {
-  logger.downloadLogs('debug-logs.txt');
+// With style factories
+const brand = logger.color('brandPrimary', 'bold');
+const accent = logger.color('darkOlive');
+
+logger.info(`Welcome to ${brand('Our Product')} - ${accent('v2.0')}`);
+
+// In styled messages
+logger.info('<brandPrimary.bold>Important:</> Check the <brandBlue>dashboard</>');
+```
+
+## 📊 Context & Tags
+
+MagicLogger provides powerful context and tagging features for structured logging, enabling better log organization, filtering, and analysis.
+
+### Context - Structured Metadata
+
+Context allows you to attach structured data to log entries, providing rich metadata for debugging and monitoring.
+
+#### Global vs Per-Log Context
+
+```typescript
+// Global context - applied to all logs from this logger
+const logger = new Logger({
+  id: 'payment-service',
+  context: {
+    service: 'payment-api',
+    version: '2.1.0',
+    environment: process.env.NODE_ENV,
+    region: 'us-east-1',
+    instanceId: process.env.INSTANCE_ID
+  }
+});
+
+// Per-log context - specific to individual log entries
+logger.info('Payment processed', {
+  orderId: 'ORD-12345',
+  customerId: 'CUST-67890',
+  amount: 99.99,
+  currency: 'USD',
+  processingTime: 145,
+  paymentMethod: 'credit_card'
+});
+
+// Context merging - per-log overrides global
+logger.info('Special payment', {
+  amount: 199.99,
+  version: '2.2.0',  // Overrides global version
+  promotional: true   // Adds new field
+});
+```
+
+#### Using the meta() Helper
+
+When using console-like variadic arguments, wrap context to prevent it from being printed:
+
+```typescript
+import { meta } from 'magiclogger';
+
+// Without meta() - context gets printed to console
+logger.info('User logged in', { userId: '123' });
+// Output: User logged in { userId: '123' }
+
+// With meta() - context is attached but not printed
+logger.info('User logged in', meta({ userId: '123' }));
+// Output: User logged in
+// Context still available in structured output/transports
+```
+
+#### Advanced Context Management
+
+```typescript
+import { ContextManager } from 'magiclogger';
+
+const contextManager = new ContextManager({
+  // Auto-redact sensitive fields
+  sensitiveKeys: ['password', 'token', 'ssn', 'creditCard'],
+  
+  // Transform nested keys to flat structure
+  transformRules: {
+    'user.id': 'userId',
+    'request.id': 'requestId',
+    'response.time': 'responseTime'
+  },
+  
+  // Validation rules
+  maxDepth: 3,
+  maxSize: 1000, // bytes
+  forbidden: ['__proto__', 'constructor']
+});
+
+// Sanitize sensitive data automatically
+const userContext = {
+  userId: '123',
+  email: 'user@example.com',
+  password: 'secret123',  // Will be redacted
+  creditCard: '4111111111111111'  // Will be redacted
+};
+
+const sanitized = contextManager.sanitize(userContext);
+// Result: { 
+//   userId: '123', 
+//   email: 'user@example.com', 
+//   password: '***', 
+//   creditCard: '***' 
+// }
+```
+
+### Tags - Categorical Labels
+
+Tags are simple string labels for categorizing and filtering logs, enabling powerful log organization and styling.
+
+#### Basic Tag Usage
+
+```typescript
+// Global tags - applied to all logs
+const logger = new Logger({
+  tags: ['api', 'production', 'v2']
+});
+
+// All logs include these tags
+logger.info('Server started');  // Tags: ['api', 'production', 'v2']
+logger.error('Database error'); // Tags: ['api', 'production', 'v2']
+
+// Per-log tags - additional categorization
+logger.info('User authenticated', { 
+  tags: ['auth', 'oauth', 'google'] 
+});
+// Combined tags: ['api', 'production', 'v2', 'auth', 'oauth', 'google']
+```
+
+#### Hierarchical Tags
+
+MagicLogger supports hierarchical tag organization using both dot notation and explicit parent-child relationships:
+
+```typescript
+const logger = new Logger({
+  tags: ['api.v2']
+});
+
+// Dot notation - automatic hierarchy
+logger.info('Database query', {
+  tags: ['database.query.select', 'performance.slow']
+});
+
+// Results in tags that can be filtered at any level:
+// - 'api.v2' (matches: api, api.v2)
+// - 'database.query.select' (matches: database, database.query, database.query.select)
+// - 'performance.slow' (matches: performance, performance.slow)
+
+// Explicit parent-child relationships
+logger.info('User action', {
+  tags: [
+    { name: 'user', children: ['auth', 'profile'] },
+    { name: 'api', children: ['request', 'response'] }
+  ]
+});
+// Generates: ['user', 'user.auth', 'user.profile', 'api', 'api.request', 'api.response']
+
+// Path-based tag generation
+import { TagManager } from 'magiclogger';
+const tagManager = new TagManager();
+
+// Generate from file paths
+const tags = tagManager.fromPath('src/services/payment/stripe.ts');
+// Result: ['src', 'src.services', 'src.services.payment', 'src.services.payment.stripe']
+
+// Generate from class/method names
+const methodTags = tagManager.fromMethod('PaymentService', 'processRefund');
+// Result: ['PaymentService', 'PaymentService.processRefund']
+```
+
+##### Hierarchical Transport Filtering
+
+Filter logs at transport level based on tag hierarchy:
+
+```typescript
+const logger = new Logger({
+  transports: [
+    {
+      type: 'file',
+      path: './app.log',
+      filter: (entry) => {
+        // Include all API-related logs
+        return entry.tags?.some(tag => 
+          tag.startsWith('api.') || tag === 'api'
+        );
+      }
+    },
+    {
+      type: 'file', 
+      path: './errors.log',
+      filter: (entry) => {
+        // Only error and security tags
+        return entry.tags?.some(tag =>
+          tag.includes('error') || tag.startsWith('security.')
+        );
+      }
+    }
+  ]
+});
+```
+
+##### Hierarchical Theme Selection
+
+Apply styles based on tag hierarchy with cascading rules:
+
+```typescript
+const logger = new Logger({
+  theme: {
+    tags: {
+      // Base styles
+      'api': ['cyan'],
+      'database': ['yellow'],
+      'security': ['red', 'bold'],
+      
+      // More specific styles override base
+      'api.error': ['red', 'bold'],
+      'api.success': ['green'],
+      'database.slow': ['yellow', 'bold', 'bgRed'],
+      'security.breach': ['red', 'bold', 'underline', 'bgYellow'],
+      
+      // Wildcards for pattern matching
+      '*.error': ['red'],
+      'performance.*': ['magenta'],
+      '*.slow': ['bold', 'bgYellow']
+    }
+  }
+});
+
+// Theme selection follows specificity
+logger.error('Auth failed', { tags: ['api.error'] });        // Uses 'api.error' style
+logger.warn('Slow query', { tags: ['database.slow'] });      // Uses 'database.slow' style
+logger.info('Request', { tags: ['api.request'] });           // Falls back to 'api' style
+```
+
+#### Tag-Based Styling
+
+Combine tags with themes for automatic visual categorization:
+
+```typescript
+const logger = new Logger({
+  theme: {
+    tags: {
+      // Exact match
+      'error': ['red', 'bold'],
+      'warning': ['yellow'],
+      'success': ['green', 'bold'],
+      
+      // Hierarchical matching
+      'api': ['cyan', 'bold'],
+      'api.request': ['cyan'],
+      'api.response': ['brightCyan'],
+      'api.error': ['red', 'bold'],
+      
+      // Category styling
+      'database': ['yellow'],
+      'database.slow': ['yellow', 'bold', 'bgRed'],
+      'cache': ['magenta'],
+      'security': ['red', 'bold', 'underline']
+    }
+  }
+});
+
+// Automatic styling based on tags
+logger.info('Request received', { tags: ['api.request'] });    // Cyan
+logger.warn('Slow query', { tags: ['database.slow'] });        // Yellow on red
+logger.error('Auth failed', { tags: ['security', 'api.error'] }); // Red, bold, underline
+```
+
+#### Using TagManager
+
+```typescript
+import { TagManager } from 'magiclogger';
+
+const tagManager = new TagManager();
+
+// Generate tags from file paths
+const tags = tagManager.fromPath('src/api/v2/users/create.ts');
+// Result: ['src', 'api', 'v2', 'users', 'create']
+
+// Normalize and validate tags
+const normalized = tagManager.normalize(['API', 'User-Auth', 'OAuth/2.0']);
+// Result: ['api', 'user-auth', 'oauth-2-0']
+
+// Filter logs by tags
+const logs = [/* array of log entries */];
+const apiLogs = logs.filter(log => 
+  tagManager.matches(log.tags, 'api.*')
+);
+```
+
+Define context types for consistency.
+
+```typescript
+interface RequestContext {
+  requestId: string;
+  userId?: string;
+  method: string;
+  path: string;
+  duration?: number;
+}
+
+const logger = new Logger<RequestContext>();
+logger.info('Request completed', {
+  requestId: 'req-123',
+  method: 'GET',
+  path: '/api/users',
+  duration: 45
+});
+```
+
+### Pretty Printing Objects
+
+MagicLogger supports console-like variadic arguments while maintaining structured output:
+
+```typescript
+import { Logger, meta, err } from 'magiclogger';
+const logger = new Logger();
+
+// Print like console.log
+logger.info('Data:', { a: 1, b: 2 });
+
+// Attach metadata for transports (not printed)
+logger.info('Saved user', user, meta({ requestId, userId }));
+
+// Structured error handling
+logger.error('Failed to save', err(new Error('boom')), meta({ requestId }));
+```
+
+## 🛡️ Validation & Schema Enforcement
+
+MagicLogger provides comprehensive validation for both context and tags, ensuring data quality and preventing malformed logs from polluting your logging infrastructure.
+
+### Schema Validation
+
+Define schemas to enforce structure and types for your log data:
+
+```typescript
+import { Logger, ContextManager, TagManager } from 'magiclogger';
+import type { ObjectSchema } from 'magiclogger/validation';
+
+// Define a schema for context validation
+const contextSchema: ObjectSchema = {
+  type: 'object',
+  properties: {
+    userId: { 
+      type: 'string', 
+      format: 'uuid',
+      optional: false 
+    },
+    email: { 
+      type: 'string', 
+      format: 'email',
+      transform: (v) => v.toLowerCase() 
+    },
+    age: { 
+      type: 'number', 
+      min: 0, 
+      max: 150 
+    },
+    roles: {
+      type: 'array',
+      items: { type: 'string' },
+      minItems: 1
+    },
+    metadata: {
+      type: 'object',
+      additionalProperties: true
+    }
+  },
+  required: ['userId', 'email']
+};
+
+// Configure validation behavior
+const contextManager = new ContextManager({
+  schema: contextSchema,
+  schemaValidationMode: 'warn',  // 'throw' | 'warn' | 'silent'
+  enableValidation: true
+});
+```
+
+### Validation Modes
+
+Control how validation failures are handled:
+
+```typescript
+// Strict mode - throws errors on validation failure
+const strictLogger = new Logger({
+  contextManager: new ContextManager({
+    schema: userSchema,
+    schemaValidationMode: 'throw'  // Fails fast
+  })
+});
+
+// Warning mode - logs warnings but continues
+const warnLogger = new Logger({
+  contextManager: new ContextManager({
+    schema: userSchema,
+    schemaValidationMode: 'warn'   // Logs warnings to console
+  })
+});
+
+// Silent mode - silently drops invalid data
+const silentLogger = new Logger({
+  contextManager: new ContextManager({
+    schema: userSchema,
+    schemaValidationMode: 'silent'  // No errors or warnings
+  })
+});
+```
+
+### Validation Events
+
+Listen to validation events for custom handling:
+
+```typescript
+const contextManager = new ContextManager({
+  schema: contextSchema,
+  schemaValidationMode: 'silent'
+});
+
+// Listen for validation failures
+contextManager.on('schemaValidationFailed', ({ result, context }) => {
+  // Custom handling - send to error tracking
+  errorTracker.report('Invalid log context', {
+    errors: result.errors,
+    context: context
+  });
+  
+  // Or increment metrics
+  metrics.increment('logs.validation.failed', {
+    errorCount: result.errors.length
+  });
+});
+
+// Listen for successful validations
+contextManager.on('validated', (context) => {
+  metrics.increment('logs.validation.success');
+});
+```
+
+### Built-in Validation Rules
+
+#### Context Validation
+
+```typescript
+const contextManager = new ContextManager({
+  // Structure limits
+  maxDepth: 5,           // Maximum nesting depth
+  maxProperties: 50,     // Maximum properties per object
+  
+  // Security
+  sanitizeMode: 'strict', // Remove sensitive data
+  freezeContext: true,    // Prevent mutations
+  
+  // Custom validation rules
+  enableValidation: true
+});
+
+// Set validation rules programmatically
+contextManager.setValidationRules({
+  required: ['requestId', 'userId'],
+  types: {
+    requestId: 'string',
+    userId: 'string',
+    timestamp: 'number',
+    success: 'boolean'
+  },
+  custom: (context) => {
+    // Custom validation logic
+    if (context.userId && context.userId === 'admin') {
+      return context.adminToken !== undefined;
+    }
+    return true;
+  }
+});
+```
+
+#### Tag Validation
+
+```typescript
+const tagManager = new TagManager({
+  maxTags: 10,           // Maximum number of tags
+  maxTagLength: 50,      // Maximum length per tag
+  allowedPattern: /^[a-z0-9.-]+$/,  // Regex pattern
+  
+  // Schema for structured tags
+  schema: {
+    type: 'array',
+    items: {
+      type: 'string',
+      pattern: /^[a-z]+(\.[a-z]+)*$/,  // Hierarchical pattern
+      maxLength: 50
+    },
+    maxItems: 10,
+    uniqueItems: true
+  },
+  schemaValidationMode: 'warn'
+});
+```
+
+### Schema Types
+
+MagicLogger supports comprehensive schema types:
+
+```typescript
+// String validation
+const stringSchema = {
+  type: 'string',
+  minLength: 3,
+  maxLength: 100,
+  pattern: /^[A-Z]/,        // Must start with capital
+  format: 'email',          // Predefined formats
+  enum: ['admin', 'user'],  // Allowed values
+  trim: true,               // Auto-trim whitespace
+  toLowerCase: true         // Auto-lowercase
+};
+
+// Number validation
+const numberSchema = {
+  type: 'number',
+  min: 0,
+  max: 100,
+  integer: true,           // Must be integer
+  positive: true,          // Must be positive
+  multipleOf: 5            // Must be multiple of 5
+};
+
+// Array validation
+const arraySchema = {
+  type: 'array',
+  items: { type: 'string' },
+  minItems: 1,
+  maxItems: 10,
+  uniqueItems: true        // No duplicates
+};
+
+// Object validation
+const objectSchema = {
+  type: 'object',
+  properties: {
+    name: { type: 'string' },
+    age: { type: 'number' }
+  },
+  required: ['name'],
+  additionalProperties: false,  // No extra props
+  minProperties: 1,
+  maxProperties: 10
+};
+
+// Union types
+const unionSchema = {
+  type: 'union',
+  schemas: [
+    { type: 'string' },
+    { type: 'number' }
+  ]
 };
 ```
 
-### Drop-in Replacement
+### Sanitization
+
+Automatic sanitization of sensitive data:
 
 ```typescript
-// Winston compatibility
-import { createWinstonCompatible } from 'magiclogger/compatibility/winston';
-
-const logger = createWinstonCompatible({
-  level: 'info',
-  format: winston.format.json(),
-  transports: [
-    new winston.transports.File({ filename: 'app.log' })
-  ]
+const contextManager = new ContextManager({
+  sanitizeMode: 'strict',  // 'none' | 'basic' | 'strict' | 'custom'
+  
+  // Custom sanitization function
+  sanitize: (value) => {
+    if (typeof value === 'string') {
+      // Redact credit card numbers
+      return value.replace(/\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/g, '****-****-****-****');
+    }
+    return value;
+  }
 });
 
-// Your existing Winston code works unchanged
-logger.info('Hello from Winston API');
-logger.error('Error with metadata', { error: err });
+// Automatic sensitive key detection
+const context = {
+  userId: '123',
+  password: 'secret123',      // Automatically redacted
+  creditCard: '4111-1111-1111-1111',  // Automatically redacted
+  apiToken: 'xyz789',          // Automatically redacted
+  data: 'safe-data'
+};
 
-// But you get MagicLogger features!
-logger.table([
-  { service: 'API', status: 'healthy', uptime: '99.9%' },
-  { service: 'DB', status: 'degraded', uptime: '95.2%' }
-]);
+// Result after sanitization:
+// {
+//   userId: '123',
+//   password: '***',
+//   creditCard: '***',
+//   apiToken: '***',
+//   data: 'safe-data'
+// }
 ```
+Validation is designed to be efficient and tree-shakeable, its components loaded only when schemas are defined.
 
-### Graceful Shutdown
+### Best Practices
+
+1. **Use appropriate validation modes**:
+   - `throw` for development and testing
+   - `warn` for staging environments  
+   - `silent` for production (with event listeners)
+
+2. **Define schemas at initialization**:
+   ```typescript
+   // Good - schema defined once
+   const schema = { /* ... */ };
+   const logger = new Logger({ contextManager: new ContextManager({ schema }) });
+   
+   // Avoid - schema defined per log
+   logger.info('message', validateSchema({ /* ... */ }));
+   ```
+
+3. **Monitor validation failures**:
+   ```typescript
+   contextManager.on('schemaValidationFailed', ({ result }) => {
+     monitoring.recordValidationFailure(result.errors);
+   });
+   ```
+
+4. **Use transforms for data normalization**:
+   ```typescript
+   const schema = {
+     type: 'object',
+     properties: {
+       email: {
+         type: 'string',
+         transform: (v) => v.toLowerCase().trim()
+       },
+       timestamp: {
+         type: 'number',
+         transform: (v) => Math.floor(v)  // Remove decimals
+       }
+     }
+   };
+   ```
+
+5. **Combine with TypeScript for compile-time safety**:
+   ```typescript
+   interface UserContext {
+     userId: string;
+     email: string;
+     roles: string[];
+   }
+   
+   const logger = new Logger<UserContext>();
+   // TypeScript ensures compile-time type safety
+   // Schema ensures runtime validation
+   ```
+
+### Extensions (Optional)
+Extensions are opt-in for specialized needs:
 
 ```typescript
+import { Redactor, Sampler, RateLimiter } from 'magiclogger/extensions';
+
 const logger = new Logger({
-  async: { enabled: true },
-  transports: [/* ... */]
+  // PII Redaction
+  redactor: new Redactor({ preset: 'strict' }),
+  
+  // Statistical sampling (10% of logs)
+  sampler: new Sampler({ rate: 0.1 }),
+  
+  // Rate limiting (1000/minute)
+  rateLimiter: new RateLimiter({ max: 1000, window: 60000 })
 });
-
-// Handle shutdown gracefully
-async function shutdown() {
-  logger.info('Shutting down gracefully...');
-  
-  // Flush all pending logs
-  await logger.close();
-  
-  process.exit(0);
-}
-
-process.on('SIGTERM', shutdown);
-process.on('SIGINT', shutdown);
 ```
+
+## Performance
+
+### Real-World Benchmarks
+
+MagicLogger achieves high performance through efficient batching, optional worker threads, and optimized I/O patterns.
+
+#### Performance Comparison (20K iterations, real file I/O)
+| Logger | Ops/sec | Avg (ms) | P95 (ms) | Mode |
+|--------|--------:|---------:|---------:|------|
+| Pino | 443,133 | 0.002 | 0.005 | Plain, async |
+| Winston (Styled) | 287,066 | 0.003 | 0.008 | Styled, sync |
+| Pino (Pretty) | 231,927 | 0.004 | 0.004 | Styled, worker thread |
+| Winston (Plain) | 212,986 | 0.004 | 0.007 | Plain, sync |
+| **MagicLogger (Async)** | 196,760 | 0.005 | 0.002 | Plain, async |
+| **MagicLogger (Async + Styles)** | 169,096 | 0.006 | 0.001 | Styled, async |
+| **MagicLogger (Sync)** | 135,311 | 0.007 | 0.005 | Plain, sync |
+| **MagicLogger (Sync + Styles)** | 51,415 | 0.019 | 0.026 | Styled, sync |
+
+*Generated via `npm run perf:update` - see [scripts/performance/](./scripts/performance/)*
+
+#### How Styling Works
+
+**Default Mode (Logger/SyncLogger):**
+- Style extraction happens in the **main thread** before sending to transports
+- Uses efficient regex-based parsing to extract `<style>text</>` markup
+- Produces plain text + style ranges array for the MAGIC schema
+- LRU cache reduces repeated style generation overhead
+- [Deep dive into our style optimization techniques →](./docs/performance-design.md#styling-optimizations)
+
+**AsyncLogger with Worker Threads (optional):**
+- When `worker.enabled: true`, style extraction moves to worker thread
+- Offloads CPU-intensive parsing from main thread
+- Only beneficial for high-volume scenarios with complex styling
+
+**Architecture Choices:**
+- **sonic-boom**: High-performance async file I/O with internal buffering
+- **Fast Path Detection**: Unstyled text bypasses style processing entirely
+- **Worker Pool Pattern**: Reusable worker threads when needed (avoids spawn overhead)
+
+**Trade-offs:**
+- **Sync Mode**: Guaranteed delivery but blocks event loop (68K ops/sec)
+- **Async Mode**: Higher throughput (127K ops/sec) but requires graceful shutdown for guarantee
+- **Styling Overhead**: ~63% in sync mode, but async styled is 28% *faster* than async plain
+
+See [benchmark methodology](./scripts/performance/benchmark-results.md) and [architecture docs](./docs/architecture.md).
 
 ## API Reference
 
@@ -769,260 +1349,163 @@ process.on('SIGINT', shutdown);
 
 ```typescript
 interface LoggerOptions {
-  // Identity
-  id?: string;                          // Logger identifier
-  tags?: string[];                      // Global tags
-  context?: Record<string, any>;        // Global context
+  // Basic configuration
+  id?: string;
+  tags?: string[];
+  context?: Record<string, unknown>;
+  verbose?: boolean;
+  useColors?: boolean;     // Enable colored output (default: true)
+  useConsole?: boolean;     // Add console transport automatically (default: true, set to false to disable)
   
-  // Behavior
-  verbose?: boolean;                    // Show debug logs
-  useColors?: boolean;                  // Enable colors
-  strictLevels?: boolean;               // Strict level checking
+  // Styling & themes
+  theme?: string | ThemeDefinition;
   
-  // Async configuration
-  async?: {
-    enabled?: boolean;                  // Enable async logging
-    buffer?: {
-      size?: number;                    // Buffer size (default: 10000)
-      flushInterval?: number;           // Flush interval ms
-      flushSize?: number;               // Flush at size
-    };
-    useWorkers?: boolean;               // Use worker threads
-    workerCount?: number;               // Number of workers
-  };
+  // Performance features
+  buffer?: BufferOptions;
+  sampling?: SamplingOptions;
+  rateLimit?: RateLimitOptions;
   
-  // Context features
-  contextMinification?: {
-    enabled?: boolean;                  // Minify context keys
-    rules?: Record<string, string>;     // Minification rules
-  };
+  // Security
+  redaction?: RedactionOptions;
   
   // Transports
-  transports?: Transport[];             // Log destinations
+  transports?: Transport[];
 }
 ```
 
-### Logging Methods
+### Key Methods
 
 ```typescript
-// Sync logging (default)
-logger.info(message: string, meta?: any): void
-logger.warn(message: string, meta?: any): void
-logger.error(message: string, meta?: any): void
-logger.debug(message: string, meta?: any): void
-logger.success(message: string, meta?: any): void
+// Logging methods
+logger.debug(message, meta?)
+logger.info(message, meta?)
+logger.warn(message, meta?)
+logger.error(message, meta?)
+logger.success(message, meta?)
 
-// Async logging
-await logger.async.info(message: string, options?: AsyncOptions)
-await logger.async.warn(message: string, options?: AsyncOptions)
-await logger.async.error(message: string, options?: AsyncOptions)
+// Styling
+logger.s       // Chainable style API
+logger.fmt     // Template literal API
 
-// With options
-logger.info('Message', { 
-  async: true,           // Use async
-  priority: 1,           // Queue priority
-  tags: ['extra'],       // Additional tags
-  context: { id: 123 }   // Additional context
-})
+// Visual elements
+logger.header(text, styles?)
+logger.separator(char, length)
+logger.progressBar(percent, width?)
+logger.table(data)
+logger.diff(label, oldObj, newObj)
+
+// Management
+logger.flush()          // Force flush buffers
+logger.close()          // Graceful shutdown
+logger.getStats()       // Performance metrics
 ```
 
-### Transport Types
+## Documentation
 
-All transports are tree-shakeable and load on-demand:
+📚 **[View Documentation](https://manicinc.github.io/magiclogger)** | **[Getting Started](./docs/intro.md)** | **[API Reference](./docs/api-reference.md)**
 
-```typescript
-import { 
-  ConsoleTransport, 
-  FileTransport, 
-  HTTPTransport, 
-  S3Transport, 
-  MongoDBTransport, 
-  WebSocketTransport 
-} from 'magiclogger/transports';
-
-// Or use convenience factories
-import { 
-  createConsole, 
-  createFile, 
-  createHTTP, 
-  createS3 
-} from 'magiclogger/transports';
+```bash
+npm run docs        # Start docs dev server with live reload
+npm run docs:build  # Build production docs
 ```
 
-## Performance
-
-### Bundle Size Analysis
-
-```
-magiclogger (core only):        12kb  (4kb gzipped)
-├── Logger + AsyncBuffer:        8kb
-├── Context + Tags:              3kb
-└── Types + Utils:               1kb
-
-Transports (each, lazy loaded):
-├── Console:                     2kb
-├── File:                        4kb
-├── HTTP:                        6kb
-├── S3:                          8kb  (needs AWS SDK)
-└── MongoDB:                     6kb  (needs driver)
-
-Compatibility (opt-in):
-├── Winston:                     3kb
-├── Bunyan:                      3kb
-└── Pino:                        2kb
-```
-
-### Performance Benchmarks
-
-**Sync Logging (ops/sec):**
-```
-MagicLogger:     850,000  ████████████████████
-Pino:            800,000  ███████████████████
-Bunyan:          120,000  ███
-Winston:          40,000  █
-Console.log:     200,000  █████
-```
-
-**Async Logging (ops/sec):**
-```
-MagicLogger:   2,500,000  ████████████████████
-Pino (worker):   400,000  ███
-Winston:          15,000  
-Bunyan:           30,000  
-```
-
-**With 3 Transports:**
-```
-MagicLogger:     750,000  ████████████████████
-Pino:            350,000  █████████
-Winston:          10,000
-```
-
-## Tree Shaking Guide
-
-### ESM Imports (Recommended)
-
-```typescript
-// ✅ Best - Only imports what you need
-import { Logger } from 'magiclogger';
-import { ConsoleTransport } from 'magiclogger/transports';
-
-// ✅ Good - Convenience function
-import { createLogger } from 'magiclogger';
-
-// ✅ Recommended - Use factories
-import { createConsole, createFile } from 'magiclogger/transports';
-
-// ❌ Avoid - Imports everything
-import * as MagicLogger from 'magiclogger';
-```
-
-### Webpack Configuration
-
-```javascript
-module.exports = {
-  optimization: {
-    usedExports: true,
-    sideEffects: false,
-    moduleIds: 'deterministic'
-  }
-};
-```
-
-### Rollup Configuration
-
-```javascript
-export default {
-  treeshake: {
-    moduleSideEffects: false,
-    propertyReadSideEffects: false
-  }
-};
-```
-
-## Ecosystem Integration
-
-### Hatchet Integration
-
-```typescript
-import { Logger } from 'magiclogger';
-import { HatchetReporter } from '@hatchet/node';
-
-const logger = new Logger({
-  contextMinification: {
-    enabled: true,
-    compress: true
-  },
-  transports: [
-    new HatchetTransport({
-      apiKey: process.env.HATCHET_API_KEY,
-      environment: 'production'
-    })
-  ]
-});
-```
-
-### OpenTelemetry
-
-```typescript
-import { Logger } from 'magiclogger';
-import { OTLPTransport } from 'magiclogger/opentelemetry';
-
-const logger = new Logger({
-  transports: [
-    new OTLPTransport({
-      endpoint: 'http://localhost:4318',
-      serviceName: 'my-service'
-    })
-  ]
-});
-```
-
-## Migration Guides
-
-### From Winston
-
-```typescript
-// Before
-const winston = require('winston');
-const logger = winston.createLogger({
-  level: 'info',
-  format: winston.format.json(),
-  transports: [
-    new winston.transports.File({ filename: 'error.log', level: 'error' }),
-    new winston.transports.File({ filename: 'combined.log' })
-  ]
-});
-
-// After (Option 1: Full migration)
-import { Logger, FileTransport } from 'magiclogger';
-const logger = new Logger({
-  transports: [
-    new FileTransport({ 
-      filepath: 'error.log', 
-      levels: ['error'] 
-    }),
-    new FileTransport({ 
-      filepath: 'combined.log' 
-    })
-  ]
-});
-
-// After (Option 2: Compatibility mode)
-import { createWinstonCompatible } from 'magiclogger/compatibility/winston';
-const logger = createWinstonCompatible({
-  // Your existing Winston config works!
-});
-```
+For development setup and build instructions, see [Development Guide](./docs/development.md) and [Build Instructions](./docs/build_instructions.md).
 
 ## Contributing
 
-See CONTRIBUTING.md for guidelines.
+We welcome contributions! Please see [CONTRIBUTING.md](./docs/contributing.md) for guidelines.
 
 ## License
 
-MIT © Manic.agency
+MIT © [Manic.agency](https://manic.agency)
+
+---
 
 <p align="center">
-  Made with ❤️ by <a href="https://manic.agency">Manic.agency</a>
+  Developed and sponsored by <a href="https://manic.agency">Manic.agency</a>
 </p>
+
+## 📦 Build Output Sizes
+
+| File | Format | Raw Size | Gzip |
+|------|--------|----------|------|
+| `index.cjs` | CJS | 9.87 kB | 2.24 kB |
+| `index.js` | ESM | 6.23 kB | 1.87 kB |
+| `index.d.ts` | Types | 132 kB | 28.1 kB |
+
+### Core Bundle Sizes (gzipped)
+
+| Scenario | Size |
+|----------|------|
+| Core (bare minimum) | 37.4 kB |
+| Core + Console Transport | 37.4 kB |
+| Core + All Basic Transports | 42.3 kB |
+
+*Generated via `scripts/analyze-build.js`.*
+
+| File | Format | Raw Size | Gzip |
+|------|--------|----------|------|
+| `index.cjs` | CJS | 9.87 kB | 2.24 kB |
+| `index.js` | ESM | 6.23 kB | 1.87 kB |
+| `index.d.ts` | Types | 132 kB | 28.1 kB |
+
+### Core Bundle Sizes (gzipped)
+
+| Scenario | Size |
+|----------|------|
+| Core (bare minimum) | 37.3 kB |
+| Core + Console Transport | 37.3 kB |
+| Core + All Basic Transports | 42.3 kB |
+
+*Generated via `scripts/analyze-build.js`.*
+
+| File | Format | Raw Size | Gzip |
+|------|--------|----------|------|
+| `index.cjs` | CJS | 9.87 kB | 2.24 kB |
+| `index.js` | ESM | 6.23 kB | 1.87 kB |
+| `index.d.ts` | Types | 132 kB | 28.1 kB |
+
+### Core Bundle Sizes (gzipped)
+
+| Scenario | Size |
+|----------|------|
+| Core (bare minimum) | 37.3 kB |
+| Core + Console Transport | 37.3 kB |
+| Core + All Basic Transports | 42.3 kB |
+
+*Generated via `scripts/analyze-build.js`.*
+
+| File | Format | Raw Size | Gzip |
+|------|--------|----------|------|
+| `index.cjs` | CJS | 9.87 kB | 2.24 kB |
+| `index.js` | ESM | 6.23 kB | 1.87 kB |
+| `index.d.ts` | Types | 132 kB | 28.1 kB |
+
+### Core Bundle Sizes (gzipped)
+
+| Scenario | Size |
+|----------|------|
+| Core (bare minimum) | 37.3 kB |
+| Core + Console Transport | 37.3 kB |
+| Core + All Basic Transports | 42.3 kB |
+
+*Generated via `scripts/analyze-build.js`.*
+
+| File | Format | Raw Size | Gzip |
+|------|--------|----------|------|
+| `index.cjs` | CJS | 9.87 kB | 2.24 kB |
+| `index.js` | ESM | 6.23 kB | 1.87 kB |
+| `index.d.ts` | Types | 132 kB | 28.1 kB |
+
+### Core Bundle Sizes (gzipped)
+
+| Scenario | Size |
+|----------|------|
+| Core (bare minimum) | 37.1 kB |
+| Core + Console Transport | 37.1 kB |
+| Core + File Transport | 38.6 kB |
+| Core + HTTP Transport | 39.7 kB |
+| Core + All Basic Transports | 42.1 kB |
+
+*Generated via `scripts/analyze-build.js`.*
+

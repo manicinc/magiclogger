@@ -5,8 +5,8 @@
  * for a fictional 'SimpleLogger' library.
  */
 
-import { BaseCompatibleLogger, LogCompatibilityOptions } from 'magiclogger/compatibility/base';
-// import { ColorName } from 'magiclogger/types';
+import { BaseCompatibleLogger, LogCompatibilityOptions } from '../dist/compatibility/base.js';
+// import { ColorName } from '../dist/types/index.js';
 
 /**
  * Custom options for SimpleLogger compatibility

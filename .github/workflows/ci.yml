@@ -2,43 +2,363 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [master, main, dev]
   pull_request:
-    branches: [main, master]
+    branches: [master, main]
+  # schedule:
+  #   - cron: '0 3 * * *'  # Commented to save Actions minutes
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '18'
 
 jobs:
-  test:
+  pre-check:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [14.x, 16.x, 18.x, 20.x]
-
     steps:
-      - uses: actions/checkout@v3
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+      - name: Commitlint (conventional commits)
+        if: github.event_name == 'pull_request'
+        uses: wagoid/commitlint-github-action@v5
+        continue-on-error: true
+      - name: Large file check (10MB warn)
+        uses: ActionsDesk/lfs-warning@v2.0
         with:
-          node-version: ${{ matrix.node-version }}
-          cache: 'npm'
+          filesizelimit: 10485760
+
+  quality:
+    runs-on: ubuntu-latest
+    needs: pre-check
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
       
-      - name: Install dependencies
-        run: npm ci
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        # Uses packageManager from package.json
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+      
+      # Auto-format and commit if needed (only for non-fork PRs and direct pushes)
+      - name: Auto-format code
+        id: format
+        if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
+        run: |
+          pnpm run format
+          if [[ $(git status --porcelain) ]]; then
+            echo "formatted=true" >> $GITHUB_OUTPUT
+          else
+            echo "formatted=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Commit formatted code
+        if: steps.format.outputs.formatted == 'true' && (github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "style: auto-format code with prettier [skip ci]"
+          git push
+      
+      # For fork PRs, just check formatting without auto-fixing
+      - name: Format check (fork PRs)
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
+        run: pnpm run format:check
       
       - name: Lint
-        run: npm run lint
+        run: pnpm run lint
       
-      - name: Run tests
-        run: npm test
+      - name: Type check
+        run: pnpm run typecheck
       
-      - name: Check coverage
-        run: npm run test:coverage
-        
-      # Optional: Upload coverage to Codecov
-      # Uncomment these lines to enable Codecov integration
-      # You'll need to add a CODECOV_TOKEN secret to your repository
-      # - name: Upload coverage reports to Codecov
-      #   uses: codecov/codecov-action@v3
-      #   with:
-      #     token: ${{ secrets.CODECOV_TOKEN }}
-      #     file: ./coverage/lcov.info
-      #     fail_ci_if_error: true
+      - name: Audit (non-blocking)
+        run: pnpm audit || true
+
+  test-linux:
+    runs-on: ubuntu-latest
+    needs: pre-check
+    # UNCOMMENT FOR MATRIX TESTING:
+    # strategy:
+    #   fail-fast: false
+    #   matrix:
+    #     node: ['18', '20']
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          # UNCOMMENT FOR MATRIX: node-version: ${{ matrix.node }}
+          cache: 'pnpm'
+      
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+      
+      - name: Run tests with coverage
+        run: pnpm run test:coverage
+      
+      - name: Upload coverage artifact
+        # if: matrix.node == '18'  # UNCOMMENT FOR MATRIX
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ github.sha }}
+          path: coverage
+      
+      - name: Upload to Codecov
+        # if: matrix.node == '18'  # UNCOMMENT FOR MATRIX
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./coverage/lcov.info
+          flags: unittests
+          fail_ci_if_error: false
+          verbose: true
+          slug: manicinc/magiclogger
+  # Token is NOT required for public repos when running in GitHub Actions.
+  # Uncomment the env block below only if you prefer token auth (e.g., private repos
+  # or if you want to use an org-level token). Add CODECOV_TOKEN as a GitHub secret.
+  # env:
+  #   CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  # UNCOMMENT THIS ENTIRE JOB FOR CROSS-PLATFORM TESTING:
+  # test-cross:
+  #   name: test (windows/macOS)
+  #   if: github.event_name == 'pull_request' || github.event_name == 'schedule'
+  #   needs: pre-check
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       os: [windows-latest, macos-latest]
+  #       node: ['20']
+  #   runs-on: ${{ matrix.os }}
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     
+  #     - name: Setup pnpm
+  #       uses: pnpm/action-setup@v4
+  #     
+  #     - name: Setup Node.js
+  #       uses: actions/setup-node@v4
+  #       with:
+  #         node-version: ${{ matrix.node }}
+  #         cache: 'pnpm'
+  #     
+  #     - name: Install deps
+  #       run: pnpm install --frozen-lockfile
+  #     
+  #     - name: Run tests with coverage
+  #       run: pnpm run test:coverage
+
+  security:
+    runs-on: ubuntu-latest
+    needs: pre-check
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Dependency Review (PR only)
+        if: github.event_name == 'pull_request'
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: critical
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      
+      - name: Install deps (production only for audit)
+        run: pnpm install --frozen-lockfile --prod=false
+      
+      - name: Run pnpm audit (non-blocking)
+        run: pnpm audit || true
+      
+      - name: Trivy secret scan (repo)
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          scanners: 'secret'
+          format: 'table'
+          exit-code: '1'
+          hide-progress: true
+
+  build:
+    runs-on: ubuntu-latest
+    needs: [quality, test-linux]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+      
+      - name: Build
+        run: pnpm run build
+      
+      - name: Bundle size check
+        run: pnpm run size:check
+      
+      - name: Update bundle size (README)
+        run: pnpm run size:update
+      
+      - name: Commit README size update (PR only)
+        if: github.event_name == 'pull_request'
+        run: |
+          if git diff --quiet --exit-code README.md; then
+            echo "No README size changes"; exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git commit -m "chore(ci): update bundle size table [skip ci]" || true
+          git push || echo "Non-fatal: push failed (likely due to permissions)"
+      
+      - name: Bundle size analyze
+        run: node scripts/analyze-build.js || true
+      
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ github.sha }}
+          path: dist
+
+  release-draft:
+    name: Update Release Draft
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+    steps:
+      - uses: release-drafter/release-drafter@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Deploy docs to gh-pages after successful build on main/master branches
+  deploy-docs:
+    name: Deploy Documentation to gh-pages
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') && github.event_name == 'push'
+    permissions:
+      contents: write
+      pages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      
+      - name: Cache website dependencies
+        uses: actions/cache@v4
+        with:
+          path: website/node_modules
+          key: ${{ runner.os }}-website-${{ hashFiles('website/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-website-
+      
+      - name: Install root dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Build library (minified production)
+        run: |
+          echo "Building minified production library..."
+          NODE_ENV=production pnpm run build
+        env:
+          NODE_ENV: production
+      
+      - name: Install website dependencies
+        working-directory: ./website
+        run: |
+          if [ -f "pnpm-lock.yaml" ]; then
+            pnpm install --frozen-lockfile
+          elif [ -f "package-lock.json" ]; then
+            npm ci
+          else
+            echo "Error: No lockfile found (pnpm-lock.yaml or package-lock.json)"
+            echo "Please commit a lockfile to ensure reproducible builds"
+            exit 1
+          fi
+      
+      - name: Sync documentation
+        run: |
+          if [ -f "scripts/sync-docs.js" ]; then
+            node scripts/sync-docs.js
+          else
+            cp -r docs/* website/docs/ 2>/dev/null || true
+          fi
+      
+      - name: Build Docusaurus (production minified)
+        working-directory: ./website
+        run: |
+          echo "Building minified Docusaurus site..."
+          NODE_ENV=production npm run build
+        env:
+          NODE_ENV: production
+          GA_TRACKING_ID: ${{ secrets.GA_TRACKING_ID }}
+          MS_CLARITY_ID: ${{ secrets.MS_CLARITY_ID }}
+      
+      - name: Deploy to gh-pages branch
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./website/build
+          publish_branch: gh-pages
+          force_orphan: true
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
+          commit_message: |
+            🚀 Deploy docs from ${{ github.sha }}
+            
+            Build: ${{ github.run_id }}
+            Actor: ${{ github.actor }}
+
+  all-checks:
+    runs-on: ubuntu-latest
+    needs: [quality, test-linux, build, security]
+    # needs: [quality, test-linux, test-cross, build, security]  # UNCOMMENT FOR CROSS-PLATFORM
+    if: always()
+    steps:
+      - name: Final status
+        run: echo "✅ Core CI jobs completed"

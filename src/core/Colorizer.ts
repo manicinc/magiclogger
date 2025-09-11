@@ -3,9 +3,11 @@
 import { COLORS } from '../constants/colors';
 import { PRESETS } from '../constants/preset';
 import { IS_PATH_REGEX } from '../constants/paths';
-import { getFallbackStyle, isStyleSupported } from '../utils/terminal';
+// Use namespace import so jest.spyOn on terminal utils updates behavior dynamically
+import * as terminalUtils from '../utils/terminal';
 import { ANSI } from '../constants/ansi';
-import type { ColorName, StylePreset } from '../types';
+import type { ColorName } from '../types/colors';
+import type { StylePreset } from '../types/preset';
 
 // Helper: raw ANSI map for styles (bypass conditional COLORS getters for fallbacks)
 const RAW_STYLE_MAP: Record<string, string | undefined> = {
@@ -95,9 +97,8 @@ export class Colorizer {
   public static applyColors(text: string, colors: ColorName[], useColors = true): string {
     if (!useColors || !text || !colors || colors.length === 0) return text;
 
-    const isTestEnv = typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'test';
     const cacheKey = colors.join(',');
-    let cachedCodes = isTestEnv ? undefined : this.codeCache.get(cacheKey);
+    let cachedCodes = this.codeCache.get(cacheKey);
 
     if (!cachedCodes) {
       let result = '';
@@ -108,14 +109,41 @@ export class Colorizer {
 
         let colorCode: string | undefined;
 
-        // Use direct style/color if supported
-        if (COLORS[color] && this.isStyleSupportedInternal(color)) {
-          colorCode = COLORS[color];
+        // Normalize common aliases so fallbacks like 'gray' are honored
+        const normalized = ((): string => {
+          switch (color) {
+            case 'grey':
+              return 'gray';
+            case 'inverse':
+              return 'reverse';
+            default:
+              return color as string;
+          }
+        })();
+
+        // Use direct style/color if available; COLORS proxy already consults support
+        const direct = COLORS[normalized as keyof typeof COLORS];
+        if (direct) {
+          colorCode = direct;
         } else {
-          // Try fallback style and use raw ANSI code to ensure visible fallback
-          const fallbackStyle = this.getFallbackStyleInternal(color);
-          if (fallbackStyle && RAW_STYLE_MAP[fallbackStyle]) {
-            colorCode = RAW_STYLE_MAP[fallbackStyle];
+          // Check for custom colors (lazily loaded)
+          const customCode = this.getCustomColorCode(normalized);
+          if (customCode) {
+            colorCode = customCode;
+          } else {
+            // Try fallback style. Prefer raw ANSI when it's a style (e.g., 'underline', 'dim').
+            // If the fallback is a color (e.g., 'gray'), consult COLORS to obtain its code.
+            const fallbackStyle = this.getFallbackStyleInternal(normalized);
+            if (fallbackStyle) {
+              if (RAW_STYLE_MAP[fallbackStyle]) {
+                colorCode = RAW_STYLE_MAP[fallbackStyle];
+              } else {
+                const fbDirect = COLORS[fallbackStyle as keyof typeof COLORS];
+                if (fbDirect) {
+                  colorCode = fbDirect;
+                }
+              }
+            }
           }
         }
 
@@ -125,9 +153,12 @@ export class Colorizer {
       }
 
       cachedCodes = result;
-      if (!isTestEnv) {
-        this.addToCache(cacheKey, cachedCodes);
-      }
+      this.addToCache(cacheKey, cachedCodes);
+    }
+
+    // If no codes resolved (unsupported styles mapping to 'normal' etc.), return text unchanged
+    if (!cachedCodes) {
+      return text;
     }
 
     // Append the text and reset code
@@ -250,8 +281,8 @@ export class Colorizer {
       return true;
     }
 
-    // Check if stdout is a TTY
-    if (typeof process !== 'undefined' && process.stdout && !process.stdout.isTTY) {
+    // Check if stdout is explicitly NOT a TTY (not just undefined)
+    if (typeof process !== 'undefined' && process.stdout && process.stdout.isTTY === false) {
       this._supportsColor = false;
       return false;
     }
@@ -324,6 +355,36 @@ export class Colorizer {
   }
 
   /**
+   * Get custom color code if available (lazy-loaded).
+   * @private
+   * @static
+   */
+  private static getCustomColorCode(colorName: string): string | undefined {
+    // Lazy load custom color registry only when needed
+    try {
+      // Use dynamic import to ensure tree-shaking works
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const registry = require('../colors/CustomColorRegistry').getCustomColorRegistry();
+
+      if (registry && registry.hasColor(colorName)) {
+        const code = registry.getColorCode(colorName);
+        if (code) return code;
+
+        // Try fallback color if custom color isn't supported
+        const fallback = registry.getFallback(colorName);
+        if (fallback) {
+          return COLORS[fallback as keyof typeof COLORS];
+        }
+      }
+    } catch {
+      // CustomColorRegistry not available or not loaded
+      // This is expected in most cases for tree-shaking
+    }
+
+    return undefined;
+  }
+
+  /**
    * Strip ANSI codes from text.
    *
    * @param {string} text - Text with ANSI codes
@@ -351,13 +412,18 @@ export class Colorizer {
     }
 
     // True color support
-    if (typeof process !== 'undefined' && process.env && 
-        (process.env.COLORTERM === 'truecolor' || process.env.TERM_PROGRAM === 'iTerm.app')) {
+    if (
+      typeof process !== 'undefined' &&
+      process.env &&
+      (process.env.COLORTERM === 'truecolor' || process.env.TERM_PROGRAM === 'iTerm.app')
+    ) {
       return 3;
     }
 
     // 256 color support
-    if (typeof process !== 'undefined' && process.env &&
+    if (
+      typeof process !== 'undefined' &&
+      process.env &&
       /^screen|^xterm|^vt100|^vt220|^rxvt|color|ansi|cygwin|linux/i.test(process.env.TERM || '')
     ) {
       return 2;
@@ -572,32 +638,12 @@ export class Colorizer {
   }
 
   /**
-   * Internal method to check style support with test environment override.
-   * @private
-   * @static
-   */
-  private static isStyleSupportedInternal(style: string): boolean {
-    // Check for test environment override first
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if (typeof globalThis !== 'undefined' && (globalThis as any).__TEST_TERMINAL_UTILS) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return (globalThis as any).__TEST_TERMINAL_UTILS.isStyleSupported(style);
-    }
-    return isStyleSupported(style);
-  }
-
-  /**
    * Internal method to get fallback style with test environment override.
    * @private
    * @static
    */
   private static getFallbackStyleInternal(style: string): string {
-    // Check for test environment override first
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if (typeof globalThis !== 'undefined' && (globalThis as any).__TEST_TERMINAL_UTILS) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return (globalThis as any).__TEST_TERMINAL_UTILS.getFallbackStyle(style);
-    }
-    return getFallbackStyle(style);
+    // Ask terminal utils for fallback; jest can override this via spy
+    return terminalUtils.getFallbackStyle(style);
   }
 }

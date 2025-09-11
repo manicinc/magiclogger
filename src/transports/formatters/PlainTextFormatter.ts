@@ -105,14 +105,14 @@ export interface PlainTextFormatterOptions {
 
 /**
  * Formats log entries as human-readable plain text.
- * 
+ *
  * The PlainTextFormatter provides flexible text output with:
  * - Customizable timestamp formats
  * - Field inclusion/exclusion
  * - Template-based formatting
  * - Line length limits
  * - Stack trace formatting
- * 
+ *
  * @example
  * ```typescript
  * const formatter = new PlainTextFormatter({
@@ -120,7 +120,7 @@ export interface PlainTextFormatterOptions {
  *   includeStack: true,
  *   template: '[{timestamp}] [{level}] {message}'
  * });
- * 
+ *
  * const output = formatter.format(logEntry);
  * console.log(output);
  * ```
@@ -149,15 +149,11 @@ export class PlainTextFormatter {
     template?: string;
   };
 
-  /**
-   * Default template if none provided.
-   * @private
-   */
-  private static readonly DEFAULT_TEMPLATE = '{timestamp} [{level}] {message}';
+  // (Unused DEFAULT_TEMPLATE constant removed to satisfy TS6133)
 
   /**
    * Creates a new PlainTextFormatter instance.
-   * 
+   *
    * @param {PlainTextFormatterOptions} [options={}] - Formatter options
    */
   constructor(options: PlainTextFormatterOptions = {}) {
@@ -183,7 +179,7 @@ export class PlainTextFormatter {
 
   /**
    * Format a log entry as plain text.
-   * 
+   *
    * @param {LogEntry} entry - The log entry to format
    * @returns {string} Plain text formatted string
    */
@@ -197,19 +193,17 @@ export class PlainTextFormatter {
 
   /**
    * Format multiple log entries.
-   * 
+   *
    * @param {LogEntry[]} entries - Array of log entries
    * @returns {string} Formatted entries joined by EOL
    */
   public formatBatch(entries: LogEntry[]): string {
-    return entries
-      .map(entry => this.format(entry))
-      .join(this.options.eol) + this.options.eol;
+    return entries.map(entry => this.format(entry)).join(this.options.eol) + this.options.eol;
   }
 
   /**
    * Format using default field-based approach.
-   * 
+   *
    * @param {LogEntry} entry - The log entry to format
    * @returns {string} Formatted string
    * @private
@@ -224,9 +218,7 @@ export class PlainTextFormatter {
 
     // Level
     if (this.options.includeLevel) {
-      const level = this.options.uppercaseLevel
-        ? entry.level.toUpperCase()
-        : entry.level;
+      const level = this.options.uppercaseLevel ? entry.level.toUpperCase() : entry.level;
       parts.push(`[${level.padEnd(7)}]`);
     }
 
@@ -240,8 +232,8 @@ export class PlainTextFormatter {
       parts.push(`[${entry.tags.join(this.options.tagSeparator)}]`);
     }
 
-    // Message
-    parts.push(entry.plainMessage || entry.message);
+    // Message (now always plain text in the new schema)
+    parts.push(entry.message);
 
     // Build main line
     let mainLine = parts.join(this.options.fieldSeparator);
@@ -273,7 +265,7 @@ export class PlainTextFormatter {
 
   /**
    * Format using template string.
-   * 
+   *
    * @param {LogEntry} entry - The log entry to format
    * @returns {string} Formatted string
    * @private
@@ -289,7 +281,7 @@ export class PlainTextFormatter {
     const replacements: Record<string, string> = {
       timestamp: this.formatTimestamp(entry.timestamp),
       level: this.options.uppercaseLevel ? entry.level.toUpperCase() : entry.level,
-      message: entry.plainMessage || entry.message,
+      message: entry.message,
       loggerId: entry.loggerId || '',
       tags: entry.tags?.join(this.options.tagSeparator) || '',
     };
@@ -302,20 +294,14 @@ export class PlainTextFormatter {
     // Handle context placeholders
     if (entry.context) {
       for (const [key, value] of Object.entries(entry.context)) {
-        result = result.replace(
-          new RegExp(`\\{context\\.${key}\\}`, 'g'),
-          String(value)
-        );
+        result = result.replace(new RegExp(`\\{context\\.${key}\\}`, 'g'), String(value));
       }
     }
 
     // Handle metadata placeholders
     if (entry.metadata) {
       for (const [key, value] of Object.entries(entry.metadata)) {
-        result = result.replace(
-          new RegExp(`\\{metadata\\.${key}\\}`, 'g'),
-          String(value)
-        );
+        result = result.replace(new RegExp(`\\{metadata\\.${key}\\}`, 'g'), String(value));
       }
     }
 
@@ -340,7 +326,7 @@ export class PlainTextFormatter {
 
   /**
    * Format timestamp based on configuration.
-   * 
+   *
    * @param {string} timestamp - ISO timestamp string
    * @returns {string} Formatted timestamp
    * @private
@@ -371,7 +357,7 @@ export class PlainTextFormatter {
 
   /**
    * Format error object.
-   * 
+   *
    * @param {LogEntry['error']} error - Error object
    * @returns {string} Formatted error
    * @private
@@ -380,15 +366,19 @@ export class PlainTextFormatter {
     const lines: string[] = [];
 
     lines.push(`  Error: ${error.message}`);
-
-    if (error.code) {
-      lines.push(`  Code: ${error.code}`);
+    // Narrow to objects that may have a code property
+    const hasCode = typeof (error as { code?: unknown }).code !== 'undefined';
+    if (hasCode) {
+      const code = (error as { code?: string }).code;
+      if (typeof code === 'string' && code) {
+        lines.push(`  Code: ${code}`);
+      }
     }
 
     if (this.options.includeStack && error.stack) {
       lines.push('  Stack:');
       const stackLines = error.stack.split('\n');
-      
+
       stackLines.forEach(line => {
         lines.push(`    ${line.trim()}`);
       });
@@ -396,8 +386,8 @@ export class PlainTextFormatter {
 
     // Include additional error properties
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { name, message, stack, code, ...additional } = error;
-    
+    const { name, message, stack, ...additional } = error as Record<string, unknown>;
+
     if (Object.keys(additional).length > 0) {
       lines.push(`  Details: ${JSON.stringify(additional)}`);
     }
@@ -407,7 +397,7 @@ export class PlainTextFormatter {
 
   /**
    * Format context object.
-   * 
+   *
    * @param {Record<string, any>} context - Context object
    * @returns {string} Formatted context
    * @private
@@ -419,7 +409,7 @@ export class PlainTextFormatter {
 
   /**
    * Format metadata object.
-   * 
+   *
    * @param {Record<string, any>} metadata - Metadata object
    * @returns {string} Formatted metadata
    * @private
@@ -431,7 +421,7 @@ export class PlainTextFormatter {
 
   /**
    * Format an object with indentation.
-   * 
+   *
    * @param {Record<string, any>} obj - Object to format
    * @param {string} indent - Indentation string
    * @returns {string} Formatted object
@@ -458,7 +448,7 @@ export class PlainTextFormatter {
 
   /**
    * Truncate a line to the maximum length.
-   * 
+   *
    * @param {string} line - Line to truncate
    * @returns {string} Truncated line
    * @private
@@ -480,44 +470,55 @@ export const PlainTextFormatters = {
   /**
    * Simple single-line format.
    */
-  simple: () => new PlainTextFormatter({
-    includeStack: false,
-    includeContext: false,
-    includeMetadata: false,
-  }),
+  simple: () =>
+    new PlainTextFormatter({
+      includeStack: false,
+      includeContext: false,
+      includeMetadata: false,
+    }),
 
   /**
    * Detailed multi-line format.
    */
-  detailed: () => new PlainTextFormatter({
-    includeStack: true,
-    includeContext: true,
-    includeMetadata: true,
-  }),
+  detailed: () =>
+    new PlainTextFormatter({
+      includeStack: true,
+      includeContext: true,
+      includeMetadata: true,
+    }),
 
   /**
    * Syslog-style format.
    */
-  syslog: () => new PlainTextFormatter({
-    timestampFormat: 'custom',
-    customTimestamp: (date) => date.toISOString().split('T')[1].split('.')[0],
-    template: '{timestamp} {loggerId} {level}: {message}',
-  }),
+  syslog: () =>
+    new PlainTextFormatter({
+      timestampFormat: 'custom',
+      customTimestamp: date => {
+        const iso = date.toISOString();
+        const time = iso.split('T')[1] || iso; // defensive
+        const part = time.split('.')[0];
+        return part || iso;
+      },
+      template: '{timestamp} {loggerId} {level}: {message}',
+    }),
 
   /**
    * Apache-style access log format.
    */
-  apache: () => new PlainTextFormatter({
-    template: '[{timestamp}] {context.method} {context.path} {context.status} {context.duration}ms',
-    timestampFormat: 'custom',
-    customTimestamp: (date) => date.toUTCString(),
-  }),
+  apache: () =>
+    new PlainTextFormatter({
+      template:
+        '[{timestamp}] {context.method} {context.path} {context.status} {context.duration}ms',
+      timestampFormat: 'custom',
+      customTimestamp: date => date.toUTCString() || date.toISOString() || '',
+    }),
 
   /**
    * Minimal format with just timestamp and message.
    */
-  minimal: () => new PlainTextFormatter({
-    template: '[{timestamp}] {message}',
-    timestampFormat: 'locale',
-  }),
+  minimal: () =>
+    new PlainTextFormatter({
+      template: '[{timestamp}] {message}',
+      timestampFormat: 'locale',
+    }),
 };

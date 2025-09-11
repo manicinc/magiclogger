@@ -1,13 +1,15 @@
 import { themes as prismThemes } from 'prism-react-renderer';
 import type { Config } from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
+import * as path from 'path';
+import * as fs from 'fs';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
 const config: Config = {
-  title: 'MagicLogger',
+  title: 'MagicLog',
   tagline: 'The most colorful TypeScript/JavaScript logging library 🌈',
-  favicon: 'img/favicon.ico',
+  favicon: 'img/icon/favicon-32x32.png',
 
   // Set the production url of your site here
   url: 'https://manicinc.github.io',
@@ -18,9 +20,14 @@ const config: Config = {
   // GitHub pages deployment config.
   organizationName: 'manicinc', // Usually your GitHub org/user name.
   projectName: 'magiclogger', // Usually your repo name.
+  deploymentBranch: 'gh-pages',
+  trailingSlash: false,
 
-  onBrokenLinks: 'throw',
+  onBrokenLinks: 'warn',
   onBrokenMarkdownLinks: 'warn',
+  
+  // Add static directories for API docs
+  staticDirectories: ['static'],
 
   // Even if you don't use internationalization, you can use this field to set
   // useful metadata like html lang. For example, if your site is Chinese, you
@@ -39,8 +46,7 @@ const config: Config = {
           // Configure to use docs from parent directory
           path: '../docs',
           // Edit links point to GitHub
-          editUrl:
-            'https://github.com/manicinc/magiclogger/tree/main/docs/',
+          editUrl: 'https://github.com/manicinc/magiclogger/tree/main/docs/',
         },
         blog: {
           showReadingTime: true,
@@ -49,8 +55,7 @@ const config: Config = {
             xslt: true,
           },
           // Edit links point to GitHub
-          editUrl:
-            'https://github.com/manicinc/magiclogger/tree/main/my-website/blog/',
+          editUrl: 'https://github.com/manicinc/magiclogger/tree/main/my-website/blog/',
           // Useful options to enforce blogging best practices
           onInlineTags: 'warn',
           onInlineAuthors: 'warn',
@@ -65,12 +70,15 @@ const config: Config = {
 
   themeConfig: {
     // Replace with your project's social card
-    image: 'img/magiclogger-social-card.jpg',
+    image: 'img/magiclog-primary-no-subtitle-white-4x.png',
     navbar: {
-      title: 'MagicLogger',
+      title: 'MagicLog',
       logo: {
-        alt: 'MagicLogger Logo',
-        src: 'img/logo.svg',
+        alt: 'MagicLog Logo',
+        // Use transparent variant for both light and dark modes
+        // The transparent logo works on both backgrounds
+        src: 'img/magiclog-primary-no-subtitle-transparent-4x.png',
+        srcDark: 'img/magiclog-primary-no-subtitle-transparent-4x.png',
       },
       items: [
         {
@@ -79,7 +87,19 @@ const config: Config = {
           position: 'left',
           label: 'Documentation',
         },
+        {
+          to: '/docs/api/',
+          label: 'API Reference',
+          position: 'left',
+        },
         { to: '/blog', label: 'Blog', position: 'left' },
+        {
+          to: '/dashboard',
+          label: '✨ Magic Dashboard',
+          position: 'right',
+          className: 'navbar-dashboard-link',
+          'aria-label': 'Magic Dashboard - Coming Soon',
+        },
         {
           href: 'https://github.com/manicinc/magiclogger',
           label: 'GitHub',
@@ -98,12 +118,8 @@ const config: Config = {
               to: '/docs/api_usage',
             },
             {
-              label: 'API Reference',
-              to: '/docs/api_usage',
-            },
-            {
-              label: 'Compatibility Guide',
-              to: '/docs/compatibility',
+                label: 'architecture',
+                to: '/docs/architecture',
             },
           ],
         },
@@ -129,7 +145,7 @@ const config: Config = {
             },
             {
               label: 'Contact',
-              href: 'mailto:team@manic.agency',
+              href: 'https://manic.agency/contact',
             },
           ],
         },
@@ -141,6 +157,84 @@ const config: Config = {
       darkTheme: prismThemes.dracula,
     },
   } satisfies Preset.ThemeConfig,
+  // Plugin to alias 'magiclogger' to the local dist build during docs build/serve.
+  // Falls back to a local shim when dist isn't built so the site still compiles.
+  plugins: [
+    // Combined Analytics Plugin (Google Analytics + Microsoft Clarity)
+    require('./src/plugins/analyticsPlugin'),
+    // TypeDoc plugin for API documentation
+    [
+      'docusaurus-plugin-typedoc',
+      {
+        // TypeDoc options
+        entryPoints: ['../src/index.ts'],
+        entryPointStrategy: 'resolve',
+        tsconfig: '../tsconfig.json',
+        out: 'api',
+        sidebar: {
+          autoConfiguration: true,
+          pretty: true,
+        },
+        watch: process.env.TYPEDOC_WATCH === 'true',
+        excludePrivate: true,
+        excludeProtected: true,
+        excludeInternal: true,
+        excludeExternals: true,
+        readme: 'none',
+        exclude: [
+          '**/node_modules/**',
+          '**/tests/**',
+          '**/examples/**',
+          '**/*.test.ts',
+          '**/*.spec.ts',
+          '**/utils/**',
+          '**/validation/**',
+        ],
+      },
+    ],
+    function magicloggerLocalAliasPlugin() {
+      return {
+        name: 'magiclogger-local-alias',
+        // Provide aliases for both client and server builds
+        // Use ESM bundle for client and CJS bundle for server (SSR)
+        // so that both compilers can resolve the local package without publishing.
+        // Docusaurus will merge this with its own webpack config.
+        configureWebpack(_config: unknown, isServer: boolean) {
+          const repoRoot = path.resolve(__dirname, '..');
+          const distEsmBrowser = path.join(repoRoot, 'dist', 'browser', 'index.js');
+          const distCjs = path.join(repoRoot, 'dist', 'index.cjs');
+          const shimPath = path.join(__dirname, 'src', 'shims', 'magiclogger.ts');
+          const targetCandidate = isServer ? distCjs : distEsmBrowser;
+          const target = fs.existsSync(targetCandidate)
+            ? targetCandidate
+            : (fs.existsSync(shimPath) ? shimPath : undefined);
+          return {
+            resolve: {
+              fallback: isServer
+                ? {}
+                : {
+                    fs: false,
+                    path: false,
+                    os: false,
+                    zlib: false,
+                    module: false,
+                    events: false,
+                    'node:fs': false,
+                    'node:path': false,
+                  },
+              alias: target
+                ? {
+                    // Exact match and bare import support
+                    magiclogger: target,
+                    magiclogger$: target,
+                  }
+                : {},
+            },
+          };
+        },
+      };
+    },
+  ],
 };
 
 export default config;

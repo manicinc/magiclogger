@@ -4,40 +4,45 @@ import React from 'react';
 import clsx from 'clsx';
 import Link from '@docusaurus/Link';
 import Heading from '@theme/Heading';
-import AnimatedBackground from '@site/src/components/Landing/AnimatedBackground';
 import InteractiveDemo from '@site/src/components/Landing/InteractiveDemo';
 import { useTypingEffect, useCounter } from '@site/src/hooks/animations';
+import { useColorMode } from '@docusaurus/theme-common';
 import styles from './styles.module.css';
 
 export default function HeroSection() {
-  const { displayedText } = useTypingEffect('Stop squinting at ugly console logs', 40);
+  const { displayedText } = useTypingEffect('Async by default with blazing fast styled logging for modern JavaScript', 40);
+  const { colorMode } = useColorMode();
+  const isDarkTheme = colorMode === 'dark';
+  const [copied, setCopied] = React.useState(false);
+  
+  const handleCopy = () => {
+    navigator.clipboard.writeText('npm install magiclogger');
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
   
   return (
     <header className={styles.heroSection}>
-      <AnimatedBackground variant="datacenter" />
-      
       <div className="container">
         <div className={styles.heroGrid}>
           <div className={styles.heroContent}>
-            {/* Logo with proper MagicLog branding */}
-            <div className={styles.logoContainer}>
-              <div className={styles.logoWrapper}>
-                <img
-                  src="/img/magiclog-primary-no-subtitle-transparent-4x.png"
-                  alt="MagicLog"
-                  className={styles.heroLogo}
-                />
-                <div className={styles.logoGlow} />
-                <div className={styles.dataStream} />
-              </div>
+            {/* Rainbow gradient title */}
+            <div className={styles.titleContainer}>
+              <p className={styles.homeText}>Home of</p>
+              <h1 className={styles.rainbowTitle}>
+                <span className={styles.magicText}>Magic</span>
+                <span className={styles.loggerText}>Logger</span>
+              </h1>
+              <p className={styles.magicSchema}>MAGIC Schema</p>
             </div>
 
-            <Heading as="h1" className={styles.heroTitle}>
-              <span className={styles.magicText}>MagicLog</span>
-            </Heading>
+            {/* Mobile Demo - shows only on mobile, right after title */}
+            <div className={styles.mobileDemoContainer}>
+              <InteractiveDemo />
+            </div>
 
             <p className={styles.heroTagline}>
-              The command center for <span className={styles.logText}>MagicLogger</span>
+              Visual Dashboard for Beautiful Logs End-to-End
             </p>
 
             <p className={styles.heroDescription}>
@@ -46,42 +51,45 @@ export default function HeroSection() {
             </p>
 
             <p className={styles.heroSubDescription}>
-              Transform your debugging experience with <span className={styles.highlight}>intelligent logging</span> that actually{' '}
-              <span className={styles.highlight}>makes sense</span>. See patterns, track performance, and{' '}
-              <span className={styles.highlight}>ship faster</span> with confidence.
+              We built MagicLogger because we believe logs should be as <span className={styles.highlight}>visually informative and beautiful</span> in production as they are during development.{' '}
+              The <span className={styles.highlight}>MAGIC Schema</span> preserves your styled logs across any transport or platform.{' '}
+              <span className={styles.highlight}>238,199 ops/sec</span> for async styled logging - 2x faster than Winston!
             </p>
 
             {/* CTA Buttons */}
             <div className={styles.heroActions}>
               <Link
-                className={clsx('button', styles.primaryButton)}
-                to="/docs/intro">
+                className={clsx('button button--primary', styles.primaryButton)}
+                to="/docs/">
                 <ServerIcon />
-                <span>Start Logging</span>
-                <span className={styles.buttonGlow} />
+                <span>Get Started</span>
               </Link>
               
               <a
-                className={clsx('button', styles.dashboardButton)}
-                href="https://app.magiclog.io"
-                target="_blank"
-                rel="noopener noreferrer">
-                <DashboardIcon />
-                <span>Open Dashboard</span>
-                <span className={styles.newBadge}>
-                  <span className={styles.pulseRing} />
-                  NEW
-                </span>
+                className={clsx('button button--secondary', styles.secondaryButton)}
+                href="/docs/api/"
+                target="_self">
+                <ApiIcon />
+                <span>API Documentation</span>
               </a>
               
               <a
-                className={clsx('button', styles.landingButton)}
-                href="https://magiclog.io"
+                className={clsx('button button--secondary', styles.githubButton)}
+                href="https://github.com/manicinc/magiclogger"
                 target="_blank"
                 rel="noopener noreferrer">
-                <span>About MagicLog</span>
-                <ExternalIcon />
+                <GithubIcon />
+                <span>View on GitHub</span>
               </a>
+              
+              <Link
+                to="/dashboard"
+                className={clsx('button', styles.dashboardButton)}
+                title="Magic Dashboard - Coming Soon">
+                <DashboardIcon />
+                <span>Magic Dashboard</span>
+                <span className={styles.comingSoonBadge}>Coming Soon</span>
+              </Link>
             </div>
 
             {/* Terminal Install */}
@@ -99,55 +107,51 @@ export default function HeroSection() {
                 <code className={styles.installCommand}>npm install magiclogger</code>
                 <button 
                   className={styles.copyButton}
-                  onClick={() => navigator.clipboard.writeText('npm install magiclogger')}>
-                  <CopyIcon />
+                  onClick={handleCopy}
+                  title={copied ? 'Copied!' : 'Copy to clipboard'}>
+                  {copied ? <CheckIcon /> : <CopyIcon />}
                 </button>
               </div>
             </div>
 
-            {/* Live Stats */}
+            {/* Updated Stats with correct performance numbers */}
             <div className={styles.heroStats}>
               <StatCard 
-                value={12} 
+                value={39.4} 
                 unit="KB" 
-                label="Tiny Bundle" 
+                label="Core (gzip)" 
                 icon={<PackageIcon />}
                 color="purple" 
               />
               <StatCard 
-                value={850} 
-                unit="K/s" 
-                label="Logs Per Sec" 
+                value={238.2} 
+                unit="K ops/s" 
+                label="Async Styled" 
                 icon={<SpeedIcon />}
                 color="cyan" 
+              />
+              <StatCard 
+                value={57.7} 
+                unit="K ops/s" 
+                label="Sync Plain" 
+                icon={<SyncIcon />}
+                color="green" 
               />
               <StatCard 
                 value={0} 
                 label="Dependencies" 
                 icon={<ZeroIcon />}
-                color="green" 
-              />
-              <StatCard 
-                value={5} 
-                unit="★" 
-                label="Developer Joy" 
-                icon={<StarIcon />}
                 color="yellow" 
               />
             </div>
+
           </div>
 
-          {/* Interactive Demo */}
-          <div className={styles.demoContainer}>
+          {/* Desktop Demo - hidden on mobile */}
+          <div className={styles.desktopDemoContainer}>
             <InteractiveDemo />
           </div>
         </div>
-      </div>
-
-      {/* Scroll indicator */}
-      <div className={styles.scrollIndicator}>
-        <div className={styles.scrollArrow} />
-        <span className={styles.scrollText}>Explore Features</span>
       </div>
     </header>
   );
@@ -181,23 +185,20 @@ function ServerIcon() {
   );
 }
 
-function DashboardIcon() {
+function ApiIcon() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M4 13h6c.55 0 1-.45 1-1V4c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v8c0 .55.45 1 1 1zm0 8h6c.55 0 1-.45 1-1v-4c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v4c0 .55.45 1 1 1zm10 0h6c.55 0 1-.45 1-1v-8c0-.55-.45-1-1-1h-6c-.55 0-1 .45-1 1v8c0 .55.45 1 1 1zM13 4v4c0 .55.45 1 1 1h6c.55 0 1-.45 1-1V4c0-.55-.45-1-1-1h-6c-.55 0-1 .45-1 1z"/>
-      <circle cx="8" cy="8" r="1" fill="#00ff88"/>
-      <circle cx="8" cy="18" r="1" fill="#00d4ff"/>
-      <circle cx="18" cy="8" r="1" fill="#9945ff"/>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M4 7h6l1 -2h6l1 2h6"/>
+      <rect x="3" y="7" width="18" height="13" rx="2"/>
+      <path d="M8 12h.01M12 12h.01M16 12h.01M8 16h8"/>
     </svg>
   );
 }
 
-function ExternalIcon() {
+function GithubIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-      <polyline points="15 3 21 3 21 9"/>
-      <line x1="10" y1="14" x2="21" y2="3"/>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.17 6.839 9.49.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.167 22 16.418 22 12c0-5.523-4.477-10-10-10z"/>
     </svg>
   );
 }
@@ -206,6 +207,14 @@ function CopyIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
       <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
     </svg>
   );
 }
@@ -229,6 +238,14 @@ function SpeedIcon() {
   );
 }
 
+function SyncIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0020 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74A7.93 7.93 0 004 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/>
+    </svg>
+  );
+}
+
 function ZeroIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
@@ -238,10 +255,18 @@ function ZeroIcon() {
   );
 }
 
-function StarIcon() {
+function DashboardIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+      <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>
+    </svg>
+  );
+}
+
+function MailIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
     </svg>
   );
 }

@@ -6,81 +6,134 @@ import type { LogLevel } from './logger';
 export type { LogLevel };
 
 /**
- * Connection state for network transports.
+ * Minimal log entry for maximum performance.
+ * This is what Logger creates internally.
+ * Transports can enrich this to full LogEntry if needed.
  */
-export type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'closing' | 'reconnecting';
+export interface MinimalLogEntry {
+  /** Integer log level (10=trace, 20=debug, 30=info, 40=warn, 50=error, 60=fatal) */
+  level: number;
+  /** Unix timestamp in milliseconds */
+  time: number;
+  /** Log message */
+  msg: string;
+  /** Any additional properties are metadata */
+  [key: string]: any;
+}
 
 /**
- * Core log entry structure that flows through the transport system.
- * This interface represents a single log message with all its metadata.
+ * Style range for efficient storage of formatting information.
+ * Tuple format: [startIndex, endIndex, styleDescriptor]
+ */
+export type StyleRange = [number, number, string];
+
+/**
+ * Connection state for network transports.
+ */
+export type ConnectionState =
+  | 'disconnected'
+  | 'connecting'
+  | 'connected'
+  | 'closing'
+  | 'reconnecting';
+
+/**
+ * MAGIC Schema v1 - Core log entry structure.
+ *
+ * This interface implements the MAGIC Schema specification for
+ * cross-language compatibility and seamless observability integration.
+ *
+ * @see https://github.com/magiclogger/magiclog-schema
  */
 export interface LogEntry {
+  // === IDENTITY & TIMING ===
   /**
    * Unique identifier for this log entry.
-   * Generated using timestamp + random component for uniqueness.
+   * Format: "timestamp-randomComponent" (e.g., "1733938475123-abc123xyz")
    */
   id: string;
 
   /**
    * ISO 8601 timestamp when the log was created.
-   * @example "2024-01-15T10:30:45.123Z"
+   * @example "2025-08-14T12:34:35.123Z"
    */
   timestamp: string;
 
   /**
-   * Unix timestamp in milliseconds for easier sorting/filtering.
+   * Unix timestamp in milliseconds for efficient sorting/filtering.
    */
   timestampMs: number;
 
   /**
-   * Log level of this entry.
-   * Can be standard levels or custom strings.
+   * MAGIC schema version for compatibility.
+   * @default "v1"
+   */
+  schemaVersion?: 'v1';
+
+  // === CORE CONTENT ===
+  /**
+   * Log level following syslog RFC5424 severity.
    */
   level: LogLevel;
 
   /**
-   * The actual log message content.
+   * Plain text log message without any formatting codes.
+   * This is the primary message content for all transports.
    */
   message: string;
 
   /**
-   * Optional formatted message with ANSI codes stripped.
-   * Used for transports that don't support terminal colors.
+   * Optional style ranges for reconstructing formatted output.
+   * Each entry is [startIndex, endIndex, styleDescriptor].
+   * Example: [[0, 6, "red.bold"], [12, 29, "cyan"]]
    */
-  plainMessage?: string;
+  styles?: Array<[number, number, string]>;
 
+  // === LOGGER CONTEXT ===
   /**
-   * Logger instance ID that created this entry.
-   * Useful for tracking logs from different services/components.
+   * Logger instance identifier.
+   * Useful for multi-logger applications.
    */
   loggerId?: string;
 
   /**
-   * Tags associated with this log entry.
-   * Used for filtering and categorization.
+   * Service name for microservice architectures.
+   * Maps to service.name in OpenTelemetry.
+   */
+  service?: string;
+
+  /**
+   * Deployment environment.
+   * @example "development" | "staging" | "production"
+   */
+  environment?: string;
+
+  /**
+   * Categorization tags for filtering and routing.
    */
   tags?: string[];
 
+  // === STRUCTURED DATA ===
   /**
-   * Additional context data for this specific log entry.
-   * Can contain any structured data relevant to the log.
+   * User-provided structured context data.
+   * Can contain any application-specific data.
    */
   context?: Record<string, unknown>;
 
   /**
-   * Error object if this log entry represents an error.
-   * Includes stack trace and error details.
+   * Structured error information.
    */
   error?: {
     name: string;
     message: string;
     stack?: string;
-    code?: string;
-    [key: string]: unknown;
+    code?: string | number;
+    cause?: unknown;
   };
 
+  // === RUNTIME METADATA ===
   /**
-   * Environment metadata captured at log time.
+   * Automatically collected runtime information.
    */
   metadata?: {
     hostname?: string;
@@ -88,7 +141,52 @@ export interface LogEntry {
     platform?: string;
     nodeVersion?: string;
     userAgent?: string;
+
+    // Additional metadata for observability
+    trace?: {
+      traceId?: string;
+      spanId?: string;
+      parentSpanId?: string;
+      traceFlags?: string;
+      traceState?: string;
+    };
+
+    // Resource utilization (optional)
+    resources?: {
+      memory?: {
+        rss: number;
+        heapTotal: number;
+        heapUsed: number;
+        external: number;
+        arrayBuffers: number;
+      };
+      cpu?: {
+        user: number;
+        system: number;
+      };
+    };
+
+    // Health indicators (optional)
+    health?: {
+      timestamp: number;
+      uptime?: number;
+      pid?: number;
+    };
+
     [key: string]: unknown;
+  };
+
+  // === DISTRIBUTED TRACING (OpenTelemetry compatible) ===
+  /**
+   * Distributed tracing context.
+   * Follows OpenTelemetry trace context specification.
+   */
+  trace?: {
+    traceId?: string;
+    spanId?: string;
+    parentSpanId?: string;
+    traceFlags?: string;
+    traceState?: string;
   };
 }
 
@@ -101,7 +199,7 @@ export interface TransportOptions {
    * Unique name identifier for this transport instance.
    * Used for managing multiple transports.
    */
-  name: string;
+  name?: string;
 
   /**
    * Whether this transport is currently active.
@@ -235,14 +333,16 @@ export interface BatchingTransportOptions extends TransportOptions, BatchingOpti
  * Transport type enumeration.
  * Defines all supported transport types for the logger.
  */
-export type TransportType = 
-  | 'console' 
-  | 'file' 
-  | 'http' 
-  | 'stream' 
-  | 's3' 
-  | 'mongodb' 
+export type TransportType =
+  | 'console'
+  | 'file'
+  | 'http'
+  | 'stream'
+  | 's3'
+  | 'mongodb'
   | 'websocket'
+  | 'otlp'
+  | 'postgresql'
   | 'syslog'
   | 'elasticsearch'
   | 'custom';
@@ -254,37 +354,37 @@ export type TransportType =
 export interface TransportConfig extends Record<string, unknown> {
   /** Transport type identifier */
   type: TransportType;
-  
+
   /** Optional transport name (auto-generated if not provided) */
   name?: string;
-  
+
   /** Whether the transport is enabled */
   enabled?: boolean;
-  
+
   /** Minimum log level to handle */
   level?: LogLevel;
-  
+
   /** Specific levels to handle (overrides level if provided) */
   levels?: LogLevel[];
-  
+
   /** Tags to filter on */
   tags?: string[];
-  
+
   /** Tags to exclude */
   excludeTags?: string[];
-  
+
   /** Custom filter function */
   filter?: (entry: LogEntry) => boolean;
-  
+
   /** Output format */
   format?: 'json' | 'plain' | 'custom';
-  
+
   /** Custom formatter */
   formatter?: (entry: LogEntry) => string | Buffer;
-  
+
   /** Silent mode */
   silent?: boolean;
-  
+
   /** Operation timeout */
   timeout?: number;
 }
@@ -431,6 +531,48 @@ export interface NetworkTransportOptions extends BatchingTransportOptions {
 }
 
 /**
+ * PostgreSQL transport configuration options.
+ */
+export interface PostgreSQLTransportOptions extends BatchingTransportOptions {
+  /** Full connection string, or provide discrete connection fields */
+  connectionString?: string;
+  /** Hostname of the PostgreSQL server */
+  host?: string;
+  /** Port number */
+  port?: number;
+  /** Database name */
+  database?: string;
+  /** Username */
+  user?: string;
+  /** Password */
+  password?: string;
+  /** Enable SSL */
+  ssl?: boolean;
+  /** Schema name (default: public) */
+  schema?: string;
+  /** Table name (default: logs) */
+  table?: string;
+  /** Create table if it does not exist (default: true) */
+  createTable?: boolean;
+  /** JSON/JSONB columns to store structured fields */
+  jsonColumns?: string[];
+  /** Columns to create indexes on */
+  indexes?: string[];
+  /** Connection pool size */
+  poolSize?: number;
+  /** Flush interval override for batching (ms) */
+  flushInterval?: number;
+  /** Logical batch size override */
+  batchSize?: number;
+  /** Optional simple partitioning configuration */
+  partitioning?: {
+    enabled: boolean;
+    interval: 'daily' | 'weekly' | 'monthly';
+    retention: number; // days to retain
+  };
+}
+
+/**
  * HTTP transport specific options.
  */
 export interface HTTPTransportOptions extends NetworkTransportOptions {
@@ -548,7 +690,13 @@ export interface S3TransportOptions extends NetworkTransportOptions {
    * S3 storage class.
    * @default 'STANDARD'
    */
-  storageClass?: 'STANDARD' | 'STANDARD_IA' | 'ONEZONE_IA' | 'INTELLIGENT_TIERING' | 'GLACIER' | 'DEEP_ARCHIVE';
+  storageClass?:
+    | 'STANDARD'
+    | 'STANDARD_IA'
+    | 'ONEZONE_IA'
+    | 'INTELLIGENT_TIERING'
+    | 'GLACIER'
+    | 'DEEP_ARCHIVE';
 
   /**
    * Server-side encryption settings.
@@ -796,6 +944,12 @@ export interface StreamTransportOptions extends TransportOptions {
    * @default 'utf8'
    */
   encoding?: BufferEncoding;
+
+  /**
+   * Maximum internal queue size before dropping/handling backpressure.
+   * Defaults to 1000 if not provided.
+   */
+  maxQueueSize?: number;
 }
 
 /**
@@ -891,7 +1045,13 @@ export interface TransportEvents {
   /**
    * Emitted on retry attempt.
    */
-  retry?: (info: { transport: string; batch: string; attempt: number; delay: number; error: string }) => void;
+  retry?: (info: {
+    transport: string;
+    batch: string;
+    attempt: number;
+    delay: number;
+    error: string;
+  }) => void;
 
   /**
    * Emitted when circuit breaker opens.
@@ -1033,6 +1193,34 @@ export interface Transport {
   shouldLog(entry: LogEntry): boolean;
 
   /**
+   * Check if transport is currently enabled.
+   * Matches class Transport API for structural typing.
+   */
+  isEnabled?(): boolean;
+
+  /**
+   * Get the transport name.
+   * Matches class Transport API for structural typing.
+   */
+  getName?(): string;
+
+  /**
+   * Whether this transport supports batching (optional).
+   */
+  supportsBatching?(): boolean;
+
+  /**
+   * Optional health check method.
+   */
+  isHealthy?(): Promise<boolean>;
+
+  /** Enable this transport (optional). */
+  enable?(): void;
+
+  /** Disable this transport (optional). */
+  disable?(): void;
+
+  /**
    * Get transport statistics.
    */
   getStats?(): TransportStats;
@@ -1043,6 +1231,12 @@ export interface Transport {
   on?(event: keyof TransportEvents, listener: (...args: unknown[]) => void): this;
   off?(event: keyof TransportEvents, listener: (...args: unknown[]) => void): this;
   emit?(event: keyof TransportEvents, ...args: unknown[]): boolean;
+  /** Optional event helpers common on Node.js EventEmitter */
+  once?(event: keyof TransportEvents, listener: (...args: unknown[]) => void): this;
+  removeListener?(event: keyof TransportEvents, listener: (...args: unknown[]) => void): this;
+
+  /** Reset transport statistics (optional, but used by manager when available). */
+  resetStats?(): void;
 }
 
 /**
@@ -1097,6 +1291,11 @@ export interface TransportStats {
    * Alias for succeeded count, provided for readability in some consumers/tests.
    */
   logged?: number;
+
+  /**
+   * Additional alias for succeeded count expected by some tests/consumers.
+   */
+  sent?: number;
 }
 
 /**

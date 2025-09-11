@@ -1,6 +1,6 @@
 // File: src/constants/themes.ts
 
-import type { ColorName } from '../types';
+import type { ColorName } from '../types/colors';
 
 /**
  * Default theme definition with comprehensive styling for all log levels and UI elements.
@@ -10,14 +10,16 @@ export const DEFAULT_THEME: Record<string, ColorName[]> = {
   info: ['cyan', 'bold'],
   success: ['green', 'bold'],
   warning: ['yellow', 'bold'],
+  // Alias used by some tests
+  warn: ['yellow', 'bold'],
   error: ['brightRed', 'bold'],
   debug: ['gray', 'italic'],
-  
+
   // UI elements
   header: ['brightWhite', 'bgBlue', 'bold'],
   link: ['brightCyan', 'underline'],
   separator: ['gray'],
-  
+
   // Data display
   key: ['cyan'],
   value: ['white'],
@@ -25,14 +27,14 @@ export const DEFAULT_THEME: Record<string, ColorName[]> = {
   string: ['green'],
   boolean: ['magenta'],
   null: ['gray', 'italic'],
-  
+
   // Status
   active: ['green', 'bold'],
   inactive: ['gray', 'dim'],
   pending: ['yellow'],
   complete: ['green'],
   failed: ['red'],
-  
+
   // Special
   important: ['magenta', 'bold', 'underline'],
   highlight: ['brightYellow', 'bold'],
@@ -47,6 +49,7 @@ export const DEFAULT_THEME: Record<string, ColorName[]> = {
 export const DARK_THEME: Record<string, ColorName[]> = {
   ...DEFAULT_THEME,
   info: ['brightCyan'],
+  warning: ['brightYellow'],
   warn: ['brightYellow'],
   error: ['brightRed'],
   debug: ['gray'],
@@ -59,6 +62,7 @@ export const DARK_THEME: Record<string, ColorName[]> = {
 export const LIGHT_THEME: Record<string, ColorName[]> = {
   ...DEFAULT_THEME,
   info: ['blue'],
+  warning: ['yellow'],
   warn: ['yellow'],
   error: ['red'],
   debug: ['gray'],
@@ -71,6 +75,7 @@ export const LIGHT_THEME: Record<string, ColorName[]> = {
 export const MINIMAL_THEME: Record<string, ColorName[]> = {
   ...DEFAULT_THEME,
   info: ['white'],
+  warning: ['white'],
   warn: ['white'],
   error: ['white'],
   debug: ['white'],

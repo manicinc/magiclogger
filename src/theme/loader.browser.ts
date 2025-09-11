@@ -1,4 +1,4 @@
-import type { ThemeDefinition } from '../types';
+import type { ThemeDefinition } from '../types/theme';
 
 // This is a browser-specific implementation.
 // It returns an empty object because themes are not loaded from files in the browser.

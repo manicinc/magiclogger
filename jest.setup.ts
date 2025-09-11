@@ -17,6 +17,7 @@ if (typeof global.clearTimeout === 'undefined') {
 const fs = jest.requireActual('fs');
 const path = jest.requireActual('path');
 
+
 // Define test constants
 export const LOG_DIR = path.resolve(process.cwd(), 'test_logs');
 
@@ -214,12 +215,51 @@ jest.mock('fs', () => {
 import * as fsModule from 'fs';
 import * as pathModule from 'path';
 
+// Import necessary types to fix TS4023 error
+// These are internal types from Node.js that we need to recreate
+interface ReadStreamOptions {
+  flags?: string;
+  encoding?: BufferEncoding;
+  fd?: number;
+  mode?: number;
+  autoClose?: boolean;
+  start?: number;
+  end?: number;
+  highWaterMark?: number;
+}
+
+interface WriteStreamOptions {
+  flags?: string;
+  encoding?: BufferEncoding;
+  fd?: number;
+  mode?: number;
+  autoClose?: boolean;
+  start?: number;
+  highWaterMark?: number;
+}
+
 // ----------------------
 // FS mocks helper API
 // ----------------------
-export const fsMocks = fsModule as jest.Mocked<typeof fsModule> & {
+// Type assertion without export to avoid TS4023 naming issue
+// Type the fs mocks without exporting complex nested types
+type FsMocks = {
   resetAll: () => void;
+  existsSync: jest.Mock;
+  mkdirSync: jest.Mock;
+  writeFileSync: jest.Mock;
+  createWriteStream: jest.Mock;
+  createReadStream: jest.Mock;
+  readFileSync: jest.Mock;
+  statSync: jest.Mock;
+  readdirSync: jest.Mock;
+  unlinkSync: jest.Mock;
+  appendFileSync: jest.Mock;
+  rmdirSync: jest.Mock;
+  rmSync: jest.Mock;
 };
+
+export const fsMocks = fsModule as unknown as FsMocks;
 
 // Dynamically attach resetAll helper
 fsMocks.resetAll = () => {
@@ -464,10 +504,16 @@ beforeAll(() => {
 
   // Note: Individual tests should mock console methods as needed
   // Global console mocking was removed to prevent interference with tests that expect console output
+  // Intentionally silence console output in tests; empty stubs acceptable.
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
   jest.spyOn(console, 'log').mockImplementation(() => {});
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
   jest.spyOn(console, 'warn').mockImplementation(() => {});
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
   jest.spyOn(console, 'error').mockImplementation(() => {});
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
   jest.spyOn(console, 'info').mockImplementation(() => {});
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
   jest.spyOn(console, 'debug').mockImplementation(() => {});
 });
 

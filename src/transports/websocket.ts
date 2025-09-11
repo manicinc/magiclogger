@@ -1,9 +1,9 @@
 /**
  * WebSocket Transport Entry Point
- * 
+ *
  * This module provides WebSocket transport functionality for MagicLogger.
  * Import this module directly for optimal tree-shaking.
- * 
+ *
  * @module transports/websocket
  */
 

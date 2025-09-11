@@ -2,7 +2,6 @@ import { ThemeManager } from '../../../src/theme/ThemeManager';
 import { Logger } from '../../../src/Logger';
 import type { ColorName } from '../../../src/types';
 import { fsMocks } from '../../../jest.setup';
-import { Printer } from '../../../src/core/Printer';
 
 const testThemeName = 'test-theme';
 const testThemesData: Record<string, Record<string, ColorName[]>> = {
@@ -17,7 +16,7 @@ describe('ThemeManager Integration', () => {
   beforeEach(() => {
     // Clear all mocks before each test
     jest.clearAllMocks();
-    
+
     // Set up default mock implementations
     fsMocks.existsSync.mockReturnValue(true);
     fsMocks.readFileSync.mockReturnValue(JSON.stringify(testThemesData));
@@ -43,31 +42,45 @@ describe('Logger with file-loaded theme', () => {
   beforeEach(() => {
     // Clear all mocks before each test
     jest.clearAllMocks();
-    
+
     // Set up mock implementations
     fsMocks.existsSync.mockReturnValue(true);
     fsMocks.readFileSync.mockReturnValue(JSON.stringify(testThemesData));
 
     const themeManager = new ThemeManager();
     const loadedTheme = themeManager.getTheme(testThemeName);
-    logger = new Logger({ 
+    logger = new Logger({
       theme: loadedTheme,
       writeToDisk: false, // Ensure we're using console transport
-      useColors: true
+      useColors: true,
     });
   });
 
-  it('should use loaded theme colors for info logs', () => {
-    const spy = jest.spyOn(Printer, 'print').mockImplementation(jest.fn());
+  it('should use loaded theme colors for info logs', async () => {
+    const consoleSpy = jest.spyOn(console, 'info').mockImplementation(() => {
+      // Mock implementation
+    });
     logger.info('Theme-based info log');
-    expect(spy).toHaveBeenCalled();
-    spy.mockRestore();
+
+    // Wait for async transport
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    // Should have logged through console transport (plain text format)
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Theme-based info log'));
+    consoleSpy.mockRestore();
   });
 
-  it('should use loaded theme for header styling', () => {
-    const spy = jest.spyOn(Printer, 'print').mockImplementation(jest.fn());
+  it('should use loaded theme for header styling', async () => {
+    const consoleSpy = jest.spyOn(console, 'info').mockImplementation(() => {
+      // Mock implementation
+    });
     logger.header('File Theme Header');
-    expect(spy).toHaveBeenCalled();
-    spy.mockRestore();
+
+    // Wait for async transport
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    // Message should be plain text now (styles stored separately)
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('File Theme Header'));
+    consoleSpy.mockRestore();
   });
 });

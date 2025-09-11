@@ -1,6 +1,7 @@
 // File: src/constants/preset.ts
 
-import type { StylePreset, ColorName } from '../types';
+import type { StylePreset } from '../types/preset';
+import type { ColorName } from '../types/colors';
 import { getTheme } from '../theme';
 
 /**
@@ -33,7 +34,10 @@ export function getPresetColors(preset: StylePreset | string, themeName = 'defau
   if (!theme) {
     return ['white'];
   }
-  return theme[preset as keyof typeof theme] || theme[preset as StylePreset] || ['white'];
+  // Narrow and avoid union with Record by using a local typed alias
+  const t = theme as Record<string, ColorName[]>;
+  const fromKey = t[preset as string];
+  return (fromKey && fromKey.length ? fromKey : undefined) ?? ['white'];
 }
 
 /**
@@ -77,7 +81,8 @@ export function getPreset(name: string, themeName = 'default'): ColorName[] | un
   if (!theme) {
     return undefined;
   }
-  return theme[name as keyof typeof theme];
+  const t = theme as Record<string, ColorName[]>;
+  return t[name];
 }
 
 /**
@@ -138,10 +143,12 @@ export function getAllPresets(themeName = 'default'): Record<string, ColorName[]
   const allPresets: Record<string, ColorName[]> = {};
 
   if (theme) {
-    // Add theme presets
-    for (const [key, value] of Object.entries(theme)) {
-      if (value) {
-        allPresets[key] = value;
+    // Add theme presets (exclude non-array entries like `tags`)
+    const keys = Object.keys(theme) as string[];
+    for (const key of keys) {
+      const val: unknown = (theme as Record<string, unknown>)[key];
+      if (Array.isArray(val)) {
+        allPresets[key] = val as ColorName[];
       }
     }
   }

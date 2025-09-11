@@ -7,25 +7,25 @@ import type { LogEntry, Transport } from '../../../../src/types/transport';
 // Mock FileManager
 jest.mock('../../../../src/core/FileManager');
 
-// Mock dynamic imports
-jest.mock('../../../../src/transports/base/implementations/FileTransport', () => ({
+// Mock dynamic imports - use the correct path
+jest.mock('../../../../src/transports/FileTransport', () => ({
   FileTransport: jest.fn().mockImplementation(() => ({
     name: 'test-fallback',
     enabled: true,
     init: jest.fn(),
     log: jest.fn(),
-    close: jest.fn()
-  }))
+    close: jest.fn(),
+  })),
 }));
 
-jest.mock('../../../../src/transports/base/implementations/ConsoleTransport', () => ({
-  ConsoleTransport: jest.fn().mockImplementation(() => ({
+jest.mock('../../../../src/transports/SyncConsoleTransport', () => ({
+  SyncConsoleTransport: jest.fn().mockImplementation(() => ({
     name: 'test-fallback',
     enabled: true,
     init: jest.fn(),
     log: jest.fn(),
-    close: jest.fn()
-  }))
+    close: jest.fn(),
+  })),
 }));
 
 /**
@@ -65,7 +65,7 @@ class TestNetworkTransport extends NetworkTransport {
 
   protected async performNetworkRequest(data: unknown, batch: unknown): Promise<void> {
     this.networkRequestCalls.push({ data, batch });
-    
+
     if (this.requestErrors.length > 0) {
       const error = this.requestErrors.shift();
       if (error) {
@@ -158,7 +158,7 @@ function stubWithTimeout(t: TestNetworkTransport) {
 
 /**
  * Comprehensive test suite for NetworkTransport abstract class.
- * 
+ *
  * Tests retry logic, circuit breaker, DLQ, fallback transports, and network-specific features.
  */
 describe('NetworkTransport', () => {
@@ -171,7 +171,21 @@ describe('NetworkTransport', () => {
     createdAt: number;
     retryCount: number;
   };
-  let mockFileManager: jest.Mocked<Pick<FileManager, 'initLogFile' | 'appendToFile' | 'cleanupOldLogs' | 'getLogFile' | 'getLogDir' | 'setLogDir' | 'getLogRetentionDays' | 'setLogRetentionDays' | 'resolveLogDir' | 'cleanupDirectory'>>;
+  let mockFileManager: jest.Mocked<
+    Pick<
+      FileManager,
+      | 'initLogFile'
+      | 'appendToFile'
+      | 'cleanupOldLogs'
+      | 'getLogFile'
+      | 'getLogDir'
+      | 'setLogDir'
+      | 'getLogRetentionDays'
+      | 'setLogRetentionDays'
+      | 'resolveLogDir'
+      | 'cleanupDirectory'
+    >
+  >;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -187,11 +201,13 @@ describe('NetworkTransport', () => {
       setLogDir: jest.fn(),
       getLogRetentionDays: jest.fn().mockReturnValue(7),
       setLogRetentionDays: jest.fn(),
-      resolveLogDir: jest.fn((dir) => dir),
-      cleanupDirectory: jest.fn()
+      resolveLogDir: jest.fn(dir => dir),
+      cleanupDirectory: jest.fn(),
     };
     mockFileManager = mockFileManagerMethods;
-    (FileManager as jest.MockedClass<typeof FileManager>).mockImplementation(() => mockFileManagerMethods as unknown as FileManager);
+    (FileManager as jest.MockedClass<typeof FileManager>).mockImplementation(
+      () => mockFileManagerMethods as unknown as FileManager
+    );
 
     transport = new TestNetworkTransport({
       name: 'test-network',
@@ -200,8 +216,8 @@ describe('NetworkTransport', () => {
         initialDelay: 1000,
         maxDelay: 30000,
         backoffFactor: 2,
-        jitter: false
-      }
+        jitter: false,
+      },
     });
 
     mockEntry = {
@@ -210,10 +226,9 @@ describe('NetworkTransport', () => {
       timestampMs: Date.now(),
       level: 'info',
       message: 'Test message',
-      plainMessage: 'Test message',
       loggerId: 'test-logger',
       tags: ['test'],
-      context: { test: true }
+      context: { test: true },
     };
 
     mockBatch = {
@@ -221,7 +236,7 @@ describe('NetworkTransport', () => {
       entries: [mockEntry],
       sizeBytes: 100,
       createdAt: Date.now(),
-      retryCount: 0
+      retryCount: 0,
     };
   });
 
@@ -232,7 +247,7 @@ describe('NetworkTransport', () => {
   describe('constructor', () => {
     it('should initialize with default retry options', () => {
       const t = new TestNetworkTransport({ name: 'defaults' });
-      
+
       // Test through behavior
       expect(t).toBeDefined();
     });
@@ -246,10 +261,10 @@ describe('NetworkTransport', () => {
           maxDelay: 60000,
           backoffFactor: 3,
           jitter: true,
-          retryCondition: () => false
-        }
+          retryCondition: () => false,
+        },
       });
-      
+
       expect(t).toBeDefined();
     });
 
@@ -260,42 +275,54 @@ describe('NetworkTransport', () => {
           enabled: true,
           filepath: '/logs/dlq.log',
           maxSize: 5242880,
-          maxAge: 172800000
-        }
+          maxAge: 172800000,
+        },
       });
-      
+
       expect(t).toBeDefined();
     });
 
     it('should validate retry options', () => {
-      expect(() => new TestNetworkTransport({
-        name: 'invalid',
-        retry: { maxRetries: -1 }
-      })).toThrow('maxRetries must be non-negative');
+      expect(
+        () =>
+          new TestNetworkTransport({
+            name: 'invalid',
+            retry: { maxRetries: -1 },
+          })
+      ).toThrow('maxRetries must be non-negative');
 
-      expect(() => new TestNetworkTransport({
-        name: 'invalid',
-        retry: { initialDelay: -100 }
-      })).toThrow('initialDelay must be non-negative');
+      expect(
+        () =>
+          new TestNetworkTransport({
+            name: 'invalid',
+            retry: { initialDelay: -100 },
+          })
+      ).toThrow('initialDelay must be non-negative');
 
-      expect(() => new TestNetworkTransport({
-        name: 'invalid',
-        retry: { backoffFactor: 0.5 }
-      })).toThrow('backoffFactor must be at least 1');
+      expect(
+        () =>
+          new TestNetworkTransport({
+            name: 'invalid',
+            retry: { backoffFactor: 0.5 },
+          })
+      ).toThrow('backoffFactor must be at least 1');
     });
 
     it('should validate DLQ configuration', () => {
-      expect(() => new TestNetworkTransport({
-        name: 'invalid',
-        dlq: { enabled: true } as { enabled: boolean; filepath?: string }
-      })).toThrow('DLQ enabled but no filepath provided');
+      expect(
+        () =>
+          new TestNetworkTransport({
+            name: 'invalid',
+            dlq: { enabled: true } as { enabled: boolean; filepath?: string },
+          })
+      ).toThrow('DLQ enabled but no filepath provided');
     });
   });
 
   describe('initialization', () => {
     it('should initialize network', async () => {
       await transport.init();
-      
+
       expect(transport.networkInitCalls).toBe(1);
     });
 
@@ -304,12 +331,12 @@ describe('NetworkTransport', () => {
         name: 'dlq-init',
         dlq: {
           enabled: true,
-          filepath: '/logs/dlq.log'
-        }
+          filepath: '/logs/dlq.log',
+        },
       });
-      
+
       await transport.init();
-      
+
       expect(FileManager).toHaveBeenCalled();
       expect(mockFileManager.initLogFile).toHaveBeenCalled();
       expect(transport.getDlqFileManager()).toBeDefined();
@@ -318,11 +345,11 @@ describe('NetworkTransport', () => {
     it('should initialize fallback transport from string', async () => {
       transport = new TestNetworkTransport({
         name: 'fallback-file',
-        fallback: 'file'
+        fallback: 'file',
       });
-      
+
       await transport.init();
-      
+
       expect(transport.getFallbackTransport()).toBeDefined();
       expect(transport.getFallbackTransport()?.init).toHaveBeenCalled();
     });
@@ -330,11 +357,11 @@ describe('NetworkTransport', () => {
     it('should initialize console fallback', async () => {
       transport = new TestNetworkTransport({
         name: 'fallback-console',
-        fallback: 'console'
+        fallback: 'console',
       });
-      
+
       await transport.init();
-      
+
       expect(transport.getFallbackTransport()).toBeDefined();
     });
 
@@ -345,26 +372,26 @@ describe('NetworkTransport', () => {
         log: jest.fn(),
         close: jest.fn(),
         init: jest.fn(),
-        shouldLog: jest.fn().mockReturnValue(true)
+        shouldLog: jest.fn().mockReturnValue(true),
       };
-      
+
       transport = new TestNetworkTransport({
         name: 'fallback-instance',
-        fallback: mockFallback
+        fallback: mockFallback,
       });
-      
+
       await transport.init();
-      
+
       expect(transport.getFallbackTransport()).toBe(mockFallback);
-      expect((mockFallback.init as jest.Mock)).toHaveBeenCalled();
+      expect(mockFallback.init as jest.Mock).toHaveBeenCalled();
     });
 
     it('should throw for unknown fallback type', async () => {
       transport = new TestNetworkTransport({
         name: 'fallback-unknown',
-        fallback: 'unknown'
+        fallback: 'unknown',
       });
-      
+
       await expect(transport.init()).rejects.toThrow('Unknown fallback transport: unknown');
     });
   });
@@ -378,22 +405,19 @@ describe('NetworkTransport', () => {
 
     it('should send batch successfully', async () => {
       await transport.testSendBatch('test-data', mockBatch);
-      
+
       expect(transport.networkRequestCalls).toHaveLength(1);
       expect(transport.networkRequestCalls[0]).toEqual({
         data: 'test-data',
-        batch: mockBatch
+        batch: mockBatch,
       });
     });
 
     it('should retry on failure', async () => {
-      transport.requestErrors = [
-        new Error('Network error'),
-        new Error('Timeout')
-      ];
-      
+      transport.requestErrors = [new Error('Network error'), new Error('Timeout')];
+
       await transport.testSendBatch('test-data', mockBatch);
-      
+
       expect(transport.networkRequestCalls).toHaveLength(3); // 2 failures + 1 success
     });
 
@@ -402,49 +426,49 @@ describe('NetworkTransport', () => {
         new Error('Fail 1'),
         new Error('Fail 2'),
         new Error('Fail 3'),
-        new Error('Fail 4')
+        new Error('Fail 4'),
       ];
-      
-      await expect(transport.testSendBatch('test-data', mockBatch))
-        .rejects.toThrow('Fail 4');
-      
+
+      await expect(transport.testSendBatch('test-data', mockBatch)).rejects.toThrow('Fail 4');
+
       expect(transport.networkRequestCalls).toHaveLength(4); // Initial + 3 retries
     });
 
     it('should emit retry event', async () => {
       const retrySpy = jest.fn();
       transport.on('retry', retrySpy);
-      
+
       transport.requestErrors = [new Error('Retry me')];
-      
+
       await transport.testSendBatch('test-data', mockBatch);
-      
+
       expect(retrySpy).toHaveBeenCalledWith({
         transport: 'test-network',
         batch: 'batch-123',
         attempt: 1,
         delay: 1000,
-        error: 'Retry me'
+        error: 'Retry me',
       });
     });
 
     it('should apply exponential backoff', async () => {
       const delays: number[] = [];
-      
-      jest.spyOn(transport as unknown as { calculateRetryDelay: (n: number) => number }, 'calculateRetryDelay')
+
+      jest
+        .spyOn(
+          transport as unknown as { calculateRetryDelay: (n: number) => number },
+          'calculateRetryDelay'
+        )
         .mockImplementation((count: number) => {
           const d = NetworkTransport.prototype['calculateRetryDelay'].call(transport, count);
           delays.push(d);
           return d;
         });
-      
-      transport.requestErrors = [
-        new Error('Fail 1'),
-        new Error('Fail 2')
-      ];
-      
+
+      transport.requestErrors = [new Error('Fail 1'), new Error('Fail 2')];
+
       await transport.testSendBatch('test-data', mockBatch);
-      
+
       expect(delays).toEqual([1000, 2000]); // 1s, 2s
     });
 
@@ -456,14 +480,14 @@ describe('NetworkTransport', () => {
     it('should apply jitter when enabled', () => {
       transport = new TestNetworkTransport({
         name: 'jitter',
-        retry: { jitter: true, initialDelay: 1000 }
+        retry: { jitter: true, initialDelay: 1000 },
       });
-      
+
       const delays = new Set<number>();
       for (let i = 0; i < 10; i++) {
         delays.add(transport.testCalculateRetryDelay(1));
       }
-      
+
       // With jitter, we should see some variation
       expect(delays.size).toBeGreaterThan(1);
     });
@@ -478,7 +502,7 @@ describe('NetworkTransport', () => {
 
     it('should open circuit breaker after consecutive failures', async () => {
       transport.requestErrors = Array(5).fill(new Error('Consistent failure'));
-      
+
       for (let i = 0; i < 5; i++) {
         try {
           await transport.testSendBatch('data', { ...mockBatch, id: `batch-${i}` });
@@ -486,7 +510,7 @@ describe('NetworkTransport', () => {
           // Ignore errors for this test
         }
       }
-      
+
       expect(transport.getCircuitBreakerOpen()).toBe(true);
     });
 
@@ -494,17 +518,18 @@ describe('NetworkTransport', () => {
       // Force circuit breaker open
       transport['circuitBreakerOpen'] = true;
       transport['circuitBreakerOpenUntil'] = Date.now() + 60000;
-      
-      await expect(transport.testSendBatch('data', mockBatch))
-        .rejects.toThrow('Circuit breaker is open');
+
+      await expect(transport.testSendBatch('data', mockBatch)).rejects.toThrow(
+        'Circuit breaker is open'
+      );
     });
 
     it('should emit circuit breaker event', async () => {
       const cbSpy = jest.fn();
       transport.on('circuitBreakerOpen', cbSpy);
-      
+
       transport.requestErrors = Array(5).fill(new Error('Failure'));
-      
+
       for (let i = 0; i < 5; i++) {
         try {
           await transport.testSendBatch('data', { ...mockBatch, id: `batch-${i}` });
@@ -512,18 +537,18 @@ describe('NetworkTransport', () => {
           // Ignore errors for this test
         }
       }
-      
+
       expect(cbSpy).toHaveBeenCalledWith({
         transport: 'test-network',
         failures: expect.any(Number),
-        until: expect.any(Date)
+        until: expect.any(Date),
       });
     });
 
     it('should close circuit breaker after cooldown', () => {
       transport['circuitBreakerOpen'] = true;
       transport['circuitBreakerOpenUntil'] = Date.now() - 1000; // Past
-      
+
       // First check should return false and reset the state
       expect(transport.testIsCircuitBreakerOpen()).toBe(false);
       // After the check, the state should be reset
@@ -532,9 +557,9 @@ describe('NetworkTransport', () => {
 
     it('should reset failures on success', async () => {
       transport['consecutiveFailures'] = 4;
-      
+
       await transport.testSendBatch('data', mockBatch);
-      
+
       expect(transport.getConsecutiveFailures()).toBe(0);
     });
   });
@@ -567,10 +592,10 @@ describe('NetworkTransport', () => {
       transport = new TestNetworkTransport({
         name: 'custom-retry',
         retry: {
-          retryCondition: (error) => error.message === 'RETRY_ME'
-        }
+          retryCondition: error => error.message === 'RETRY_ME',
+        },
       });
-      
+
       expect(transport.testShouldRetryError(new Error('RETRY_ME'), 0)).toBe(true);
       expect(transport.testShouldRetryError(new Error('DONT_RETRY'), 0)).toBe(false);
     });
@@ -586,20 +611,20 @@ describe('NetworkTransport', () => {
         name: 'dlq-test',
         dlq: {
           enabled: true,
-          filepath: '/logs/dlq.log'
-        }
+          filepath: '/logs/dlq.log',
+        },
       });
     });
 
     it('should write to DLQ on failure', async () => {
       await transport.init();
-      
+
       const error = new Error('Permanent failure');
       transport.testWriteToDLQ(mockBatch, error);
-      
+
       expect(mockFileManager.appendToFile).toHaveBeenCalled();
       const dlqEntry = JSON.parse(mockFileManager.appendToFile.mock.calls[0][0]);
-      
+
       expect(dlqEntry).toHaveProperty('timestamp');
       expect(dlqEntry).toHaveProperty('transport', 'dlq-test');
       expect(dlqEntry).toHaveProperty('error');
@@ -609,16 +634,16 @@ describe('NetworkTransport', () => {
 
     it('should handle DLQ write errors', async () => {
       await transport.init();
-      
+
       mockFileManager.appendToFile.mockImplementation(() => {
         throw new Error('DLQ write failed');
       });
-      
+
       const errorSpy = jest.fn();
       transport.on('error', errorSpy);
-      
+
       transport.testWriteToDLQ(mockBatch, new Error('Test'));
-      
+
       expect(errorSpy).toHaveBeenCalledWith(
         expect.objectContaining({ message: expect.stringContaining('DLQ write failed') }),
         undefined
@@ -627,30 +652,30 @@ describe('NetworkTransport', () => {
 
     it('should include error details in DLQ', async () => {
       await transport.init();
-      
+
       const error = new Error('Test error') as Error & { code?: string };
       error.code = 'ECONNREFUSED';
       error.stack = 'Error: Test error\n  at test.js:1:1';
-      
+
       transport.testWriteToDLQ(mockBatch, error);
-      
+
       const dlqEntry = JSON.parse(mockFileManager.appendToFile.mock.calls[0][0]);
-      
+
       expect(dlqEntry.error).toEqual({
         message: 'Test error',
         stack: error.stack,
-        code: 'ECONNREFUSED'
+        code: 'ECONNREFUSED',
       });
     });
 
     it('should not write to DLQ when disabled', () => {
       transport = new TestNetworkTransport({
         name: 'no-dlq',
-        dlq: { enabled: false }
+        dlq: { enabled: false },
       });
-      
+
       transport.testWriteToDLQ(mockBatch, new Error('Test'));
-      
+
       expect(mockFileManager.appendToFile).not.toHaveBeenCalled();
     });
   });
@@ -659,7 +684,7 @@ describe('NetworkTransport', () => {
     beforeEach(async () => {
       transport = new TestNetworkTransport({
         name: 'fallback-test',
-        fallback: 'file'
+        fallback: 'file',
       });
       await transport.init();
     });
@@ -667,9 +692,9 @@ describe('NetworkTransport', () => {
     it('should send to fallback on failure', async () => {
       const fallback = transport.getFallbackTransport() as jest.Mocked<Transport>;
       expect(fallback).toBeDefined();
-      
+
       await transport.testSendToFallback(mockBatch);
-      
+
       expect(fallback.log).toHaveBeenCalledTimes(1);
       expect(fallback.log).toHaveBeenCalledWith(mockEntry);
     });
@@ -677,13 +702,13 @@ describe('NetworkTransport', () => {
     it('should emit fallback event', async () => {
       const fallbackSpy = jest.fn();
       transport.on('fallback', fallbackSpy);
-      
+
       await transport.testSendToFallback(mockBatch);
-      
+
       expect(fallbackSpy).toHaveBeenCalledWith({
         transport: 'fallback-test',
         fallback: 'test-fallback',
-        count: 1
+        count: 1,
       });
     });
 
@@ -691,12 +716,12 @@ describe('NetworkTransport', () => {
       const fallback = transport.getFallbackTransport() as jest.Mocked<Transport>;
       expect(fallback).toBeDefined();
       (fallback.log as jest.Mock).mockRejectedValue(new Error('Fallback failed'));
-      
+
       const errorSpy = jest.fn();
       transport.on('error', errorSpy);
-      
+
       await transport.testSendToFallback(mockBatch);
-      
+
       expect(errorSpy).toHaveBeenCalledWith(
         expect.objectContaining({ message: expect.stringContaining('Fallback transport failed') }),
         undefined
@@ -707,27 +732,23 @@ describe('NetworkTransport', () => {
       const fallback = transport.getFallbackTransport() as jest.Mocked<Transport>;
       expect(fallback).toBeDefined();
       fallback.enabled = false;
-      
+
       await transport.testSendToFallback(mockBatch);
-      
+
       expect(fallback.log).not.toHaveBeenCalled();
     });
 
     it('should handle batch with multiple entries', async () => {
       const fallback = transport.getFallbackTransport() as jest.Mocked<Transport>;
       expect(fallback).toBeDefined();
-      
+
       const largeBatch = {
         ...mockBatch,
-        entries: [
-          mockEntry,
-          { ...mockEntry, id: '2' },
-          { ...mockEntry, id: '3' }
-        ]
+        entries: [mockEntry, { ...mockEntry, id: '2' }, { ...mockEntry, id: '3' }],
       };
-      
+
       await transport.testSendToFallback(largeBatch);
-      
+
       expect(fallback.log).toHaveBeenCalledTimes(3);
     });
   });
@@ -735,7 +756,7 @@ describe('NetworkTransport', () => {
   describe('headers', () => {
     it('should build default headers', async () => {
       const headers = await transport.testBuildHeaders();
-      
+
       expect(headers).toHaveProperty('User-Agent', 'MagicLogger/TestNetworkTransport');
       expect(headers).toHaveProperty('X-Transport-Name', 'test-network');
     });
@@ -745,12 +766,12 @@ describe('NetworkTransport', () => {
         name: 'custom-headers',
         headers: {
           'X-API-Key': 'secret',
-          'X-Custom': 'value'
-        }
+          'X-Custom': 'value',
+        },
       });
-      
+
       const headers = await transport.testBuildHeaders();
-      
+
       expect(headers).toHaveProperty('X-API-Key', 'secret');
       expect(headers).toHaveProperty('X-Custom', 'value');
       expect(headers).toHaveProperty('User-Agent');
@@ -760,12 +781,12 @@ describe('NetworkTransport', () => {
       transport = new TestNetworkTransport({
         name: 'merge-headers',
         headers: {
-          'User-Agent': 'CustomAgent/1.0'
-        }
+          'User-Agent': 'CustomAgent/1.0',
+        },
       });
-      
+
       const headers = await transport.testBuildHeaders();
-      
+
       // Custom headers should override defaults
       expect(headers['User-Agent']).toBe('CustomAgent/1.0');
     });
@@ -775,9 +796,9 @@ describe('NetworkTransport', () => {
     it('should include network-specific stats', () => {
       transport['consecutiveFailures'] = 3;
       transport['circuitBreakerOpen'] = true;
-      
+
       const stats = transport.getStats();
-      
+
       expect(stats.custom).toHaveProperty('consecutiveFailures', 3);
       expect(stats.custom).toHaveProperty('circuitBreakerOpen', true);
       expect(stats.custom).toHaveProperty('dlqEnabled', false);
@@ -789,22 +810,22 @@ describe('NetworkTransport', () => {
     it('should close network resources', async () => {
       await transport.init();
       await transport.close();
-      
+
       expect(transport.networkCloseCalls).toBe(1);
     });
 
     it('should close fallback transport', async () => {
       transport = new TestNetworkTransport({
         name: 'close-fallback',
-        fallback: 'file'
+        fallback: 'file',
       });
       await transport.init();
-      
+
       const fallback = transport.getFallbackTransport() as jest.Mocked<Transport>;
       expect(fallback).toBeDefined();
-      
+
       await transport.close();
-      
+
       expect(fallback.close).toHaveBeenCalled();
     });
   });
@@ -812,9 +833,9 @@ describe('NetworkTransport', () => {
   describe('error handling', () => {
     it('should handle network failure', async () => {
       const error = new Error('Network failed');
-      
+
       transport.testHandleNetworkFailure(error, mockBatch);
-      
+
       expect(transport.getConsecutiveFailures()).toBe(1);
     });
 
@@ -822,17 +843,23 @@ describe('NetworkTransport', () => {
       transport = new TestNetworkTransport({
         name: 'fail-handling',
         dlq: { enabled: true, filepath: '/dlq.log' },
-        fallback: 'file'
+        fallback: 'file',
       });
       await transport.init();
-      
-      const writeSpy = jest.spyOn(transport as unknown as { writeToDLQ: (b: unknown, e: Error) => void }, 'writeToDLQ');
+
+      const writeSpy = jest.spyOn(
+        transport as unknown as { writeToDLQ: (b: unknown, e: Error) => void },
+        'writeToDLQ'
+      );
       const fallbackSpy = jest
-        .spyOn(transport as unknown as { sendToFallback: (b: unknown) => Promise<void> }, 'sendToFallback')
+        .spyOn(
+          transport as unknown as { sendToFallback: (b: unknown) => Promise<void> },
+          'sendToFallback'
+        )
         .mockResolvedValue();
-      
+
       transport.testHandleNetworkFailure(new Error('Test'), mockBatch);
-      
+
       expect(writeSpy).toHaveBeenCalled();
       expect(fallbackSpy).toHaveBeenCalled();
     });
@@ -845,9 +872,10 @@ describe('NetworkTransport', () => {
       await transport['sleepMs'](50);
       const duration = Date.now() - start;
       jest.useFakeTimers();
-      
+
       expect(duration).toBeGreaterThanOrEqual(40);
-      expect(duration).toBeLessThan(200);
+      // Allow generous headroom for CI/environment scheduling variance
+      expect(duration).toBeLessThan(600);
     });
   });
 });

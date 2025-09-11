@@ -11,29 +11,53 @@ const layers = [
     id: 'app',
     name: 'Your Application',
     color: '#667eea',
-    description: 'Import only what you need with perfect tree-shaking',
-    features: ['Tree-shakeable imports', 'TypeScript support', 'Zero configuration']
+    description: 'Import only what you need with perfect tree-shaking and minimal dependencies',
+    features: [
+      'Tree-shakeable imports', 
+      'TypeScript support', 
+      'Zero configuration',
+      'Works in Node.js & Browser',
+      'ESM & CommonJS support'
+    ]
   },
   {
     id: 'core',
     name: 'Logger Core',
     color: '#764ba2',
-    description: 'Lightweight orchestration layer that manages everything',
-    features: ['12KB minified', 'Zero dependencies', 'Extensible architecture']
+    description: 'Lightweight routing layer that directs logs to transports efficiently',
+    features: [
+      '39KB gzipped core', 
+      'Minimal dependencies', 
+      'Direct transport routing',
+      'High performance',
+      'MAGIC schema standard'
+    ]
   },
   {
     id: 'transports',
     name: 'Transport Layer',
     color: '#f093fb',
-    description: 'Pluggable transport system to send logs anywhere',
-    features: ['Pluggable design', 'Async/Sync modes', 'Smart batching']
+    description: 'Enterprise-grade transports with automatic batching and retry logic',
+    features: [
+      'Pluggable design', 
+      'Async/Sync modes', 
+      'Smart batching',
+      'Automatic retry',
+      'Backpressure handling'
+    ]
   },
   {
     id: 'destinations',
     name: 'Destinations',
     color: '#43e97b',
-    description: 'Your infrastructure endpoints and storage',
-    features: ['Console', 'Files', 'HTTP/S3/MongoDB', 'Custom transports']
+    description: 'Send logs anywhere - from console to cloud with OpenTelemetry support',
+    features: [
+      'Console with colors', 
+      'File with rotation', 
+      'HTTP/WebSocket/S3',
+      'MongoDB/PostgreSQL',
+      'OTLP/OpenTelemetry'
+    ]
   }
 ];
 
@@ -46,10 +70,10 @@ export default function ArchitectureSection() {
       <div className="container">
         <div className={styles.sectionHeader}>
           <Heading as="h2" className={styles.sectionTitle}>
-            Architecture that scales
+            Architecture that <span className={styles.gradient}>scales</span>
           </Heading>
           <p className={styles.sectionSubtitle}>
-            Simple by default, powerful when you need it
+            Worker thread architecture • Smart batching • Minimal dependencies • Tree-shakeable
           </p>
         </div>
 

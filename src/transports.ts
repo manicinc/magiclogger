@@ -10,9 +10,23 @@ export { ConsoleTransport } from './transports/console';
 export { FileTransport } from './transports/file';
 export { StreamTransport } from './transports/stream';
 export { HTTPTransport } from './transports/http';
+export { NullTransport } from './transports/null';
 export { S3Transport } from './transports/s3';
 export { MongoDBTransport } from './transports/mongodb';
 export { WebSocketTransport } from './transports/websocket';
+// OpenTelemetry (OTLP) transport and helpers
+export {
+  OTLPTransport,
+  createOTLPTransport,
+  createJaegerTransport,
+  createGrafanaCloudTransport,
+  createNewRelicTransport,
+  createHoneycombTransport,
+  createXRayTransport,
+  createGoogleCloudTransport,
+  createDatadogTransport,
+  createElasticAPMTransport,
+} from './transports/otlp';
 
 // Base transport functionality
 export { Transport, TransportManager } from './transports/base';
@@ -82,7 +96,8 @@ export function createStream(stream: NodeJS.WritableStream, options?: Record<str
 export function createHTTP(url: string, options?: Record<string, unknown>) {
   try {
     const hostname = new URL(url).hostname;
-    return new HTTPTransport({ name: `http-${hostname}`, url, ...options });
+    // HTTPTransport expects 'endpoint' not 'url'
+    return new HTTPTransport({ name: `http-${hostname}`, endpoint: url, ...options });
   } catch (error) {
     throw new Error(`Invalid URL provided: ${url}`);
   }
@@ -92,12 +107,13 @@ export function createHTTP(url: string, options?: Record<string, unknown>) {
 export { TransportRegistry } from './transports/index';
 
 // Types
-export type { 
-  TransportOptions, 
+export type {
+  TransportOptions,
   TransportEvents,
   LogEntry,
   ConsoleTransportOptions,
   FileTransportOptions,
   HTTPTransportOptions,
-  StreamTransportOptions
+  StreamTransportOptions,
 } from './types/transport';
+export type { OTLPTransportOptions } from './transports/otlp';

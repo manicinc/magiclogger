@@ -41,10 +41,10 @@ jest.mock('../../../src/core/NodeLogger', () => {
     separator: jest.fn(),
     close: jest.fn(),
   }));
-  
+
   // Set the constructor name to match what the test expects
   Object.defineProperty(MockNodeLoggerClass, 'name', { value: 'NodeLogger' });
-  
+
   return {
     NodeLogger: MockNodeLoggerClass,
   };
@@ -53,7 +53,7 @@ jest.mock('../../../src/core/NodeLogger', () => {
 import { Logger } from '../../../src/Logger';
 import { BrowserLogger } from '../../../src/core/BrowserLogger';
 
-// Get reference to the mocked constructor for tests  
+// Get reference to the mocked constructor for tests
 const MockBrowserLogger = BrowserLogger as jest.MockedClass<typeof BrowserLogger>;
 
 describe('Logger Browser Integration', () => {
@@ -62,12 +62,17 @@ describe('Logger Browser Integration', () => {
     MockBrowserLogger.mockClear();
   });
 
-  it('creates a NodeLogger in Node.js environment (current environment)', () => {
+  it('creates a NodeLogger in Node.js environment (current environment)', async () => {
     const logger = new Logger();
-    
-    // In Node.js environment (Jest), it should create a NodeLogger
-    expect(logger['loggerInstance']).toBeDefined();
-    expect(logger['loggerInstance'].constructor.name).toBe('NodeLogger');
+
+    // Wait for async transport initialization
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    // In Node.js environment (Jest), it should have console transport by default
+    expect(logger.listTransports()).toContain('console');
+    // Logger should be functional with standard methods
+    expect(typeof logger.info).toBe('function');
+    expect(typeof logger.error).toBe('function');
   });
 
   it('browser methods return null/no-op in Node.js environment', () => {

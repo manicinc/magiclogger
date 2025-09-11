@@ -130,7 +130,6 @@ describe('Transport', () => {
       timestampMs: Date.now(),
       level: 'info',
       message: 'Test message',
-      plainMessage: 'Test message',
       loggerId: 'test-logger',
       tags: ['test'],
       context: { test: true },
@@ -306,7 +305,9 @@ describe('Transport', () => {
       });
 
       // Attach error listener to avoid unhandled 'error' event during timeout
-      transport.on('error', () => { /* expected in test */ });
+      transport.on('error', () => {
+        /* expected in test */
+      });
 
       transport.testDoLogOverride = jest
         .fn()
@@ -373,12 +374,12 @@ describe('Transport', () => {
     it('should handle partial failures in individual mode', async () => {
       // Create a transport without batch method
       const noBatchTransport = new TestTransport({ name: 'no-batch-fail' });
-      
+
       // Add error event handler to prevent unhandled error warnings
       noBatchTransport.on('error', () => {
         // Ignore errors in tests - they're expected
       });
-      
+
       noBatchTransport.testDoLogBatchOverride = jest
         .fn()
         .mockRejectedValue(new Error('Batch not supported'));
@@ -763,7 +764,10 @@ describe('Transport', () => {
       const id2 = transport.testGenerateId();
 
       expect(id1).not.toBe(id2);
-      expect(id1).toMatch(/^\d+-[a-z0-9]+$/);
+      // Should match UUID format or fallback format (timestamp-counter-hex)
+      expect(id1).toMatch(
+        /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|\d+-\d{5}-[0-9a-f]{6})$/
+      );
     });
   });
 

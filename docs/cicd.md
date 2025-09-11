@@ -1,64 +1,140 @@
 # CI/CD Setup
 
-Magic Logger uses GitHub Actions for continuous integration and delivery. This document explains the CI/CD pipeline and how to work with it.
+Magiclogger uses GitHub Actions for continuous integration and (tag‑driven) delivery. This document explains the pipeline, required secrets, and how to promote code from `dev` to `master` and then to an npm release.
 
 ## Table of Contents
 
 - [CI/CD Overview](#cicd-overview)
 - [Workflow Files](#workflow-files)
-- [Automatic Versioning](#automatic-versioning)
+- [Versioning Strategy](#versioning-strategy)
 - [Commit Message Conventions](#commit-message-conventions)
-- [Optional Integrations](#optional-integrations)
-- [Manual Release Process](#manual-release-process)
-- [Required Secrets](#required-secrets)
+- [Release Procedure](#release-procedure)
+- [Required & Optional Secrets](#required--optional-secrets)
+- [Future Enhancements (Optional)](#future-enhancements-optional)
 
 ## CI/CD Overview
 
-Magic Logger has a fully automated workflow that:
+Magiclogger CI currently does:
 
-1. Runs tests on multiple Node.js versions
-2. Verifies code quality with linting
-3. Checks test coverage thresholds
-4. Automatically versions packages based on commit messages
-5. Publishes to npm when merged to main/master branch
-6. Creates GitHub releases with proper changelogs
-7. Updates documentation and coverage badges
+1. Pre‑checks (commit lint, large file warning)
+2. Lint, type-check, formatting verification, basic audit
+3. Test matrix (Node 16 / 18 / 20 across Ubuntu / Windows / macOS subset) with coverage
+4. Build artifacts (ESM + CJS) and upload dist
+5. Draft release notes maintenance (Release Drafter) when on `master` / `main`
+6. Optional coverage upload to Codecov
+7. Secret scanning with Trivy (free, no license required)
+
+It does **not** auto-publish on merge to `master`; publishing only happens when a semver tag (`vX.Y.Z`) is pushed.
+
+## Documentation Structure
+
+### Single Source of Truth
+
+MagicLogger maintains documentation in a single location to avoid duplication and inconsistencies:
+
+- **Source**: All documentation lives in `docs/` folder
+- **Website**: Docusaurus site in `website/` folder
+- **Sync**: Documentation is synced from `docs/` to `website/docs/` at build time
+
+### How It Works
+
+1. **Local Development**:
+   ```bash
+   # Edit docs in docs/ folder
+   vim docs/my-doc.md
+   
+   # Test locally with auto-sync
+   cd website
+   npm run start  # Automatically runs sync-docs first
+   ```
+
+2. **CI/CD Build**:
+   - GitHub Actions automatically syncs docs before building
+   - The `docs.yml` workflow runs `node scripts/sync-docs.js`
+   - Builds and deploys to GitHub Pages
+
+3. **Why This Approach**:
+   - Single source of truth in `docs/`
+   - No manual copying or duplication
+   - `website/docs/` is gitignored (except tutorials)
+   - Automatic frontmatter injection for Docusaurus
+
+### Adding New Documentation
+
+1. Create doc in `docs/` folder:
+   ```bash
+   echo "# My New Feature" > docs/my-feature.md
+   ```
+
+2. Add to sync list in `scripts/sync-docs.js`:
+   ```javascript
+   const DOCS_TO_SYNC = [
+     // ... existing docs
+     'my-feature.md',
+   ];
+   ```
+
+3. Update sidebar if needed in `website/sidebars.ts`
+
+4. Test locally:
+   ```bash
+   cd website && npm run start
+   ```
 
 ## Workflow Files
 
-The CI/CD pipeline is defined in two main workflow files:
+The pipeline is defined in these workflow files:
 
-1. **CI Workflow** (`.github/workflows/ci.yml`)
-   - Runs on all pull requests and pushes to main/master
-   - Tests code on multiple Node.js versions
-   - Runs linting checks
-   - Verifies test coverage
-   - Optionally uploads coverage to Codecov (if enabled)
+| File | Purpose |
+|------|---------|
+| `.github/workflows/ci.yml` | Core CI: pre-check, quality, matrix tests, build, draft update |
+| `.github/workflows/auto-label.yml` | Auto label PRs (paths + conventional commit types + size) |
+| `.github/workflows/release-drafter.yml` | Maintain draft release notes on PR merges / label changes |
+| `.github/workflows/release.yml` | Tag-triggered build + npm publish + GitHub Release |
 
-2. **Release Workflow** (`.github/workflows/release.yml`)
-   - Runs only on pushes to main/master
-   - Verifies tests pass
-   - Uses semantic-release to:
-     - Determine the version bump based on commit messages
-     - Update the changelog
-     - Publish to npm
-     - Create a GitHub release
-   - Updates coverage badges and documentation
+No `.releaserc` / semantic-release is used; versioning is manual + tags.
 
-## Automatic Versioning
+## Security Scanning (Secrets)
 
-Magic Logger uses [semantic-release](https://semantic-release.gitbook.io/semantic-release/) to automate version management. This tool:
+We use Trivy for secret scanning in CI. This replaces the previous gitleaks step that required a paid org license.
 
-1. Analyzes commit messages to determine the appropriate version bump
-2. Creates a CHANGELOG from commit messages
-3. Tags the repository with the new version
-4. Publishes to npm
+- License/keys: None required for our usage.
+- Extra dependencies in repo: None. The GitHub Action downloads Trivy.
+- Network: Not required for secret-only scanning (no vulnerability DB needed).
 
-The specific configuration is in `.releaserc` file.
+CI step (excerpt):
+
+```yaml
+- name: Trivy secret scan (repo)
+   uses: aquasecurity/trivy-action@0.20.0
+   continue-on-error: false
+   with:
+      scan-type: 'fs'
+      scan-ref: '.'
+      scanners: 'secret'
+      format: 'table'
+      exit-code: '1'
+      hide-progress: true
+```
+
+Local usage (optional):
+- Windows (Chocolatey): `choco install trivy`
+- macOS (Homebrew): `brew install trivy`
+- Docker: `docker run --rm -v "$PWD":/project -w /project aquasec/trivy:latest fs --scanners secret .`
+
+Exit code 1 indicates secrets found; rotate any exposed credentials and remove them from history as needed.
+
+## Versioning Strategy
+
+Manual semver bump + Release Drafter:
+1. Bump `package.json` version (script or manual).
+2. Merge to `master` (draft release updates automatically).
+3. Push tag `vX.Y.Z` to trigger publish.
+4. Release workflow packs, publishes to npm, creates GitHub Release (simple notes; you can edit draft first).
 
 ## Commit Message Conventions
 
-For the automatic versioning to work correctly, commit messages must follow the [Conventional Commits](https://www.conventionalcommits.org/) format:
+We use [Conventional Commits](https://www.conventionalcommits.org/) for clarity, changelog grouping, and future tooling compatibility:
 
 ```
 <type>(<scope>): <description>
@@ -97,55 +173,70 @@ feat(api): add new API that breaks backward compatibility
 BREAKING CHANGE: Previous function signature changed
 ```
 
-## Optional Integrations
+## Coverage & Codecov (Optional)
 
-### Codecov Integration
+Coverage generated via `pnpm test:coverage` (Jest). The Ubuntu/Node 18 job uploads `coverage/lcov.info` if `CODECOV_TOKEN` secret is present. Without a token public repos may still work but token improves reliability.
 
-The CI workflow includes optional integration with [Codecov](https://codecov.io/) for tracking code coverage over time. To enable:
+Add `codecov.yml` (optional) to enforce thresholds (statements/branches/functions/lines). Example minimal config:
+```yaml
+coverage:
+   status:
+      project:
+         default:
+            target: 95%
+            threshold: 1%
+```
 
-1. Sign up at [Codecov.io](https://codecov.io/)
-2. Add your repository
-3. Get your Codecov token
-4. Add it as a GitHub secret named `CODECOV_TOKEN`
-5. Uncomment the Codecov section in `.github/workflows/ci.yml`
+## Release Procedure
 
-See [Codecov Integration](codecov.md) for detailed setup instructions.
-
-## Manual Release Process
-
-While releases should normally happen automatically, you can manually trigger the release process:
-
-1. **Local version bump** (for testing):
+1. Ensure `dev` is fully merged and stable.
+2. Open PR: `dev` → `master` (all checks green, review).
+3. On `master`, bump version in `package.json` (e.g. `0.2.0`). Commit with `chore(release): v0.2.0`.
+4. Push tag:
    ```bash
-   node scripts/version-bump.js [patch|minor|major]
+   git tag v0.2.0
+   git push origin v0.2.0
    ```
-
-2. **Manual release trigger**:
+5. Wait for `release.yml` workflow to finish (npm publish + GitHub Release).
+6. Sync `dev`:
    ```bash
-   npm run semantic-release
+   git checkout dev
+   git pull
+   git merge master   # or rebase dev onto master
+   git push
    ```
+7. Optionally edit the GitHub Release notes (they are simple by default); Release Drafter will reset a new draft for future changes.
 
-3. **Skip CI** (if needed):
-   Add `[skip ci]` to your commit message to prevent CI from running:
-   ```bash
-   git commit -m "chore: update docs [skip ci]"
-   ```
+To skip CI for non-critical doc-only commits you can append `[skip ci]` to the commit message (use sparingly).
 
 ## Required Secrets
 
-For the CI/CD pipeline to work correctly, you need to set up this GitHub secret:
+## Required & Optional Secrets
 
-1. `NPM_TOKEN` - An npm access token with publish permissions
+| Secret | Required | Purpose |
+|--------|----------|---------|
+| `NPM_TOKEN` | For publishing | Auth token with publish rights to npm registry (automation / granular token recommended) |
+| `CODECOV_TOKEN` | Optional | Reliable Codecov uploads for coverage reporting |
+| (none for Trivy) | — | Trivy secret scan requires no license or API keys |
 
-The workflows use the built-in `GITHUB_TOKEN` that's automatically provided by GitHub Actions for other operations.
+Add via: Repository → Settings → Secrets and variables → Actions → New repository secret.
 
-### Optional Secrets:
+`GITHUB_TOKEN` is automatically provided and used for draft releases, artifact uploads, and labeling.
 
-1. `CODECOV_TOKEN` - Only needed if enabling Codecov integration
+Security tip: Restrict `NPM_TOKEN` to package publish only and rotate periodically.
 
-### Setting up secrets:
+## Troubleshooting
 
-1. Go to your GitHub repository
-2. Click on "Settings" → "Secrets and variables" → "Actions"
-3. Click "New repository secret"
-4. Add the required secrets
+| Symptom | Likely Cause | Fix |
+|---------|--------------|-----|
+| Release workflow skipped | No tag or tag not matching `v*` | Use `v1.2.3` pattern |
+| Publish failed auth | Missing / invalid `NPM_TOKEN` | Recreate token, add as secret |
+| Coverage not on Codecov | Missing token or job matrix mismatch | Add `CODECOV_TOKEN`, confirm path `coverage/lcov.info` |
+| Draft release empty | PR labels missing conventional prefixes | Ensure commit/PR titles follow convention |
+
+## Future Enhancements (Optional)
+
+- Add bundle size limits (e.g. `andresz1/size-limit-action`).
+- Introduce semantic-release if fully automated versioning desired.
+- Add Dependabot for dependency update PRs.
+- Add `codeql` workflow for security scanning.

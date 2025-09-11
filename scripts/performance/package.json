@@ -1,0 +1,42 @@
+{
+  "name": "magiclogger-benchmarks",
+  "version": "1.0.0",
+  "description": "Performance benchmarks for MagicLogger vs popular logging libraries",
+  "type": "module",
+  "main": "perf-bench.mjs",
+  "scripts": {
+    "bench": "node perf-bench.mjs",
+    "perf:update": "node perf-bench.mjs --update",
+    "perf:file-io": "node file-io-bench.mjs",
+    "perf:file-io:update": "node file-io-bench.mjs --update",
+    "install-deps": "npm install pino winston bunyan pino-pretty",
+    "test": "node perf-bench.mjs"
+  },
+  "keywords": [
+    "benchmark",
+    "logging",
+    "performance",
+    "magiclogger",
+    "pino",
+    "winston",
+    "bunyan"
+  ],
+  "author": "MagicLogger Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/bunyan": "^1.8.11",
+    "@types/node": "^20.10.0",
+    "chalk": "^5.3.0",
+    "colors": "^1.4.0",
+    "typescript": "^5.3.0"
+  },
+  "optionalDependencies": {
+    "bunyan": "^1.8.15",
+    "pino": "^8.21.0",
+    "pino-pretty": "^10.3.1",
+    "winston": "^3.17.0"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}

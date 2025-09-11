@@ -5,7 +5,9 @@ import { BROWSER_POLYFILLS } from '../utils/browser-polyfills';
 type FileSystemModule = typeof import('fs') | typeof BROWSER_POLYFILLS.fs;
 type PathModule = typeof import('path') | typeof BROWSER_POLYFILLS.path;
 
-// Dynamic import for Node.js modules
+// Dynamic import for Node.js modules (kept for potential future async re-introduction)
+// NOTE: Retained for potential future async refactor; currently unused.
+/* eslint-disable @typescript-eslint/no-unused-vars */
 const importNodeModules = async () => {
   if (!isBrowserEnvironment()) {
     // Use dynamic import for Node.js modules
@@ -18,6 +20,9 @@ const importNodeModules = async () => {
   }
   return BROWSER_POLYFILLS;
 };
+/* eslint-enable @typescript-eslint/no-unused-vars */
+// Intentional no-op usage so TypeScript treats it as used without changing runtime
+void importNodeModules;
 
 // Synchronous import for Node.js modules
 const importNodeModulesSync = (): { fs: FileSystemModule; path: PathModule } => {
@@ -26,7 +31,7 @@ const importNodeModulesSync = (): { fs: FileSystemModule; path: PathModule } => 
     const fs = require('fs');
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const path = require('path');
-    return { fs, path };
+    return { fs, path } as { fs: FileSystemModule; path: PathModule };
   }
   return BROWSER_POLYFILLS;
 };
@@ -40,15 +45,18 @@ export class FileManager {
   private fs!: FileSystemModule;
   private path!: PathModule;
   private initializing = false;
+  private modulesReady = false;
 
   /**
    * Constructs a new FileManager.
    * @param logDir Directory where log files will be stored.
    * @param logRetentionDays Number of days to retain log files.
    */
-  constructor(private logDir: string, private logRetentionDays: number = 30) {
-    // Initialize modules synchronously in constructor
-    this.initializeModulesSync();
+  constructor(private logDir: string, private logRetentionDays: number = 30, autoInit = true) {
+    if (autoInit) {
+      // Initialize modules synchronously in constructor (CJS/require environments)
+      this.initializeModulesSync();
+    }
   }
 
   /**
@@ -61,19 +69,53 @@ export class FileManager {
 
     // Resolve log directory after modules are loaded
     this.logDir = this.resolveLogDir(this.logDir);
+    this.modulesReady = true;
+  }
+
+  /**
+   * Initialize Node.js or browser modules asynchronously (ESM-friendly)
+   */
+  public async initializeModulesAsync(): Promise<void> {
+    if (this.modulesReady) return;
+    if (isBrowserEnvironment()) {
+      const modules = BROWSER_POLYFILLS;
+      this.fs = modules.fs as FileSystemModule;
+      this.path = modules.path as PathModule;
+      this.logDir = this.resolveLogDir(this.logDir);
+      this.modulesReady = true;
+      return;
+    }
+    try {
+      // Prefer node: specifiers when available
+      const fsMod: unknown = await import('node:fs').catch(() => import('fs'));
+      const pathMod: unknown = await import('node:path').catch(() => import('path'));
+      const fsAny = (fsMod as { default?: unknown })?.default ?? fsMod;
+      const pathAny = (pathMod as { default?: unknown })?.default ?? pathMod;
+      this.fs = fsAny as FileSystemModule;
+      this.path = pathAny as PathModule;
+      this.logDir = this.resolveLogDir(this.logDir);
+      this.modulesReady = true;
+    } catch {
+      // Fall back to browser polyfills to remain non-crashing in odd runtimes
+      const modules = BROWSER_POLYFILLS;
+      this.fs = modules.fs as FileSystemModule;
+      this.path = modules.path as PathModule;
+      this.logDir = this.resolveLogDir(this.logDir);
+      this.modulesReady = true;
+    }
+  }
+
+  /**
+   * Whether file system modules are ready
+   */
+  public isReady(): boolean {
+    return this.modulesReady;
   }
 
   /**
    * Initialize Node.js or browser modules
    */
-  private async initializeModules() {
-    const modules = await importNodeModules();
-    this.fs = modules.fs as FileSystemModule;
-    this.path = modules.path as PathModule;
-
-    // Resolve log directory after modules are loaded
-    this.logDir = this.resolveLogDir(this.logDir);
-  }
+  // (Async pathway removed – synchronous init is sufficient; reintroduce if needed in future.)
 
   /**
    * Resolves a directory path to an absolute path.
@@ -83,11 +125,13 @@ export class FileManager {
   public resolveLogDir(dirPath: string): string {
     // Validate input
     if (typeof dirPath !== 'string') {
-      throw new TypeError(`The "path" argument must be of type string. Received type ${typeof dirPath} (${dirPath})`);
+      throw new TypeError(
+        `The "path" argument must be of type string. Received type ${typeof dirPath} (${dirPath})`
+      );
     }
-    
+
     // Modules are now guaranteed to be initialized
-    const cwd = (typeof process !== 'undefined' && process.cwd) ? process.cwd() : '.';
+    const cwd = typeof process !== 'undefined' && process.cwd ? process.cwd() : '.';
     return this.path.isAbsolute(dirPath) ? dirPath : this.path.resolve(cwd, dirPath);
   }
 
@@ -131,11 +175,15 @@ export class FileManager {
     if (this.initializing) {
       return this.logFile; // Return existing file if already initializing
     }
-    
+    if (!this.modulesReady) {
+      // Cannot init synchronously without modules
+      return null;
+    }
+
     if (this.logFile) {
       return this.logFile; // Return existing file if already initialized
     }
-    
+
     try {
       this.initializing = true;
       if (!this.fs.existsSync(this.logDir)) {
@@ -160,7 +208,7 @@ export class FileManager {
    * @returns {boolean} True if successful, false if error occurred
    */
   public appendToFile(content: string): boolean {
-    if (!this.logFile || this.initializing) return false;
+    if (!this.modulesReady || !this.logFile || this.initializing) return false;
     try {
       this.fs.appendFileSync(this.logFile, `${content}\n`);
       return true;
@@ -176,6 +224,7 @@ export class FileManager {
    */
   public async cleanupOldLogs(): Promise<void> {
     try {
+      if (!this.modulesReady) return;
       if (!this.fs.existsSync(this.logDir)) return;
       const now = Date.now();
       const cutoff = now - this.logRetentionDays * 24 * 60 * 60 * 1000;

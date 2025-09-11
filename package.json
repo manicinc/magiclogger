@@ -3,11 +3,18 @@
   "version": "0.1.0",
   "description": "Lightweight magical terminal and browser-compatible logger with color support, file logging, and numerous formatting options",
   "type": "module",
+  "dependencies": {
+    "sonic-boom": "^4.2.0"
+  },
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "browser": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/browser/index.js"
+      },
       "import": {
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
@@ -17,7 +24,151 @@
         "default": "./dist/index.cjs"
       }
     },
+    "./transports/postgresql": {
+      "browser": {
+        "types": "./dist/transports/postgresql.d.ts",
+        "default": "./dist/transports/postgresql.js"
+      },
+      "import": {
+        "types": "./dist/transports/postgresql.d.ts",
+        "default": "./dist/transports/postgresql.js"
+      },
+      "require": {
+        "types": "./dist/transports/postgresql.d.cts",
+        "default": "./dist/transports/postgresql.cjs"
+      }
+    },
+    "./extensions/sampler": {
+      "browser": {
+        "types": "./dist/extensions/sampler.d.ts",
+        "default": "./dist/browser/extensions/sampler.js"
+      },
+      "import": {
+        "types": "./dist/extensions/sampler.d.ts",
+        "default": "./dist/extensions/sampler.js"
+      },
+      "require": {
+        "types": "./dist/extensions/sampler.d.cts",
+        "default": "./dist/extensions/sampler.cjs"
+      }
+    },
+    "./extensions/rate-limiter": {
+      "browser": {
+        "types": "./dist/extensions/rate-limiter.d.ts",
+        "default": "./dist/browser/extensions/rate-limiter.js"
+      },
+      "import": {
+        "types": "./dist/extensions/rate-limiter.d.ts",
+        "default": "./dist/extensions/rate-limiter.js"
+      },
+      "require": {
+        "types": "./dist/extensions/rate-limiter.d.cts",
+        "default": "./dist/extensions/rate-limiter.cjs"
+      }
+    },
+    "./extensions/redactor": {
+      "browser": {
+        "types": "./dist/extensions/redactor.d.ts",
+        "default": "./dist/browser/extensions/redactor.js"
+      },
+      "import": {
+        "types": "./dist/extensions/redactor.d.ts",
+        "default": "./dist/extensions/redactor.js"
+      },
+      "require": {
+        "types": "./dist/extensions/redactor.d.cts",
+        "default": "./dist/extensions/redactor.cjs"
+      }
+    },
+    "./extensions/queue-manager": {
+      "browser": {
+        "types": "./dist/extensions/queue-manager.d.ts",
+        "default": "./dist/browser/extensions/queue-manager.js"
+      },
+      "import": {
+        "types": "./dist/extensions/queue-manager.d.ts",
+        "default": "./dist/extensions/queue-manager.js"
+      },
+      "require": {
+        "types": "./dist/extensions/queue-manager.d.cts",
+        "default": "./dist/extensions/queue-manager.cjs"
+      }
+    },
+    "./extensions": {
+      "browser": {
+        "types": "./dist/extensions/index.d.ts",
+        "default": "./dist/browser/extensions/index.js"
+      },
+      "import": {
+        "types": "./dist/extensions/index.d.ts",
+        "default": "./dist/extensions/index.js"
+      },
+      "require": {
+        "types": "./dist/extensions/index.d.cts",
+        "default": "./dist/extensions/index.cjs"
+      }
+    },
+    "./validation": {
+      "browser": {
+        "types": "./dist/validation/index.d.ts",
+        "default": "./dist/browser/validation/index.js"
+      },
+      "import": {
+        "types": "./dist/validation/index.d.ts",
+        "default": "./dist/validation/index.js"
+      },
+      "require": {
+        "types": "./dist/validation/index.d.cts",
+        "default": "./dist/validation/index.cjs"
+      }
+    },
+    "./colors/CustomColorRegistry": {
+      "browser": {
+        "types": "./dist/colors/CustomColorRegistry.d.ts",
+        "default": "./dist/browser/colors/CustomColorRegistry.js"
+      },
+      "import": {
+        "types": "./dist/colors/CustomColorRegistry.d.ts",
+        "default": "./dist/colors/CustomColorRegistry.js"
+      },
+      "require": {
+        "types": "./dist/colors/CustomColorRegistry.d.cts",
+        "default": "./dist/colors/CustomColorRegistry.cjs"
+      }
+    },
+    "./utils/trace-context": {
+      "browser": {
+        "types": "./dist/utils/trace-context.d.ts",
+        "default": "./dist/browser/utils/trace-context.js"
+      },
+      "import": {
+        "types": "./dist/utils/trace-context.d.ts",
+        "default": "./dist/utils/trace-context.js"
+      },
+      "require": {
+        "types": "./dist/utils/trace-context.d.cts",
+        "default": "./dist/utils/trace-context.cjs"
+      }
+    },
+    "./transports/otlp": {
+      "browser": {
+        "types": "./dist/transports/otlp.d.ts",
+        "default": "./dist/transports/otlp.js"
+      },
+      "import": {
+        "types": "./dist/transports/otlp.d.ts",
+        "default": "./dist/transports/otlp.js"
+      },
+      "require": {
+        "types": "./dist/transports/otlp.d.cts",
+        "default": "./dist/transports/otlp.cjs"
+      }
+    },
     "./transports": {
+      "browser": {
+        "types": "./dist/transports.d.ts",
+        "default": "./dist/transports.js"
+      },
       "import": {
         "types": "./dist/transports.d.ts",
         "default": "./dist/transports.js"
@@ -28,6 +179,10 @@
       }
     },
     "./transports/console": {
+      "browser": {
+        "types": "./dist/transports/console.d.ts",
+        "default": "./dist/transports/console.js"
+      },
       "import": {
         "types": "./dist/transports/console.d.ts",
         "default": "./dist/transports/console.js"
@@ -38,6 +193,10 @@
       }
     },
     "./transports/file": {
+      "browser": {
+        "types": "./dist/transports/file.d.ts",
+        "default": "./dist/transports/file.js"
+      },
       "import": {
         "types": "./dist/transports/file.d.ts",
         "default": "./dist/transports/file.js"
@@ -48,6 +207,10 @@
       }
     },
     "./transports/http": {
+      "browser": {
+        "types": "./dist/transports/http.d.ts",
+        "default": "./dist/transports/http.js"
+      },
       "import": {
         "types": "./dist/transports/http.d.ts",
         "default": "./dist/transports/http.js"
@@ -58,6 +221,10 @@
       }
     },
     "./transports/s3": {
+      "browser": {
+        "types": "./dist/transports/s3.d.ts",
+        "default": "./dist/transports/s3.js"
+      },
       "import": {
         "types": "./dist/transports/s3.d.ts",
         "default": "./dist/transports/s3.js"
@@ -68,6 +235,10 @@
       }
     },
     "./transports/mongodb": {
+      "browser": {
+        "types": "./dist/transports/mongodb.d.ts",
+        "default": "./dist/transports/mongodb.js"
+      },
       "import": {
         "types": "./dist/transports/mongodb.d.ts",
         "default": "./dist/transports/mongodb.js"
@@ -78,6 +249,10 @@
       }
     },
     "./transports/stream": {
+      "browser": {
+        "types": "./dist/transports/stream.d.ts",
+        "default": "./dist/transports/stream.js"
+      },
       "import": {
         "types": "./dist/transports/stream.d.ts",
         "default": "./dist/transports/stream.js"
@@ -88,6 +263,10 @@
       }
     },
     "./transports/websocket": {
+      "browser": {
+        "types": "./dist/transports/websocket.d.ts",
+        "default": "./dist/transports/websocket.js"
+      },
       "import": {
         "types": "./dist/transports/websocket.d.ts",
         "default": "./dist/transports/websocket.js"
@@ -97,7 +276,25 @@
         "default": "./dist/transports/websocket.cjs"
       }
     },
+    "./transports/null": {
+      "browser": {
+        "types": "./dist/transports/null.d.ts",
+        "default": "./dist/transports/null.js"
+      },
+      "import": {
+        "types": "./dist/transports/null.d.ts",
+        "default": "./dist/transports/null.js"
+      },
+      "require": {
+        "types": "./dist/transports/null.d.cts",
+        "default": "./dist/transports/null.cjs"
+      }
+    },
     "./transports/base": {
+      "browser": {
+        "types": "./dist/transports/base.d.ts",
+        "default": "./dist/transports/base.js"
+      },
       "import": {
         "types": "./dist/transports/base.d.ts",
         "default": "./dist/transports/base.js"
@@ -107,67 +304,11 @@
         "default": "./dist/transports/base.cjs"
       }
     },
-    "./compatibility": {
-      "import": {
-        "types": "./dist/compatibility/index.d.ts",
-        "default": "./dist/compatibility/index.js"
-      },
-      "require": {
-        "types": "./dist/compatibility/index.d.cts",
-        "default": "./dist/compatibility/index.cjs"
-      }
-    },
-    "./compatibility/winston": {
-      "import": {
-        "types": "./dist/compatibility/winston.d.ts",
-        "default": "./dist/compatibility/winston.js"
-      },
-      "require": {
-        "types": "./dist/compatibility/winston.d.cts",
-        "default": "./dist/compatibility/winston.cjs"
-      }
-    },
-    "./compatibility/bunyan": {
-      "import": {
-        "types": "./dist/compatibility/bunyan.d.ts",
-        "default": "./dist/compatibility/bunyan.js"
-      },
-      "require": {
-        "types": "./dist/compatibility/bunyan.d.cts",
-        "default": "./dist/compatibility/bunyan.cjs"
-      }
-    },
-    "./compatibility/pino": {
-      "import": {
-        "types": "./dist/compatibility/pino.d.ts",
-        "default": "./dist/compatibility/pino.js"
-      },
-      "require": {
-        "types": "./dist/compatibility/pino.d.cts",
-        "default": "./dist/compatibility/pino.cjs"
-      }
-    },
-    "./compatibility/console": {
-      "import": {
-        "types": "./dist/compatibility/console.d.ts",
-        "default": "./dist/compatibility/console.js"
-      },
-      "require": {
-        "types": "./dist/compatibility/console.d.cts",
-        "default": "./dist/compatibility/console.cjs"
-      }
-    },
-    "./compatibility/base": {
-      "import": {
-        "types": "./dist/compatibility/base.d.ts",
-        "default": "./dist/compatibility/base.js"
-      },
-      "require": {
-        "types": "./dist/compatibility/base.d.cts",
-        "default": "./dist/compatibility/base.cjs"
-      }
-    },
     "./theme": {
+      "browser": {
+        "types": "./dist/theme/theme.d.ts",
+        "default": "./dist/theme/theme.js"
+      },
       "import": {
         "types": "./dist/theme/theme.d.ts",
         "default": "./dist/theme/theme.js"
@@ -178,6 +319,10 @@
       }
     },
     "./types": {
+      "browser": {
+        "types": "./dist/types/index.d.ts",
+        "default": "./dist/types/index.js"
+      },
       "import": {
         "types": "./dist/types/index.d.ts",
         "default": "./dist/types/index.js"
@@ -188,6 +333,10 @@
       }
     },
     "./core/colorizer": {
+      "browser": {
+        "types": "./dist/core/colorizer.d.ts",
+        "default": "./dist/core/colorizer.js"
+      },
       "import": {
         "types": "./dist/core/colorizer.d.ts",
         "default": "./dist/core/colorizer.js"
@@ -198,6 +347,10 @@
       }
     },
     "./core/context-manager": {
+      "browser": {
+        "types": "./dist/core/context-manager.d.ts",
+        "default": "./dist/core/context-manager.js"
+      },
       "import": {
         "types": "./dist/core/context-manager.d.ts",
         "default": "./dist/core/context-manager.js"
@@ -208,6 +361,10 @@
       }
     },
     "./core/tag-manager": {
+      "browser": {
+        "types": "./dist/core/tag-manager.d.ts",
+        "default": "./dist/core/tag-manager.js"
+      },
       "import": {
         "types": "./dist/core/tag-manager.d.ts",
         "default": "./dist/core/tag-manager.js"
@@ -218,6 +375,10 @@
       }
     },
     "./core/formatter": {
+      "browser": {
+        "types": "./dist/core/formatter.d.ts",
+        "default": "./dist/core/formatter.js"
+      },
       "import": {
         "types": "./dist/core/formatter.d.ts",
         "default": "./dist/core/formatter.js"
@@ -227,24 +388,44 @@
         "default": "./dist/core/formatter.cjs"
       }
     },
-    "./async/logger": {
+    "./async": {
       "import": {
-        "types": "./dist/async/logger.d.ts",
-        "default": "./dist/async/logger.js"
+        "types": "./dist/async/AsyncLogger.d.ts",
+        "default": "./dist/async/AsyncLogger.js"
       },
       "require": {
-        "types": "./dist/async/logger.d.cts",
-        "default": "./dist/async/logger.cjs"
+        "types": "./dist/async/AsyncLogger.d.cts",
+        "default": "./dist/async/AsyncLogger.cjs"
+      }
+    },
+    "./async/logger": {
+      "import": {
+        "types": "./dist/async/AsyncLogger.d.ts",
+        "default": "./dist/async/AsyncLogger.js"
+      },
+      "require": {
+        "types": "./dist/async/AsyncLogger.d.cts",
+        "default": "./dist/async/AsyncLogger.cjs"
       }
     },
     "./async/buffer": {
       "import": {
-        "types": "./dist/async/buffer.d.ts",
-        "default": "./dist/async/buffer.js"
+        "types": "./dist/async/AsyncBuffer.d.ts",
+        "default": "./dist/async/AsyncBuffer.js"
       },
       "require": {
-        "types": "./dist/async/buffer.d.cts",
-        "default": "./dist/async/buffer.cjs"
+        "types": "./dist/async/AsyncBuffer.d.cts",
+        "default": "./dist/async/AsyncBuffer.cjs"
+      }
+    },
+    "./sync": {
+      "import": {
+        "types": "./dist/sync/logger.d.ts",
+        "default": "./dist/sync/logger.js"
+      },
+      "require": {
+        "types": "./dist/sync/logger.d.cts",
+        "default": "./dist/sync/logger.cjs"
       }
     },
     "./package.json": "./package.json"
@@ -261,22 +442,26 @@
     "demo:guided": "npx tsx examples/guided-animated-demo.ts",
     "demo:tree-shaking": "npx tsx examples/tree-shaking-demo.ts",
     "demo:web": "npm run build && node -e \"const fs = require('fs-extra'); fs.copySync('dist', 'examples/web-demo/dist')\" && serve examples/web-demo",
-    "docs": "cd website && npm start",
-    "docs:build": "npm run build && cd website && npm install && npm run build",
+    "docs": "npm run docs:start",
+    "docs:start": "cd website && npm start",
+    "docs:build": "cd website && npm run build",
     "docs:serve": "cd website && npm run serve",
-    "docs:deploy": "cd website && npm run deploy",
-    "docs:install": "cd website && npm install",
-    "clean": "rimraf dist test_logs .tsbuildinfo",
+    "docs:deploy": "npm run build && cd website && npm run build && npm run deploy",
+    "deploy:gh-pages": "npm run build && cd website && npm ci && npm run build && gh-pages -d build -b gh-pages",
+    "docs:install": "cd website && npm ci",
+    "clean": "rimraf dist .tsbuildinfo",
+    "clean:all": "rimraf dist test_logs .tsbuildinfo",
     "check": "npm run format && npm run lint",
     "dev": "tsup --watch",
-    "build": "npm run clean && tsup",
+    "build": "npm run clean && tsup && tsup --platform=browser --entry.src=src/index.browser.ts",
     "build:analyze": "npm run build && npm run analyze:build",
     "build:examples": "tsup examples/*.ts --format=cjs --outDir=dist/examples",
     "build:examples:esm": "tsup examples/*.ts --format=esm --outDir=dist/examples --outExtension='.mjs'",
     "test": "jest",
-    "test:coverage": "jest --coverage",
+    "test:coverage": "jest --coverage --runInBand --ci --detectOpenHandles --coverageReporters=text --coverageReporters=lcov --coverageReporters=json --coverageReporters=json-summary --coverageReporters=clover --coverageReporters=html --forceExit",
     "test:treeshake": "node scripts/test-tree-shaking.js",
     "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\" \"examples/**/*.ts\"",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint:fix": "eslint \"src/**/*.ts\" \"tests/**/*.ts\" \"examples/**/*.ts\" --fix",
     "format": "prettier --write \"src/**/*.{ts,json}\" \"tests/**/*.{ts,json}\" \"examples/**/*.{ts,json}\"",
     "format:check": "prettier --check \"src/**/*.{ts,json}\" \"tests/**/*.{ts,json}\" \"examples/**/*.{ts,json}\"",
@@ -284,15 +469,29 @@
     "commit": "cz",
     "test:coverage:badge": "node scripts/generate-coverage-badge.js",
     "analyze:build": "node scripts/analyze-build.js",
+    "perf:run": "npm run build && node scripts/performance/perf-bench.mjs",
+    "perf:update": "npm run build && node scripts/performance/perf-bench.mjs --update",
+    "perf:file-io": "npm run build && node scripts/performance/file-io-bench.mjs",
+    "perf:file-io:update": "npm run build && node scripts/performance/file-io-bench.mjs --update",
     "version:bump": "node scripts/version-bump.js",
     "preflight": "npm run clean && npm run check && npm run lint && npm run test:coverage && npm run build && npm run test:coverage:badge && npm run analyze:build && npm run test:treeshake",
     "prepublishOnly": "npm run test && npm run lint && npm run build && npm run test:coverage:badge && npm run analyze:build",
     "prepare": "npm run clean && husky",
     "version": "npm run format && git add -A src",
     "postversion": "git push && git push --tags",
-    "release:manual": "npm run preflight && npm run version:bump"
+    "release:manual": "npm run preflight && npm run version:bump",
+    "security:audit": "pnpm audit || true",
+    "security:deps": "npx license-checker --summary",
+    "security:lock": "npx lockfile-lint --path pnpm-lock.yaml --type pnpm --validate-https",
+    "deps:graph": "dependency-cruiser -T html src --output dependency-graph.html",
+    "deps:graph:json": "dependency-cruiser -T json src > dependency-graph.json",
+    "size:check": "node scripts/analyze-build.js --check",
+    "size:update": "node scripts/analyze-build.js",
+    "clean:deep": "rimraf dist build lib coverage tsconfig.tsbuildinfo tsconfig.build.tsbuildinfo \"node_modules/.cache\" && pnpm exec jest --clearCache || true",
+    "rebuild": "npm run clean:deep && pnpm install && npm run build"
   },
   "keywords": [
+    "magic",
     "logger",
     "terminal",
     "color",
@@ -301,27 +500,23 @@
     "styled",
     "formatting",
     "ansi",
-    "tree-shakeable",
-    "zero-dependency",
     "typescript",
-    "winston",
-    "bunyan",
-    "pino",
     "structured-logging",
-    "transports",
-    "browser",
-    "node"
+    "transports"
   ],
   "author": "Manic.agency",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/manicinc/advanced-logger.git"
+    "url": "git+https://github.com/manicinc/magiclogger.git"
   },
   "bugs": {
-    "url": "https://github.com/manicinc/advanced-logger/issues"
+    "url": "https://github.com/manicinc/magiclogger/issues"
   },
-  "homepage": "https://github.com/manicinc/advanced-logger#readme",
+  "homepage": "https://github.com/manicinc/magiclogger#readme",
+  "publishConfig": {
+    "access": "public"
+  },
   "devDependencies": {
     "@commitlint/cli": "^18.6.0",
     "@commitlint/config-conventional": "^18.6.0",
@@ -339,15 +534,21 @@
     "@typescript-eslint/parser": "^5.59.0",
     "commitizen": "^4.3.0",
     "cz-conventional-changelog": "^3.3.0",
+    "dependency-cruiser": "^16.6.0",
+    "esbuild": "^0.25.0",
     "eslint": "^8.38.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-jest": "^27.4.0",
+    "eslint-plugin-security": "^2.1.1",
     "fs-extra": "^11.3.0",
     "husky": "^9.0.11",
     "jest": "^29.5.0",
     "jest-environment-jsdom": "^29.7.0",
+    "license-checker": "^25.0.1",
     "lint-staged": "^15.2.0",
+    "lockfile-lint": "4.14.1",
     "path-browserify": "^1.0.1",
+    "pino": "^9.9.4",
     "prettier": "^2.8.7",
     "pretty-bytes": "^6.0.1",
     "rimraf": "^6.0.1",

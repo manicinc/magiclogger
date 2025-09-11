@@ -14,34 +14,23 @@ const sidebars: SidebarsConfig = {
     'intro',
     {
       type: 'category',
-      label: '🚀 Getting Started',
-      items: [
-        'api_usage',
-      ],
+      label: '📖 API & Usage',
+      items: ['api-reference', 'advanced-usage'],
+    },
+    {
+      type: 'category',
+      label: '📋 Architecture',
+      items: ['architecture', 'TRANSPORTS', 'magic-schema'],
     },
     {
       type: 'category',
       label: '🔧 Features',
-      items: [
-        'browser_storage',
-        'styling',
-        'terminal_support',
-      ],
-    },
-    {
-      type: 'category',
-      label: '🔄 Compatibility',
-      items: [
-        'compatibility',
-      ],
+      items: ['browser_storage', 'styling', 'custom_colors', 'formatters', 'context-and-tags', 'terminal_support'],
     },
     {
       type: 'category',
       label: '📊 Testing & Quality',
-      items: [
-        'test_coverage',
-        'codecov',
-      ],
+      items: ['test_coverage', 'codecov'],
     },
     {
       type: 'category',
@@ -53,6 +42,7 @@ const sidebars: SidebarsConfig = {
         'git_workflow',
         'publishing',
         'cicd',
+        'deployment',
       ],
     },
   ],

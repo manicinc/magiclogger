@@ -1,5 +1,6 @@
 # Logs
 logs
+typed_logs
 test_logs
 *.log
 npm-debug.log*
@@ -7,6 +8,8 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 .pnpm-debug.log*
+
+.claude/
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
@@ -159,3 +162,11 @@ output/
 
 # Repomix
 repomix-output.txt
+
+# Windows NUL device file (created by accident in benchmarks)
+NUL
+nul
+
+# Performance benchmark test files and temporary directories
+scripts/performance/tmp-bench/
+scripts/performance/test-*.log

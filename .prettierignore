@@ -1,0 +1,13 @@
+# Ignore NDJSON log files (newline-delimited JSON)
+examples/magic-demo-logs.json
+examples/magic-format-demo.json
+
+# Build outputs
+dist/
+build/
+coverage/
+node_modules/
+
+# Generated docs
+website/static/api/
+website/static/docs/

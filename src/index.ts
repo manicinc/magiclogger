@@ -1,111 +1,247 @@
-// File: src/index.ts
-
 /**
- * MagicLogger - Tree-Shakeable Logging Library
+ * @fileoverview MagicLogger - High-performance, async-first logging library.
  *
- * Main entry point for the MagicLogger library.
- * Exports only the essential components for optimal tree-shaking.
+ * MagicLogger provides two distinct logging modes:
+ * - **Logger** (default): Async with buffering for high performance
+ * - **SyncLogger**: True synchronous I/O for guaranteed delivery
  *
  * @module magiclogger
- *
  * @example
  * ```typescript
- * // Basic usage
+ * // Default async logger - recommended for production
  * import { Logger } from 'magiclogger';
  * const logger = new Logger();
  *
- * // With transports (import separately for tree-shaking)
- * import { ConsoleTransport } from 'magiclogger/transports/console';
- * const logger = new Logger({
- *   transports: [new ConsoleTransport()]
- * });
+ * // Explicit sync logger - for debugging/auditing
+ * import { SyncLogger } from 'magiclogger';
+ * const syncLogger = new SyncLogger();
  * ```
  */
 
 // ==========================================
-// CORE EXPORTS
+// Core Logger Exports
 // ==========================================
 
-// Import types and classes for internal use
-import { Logger, type LoggerOptions } from './Logger';
-
 /**
- * Main Logger class - the primary interface for logging.
- * Tree-shakeable: Only imports what's needed, no default transports.
+ * Main Logger class - the full-featured logger with all styling methods.
+ * This is what users expect when they import Logger.
  */
 export { Logger } from './Logger';
-export type { LoggerOptions } from './Logger';
+export type { LoggerOptions } from './types/logger';
 
 /**
- * Core logger types
+ * Async logger implementation for high-performance buffering.
+ * Use this when you explicitly need async/buffered logging.
  */
-export type { LogLevel } from './types';
+// Export the new proper AsyncLogger
+export { AsyncLogger } from './async/AsyncLogger';
+export type { AsyncLoggerOptions } from './async/AsyncLogger';
+
+/**
+ * Production-ready transports using correct architecture.
+ * File and HTTP use worker threads, Console is synchronous.
+ */
+export { SyncConsoleTransport } from './transports/SyncConsoleTransport';
+export { FileTransport } from './transports/FileTransport';
+export { HTTPTransport } from './transports/HTTPTransport';
+export type { FileTransportOptions } from './transports/FileTransport';
+export type { HTTPTransportOptions } from './transports/HTTPTransport';
+
+/**
+ * Synchronous logger with blocking I/O.
+ * All operations complete before returning.
+ */
+export { SyncLogger } from './sync/SyncLogger';
+
+/**
+ * Core types
+ */
+export type { LogLevel } from './types/logger';
+export type { LogEntry } from './types/transport';
 
 // ==========================================
-// STYLING & THEMING EXPORTS
+// Factory Functions
+// ==========================================
+
+import { Logger } from './Logger';
+// Import the AsyncLogger
+import { AsyncLogger } from './async/AsyncLogger';
+import type { AsyncLoggerOptions } from './async/AsyncLogger';
+import { SyncLogger } from './sync/SyncLogger';
+import type { LoggerOptions } from './types/logger';
+
+/**
+ * Creates a logger with configurable behavior.
+ *
+ * @param options - Configuration options
+ * @param options.mode - Logger mode: 'async' (default), 'sync', 'auto', or 'balanced'
+ * @returns Logger instance
+ *
+ * @example
+ * ```typescript
+ * // Default async logger for high performance
+ * const logger = createLogger();
+ *
+ * // Explicit async mode
+ * const asyncLogger = createLogger({ mode: 'async' });
+ *
+ * // Sync logger for debugging or auditing
+ * const syncLogger = createLogger({ mode: 'sync' });
+ *
+ * // Auto-detect based on environment
+ * const autoLogger = createLogger({ mode: 'auto' });
+ * ```
+ */
+export function createLogger(
+  options: Partial<LoggerOptions & AsyncLoggerOptions> = {}
+): Logger | AsyncLogger | SyncLogger {
+  const mode = options.mode ?? 'async';
+
+  // For backward compatibility with tests, return actual AsyncLogger/SyncLogger instances
+  if (mode === 'async') {
+    // Return AsyncLogger for async mode
+    return createAsyncLogger(options as Partial<AsyncLoggerOptions>);
+  } else if (mode === 'sync') {
+    // Return SyncLogger for sync mode
+    return new SyncLogger(options);
+  } else if (mode === 'auto') {
+    // Auto-detect based on environment
+    const isProduction = typeof process !== 'undefined' && process.env?.NODE_ENV === 'production';
+    const isInteractive = typeof process !== 'undefined' && process.stdout?.isTTY;
+    const isTesting =
+      typeof process !== 'undefined' && (process.env?.NODE_ENV === 'test' || process.env?.CI);
+
+    const useAsync = isProduction || (!isInteractive && !isTesting);
+    return useAsync
+      ? createAsyncLogger(options as Partial<AsyncLoggerOptions>)
+      : new SyncLogger(options);
+  } else {
+    // Default to Logger class for balanced mode or unknown
+    return new Logger(options);
+  }
+}
+
+/**
+ * Creates a synchronous logger with blocking I/O.
+ * @deprecated Use createLogger({ mode: 'sync' }) instead
+ *
+ * @param options - Configuration options
+ * @returns Logger instance in sync mode
+ */
+export function createSyncLogger(options: Partial<LoggerOptions> = {}): SyncLogger {
+  return new SyncLogger(options);
+}
+
+// ==========================================
+// Default Export
 // ==========================================
 
 /**
- * Color constants for terminal output
+ * Default export - creates an async logger.
+ *
+ * @example
+ * ```typescript
+ * import logger from 'magiclogger';
+ * const log = logger();
+ * log.info('Hello world');
+ * ```
  */
+export default function magiclogger(
+  options: Partial<LoggerOptions & AsyncLoggerOptions> = {}
+): Logger | AsyncLogger | SyncLogger {
+  return createLogger(options);
+}
+
+// ==========================================
+// Styling & Theming
+// ==========================================
+
 export { COLORS } from './constants/colors';
-
-/**
- * ANSI escape codes for direct terminal control
- */
 export { ANSI } from './constants/ansi';
-
-/**
- * Style presets for common log patterns
- */
 export { PRESETS } from './constants/preset';
+export { Colorizer } from './core/Colorizer';
+export { StyleBuilder } from './core/StyleBuilder';
+export { ContextManager } from './core/ContextManager';
+export { TagManager } from './core/TagManager';
+export { meta, err } from './utils/meta';
 
-/**
- * Color and style types
- */
 export type { ColorName } from './types/colors';
 export type { StylePreset } from './types/preset';
 export type { ThemeDefinition } from './types/theme';
 
 // ==========================================
-// UTILITY EXPORTS (Tree-Shakeable)
+// Optional Extensions
 // ==========================================
 
 /**
- * Colorizer utility for terminal colors.
- * Only imported when color functions are used.
+ * Queue management for handling backpressure.
  */
-export { Colorizer } from './core/Colorizer';
-
-// ==========================================
-// TRANSPORT TYPES ONLY
-// ==========================================
+export { QueueManager } from './extensions/QueueManager';
+export type { QueueManagerOptions, QueueStats, DropPolicy } from './extensions/QueueManager';
 
 /**
- * Transport-related types for TypeScript users.
- * These are just type definitions and don't affect bundle size.
+ * Rate limiting for log throttling.
  */
+export { RateLimiter } from './extensions/RateLimiter';
+export type { RateLimiterOptions, RateLimitStrategy } from './extensions/RateLimiter';
+
+/**
+ * PII and sensitive data redaction.
+ */
+export { Redactor, createRedactorPreset } from './extensions/Redactor';
 export type {
-  // Core transport interfaces
-  LogEntry,
+  RedactorOptions,
+  RedactionPattern,
+  RedactionPreset,
+  RedactionStrategy,
+} from './extensions/Redactor';
+
+/**
+ * Statistical sampling for volume control.
+ */
+export { Sampler, createSamplerPreset } from './extensions/Sampler';
+export type { SamplerOptions, SamplingStrategy } from './extensions/Sampler';
+
+/**
+ * Enhanced console functionality.
+ */
+export { EnhancedConsole, enhanceConsole } from './utils/EnhancedConsole';
+export type { EnhanceConsoleOptions } from './utils/EnhancedConsole';
+
+/**
+ * Table formatting utilities for beautiful tables, boxes, and lists.
+ */
+export { TableFormatter } from './utils/TableFormatter';
+export type { TableOptions } from './utils/TableFormatter';
+
+/**
+ * Style extraction and reconstruction utilities for MAGIC schema.
+ * These functions enable parsing styled text and reconstructing it from MAGIC log entries.
+ */
+export {
+  extractStyles,
+  applyStyles,
+  optimizeStyleRanges,
+  validateStyleRanges,
+} from './utils/style-extractor';
+
+// ==========================================
+// Transport Types
+// ==========================================
+
+export type {
   Transport,
   TransportOptions,
   TransportConfig,
   TransportType,
   TransportStats,
   TransportEvents,
-
-  // Configuration types
   BatchingOptions,
   RetryOptions,
   ConnectionState,
-
-  // Transport-specific options
   ConsoleTransportOptions,
-  FileTransportOptions,
   BatchingTransportOptions,
   NetworkTransportOptions,
-  HTTPTransportOptions,
   StreamTransportOptions,
   WebSocketTransportOptions,
   MongoDBTransportOptions,
@@ -113,143 +249,74 @@ export type {
 } from './types/transport';
 
 // ==========================================
-// COMPATIBILITY FUNCTIONS
+// Utility Types
 // ==========================================
 
 /**
- * Console enhancement for adding custom log methods.
- * Import individually for better tree-shaking: 'magiclogger/compatibility/console'
+ * Type guard to check if a logger is async.
  */
-export { enhanceConsole } from './compatibility/loggers/EnhancedConsole';
+export function isAsyncLogger(logger: unknown): logger is AsyncLogger {
+  return logger instanceof AsyncLogger;
+}
 
 /**
- * Winston-compatible logger creation.
- * Import individually for better tree-shaking: 'magiclogger/compatibility/winston'
+ * Type guard to check if a logger is sync.
  */
-export { createWinstonCompatible } from './compatibility/loggers/WinstonCompatibleLogger';
-
-/**
- * Bunyan-compatible logger creation.
- * Import individually for better tree-shaking: 'magiclogger/compatibility/bunyan'
- */
-export { createBunyanCompatible } from './compatibility/loggers/BunyanCompatibleLogger';
-
-/**
- * Pino-compatible logger creation.
- * Import individually for better tree-shaking: 'magiclogger/compatibility/pino'
- */
-export { createPinoCompatible } from './compatibility/loggers/PinoCompatibleLogger';
+export function isSyncLogger(logger: unknown): logger is SyncLogger {
+  return logger instanceof SyncLogger;
+}
 
 // ==========================================
-// CONVENIENCE FUNCTIONS
+// Legacy Exports and Aliases
 // ==========================================
 
 /**
- * Creates a new Logger instance with the given options.
- * Convenience function for creating loggers.
+ * Creates a high-performance async logger that routes directly to transports.
+ * Each transport manages its own buffering and threading strategy for optimal performance.
  *
- * @param {Partial<LoggerOptions>} [options={}] - Logger options
- * @returns {Logger} New logger instance
+ * @param options - Configuration options for async logger
+ * @param options.transports - Array of transports to log to
+ * @param options.onFlush - Optional callback when transports flush
+ * @param options.redactor - Optional redactor for sensitive data
+ * @param options.rateLimiter - Optional rate limiter configuration
+ * @returns AsyncLogger instance that routes logs directly to transports
  *
  * @example
  * ```typescript
- * const logger = createLogger({
- *   id: 'my-app',
- *   tags: ['production']
+ * // Create async logger with worker thread transports
+ * const logger = createAsyncLogger({
+ *   transports: [
+ *     new FileWorkerTransport({ filepath: 'app.log' }),
+ *     new HTTPWorkerTransport({ endpoint: 'https://logs.example.com' }),
+ *     new SyncConsoleTransport() // Immediate feedback in development
+ *   ]
  * });
+ *
+ * // Logs are routed directly to each transport
+ * logger.info('Each transport handles this independently');
  * ```
  */
-export function createLogger(options: Partial<LoggerOptions> = {}): Logger {
-  return new Logger(options);
-}
-
-// ==========================================
-// DEFAULT LOGGER SINGLETON
-// ==========================================
-
-/**
- * Internal storage for the default logger instance
- * @private
- */
-let defaultLogger: Logger | null = null;
-
-/**
- * Gets the default logger instance (singleton pattern).
- * Creates one if it doesn't exist.
- *
- * @returns {Logger} The default logger instance
- *
- * @example
- * ```typescript
- * import { getDefaultLogger } from 'magiclogger';
- * const logger = getDefaultLogger();
- * logger.info('Using default logger');
- * ```
- */
-export function getDefaultLogger(): Logger {
-  if (!defaultLogger) {
-    defaultLogger = new Logger();
-  }
-  return defaultLogger;
+export function createAsyncLogger(options: Partial<AsyncLoggerOptions> = {}): AsyncLogger {
+  return new AsyncLogger(options);
 }
 
 /**
- * Sets a custom default logger instance.
- * Useful for replacing the default logger with a pre-configured one.
- *
- * @param {Logger} logger - Logger instance to set as default
- *
- * @example
- * ```typescript
- * const customLogger = new Logger({ id: 'custom' });
- * setDefaultLogger(customLogger);
- * ```
- */
-export function setDefaultLogger(logger: Logger): void {
-  defaultLogger = logger;
-}
-
-// ==========================================
-// DEPRECATED EXPORTS
-// ==========================================
-
-/**
- * @deprecated TransportManager should not be imported from main entry.
- * This will be removed in v1.0.0.
- * Import from 'magiclogger/transports/base' if needed.
+ * Transport manager for managing multiple transports.
  */
 export { TransportManager } from './transports/base/TransportManager';
 
 /**
- * Type re-export for TransportManager options
- * @deprecated Will be removed in v1.0.0
+ * Default logger and singleton management.
  */
-export type { TransportManagerOptions } from './types/transport';
+let defaultLogger: AsyncLogger | SyncLogger | Logger | null = null;
 
-// ==========================================
-// IMPORTANT NOTES
-// ==========================================
+export function getDefaultLogger(): AsyncLogger | SyncLogger | Logger {
+  if (!defaultLogger) {
+    defaultLogger = createLogger();
+  }
+  return defaultLogger;
+}
 
-/**
- * Tree-Shaking Guide:
- *
- * 1. Import transports individually:
- *    ```typescript
- *    import { ConsoleTransport } from 'magiclogger/transports/console';
- *    import { FileTransport } from 'magiclogger/transports/file';
- *    ```
- *
- * 2. Import compatibility layers individually:
- *    ```typescript
- *    import { createWinstonCompatible } from 'magiclogger/compatibility/winston';
- *    import { createPinoCompatible } from 'magiclogger/compatibility/pino';
- *    ```
- *
- * 3. Import core utilities individually (if needed):
- *    ```typescript
- *    import { ContextManager } from 'magiclogger/core/context-manager';
- *    import { TagManager } from 'magiclogger/core/tag-manager';
- *    ```
- *
- * This ensures your bundle only includes the code you actually use.
- */
+export function setDefaultLogger(logger: AsyncLogger | SyncLogger): void {
+  defaultLogger = logger;
+}

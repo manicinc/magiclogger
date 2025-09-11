@@ -1,0 +1,61 @@
+name: Auto PR Title (Conventional)
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, edited, ready_for_review]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  set_title:
+    name: Set PR title from first conventional commit
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    steps:
+      - name: Derive title from commits
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            // Fetch commits (paginate to be safe)
+            const commits = await github.paginate(github.rest.pulls.listCommits, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              per_page: 100,
+            });
+
+            // Conventional commit regex (common types)
+            const cc = /^(feat|fix|perf|refactor|docs|test|build|ci|chore|style|revert)(\(.+?\))?:\s+(.+)/i;
+            const first = commits
+              .map(c => c.commit.message.split('\n')[0])
+              .find(m => cc.test(m));
+
+            if (!first) {
+              core.info('No conventional commit found; skipping title update.');
+              return;
+            }
+
+            const [, type, scope = '', subject] = first.match(cc);
+            const newTitle = `${type.toLowerCase()}${scope}: ${subject}`;
+
+            if (pr.title === newTitle) {
+              core.info('PR title already matches conventional commit.');
+              return;
+            }
+
+            // Only auto-update obviously non-conventional titles or empty titles
+            const looksConventional = cc.test(pr.title || '');
+            if (!looksConventional || !pr.title) {
+              await github.rest.pulls.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+                title: newTitle,
+              });
+              core.info(`Updated PR title to: ${newTitle}`);
+            } else {
+              core.info('Existing title appears conventional; leaving unchanged.');
+            }

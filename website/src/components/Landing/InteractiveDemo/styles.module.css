@@ -99,19 +99,49 @@
 }
 
 .toggleButton {
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border: none;
-  border-radius: 8px;
-  padding: 0.5rem 1rem;
+  border-radius: 12px;
+  padding: 0.625rem 1.25rem;
   font-size: 0.9rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 
+    0 2px 10px rgba(102, 126, 234, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.toggleButton::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  transition: left 0.5s;
+}
+
+.toggleButton:hover::before {
+  left: 100%;
 }
 
 .toggleButton:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 
+    0 6px 20px rgba(102, 126, 234, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.toggleButton:active {
+  transform: scale(0.98);
+  transition: transform 0.1s;
 }
 
 .storageInfo {
@@ -161,15 +191,20 @@
 }
 
 .logButton {
-  padding: 0.75rem 1rem;
+  padding: 0.875rem 1.25rem;
   border: none;
-  border-radius: 8px;
+  border-radius: 12px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   font-size: 0.9rem;
   position: relative;
   overflow: hidden;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .logButton::before {
@@ -188,8 +223,15 @@
 }
 
 .logButton:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 
+    0 6px 20px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.logButton:active {
+  transform: scale(0.98);
+  transition: transform 0.1s;
 }
 
 .logButton.info {
@@ -244,14 +286,21 @@
 }
 
 .sendButton {
-  padding: 0.75rem 1.5rem;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  padding: 0.875rem 1.75rem;
+  background: linear-gradient(135deg, #9945ff 0%, #00d4ff 100%);
   color: white;
   border: none;
-  border-radius: 8px;
+  border-radius: 12px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 
+    0 4px 15px rgba(153, 69, 255, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  position: relative;
+  overflow: hidden;
 }
 
 .sendButton:disabled {
@@ -259,9 +308,31 @@
   cursor: not-allowed;
 }
 
+.sendButton::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  transition: left 0.5s;
+}
+
+.sendButton:hover::before {
+  left: 100%;
+}
+
 .sendButton:not(:disabled):hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 
+    0 8px 25px rgba(153, 69, 255, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.sendButton:active {
+  transform: scale(0.98);
+  transition: transform 0.1s;
 }
 
 .options {
@@ -280,19 +351,34 @@
 }
 
 .clearButton {
-  padding: 0.5rem 1rem;
-  background: #f3f4f6;
+  padding: 0.625rem 1.25rem;
+  background: linear-gradient(145deg, #ffffff, #f3f4f6);
   color: #6b7280;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
   font-size: 0.85rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 
+    2px 2px 8px rgba(0, 0, 0, 0.06),
+    -2px -2px 8px rgba(255, 255, 255, 0.8);
 }
 
 .clearButton:hover {
-  background: #e5e7eb;
+  background: linear-gradient(145deg, #f3f4f6, #e5e7eb);
   color: #374151;
+  transform: translateY(-2px);
+  box-shadow: 
+    4px 4px 12px rgba(0, 0, 0, 0.1),
+    -4px -4px 12px rgba(255, 255, 255, 0.9);
+}
+
+.clearButton:active {
+  transform: scale(0.98);
+  transition: transform 0.1s;
 }
 
 .consoleContainer {

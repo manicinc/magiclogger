@@ -93,30 +93,20 @@ describe('Logger Cross-platform Path Handling', () => {
 });
 
 describe('Logger Edge Case & Internal Utility Tests', () => {
-  it('handles errors during file logging initialization', () => {
+  it('handles errors during file logging initialization', async () => {
+    // Mock console.warn since setFileLogging is deprecated and warns
+    const spy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+
     const logger = new Logger();
-    const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
-    
-    // Test error handling in setFileLogging
-    const mockFileManager = {
-      initLogFile: jest.fn().mockRejectedValue(new Error('File init failed'))
-    };
-    
-    // Mock the logger instance to test error handling
-    if (logger['loggerInstance']) {
-      Object.defineProperty(logger['loggerInstance'], 'fileManager', {
-        value: mockFileManager,
-        writable: true
-      });
-    }
-    
+
+    // setFileLogging is now deprecated and just logs a warning
     logger.setFileLogging(true);
-    
-    // Allow async error to be caught
-    setTimeout(() => {
-      expect(spy).toHaveBeenCalled();
-      spy.mockRestore();
-    }, 10);
+
+    // The deprecated method should have warned
+    expect(spy).toHaveBeenCalledWith(
+      '[Logger] setFileLogging() is deprecated. Use file transports instead.'
+    );
+    spy.mockRestore();
   });
 
   it('resolves fallback styles for link-like strings', () => {

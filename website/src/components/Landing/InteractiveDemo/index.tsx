@@ -7,7 +7,7 @@ interface LogEntry {
   level: string;
   message: string;
   data?: unknown;
-  styles?: string[];
+  styles?: { text: string; style: string }[] | string[];
 }
 
 // Type for the logger instance with all the methods we use
@@ -18,9 +18,9 @@ interface LoggerInstance {
   success: (message: string) => void;
   debug: (message: string) => void;
   custom: (message: string, colors: string[], prefix: string) => void;
-  header: (message: string) => void;
-  separator: (char: string) => void;
-  table: (data: Record<string, unknown>[]) => void;
+  header?: (message: string) => void;
+  separator?: (char: string) => void;
+  table?: (data: Record<string, unknown>[]) => void;
   time?: (label: string) => void;
   timeEnd?: (label: string) => void;
   performance?: (label: string, data: Record<string, unknown>) => void;
@@ -38,24 +38,33 @@ export default function InteractiveDemo() {
   const originalConsole = useRef<Record<string, (...args: unknown[]) => void>>({});
 
   useEffect(() => {
-    // Load MagicLogger using dynamic import from source files
+    // Load MagicLogger via package entry; fall back to local shim if unavailable
     const loadMagicLogger = async () => {
       try {
-        // Import BrowserLogger directly for browser compatibility
-        const { BrowserLogger } = await import('../../../../src/core/BrowserLogger');
-        
-        if (BrowserLogger) {
-          // Create logger instance with browser-compatible settings
-          const loggerInstance = new BrowserLogger({
-            // Browser-specific options
+        let Logger: any | undefined;
+        try {
+          // Try to import the browser-specific build first
+          ({ Logger } = await import('magiclogger/dist/index.browser.js'));
+        } catch (_err) {
+          try {
+            // Fallback to regular import
+            ({ Logger } = await import('magiclogger'));
+          } catch (_err2) {
+            // Attempt local shim (aliased in webpack too)
+            ({ Logger } = await import('../../../shims/magiclogger'));
+          }
+        }
+        if (Logger) {
+          const loggerInstance = new Logger({
             useColors: true,
+            useConsole: true,  // Enable console output with colors
             verbose: true,
             storeInBrowser: true,
             maxStoredLogs: 100,
-            // Don't specify theme or other Node.js specific options
+            format: 'pretty'   // Use pretty format for styled output
           });
-          
-          setLoggerInstance(loggerInstance as LoggerInstance);
+
+          setLoggerInstance(loggerInstance as unknown as LoggerInstance);
           
           // Store original console methods
           originalConsole.current = {
@@ -69,18 +78,56 @@ export default function InteractiveDemo() {
           // Override console methods to capture output
           const createInterceptor = (level: string, originalMethod: (...args: unknown[]) => void) => {
             return (...args: unknown[]) => {
-              // Call the original method first
-              originalMethod.apply(console, args);
+              // If it's styled console output (with %c prefix), handle it specially
+              let message = '';
+              let hasStyles = false;
+              let styledSegments: { text: string; style: string }[] = [];
+              
+              if (typeof args[0] === 'string' && args[0].includes('%c')) {
+                // This is styled console output from MagicLogger
+                hasStyles = true;
+                
+                // Parse the message to extract styled segments
+                const formatString = args[0];
+                const styles = args.slice(1).filter(arg => typeof arg === 'string') as string[];
+                
+                // Split by %c markers to extract text segments
+                const segments = formatString.split('%c');
+                let styleIndex = 0;
+                
+                for (let i = 0; i < segments.length; i++) {
+                  if (i === 0 && segments[i]) {
+                    // First segment before any %c
+                    styledSegments.push({ text: segments[i], style: '' });
+                  } else if (segments[i]) {
+                    // Segments after %c get corresponding style
+                    const style = styles[styleIndex] || '';
+                    styledSegments.push({ text: segments[i], style });
+                    styleIndex++;
+                  }
+                }
+                
+                // Build plain message for searching/filtering
+                message = styledSegments.map(s => s.text).join('');
+                
+                // Apply the styles to the browser console
+                originalMethod.apply(console, args);
+              } else {
+                // Regular console output
+                originalMethod.apply(console, args);
+                message = args.map(arg => 
+                  typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+                ).join(' ');
+              }
               
               // Capture for our display
               const entry: LogEntry = {
                 id: Math.random().toString(36).substr(2, 9),
                 timestamp: new Date().toISOString(),
                 level,
-                message: args.map(arg => 
-                  typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
-                ).join(' '),
-                data: args.length > 1 ? args.slice(1) : undefined
+                message: message,
+                data: args.length > 1 && !hasStyles ? args.slice(1) : undefined,
+                styles: hasStyles ? styledSegments : undefined
               };
               
               setLogs(prev => [...prev.slice(-49), entry]);
@@ -99,8 +146,8 @@ export default function InteractiveDemo() {
           console.error = createInterceptor('error', originalConsole.current.error);
           console.debug = createInterceptor('debug', originalConsole.current.debug);
           
-        } else {
-          throw new Error('BrowserLogger class not found in module');
+  } else {
+          throw new Error('Logger class not found in module');
         }
       } catch (error) {
         console.error('Failed to load MagicLogger:', error);
@@ -109,7 +156,7 @@ export default function InteractiveDemo() {
           id: 'error-' + Date.now(),
           timestamp: new Date().toISOString(),
           level: 'error',
-          message: `Failed to load MagicLogger: ${error.message}`,
+          message: `Failed to load MagicLogger: ${error instanceof Error ? error.message : String(error)}`,
         }]);
       }
     };
@@ -132,6 +179,7 @@ export default function InteractiveDemo() {
       title: '🌈 Basic Logging',
       action: () => {
         if (!logger) return;
+        // Use the actual logger methods which will handle browser console styling
         logger.info('🚀 MagicLogger Demo Started');
         logger.success('✅ Logger initialized successfully');
         logger.warn('⚠️ This is a warning message');
@@ -142,16 +190,18 @@ export default function InteractiveDemo() {
       title: '🎨 Styled Logging',
       action: () => {
         if (!logger) return;
+        // Use logger's custom method for styled output
         logger.custom('Custom styled message', ['cyan', 'bold'], 'CUSTOM');
-        logger.header('SECTION HEADER');
-        logger.separator('=');
+        // Use angle bracket syntax if supported
+        logger.info('<green.bold>══════ SECTION HEADER ══════</>');
+        logger.info('<dim>' + '═'.repeat(30) + '</>');
       }
     },
     {
       title: '📊 Data Logging',
       action: () => {
         if (!logger) return;
-        logger.table([
+  logger.table?.([
           { name: 'Alice', age: 30, role: 'Developer' },
           { name: 'Bob', age: 25, role: 'Designer' },
           { name: 'Charlie', age: 35, role: 'Manager' }
@@ -341,24 +391,78 @@ export default function InteractiveDemo() {
                   <p>🎯 Click "Run Full Demo" or try individual scenarios to see MagicLogger in action!</p>
                 </div>
               ) : (
-                logs.map((log) => (
-                  <div
-                    key={log.id}
-                    className={styles.logEntry}
-                    style={{ borderLeft: `3px solid ${formatLogLevel(log.level)}` }}
-                  >
-                    <span className={styles.timestamp}>
-                      {new Date(log.timestamp).toLocaleTimeString()}
-                    </span>
-                    <span
-                      className={styles.level}
-                      style={{ color: formatLogLevel(log.level) }}
+                logs.map((log) => {
+                  // Parse message for colored segments if it contains styled content
+                  const renderMessage = () => {
+                    // Check if we have styled segments from console formatting
+                    if (log.styles && Array.isArray(log.styles) && log.styles.length > 0 && typeof log.styles[0] === 'object') {
+                      const segments = log.styles as { text: string; style: string }[];
+                      return (
+                        <>
+                          {segments.map((segment, idx) => {
+                            // Convert CSS styles to React inline styles
+                            const cssToReact = (cssStyle: string): React.CSSProperties => {
+                              const styleObj: React.CSSProperties = {};
+                              if (!cssStyle) return styleObj;
+                              
+                              const rules = cssStyle.split(';').map(r => r.trim()).filter(Boolean);
+                              rules.forEach(rule => {
+                                const [prop, value] = rule.split(':').map(s => s.trim());
+                                if (prop && value) {
+                                  // Convert CSS property names to React style names
+                                  const reactProp = prop.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
+                                  (styleObj as any)[reactProp] = value;
+                                }
+                              });
+                              
+                              return styleObj;
+                            };
+                            
+                            return (
+                              <span key={idx} style={cssToReact(segment.style)}>
+                                {segment.text}
+                              </span>
+                            );
+                          })}
+                        </>
+                      );
+                    }
+                    
+                    // Fallback to simple emoji-based coloring
+                    const msg = log.message;
+                    if (msg.includes('✅')) {
+                      return <span style={{ color: '#00ff88' }}>{msg}</span>;
+                    } else if (msg.includes('❌') || msg.includes('🚨')) {
+                      return <span style={{ color: '#ff4545' }}>{msg}</span>;
+                    } else if (msg.includes('⚠️')) {
+                      return <span style={{ color: '#ffc107' }}>{msg}</span>;
+                    } else if (msg.includes('🎨') || msg.includes('🌟')) {
+                      return <span style={{ color: '#b366ff' }}>{msg}</span>;
+                    } else if (msg.includes('📊') || msg.includes('📈')) {
+                      return <span style={{ color: '#00d4ff' }}>{msg}</span>;
+                    }
+                    return <span>{msg}</span>;
+                  };
+
+                  return (
+                    <div
+                      key={log.id}
+                      className={styles.logEntry}
+                      style={{ borderLeft: `3px solid ${formatLogLevel(log.level)}` }}
                     >
-                      [{log.level.toUpperCase()}]
-                    </span>
-                    <span className={styles.message}>{log.message}</span>
-                  </div>
-                ))
+                      <span className={styles.timestamp}>
+                        {new Date(log.timestamp).toLocaleTimeString()}
+                      </span>
+                      <span
+                        className={styles.level}
+                        style={{ color: formatLogLevel(log.level) }}
+                      >
+                        [{log.level.toUpperCase()}]
+                      </span>
+                      <span className={styles.message}>{renderMessage()}</span>
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>

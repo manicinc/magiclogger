@@ -1,6 +1,6 @@
-import type { Config } from '@jest/types';
+import type { Config } from 'jest';
 
-const config: Config.InitialOptions = {
+const config: Config = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   transform: {
@@ -15,9 +15,12 @@ const config: Config.InitialOptions = {
   moduleNameMapper: {
     magiclogger$: '<rootDir>/src/index.ts',
     'magiclogger/(.*)$': '<rootDir>/src/$1',
+    '^mongodb$': '<rootDir>/tests/__mocks__/mongodb.js',
+  '^pg$': '<rootDir>/tests/__mocks__/pg.js',
   },
   testMatch: ['**/tests/**/*.test.ts'],
   collectCoverageFrom: ['src/**/*.ts'],
+  coverageReporters: ['json', 'lcov', 'text', 'clover', 'json-summary'],
   coverageThreshold: {
     global: {
       statements: 70,
@@ -36,6 +39,7 @@ const config: Config.InitialOptions = {
       testMatch: ['<rootDir>/tests/**/!(Browser)*.test.ts'],
       testEnvironment: 'node',
       preset: 'ts-jest',
+      collectCoverageFrom: ['<rootDir>/src/**/*.ts'],
       transform: {
         '^.+\\.tsx?$': [
           'ts-jest',
@@ -47,6 +51,8 @@ const config: Config.InitialOptions = {
       moduleNameMapper: {
         magiclogger$: '<rootDir>/src/index.ts',
         'magiclogger/(.*)$': '<rootDir>/src/$1',
+        '^mongodb$': '<rootDir>/tests/__mocks__/mongodb.js',
+  '^pg$': '<rootDir>/tests/__mocks__/pg.js',
       },
       setupFiles: ['<rootDir>/jest.polyfills.js'],
       setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
@@ -56,6 +62,7 @@ const config: Config.InitialOptions = {
       testMatch: ['<rootDir>/tests/**/Browser*.test.ts'],
       testEnvironment: 'jsdom',
       preset: 'ts-jest',
+      collectCoverageFrom: ['<rootDir>/src/**/*.ts'],
       transform: {
         '^.+\\.tsx?$': [
           'ts-jest',
@@ -67,6 +74,8 @@ const config: Config.InitialOptions = {
       moduleNameMapper: {
         magiclogger$: '<rootDir>/src/index.ts',
         'magiclogger/(.*)$': '<rootDir>/src/$1',
+        '^mongodb$': '<rootDir>/tests/__mocks__/mongodb.js',
+  '^pg$': '<rootDir>/tests/__mocks__/pg.js',
       },
       setupFiles: ['<rootDir>/jest.polyfills.js'],
       setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],

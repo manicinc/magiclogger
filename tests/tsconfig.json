@@ -1,0 +1,16 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "types": ["node", "jest"],
+    "baseUrl": "..",
+    "paths": {
+      "magiclogger": ["./src/index.ts"],
+      "magiclogger/*": ["./src/*"],
+      "magiclogger/types": ["./src/types/index.ts"],
+      "magiclogger/constants/themes": ["./src/constants/themes.ts"]
+    }
+  },
+  "include": ["../src/**/*.ts", "./**/*.ts"]
+}

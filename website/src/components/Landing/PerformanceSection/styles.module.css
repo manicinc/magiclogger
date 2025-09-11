@@ -297,3 +297,16 @@
     grid-template-columns: 1fr;
   }
 }
+
+.performanceLink {
+  margin-left: 8px;
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.performanceLink:hover {
+  text-decoration: underline;
+  color: #764ba2;
+}

@@ -104,7 +104,6 @@ describe('TransportManager', () => {
       timestampMs: Date.now(),
       level: 'info',
       message: 'Test message',
-      plainMessage: 'Test message',
       loggerId: 'test-logger',
       tags: ['test'],
       context: { test: true },
@@ -548,7 +547,7 @@ describe('TransportManager', () => {
 
       // Trigger aggregation manually by calling the internal method
       callPerformAggregation(aggregationManager);
-      
+
       // Allow async operations to complete
       await new Promise(resolve => setImmediate(resolve));
 
@@ -807,7 +806,7 @@ describe('TransportManager', () => {
 
       // Add a small delay to ensure the log is processed
       await new Promise(resolve => setImmediate(resolve));
-      
+
       await manager.close();
 
       // Add another small delay to ensure close operations complete

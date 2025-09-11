@@ -2,11 +2,11 @@
 
 /**
  * Base transport module exports
- * 
+ *
  * This module exports only the base classes and types needed for transport
  * development and type checking. Individual transport implementations should
  * be imported from their specific entry points.
- * 
+ *
  * @module transports/base
  */
 
@@ -35,7 +35,13 @@ export type {
  * Initialize the global transport registry
  * This enables TransportManager to use the registry
  */
-import { TransportRegistry } from '../index';
-if (typeof globalThis !== 'undefined') {
-  (globalThis as { __MAGICLOGGER_TRANSPORT_REGISTRY__?: typeof TransportRegistry }).__MAGICLOGGER_TRANSPORT_REGISTRY__ = TransportRegistry;
-}
+import { __installTransportRegistry } from '../index';
+// Install using shared helper to unify code path & enable branch coverage
+__installTransportRegistry(
+  typeof globalThis !== 'undefined'
+    ? (globalThis as unknown as Record<string, unknown>)
+    : undefined,
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  typeof window !== 'undefined' ? (window as unknown as Record<string, unknown>) : undefined
+);

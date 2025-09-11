@@ -31,15 +31,17 @@ Codecov is a code coverage reporting tool that helps developers monitor how well
 
 4. **Enable Codecov in your CI workflow**
    - Open `.github/workflows/ci.yml`
-   - Uncomment the Codecov integration section:
+   - Ensure the Codecov step is present (this repo already has it):
 
    ```yaml
-   - name: Upload coverage reports to Codecov
-     uses: codecov/codecov-action@v3
+   - name: Upload to Codecov
+     uses: codecov/codecov-action@v4
      with:
-       token: ${{ secrets.CODECOV_TOKEN }}
-       file: ./coverage/lcov.info
-       fail_ci_if_error: true
+       token: ${{ secrets.CODECOV_TOKEN }} # optional for public repos
+       files: ./coverage/lcov.info
+       flags: unittests
+       fail_ci_if_error: false
+       verbose: true
    ```
 
 ## Adding a Codecov Badge
@@ -47,13 +49,13 @@ Codecov is a code coverage reporting tool that helps developers monitor how well
 Once set up, you can add a Codecov badge to your README:
 
 ```markdown
-[![codecov](https://codecov.io/gh/{USERNAME}/{REPO}/branch/main/graph/badge.svg?token={TOKEN})](https://codecov.io/gh/{USERNAME}/{REPO})
+[![codecov](https://codecov.io/gh/{USERNAME}/{REPO}/branch/master/graph/badge.svg)](https://codecov.io/gh/{USERNAME}/{REPO})
 ```
 
 Replace:
 - `{USERNAME}` with your GitHub username
 - `{REPO}` with your repository name
-- `{TOKEN}` with your Codecov token (or remove the token parameter)
+- For public repos, tokenless uploads and badges work by default (no `token` param required)
 
 ## Viewing Coverage Reports
 

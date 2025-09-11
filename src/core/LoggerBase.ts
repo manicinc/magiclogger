@@ -1,37 +1,35 @@
 // File: src/core/LoggerBase.ts
 
-import { EventEmitter } from 'events';
-import type { 
-  LoggerOptions, 
-  LogLevel, 
-  ColorName,
-  StylePreset
-} from '../types';
+import { Emitter as EventEmitter } from './events-compat';
+import type { LoggerOptions, LogLevel } from '../types/logger';
+import type { ColorName } from '../types/colors';
+import type { StylePreset } from '../types/preset';
 import { PRESETS } from '../constants/preset';
 import { isBrowserEnvironment } from '../utils/environment';
 import { DEFAULT_THEME } from '../constants/themes';
+import { getTheme as getNamedTheme } from '../theme';
 
 /**
  * Abstract base class for all logger implementations.
- * 
+ *
  * This class provides core functionality shared between Node.js and Browser loggers:
  * - Theme management
  * - Color and style handling
  * - Preset management
  * - Event emission
  * - Base configuration
- * 
+ *
  * @abstract
  * @class LoggerBase
  * @extends {EventEmitter}
- * 
+ *
  * @example
  * ```typescript
  * class CustomLogger extends LoggerBase {
  *   public info(msg: string): void {
  *     this.print('INFO', msg, 'info');
  *   }
- *   
+ *
  *   protected print(level: string, msg: string, preset: StylePreset): void {
  *     // Custom implementation
  *   }
@@ -70,6 +68,13 @@ export abstract class LoggerBase extends EventEmitter {
   protected useColors: boolean;
 
   /**
+   * Optional mapping of tags to theme names for brand-based themes.
+   * If set, when a logger has tags and no explicit object theme was provided,
+   * the first matching tag in this map will select the theme.
+   */
+  protected themeByTag?: Record<string, string>;
+
+  /**
    * Whether to enforce strict log levels.
    * @protected
    */
@@ -91,12 +96,15 @@ export abstract class LoggerBase extends EventEmitter {
    * Performance tracking data.
    * @protected
    */
-  protected performanceData: Map<string, {
-    count: number;
-    totalTime: number;
-    minTime: number;
-    maxTime: number;
-  }> = new Map();
+  protected performanceData: Map<
+    string,
+    {
+      count: number;
+      totalTime: number;
+      minTime: number;
+      maxTime: number;
+    }
+  > = new Map();
 
   /**
    * Log level hierarchy for filtering.
@@ -118,7 +126,7 @@ export abstract class LoggerBase extends EventEmitter {
 
   /**
    * Creates a new LoggerBase instance.
-   * 
+   *
    * @param {LoggerOptions} options - Logger configuration
    */
   constructor(options: LoggerOptions = {}) {
@@ -131,13 +139,57 @@ export abstract class LoggerBase extends EventEmitter {
     this.useColors = options.useColors !== false;
     this.strictLevels = options.strictLevels || false;
 
-    // Initialize theme
-    if (typeof options.theme === 'string') {
-      this.theme = this.loadTheme(options.theme);
-    } else if (typeof options.theme === 'object') {
-      this.theme = { ...DEFAULT_THEME, ...options.theme };
+    // Stash themeByTag mapping
+    this.themeByTag = options.themeByTag;
+
+    // Initialize theme. Prefer explicit object theme; next explicit string; else try themeByTag first; fallback default.
+    if (typeof options.theme === 'object' && options.theme) {
+      // Filter out non-style keys (like 'tags') and undefined values to satisfy Record<string, ColorName[]>.
+      const filtered: Record<string, ColorName[]> = {};
+      for (const [key, value] of Object.entries(
+        options.theme as Record<string, ColorName[] | undefined> & {
+          tags?: Record<string, ColorName[]>;
+        }
+      )) {
+        if (key === 'tags') continue;
+        if (Array.isArray(value)) filtered[key] = value as ColorName[];
+      }
+      this.theme = { ...DEFAULT_THEME, ...filtered };
     } else {
-      this.theme = { ...DEFAULT_THEME };
+      let initialTheme: Record<string, ColorName[]> | undefined;
+      // Only attempt themeByTag if no explicit object theme provided
+      if (!options.theme || typeof options.theme === 'string') {
+        const tagMap = options.themeByTag;
+        const tags = options.tags || [];
+        if (tagMap && tags && tags.length > 0) {
+          for (const t of tags) {
+            const mapped = tagMap[t];
+            if (mapped) {
+              initialTheme = this.loadTheme(mapped);
+              break;
+            }
+          }
+        }
+        // If no explicit mapping matched, try using a theme with the same name as any tag
+        if (!initialTheme && tags && tags.length > 0) {
+          for (const t of tags) {
+            // Use loadTheme to allow registry lookup with built-in fallbacks
+            const candidate = this.loadTheme(t);
+            if (candidate) {
+              initialTheme = candidate;
+              break;
+            }
+          }
+        }
+      }
+
+      if (initialTheme) {
+        this.theme = { ...DEFAULT_THEME, ...initialTheme };
+      } else if (typeof options.theme === 'string') {
+        this.theme = this.loadTheme(options.theme);
+      } else {
+        this.theme = { ...DEFAULT_THEME };
+      }
     }
 
     // Set max listeners
@@ -220,7 +272,13 @@ export abstract class LoggerBase extends EventEmitter {
    * Abstract method for progress bars.
    * @abstract
    */
-  public abstract progressBar(progress: number, length: number, completeChar: string, incompleteChar: string): void;
+  public abstract progressBar(
+    progress: number,
+    length: number,
+    completeChar: string,
+    incompleteChar: string,
+    clear?: boolean
+  ): void;
 
   /**
    * Abstract method for links.
@@ -248,7 +306,7 @@ export abstract class LoggerBase extends EventEmitter {
 
   /**
    * Log a message at any level.
-   * 
+   *
    * @param {string} msg - Message to log
    * @param {LogLevel} level - Log level
    */
@@ -259,9 +317,11 @@ export abstract class LoggerBase extends EventEmitter {
     }
 
     // Track performance
-    const startTime = isBrowserEnvironment() 
+    const startTime = isBrowserEnvironment()
       ? BigInt(Math.floor(performance.now() * 1000000)) // Convert ms to ns for consistency
-      : (typeof process !== 'undefined' && process.hrtime?.bigint) ? process.hrtime.bigint() : BigInt(Date.now() * 1000000);
+      : typeof process !== 'undefined' && process.hrtime?.bigint
+      ? process.hrtime.bigint()
+      : BigInt(Date.now() * 1000000);
 
     // Call appropriate method based on level
     switch (level.toLowerCase()) {
@@ -287,9 +347,11 @@ export abstract class LoggerBase extends EventEmitter {
     }
 
     // Track performance
-    const endTime = isBrowserEnvironment() 
+    const endTime = isBrowserEnvironment()
       ? BigInt(Math.floor(performance.now() * 1000000)) // Convert ms to ns for consistency
-      : (typeof process !== 'undefined' && process.hrtime?.bigint) ? process.hrtime.bigint() : BigInt(Date.now() * 1000000);
+      : typeof process !== 'undefined' && process.hrtime?.bigint
+      ? process.hrtime.bigint()
+      : BigInt(Date.now() * 1000000);
     this.trackPerformance(level, Number(endTime - startTime) / 1000000); // Convert to ms
 
     // Emit log event
@@ -305,7 +367,7 @@ export abstract class LoggerBase extends EventEmitter {
 
   /**
    * Set verbose mode.
-   * 
+   *
    * @param {boolean} enabled - Whether to enable verbose mode
    */
   public setVerbose(enabled: boolean): void {
@@ -315,7 +377,7 @@ export abstract class LoggerBase extends EventEmitter {
 
   /**
    * Get verbose mode status.
-   * 
+   *
    * @returns {boolean} Whether verbose mode is enabled
    */
   public isVerbose(): boolean {
@@ -324,7 +386,7 @@ export abstract class LoggerBase extends EventEmitter {
 
   /**
    * Enable or disable colors.
-   * 
+   *
    * @param {boolean} enabled - Whether to enable colors
    */
   public setColorsEnabled(enabled: boolean): void {
@@ -334,7 +396,7 @@ export abstract class LoggerBase extends EventEmitter {
 
   /**
    * Check if colors are enabled.
-   * 
+   *
    * @returns {boolean} Whether colors are enabled
    */
   public areColorsEnabled(): boolean {
@@ -343,7 +405,7 @@ export abstract class LoggerBase extends EventEmitter {
 
   /**
    * Set or update the theme.
-   * 
+   *
    * @param {Record<string, ColorName[]>} theme - Theme definition
    */
   public setTheme(theme: Record<string, ColorName[]>): void {
@@ -353,7 +415,7 @@ export abstract class LoggerBase extends EventEmitter {
 
   /**
    * Get the current theme.
-   * 
+   *
    * @returns {Record<string, ColorName[]>} Current theme
    */
   public getTheme(): Record<string, ColorName[]> {
@@ -362,7 +424,7 @@ export abstract class LoggerBase extends EventEmitter {
 
   /**
    * Add a custom preset.
-   * 
+   *
    * @param {string} name - Preset name
    * @param {ColorName[]} colors - Colors for the preset
    */
@@ -373,7 +435,7 @@ export abstract class LoggerBase extends EventEmitter {
 
   /**
    * Remove a custom preset.
-   * 
+   *
    * @param {string} name - Preset name to remove
    */
   public removePreset(name: string): void {
@@ -385,12 +447,12 @@ export abstract class LoggerBase extends EventEmitter {
 
   /**
    * Get colors for a preset.
-   * 
+   *
    * @param {StylePreset | string} preset - Preset name
    * @returns {ColorName[]} Colors for the preset
    * @protected
    */
-  protected getPresetColors(preset: StylePreset | string): ColorName[] {
+  protected getPresetColors = (preset: StylePreset | string): ColorName[] => {
     // Check custom presets first
     if (this.customPresets[preset]) {
       return this.customPresets[preset];
@@ -408,18 +470,23 @@ export abstract class LoggerBase extends EventEmitter {
 
     // Default fallback
     return ['white'];
-  }
+  };
 
   /**
    * Load a named theme.
-   * 
+   *
    * @param {string} themeName - Name of the theme to load
    * @returns {Record<string, ColorName[]>} Theme definition
    * @protected
    */
   protected loadTheme(themeName: string): Record<string, ColorName[]> {
-    // In a real implementation, this would load from a theme registry
-    // For now, just return default theme
+    // Try to resolve from theme registry first
+    const named = getNamedTheme(themeName);
+    if (named && typeof named === 'object') {
+      return { ...DEFAULT_THEME, ...(named as Record<string, ColorName[]>) };
+    }
+
+    // Fallback to built-in variants
     switch (themeName.toLowerCase()) {
       case 'dark':
         return {
@@ -458,7 +525,7 @@ export abstract class LoggerBase extends EventEmitter {
 
   /**
    * Check if a log level is valid.
-   * 
+   *
    * @param {string} level - Level to check
    * @returns {boolean} Whether level is valid
    * @protected
@@ -470,14 +537,14 @@ export abstract class LoggerBase extends EventEmitter {
 
   /**
    * Track performance metrics.
-   * 
+   *
    * @param {string} level - Log level
    * @param {number} time - Time in milliseconds
    * @protected
    */
   protected trackPerformance(level: string, time: number): void {
     let data = this.performanceData.get(level);
-    
+
     if (!data) {
       data = {
         count: 0,
@@ -496,21 +563,27 @@ export abstract class LoggerBase extends EventEmitter {
 
   /**
    * Get performance statistics.
-   * 
+   *
    * @returns {object} Performance stats by level
    */
-  public getPerformanceStats(): Record<string, {
-    count: number;
-    avgTime: number;
-    minTime: number;
-    maxTime: number;
-  }> {
-    const stats: Record<string, {
+  public getPerformanceStats(): Record<
+    string,
+    {
       count: number;
       avgTime: number;
       minTime: number;
       maxTime: number;
-    }> = {};
+    }
+  > {
+    const stats: Record<
+      string,
+      {
+        count: number;
+        avgTime: number;
+        minTime: number;
+        maxTime: number;
+      }
+    > = {};
 
     for (const [level, data] of this.performanceData) {
       stats[level] = {
@@ -533,7 +606,7 @@ export abstract class LoggerBase extends EventEmitter {
 
   /**
    * Update logger configuration.
-   * 
+   *
    * @param {Partial<LoggerOptions>} options - Options to update
    */
   public updateConfig(options: Partial<LoggerOptions>): void {
@@ -543,12 +616,32 @@ export abstract class LoggerBase extends EventEmitter {
     if (options.verbose !== undefined) this.verbose = options.verbose;
     if (options.useColors !== undefined) this.useColors = options.useColors;
     if (options.strictLevels !== undefined) this.strictLevels = options.strictLevels;
+    if (options.themeByTag !== undefined) this.themeByTag = options.themeByTag;
 
     if (options.theme !== undefined) {
       if (typeof options.theme === 'string') {
         this.theme = this.loadTheme(options.theme);
-      } else {
-        this.theme = { ...this.theme, ...options.theme };
+      } else if (options.theme) {
+        // Shallow-merge only style keys (exclude 'tags' and non-array values)
+        const filtered: Record<string, ColorName[]> = {};
+        for (const [key, value] of Object.entries(
+          options.theme as Record<string, ColorName[] | undefined> & {
+            tags?: Record<string, ColorName[]>;
+          }
+        )) {
+          if (key === 'tags') continue;
+          if (Array.isArray(value)) filtered[key] = value as ColorName[];
+        }
+        this.theme = { ...this.theme, ...filtered };
+      }
+    } else if (options.tags && this.themeByTag) {
+      // If tags updated without explicit theme and mapping exists, try auto-select
+      for (const t of options.tags) {
+        const mapped = this.themeByTag[t];
+        if (mapped) {
+          this.theme = this.loadTheme(mapped);
+          break;
+        }
       }
     }
 
@@ -557,7 +650,7 @@ export abstract class LoggerBase extends EventEmitter {
 
   /**
    * Get logger configuration.
-   * 
+   *
    * @returns {object} Current configuration
    */
   public getConfig(): {
@@ -568,6 +661,7 @@ export abstract class LoggerBase extends EventEmitter {
     useColors: boolean;
     strictLevels: boolean;
     theme: Record<string, ColorName[]>;
+    themeByTag?: Record<string, string>;
   } {
     return {
       id: this.id,
@@ -577,12 +671,13 @@ export abstract class LoggerBase extends EventEmitter {
       useColors: this.useColors,
       strictLevels: this.strictLevels,
       theme: { ...this.theme },
+      themeByTag: this.themeByTag,
     };
   }
 
   /**
    * Create a child logger with merged configuration.
-   * 
+   *
    * @param {Partial<LoggerOptions>} _options - Child logger options (unused in base implementation)
    * @returns {LoggerBase} Child logger instance
    * @throws {Error} Always throws as this method must be implemented by concrete classes
@@ -595,7 +690,7 @@ export abstract class LoggerBase extends EventEmitter {
 
   /**
    * Enable specific log levels.
-   * 
+   *
    * @param {LogLevel[]} levels - Levels to enable
    */
   public enableLevels(levels: LogLevel[]): void {
@@ -605,8 +700,8 @@ export abstract class LoggerBase extends EventEmitter {
 
   /**
    * Disable specific log levels.
-   * 
-   * @param {LogLevel[]} levels - Levels to disable  
+   *
+   * @param {LogLevel[]} levels - Levels to disable
    */
   public disableLevels(levels: LogLevel[]): void {
     // This would integrate with filtering logic
@@ -615,7 +710,7 @@ export abstract class LoggerBase extends EventEmitter {
 
   /**
    * Set minimum log level.
-   * 
+   *
    * @param {LogLevel} level - Minimum level to log
    */
   public setMinLevel(level: LogLevel): void {
@@ -625,7 +720,7 @@ export abstract class LoggerBase extends EventEmitter {
 
   /**
    * Get event names this logger can emit.
-   * 
+   *
    * @returns {string[]} Event names
    */
   public getEventNames(): string[] {

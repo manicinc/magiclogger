@@ -1,17 +1,12 @@
-
 // File: src/transports/base/implementations/StreamTransport.ts
 
 import { Transport } from '../Transport';
-import type { 
-  StreamTransportOptions, 
-  LogEntry,
-  TransportStats 
-} from '../../../types/transport';
+import type { StreamTransportOptions, LogEntry, TransportStats } from '../../../types/transport';
 import { Transform } from 'stream';
 
 /**
  * Stream transport for piping logs to any Node.js writable stream.
- * 
+ *
  * Features:
  * - Works with any Node.js writable stream (files, network, process)
  * - Backpressure handling for flow control
@@ -19,10 +14,10 @@ import { Transform } from 'stream';
  * - Multiple encoding formats
  * - Stream health monitoring
  * - Automatic stream cleanup
- * 
+ *
  * @class StreamTransport
  * @extends {Transport}
- * 
+ *
  * @example
  * ```typescript
  * // Write to stdout
@@ -30,7 +25,7 @@ import { Transform } from 'stream';
  *   name: 'stdout',
  *   stream: process.stdout
  * });
- * 
+ *
  * // Write to custom stream with transform
  * const transformStream = new Transform({
  *   transform(chunk, encoding, callback) {
@@ -38,7 +33,7 @@ import { Transform } from 'stream';
  *     callback(null, chunk.toString().toUpperCase());
  *   }
  * });
- * 
+ *
  * const streamTransport = new StreamTransport({
  *   name: 'transform',
  *   stream: transformStream.pipe(process.stdout)
@@ -105,7 +100,7 @@ export class StreamTransport extends Transport {
 
   /**
    * Creates a new StreamTransport instance.
-   * 
+   *
    * @param {StreamTransportOptions} options - Transport configuration
    */
   constructor(options: StreamTransportOptions) {
@@ -114,20 +109,22 @@ export class StreamTransport extends Transport {
     this.stream = options.stream;
     this.autoClose = options.autoClose ?? false;
     this.encoding = options.encoding || 'utf8';
-    this.maxQueueSize = (options as any).maxQueueSize || 1000;
+    this.maxQueueSize = typeof options.maxQueueSize === 'number' ? options.maxQueueSize : 1000;
     this.lineEnding = this.getLineEnding();
   }
 
   /**
    * Get platform-specific line ending.
-   * 
+   *
    * @returns {string} Line ending string
    * @private
    */
   private getLineEnding(): string {
     try {
       // Use a property that can be mocked by tests
-      const platform = (globalThis as any).process?.platform || (typeof process !== 'undefined' ? process.platform : 'linux');
+      const platform =
+        (globalThis as unknown as { process?: { platform?: string } }).process?.platform ??
+        (typeof process !== 'undefined' ? process.platform : 'linux');
       return platform === 'win32' ? '\r\n' : '\n';
     } catch {
       return '\n';
@@ -136,7 +133,7 @@ export class StreamTransport extends Transport {
 
   /**
    * Initialize stream transport.
-   * 
+   *
    * @returns {Promise<void>} Resolves when initialized
    * @protected
    */
@@ -152,7 +149,7 @@ export class StreamTransport extends Transport {
 
   /**
    * Set up stream event handlers.
-   * 
+   *
    * @private
    */
   private setupStreamHandlers(): void {
@@ -163,7 +160,7 @@ export class StreamTransport extends Transport {
     });
 
     // Handle stream errors
-    this.stream.on('error', (error) => {
+    this.stream.on('error', error => {
       this.errorCount++;
       this.handleError(error);
 
@@ -203,16 +200,16 @@ export class StreamTransport extends Transport {
 
   /**
    * Log a single entry to the stream.
-   * 
+   *
    * @param {LogEntry} entry - Log entry to write
    * @returns {Promise<void>} Resolves when written
    * @protected
    */
   protected async doLog(entry: LogEntry): Promise<void> {
     const formatted = this.formatForStream(entry);
-    
+
     return new Promise((resolve, reject) => {
-      this.writeToStream(formatted, (error) => {
+      this.writeToStream(formatted, error => {
         if (error) {
           reject(error);
         } else {
@@ -224,7 +221,7 @@ export class StreamTransport extends Transport {
 
   /**
    * Log multiple entries efficiently.
-   * 
+   *
    * @param {LogEntry[]} entries - Log entries to write
    * @returns {Promise<void>} Resolves when all written
    * @protected
@@ -235,7 +232,7 @@ export class StreamTransport extends Transport {
     const combined = formatted.join('');
 
     return new Promise((resolve, reject) => {
-      this.writeToStream(combined, (error) => {
+      this.writeToStream(combined, error => {
         if (error) {
           reject(error);
         } else {
@@ -248,11 +245,13 @@ export class StreamTransport extends Transport {
   /**
    * Stream transport should propagate errors so caller can detect write failures.
    */
-  protected shouldPropagateErrors(): boolean { return true; }
+  protected shouldPropagateErrors(): boolean {
+    return true;
+  }
 
   /**
    * Format log entry for stream output.
-   * 
+   *
    * @param {LogEntry} entry - Log entry to format
    * @returns {string | Buffer} Formatted output
    * @private
@@ -269,7 +268,10 @@ export class StreamTransport extends Transport {
       case 'plain': {
         // Tests expect lowercase level tag: [info]
         // Use Transport.formatPlain and then replace level casing to lower
-        const plain = this.formatPlain(entry).replace(`[${entry.level.toUpperCase()}]`, `[${entry.level}]`);
+        const plain = this.formatPlain(entry).replace(
+          `[${entry.level.toUpperCase()}]`,
+          `[${entry.level}]`
+        );
         output = plain + this.lineEnding;
         break;
       }
@@ -304,15 +306,12 @@ export class StreamTransport extends Transport {
 
   /**
    * Write data to stream with backpressure handling.
-   * 
+   *
    * @param {string | Buffer} data - Data to write
    * @param {Function} callback - Callback when written
    * @private
    */
-  private writeToStream(
-    data: string | Buffer,
-    callback: (error?: Error) => void
-  ): void {
+  private writeToStream(data: string | Buffer, callback: (error?: Error) => void): void {
     // If the underlying stream is closed/not writable, fail fast
     if (!this.stream.writable) {
       const error = new Error('Stream is not writable');
@@ -331,7 +330,8 @@ export class StreamTransport extends Transport {
         // Only surface the first error (queue full) synchronously.
         if (!settled) {
           settled = true;
-          if (error) callback(error); else callback();
+          if (error) callback(error);
+          else callback();
         } else if (error) {
           // Record later errors but don't re-invoke callback (stats already updated elsewhere)
           this.handleError(error);
@@ -384,20 +384,17 @@ export class StreamTransport extends Transport {
 
   /**
    * Queue a write operation during backpressure.
-   * 
+   *
    * @param {string | Buffer} data - Data to queue
    * @param {Function} callback - Callback when written
    * @private
    */
-  private queueWrite(
-    data: string | Buffer,
-    callback: (error?: Error) => void
-  ): void {
+  private queueWrite(data: string | Buffer, callback: (error?: Error) => void): void {
     if (this.queue.length >= this.maxQueueSize) {
       const error = new Error('Stream queue is full');
       this.stats.custom = {
         ...this.stats.custom,
-        droppedWrites: ((this.stats.custom?.droppedWrites as number) || 0) + 1
+        droppedWrites: ((this.stats.custom?.droppedWrites as number) || 0) + 1,
       };
       // Call callback immediately for queue full errors
       callback(error);
@@ -410,7 +407,7 @@ export class StreamTransport extends Transport {
 
   /**
    * Process queued writes when stream is ready.
-   * 
+   *
    * @private
    */
   private processQueue(): void {
@@ -421,11 +418,14 @@ export class StreamTransport extends Transport {
       // Skip malformed items (some tests insert placeholder objects)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const item: any = raw;
-      if (typeof item.callback !== 'function' || (typeof item.entry === 'undefined' && !Buffer.isBuffer(item.entry))) {
+      if (
+        typeof item.callback !== 'function' ||
+        (typeof item.entry === 'undefined' && !Buffer.isBuffer(item.entry))
+      ) {
         this.stats.queued = this.queue.length;
         continue;
       }
-      
+
       this.stats.queued = this.queue.length;
 
       // Attempt write; if backpressure occurs, break to wait for 'drain'
@@ -442,18 +442,20 @@ export class StreamTransport extends Transport {
             }
           });
         } else {
-          canWrite = (this.stream.write as unknown as (str: string, encoding: BufferEncoding, cb: (err?: Error | null) => void) => boolean)(
-            item.entry as string,
-            this.encoding,
-            (error?: Error | null) => {
-              if (error) {
-                item.callback(error as Error);
-              } else {
-                item.callback();
-                this.errorCount = 0;
-              }
+          canWrite = (
+            this.stream.write as unknown as (
+              str: string,
+              encoding: BufferEncoding,
+              cb: (err?: Error | null) => void
+            ) => boolean
+          )(item.entry as string, this.encoding, (error?: Error | null) => {
+            if (error) {
+              item.callback(error as Error);
+            } else {
+              item.callback();
+              this.errorCount = 0;
             }
-          );
+          });
         }
         if (!canWrite) {
           this.isWritable = false;
@@ -473,7 +475,7 @@ export class StreamTransport extends Transport {
 
   /**
    * Flush any buffered data in the stream.
-   * 
+   *
    * @returns {Promise<void>} Resolves when flushed
    */
   public async flush(): Promise<void> {
@@ -481,9 +483,9 @@ export class StreamTransport extends Transport {
     if (this.queue.length > 0) {
       this.processQueue();
 
-      await new Promise<void>((resolve) => {
+      await new Promise<void>(resolve => {
         const start = Date.now();
-  const maxWait = 500; // shorten for tests to avoid long hangs
+        const maxWait = 500; // shorten for tests to avoid long hangs
         const checkQueue = () => {
           if (this.queue.length === 0) {
             resolve();
@@ -511,9 +513,20 @@ export class StreamTransport extends Transport {
     // Only attempt flush on writable streams that implement it
     if (!this.stream.writable) return;
 
-    if ('flush' in this.stream && typeof (this.stream as NodeJS.WritableStream & { flush: (callback: (error?: Error) => void) => void }).flush === 'function') {
+    if (
+      'flush' in this.stream &&
+      typeof (
+        this.stream as NodeJS.WritableStream & {
+          flush: (callback: (error?: Error) => void) => void;
+        }
+      ).flush === 'function'
+    ) {
       return new Promise((resolve, reject) => {
-        (this.stream as NodeJS.WritableStream & { flush: (callback: (error?: Error) => void) => void }).flush((error?: Error) => {
+        (
+          this.stream as NodeJS.WritableStream & {
+            flush: (callback: (error?: Error) => void) => void;
+          }
+        ).flush((error?: Error) => {
           if (error) {
             reject(error);
           } else {
@@ -528,7 +541,10 @@ export class StreamTransport extends Transport {
    * Cork the stream (buffer writes).
    */
   public cork(): void {
-    if ('cork' in this.stream && typeof (this.stream as NodeJS.WritableStream & { cork: () => void }).cork === 'function') {
+    if (
+      'cork' in this.stream &&
+      typeof (this.stream as NodeJS.WritableStream & { cork: () => void }).cork === 'function'
+    ) {
       (this.stream as NodeJS.WritableStream & { cork: () => void }).cork();
     }
   }
@@ -537,14 +553,17 @@ export class StreamTransport extends Transport {
    * Uncork the stream (flush buffered writes).
    */
   public uncork(): void {
-    if ('uncork' in this.stream && typeof (this.stream as NodeJS.WritableStream & { uncork: () => void }).uncork === 'function') {
+    if (
+      'uncork' in this.stream &&
+      typeof (this.stream as NodeJS.WritableStream & { uncork: () => void }).uncork === 'function'
+    ) {
       (this.stream as NodeJS.WritableStream & { uncork: () => void }).uncork();
     }
   }
 
   /**
    * Pipe this transport's output to another stream.
-   * 
+   *
    * @param {NodeJS.WritableStream} destination - Destination stream
    * @param {object} options - Pipe options
    * @returns {NodeJS.WritableStream} Destination stream
@@ -556,7 +575,8 @@ export class StreamTransport extends Transport {
     // Create a transform stream that formats log entries
     const transform = new Transform({
       objectMode: true,
-      transform: (entry: LogEntry, encoding, callback) => {
+      // encoding arg not used (objectMode); underscore to silence TS6133
+      transform: (entry: LogEntry, _encoding, callback) => {
         try {
           const formatted = this.formatForStream(entry);
           callback(null, formatted);
@@ -572,7 +592,7 @@ export class StreamTransport extends Transport {
     // Store transform stream reference
     this.stats.custom = {
       ...this.stats.custom,
-      pipedTo: destination
+      pipedTo: destination,
     };
 
     return destination;
@@ -580,7 +600,7 @@ export class StreamTransport extends Transport {
 
   /**
    * Close the stream transport.
-   * 
+   *
    * @returns {Promise<void>} Resolves when closed
    * @protected
    */
@@ -604,7 +624,7 @@ export class StreamTransport extends Transport {
 
   /**
    * Get stream statistics.
-   * 
+   *
    * @returns {TransportStats} Extended statistics
    */
   public getStats(): TransportStats {
@@ -618,15 +638,21 @@ export class StreamTransport extends Transport {
 
     // Add stream-specific stats if available
     if ('bytesWritten' in this.stream) {
-      streamStats.bytesWritten = (this.stream as NodeJS.WritableStream & { bytesWritten: number }).bytesWritten;
+      streamStats.bytesWritten = (
+        this.stream as NodeJS.WritableStream & { bytesWritten: number }
+      ).bytesWritten;
     }
 
     if ('writableLength' in this.stream) {
-      streamStats.bufferSize = (this.stream as NodeJS.WritableStream & { writableLength: number }).writableLength;
+      streamStats.bufferSize = (
+        this.stream as NodeJS.WritableStream & { writableLength: number }
+      ).writableLength;
     }
 
     if ('writableHighWaterMark' in this.stream) {
-      streamStats.highWaterMark = (this.stream as NodeJS.WritableStream & { writableHighWaterMark: number }).writableHighWaterMark;
+      streamStats.highWaterMark = (
+        this.stream as NodeJS.WritableStream & { writableHighWaterMark: number }
+      ).writableHighWaterMark;
     }
 
     return {
@@ -640,15 +666,15 @@ export class StreamTransport extends Transport {
 
   /**
    * Check if transport is healthy.
-   * 
+   *
    * @returns {Promise<boolean>} True if healthy
    */
   public async isHealthy(): Promise<boolean> {
     return Promise.resolve(
       this.enabled &&
-      this.stream.writable &&
-      this.errorCount < this.maxErrors &&
-      this.queue.length < this.maxQueueSize * 0.8
+        this.stream.writable &&
+        this.errorCount < this.maxErrors &&
+        this.queue.length < this.maxQueueSize * 0.8
     );
   }
 }

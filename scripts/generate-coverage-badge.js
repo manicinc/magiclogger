@@ -33,24 +33,54 @@ try {
   const readmePath = path.join(__dirname, '..', 'README.md');
   let readmeContent = fs.readFileSync(readmePath, 'utf8');
   
-  // Replace the coverage badge in the README
-  readmeContent = readmeContent.replace(
-    /!\[Test Coverage\]\(https:\/\/img\.shields\.io\/badge\/coverage-\d+%25-[a-z]+\.svg\)/,
-    `![Test Coverage](https://img.shields.io/badge/coverage-${roundedCoverage}%25-${getCoverageColor(roundedCoverage)}.svg)`
-  );
+  // Replace existing coverage badge in README (Markdown or HTML). If missing, insert alongside other badges.
+  const mdBadgeRegex = /!\[Test Coverage\]\(https:\/\/img\.shields\.io\/badge\/coverage-\d+%25-[a-z]+\.svg\)/i;
+  const htmlBadgeRegex = /<img[^>]*src=["']https:\/\/img\.shields\.io\/badge\/coverage-\d+%25-[a-z]+\.svg["'][^>]*alt=["']Test Coverage["'][^>]*>/i;
+  const newBadge = `<img src="https://img.shields.io/badge/coverage-${roundedCoverage}%25-${getCoverageColor(roundedCoverage)}.svg" alt="Test Coverage">`;
+
+  if (mdBadgeRegex.test(readmeContent)) {
+    readmeContent = readmeContent.replace(mdBadgeRegex, newBadge);
+  } else if (htmlBadgeRegex.test(readmeContent)) {
+    readmeContent = readmeContent.replace(htmlBadgeRegex, newBadge);
+  } else {
+    // Insert into a badges block: prefer the second <p align="center"> block if it exists, else the first.
+    const blockRegexGlobal = /<p align="center">([\s\S]*?)<\/p>/gi;
+    const blocks = [...readmeContent.matchAll(blockRegexGlobal)];
+    if (blocks.length > 0) {
+      const targetIndex = Math.min(1, blocks.length - 1); // 2nd block if present, else first
+      let occurrence = 0;
+      readmeContent = readmeContent.replace(blockRegexGlobal, (full) => {
+        if (occurrence++ === targetIndex) {
+          // Insert just before </p> without disturbing existing formatting; ensure trailing newline after </p>
+          return full.replace(/<\/p>/i, ` ${newBadge}\n</p>`) + (full.endsWith('\n') ? '' : '\n');
+        }
+        return full;
+      });
+    } else {
+      // Prepend a badges block
+      readmeContent = `<p align="center">\n  ${newBadge}\n</p>\n\n` + readmeContent;
+    }
+  }
   
   // Write the updated README
   fs.writeFileSync(readmePath, readmeContent);
   
-  // Read the latest coverage report from lcov-report/index.html
+  // Optionally read the latest coverage HTML report if present for a detailed table
   const lcovReportPath = path.join(__dirname, '..', 'coverage', 'lcov-report', 'index.html');
-  let lcovContent = fs.readFileSync(lcovReportPath, 'utf8');
+  let lcovContent = '';
+  if (fs.existsSync(lcovReportPath)) {
+    try {
+      lcovContent = fs.readFileSync(lcovReportPath, 'utf8');
+    } catch {
+      // ignore, will use fallback table
+    }
+  }
   
   // Extract the coverage table
   const tableMatch = lcovContent.match(/<table class="coverage-summary">([\s\S]*?)<\/table>/);
   let coverageTable = '';
   
-  if (tableMatch && tableMatch[1]) {
+  if (lcovContent && tableMatch && tableMatch[1]) {
     const tableContent = tableMatch[1];
     
     // Convert HTML table to markdown
@@ -94,8 +124,20 @@ All files                       |   ${totalCoverage.statements.pct.toFixed(2)} |
 `;
   }
   
-  // Update the test-coverage.md file
-  const coverageDocPath = path.join(__dirname, '..', 'docs', 'test-coverage.md');
+  // Update the coverage doc (support both kebab/underscore names)
+  const docKebab = path.join(__dirname, '..', 'docs', 'test-coverage.md');
+  const docSnake = path.join(__dirname, '..', 'docs', 'test_coverage.md');
+  const coverageDocPath = fs.existsSync(docKebab) ? docKebab : fs.existsSync(docSnake) ? docSnake : docSnake;
+
+  // If the file doesn't exist, create a minimal template so replacements succeed
+  if (!fs.existsSync(coverageDocPath)) {
+    const initial = `# Test Coverage\n\nLatest coverage summary:\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n````\n`;
+    // ensure docs dir exists
+    const docsDir = path.join(__dirname, '..', 'docs');
+    if (!fs.existsSync(docsDir)) fs.mkdirSync(docsDir, { recursive: true });
+    fs.writeFileSync(coverageDocPath, initial);
+  }
+
   let coverageDoc = fs.readFileSync(coverageDocPath, 'utf8');
   
   // Replace the coverage table section

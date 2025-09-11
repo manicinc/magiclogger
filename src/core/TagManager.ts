@@ -1,47 +1,63 @@
-// File: src/core/TagManager.ts
+/**
+ * @fileoverview Tag management system with schema validation for MagicLogger.
+ *
+ * Provides comprehensive tag management including normalization, validation,
+ * filtering, and optional schema enforcement for structured tag data.
+ *
+ * @module core/TagManager
+ */
 
 import { EventEmitter } from 'events';
+import type { AnySchema, ValidationResult } from '../validation/SchemaValidator';
+
+// Lazy-load the SchemaValidator to keep bundle size small when validation isn't used
+let SchemaValidatorClass:
+  | typeof import('../validation/SchemaValidator').SchemaValidator
+  | undefined;
 
 /**
- * Tag manager configuration options.
- * 
+ * Configuration options for TagManager.
+ *
  * @interface TagManagerOptions
  */
 export interface TagManagerOptions {
-  /**
-   * Maximum number of tags allowed.
-   * @default 50
-   */
+  /** Maximum number of tags allowed per log entry @default 50 */
   maxTags?: number;
 
-  /**
-   * Maximum tag length.
-   * @default 50
-   */
+  /** Maximum length for individual tags @default 50 */
   maxTagLength?: number;
 
-  /**
-   * Whether to normalize tags automatically.
-   * @default true
-   */
+  /** Automatically normalize tags on add @default true */
   autoNormalize?: boolean;
 
-  /**
-   * Tag separator for parsing.
-   * @default ','
-   */
+  /** Separator for parsing tag strings @default ',' */
   separator?: string;
 
+  /** Enable tag validation @default true */
+  enableValidation?: boolean;
+
   /**
-   * Whether to validate tags.
+   * Optional schema for structured tag validation.
+   * When provided, tags can be validated as objects.
+   */
+  schema?: AnySchema;
+
+  /**
+   * Validation mode when schema validation fails.
+   * @default 'warn'
+   */
+  schemaValidationMode?: 'throw' | 'warn' | 'silent';
+
+  /**
+   * Allow string tags alongside structured tags.
    * @default true
    */
-  enableValidation?: boolean;
+  allowMixedTypes?: boolean;
 }
 
 /**
  * Tag normalization rules.
- * 
+ *
  * @interface TagNormalizationRules
  */
 export interface TagNormalizationRules {
@@ -77,7 +93,7 @@ export interface TagNormalizationRules {
 
 /**
  * Tag filter options.
- * 
+ *
  * @interface TagFilterOptions
  */
 export interface TagFilterOptions {
@@ -104,7 +120,7 @@ export interface TagFilterOptions {
 
 /**
  * Tag match criteria.
- * 
+ *
  * @interface TagMatchCriteria
  */
 export interface TagMatchCriteria {
@@ -128,7 +144,7 @@ export interface TagMatchCriteria {
 
 /**
  * Tag extraction options.
- * 
+ *
  * @interface TagExtractionOptions
  */
 export interface TagExtractionOptions {
@@ -159,7 +175,7 @@ export interface TagExtractionOptions {
 
 /**
  * Tag validation rules.
- * 
+ *
  * @interface TagValidationRules
  */
 export interface TagValidationRules {
@@ -194,7 +210,7 @@ export interface TagValidationRules {
 
 /**
  * Tag validation result.
- * 
+ *
  * @interface TagValidationResult
  */
 export interface TagValidationResult {
@@ -216,7 +232,7 @@ export interface TagValidationResult {
 
 /**
  * Tag statistics structure.
- * 
+ *
  * @interface TagStats
  */
 export interface TagStats {
@@ -242,71 +258,79 @@ export interface TagStats {
 }
 
 /**
- * TagManager handles tag operations for logging.
- * 
- * Features:
- * - Tag normalization and validation
+ * Manages tags for log entries with optional schema validation.
+ *
+ * Provides comprehensive tag management including:
+ * - Normalization and validation
+ * - Schema enforcement for structured tags
  * - Tag extraction from text
- * - Tag filtering and matching
- * - Tag hierarchy support
- * - Tag statistics
- * - Performance optimization
- * 
+ * - Filtering and matching
+ * - Usage statistics
+ *
  * @class TagManager
  * @extends {EventEmitter}
- * 
- * @example
+ *
+ * @example Basic string tags
  * ```typescript
  * const tagManager = new TagManager({
  *   maxTags: 20,
  *   autoNormalize: true
  * });
- * 
- * // Normalize tags
- * const normalized = tagManager.normalize(['API', 'User Login', 'v2.0']);
+ *
+ * const tags = tagManager.normalize(['API', 'User Login', 'v2.0']);
  * // Result: ['api', 'user-login', 'v2-0']
- * 
- * // Extract tags from text
- * const extracted = tagManager.extract('Fixed #bug in #authentication flow');
- * // Result: ['bug', 'authentication']
+ * ```
+ *
+ * @example Structured tags with schema validation
+ * ```typescript
+ * import { object, string, number } from 'magiclogger/validation';
+ *
+ * const tagManager = new TagManager({
+ *   schema: object({
+ *     category: string({ enum: ['error', 'warning', 'info'] }),
+ *     severity: number({ min: 1, max: 10 }),
+ *     component: string()
+ *   }),
+ *   schemaValidationMode: 'throw'
+ * });
+ *
+ * tagManager.add({
+ *   category: 'error',
+ *   severity: 8,
+ *   component: 'auth'
+ * }); // Validates against schema
  * ```
  */
 export class TagManager extends EventEmitter {
-  /**
-   * Configuration options.
-   * @private
-   */
+  /** Configuration options */
   private options: Required<TagManagerOptions>;
 
-  /**
-   * Normalization rules.
-   * @private
-   */
+  /** Normalization rules for string tags */
   private normalizationRules: TagNormalizationRules;
 
-  /**
-   * Validation rules.
-   * @private
-   */
+  /** Validation rules for string tags */
   private validationRules: TagValidationRules;
 
-  /**
-   * Tag usage statistics (tag -> count).
-   * @private
-   */
+  /** Tag usage statistics */
   private stats: Map<string, number> = new Map();
 
-  /**
-   * Current set of unique tags.
-   * @private
-   */
+  /** Current set of unique tags */
   private tags: Set<string> = new Set();
 
-  /**
-   * Tag aliases.
-   * @private
-   */
+  /** Structured tags when using schema validation */
+  private structuredTags: Set<unknown> = new Set();
+
+  /** Tag aliases mapping */
   private aliases: Map<string, string> = new Map();
+
+  /** Optional schema for structured tags */
+  private schema?: AnySchema;
+
+  /** Schema validator instance (lazy loaded) */
+  private schemaValidator?: import('../validation/SchemaValidator').SchemaValidator;
+
+  /** Schema validation mode */
+  private schemaValidationMode: 'throw' | 'warn' | 'silent';
 
   /**
    * Tag hierarchy.
@@ -316,24 +340,31 @@ export class TagManager extends EventEmitter {
 
   /**
    * Creates a new TagManager instance.
-   * 
+   *
    * @param {TagManagerOptions} options - Configuration options
+   * @constructor
    */
   constructor(options: TagManagerOptions = {}) {
     super();
-    
+
     this.options = {
       maxTags: options.maxTags ?? 50,
       maxTagLength: options.maxTagLength ?? 50,
       autoNormalize: options.autoNormalize ?? true,
       separator: options.separator ?? ',',
       enableValidation: options.enableValidation ?? true,
-    };
+      schema: options.schema,
+      schemaValidationMode: options.schemaValidationMode ?? 'warn',
+      allowMixedTypes: options.allowMixedTypes ?? true,
+    } as Required<TagManagerOptions>;
 
     this.tags = new Set();
+    this.structuredTags = new Set();
     this.aliases = new Map();
     this.hierarchy = new Map();
     this.stats = new Map();
+    this.schema = options.schema;
+    this.schemaValidationMode = options.schemaValidationMode ?? 'warn';
 
     this.normalizationRules = {
       toLowerCase: true,
@@ -353,7 +384,7 @@ export class TagManager extends EventEmitter {
 
   /**
    * Set normalization rules.
-   * 
+   *
    * @param {TagNormalizationRules} rules - Normalization rules
    */
   public setNormalizationRules(rules: TagNormalizationRules): void {
@@ -363,7 +394,7 @@ export class TagManager extends EventEmitter {
 
   /**
    * Set validation rules.
-   * 
+   *
    * @param {TagValidationRules} rules - Validation rules
    */
   public setValidationRules(rules: TagValidationRules): void {
@@ -373,22 +404,22 @@ export class TagManager extends EventEmitter {
 
   /**
    * Normalize tags according to rules.
-   * 
+   *
    * @param {string | string[]} tags - Tags to normalize
    * @returns {string[]} Normalized tags
    */
   public normalize(tags: string | string[]): string[] {
     const tagArray = this.toArray(tags);
-    
+
     if (!this.options.autoNormalize) {
       return tagArray;
     }
 
     const normalized = tagArray.map(tag => this.normalizeTag(tag));
-    
+
     // Remove duplicates
     const unique = [...new Set(normalized)];
-    
+
     // Apply max tags limit
     if (unique.length > this.options.maxTags) {
       this.emit('tagsLimitExceeded', {
@@ -397,13 +428,13 @@ export class TagManager extends EventEmitter {
       });
       return unique.slice(0, this.options.maxTags);
     }
-    
+
     return unique;
   }
 
   /**
    * Normalize a single tag.
-   * 
+   *
    * @param {string} tag - Tag to normalize
    * @returns {string} Normalized tag
    * @private
@@ -437,7 +468,7 @@ export class TagManager extends EventEmitter {
     if (this.normalizationRules.removeSpecialChars) {
       // Remove special characters except hyphens and alphanumeric
       normalized = normalized.replace(/[^a-zA-Z0-9-]/g, '');
-      
+
       // Clean up multiple consecutive hyphens and leading/trailing hyphens
       normalized = normalized.replace(/-+/g, '-'); // Replace multiple hyphens with single hyphen
       normalized = normalized.replace(/^-+|-+$/g, ''); // Remove leading and trailing hyphens
@@ -461,7 +492,7 @@ export class TagManager extends EventEmitter {
 
   /**
    * Validate tags against rules.
-   * 
+   *
    * @param {string | string[]} tags - Tags to validate
    * @returns {TagValidationResult} Validation result
    */
@@ -528,16 +559,13 @@ export class TagManager extends EventEmitter {
 
   /**
    * Extract tags from text.
-   * 
+   *
    * @param {string} text - Text to extract from
    * @param {TagExtractionOptions} options - Extraction options
    * @returns {string[]} Extracted tags
    */
   public extract(text: string, options: TagExtractionOptions = {}): string[] {
-    const {
-      pattern = /#([\w-]+)/g,
-      maxExtract = 10,
-    } = options;
+    const { pattern = /#([\w-]+)/g, maxExtract = 10 } = options;
 
     const matches: string[] = [];
     let match;
@@ -561,7 +589,7 @@ export class TagManager extends EventEmitter {
 
   /**
    * Filter tags based on criteria.
-   * 
+   *
    * @param {string[]} tags - Tags to filter
    * @param {TagFilterOptions} options - Filter options
    * @returns {string[]} Filtered tags
@@ -594,7 +622,7 @@ export class TagManager extends EventEmitter {
 
   /**
    * Check if tags match criteria.
-   * 
+   *
    * @param {string[]} tags - Tags to check
    * @param {TagMatchCriteria} criteria - Match criteria
    * @returns {boolean} Whether tags match
@@ -609,14 +637,16 @@ export class TagManager extends EventEmitter {
     switch (mode) {
       case 'any':
         return normalizedMatch.some(tag => normalizedTags.includes(tag));
-      
+
       case 'all':
         return normalizedMatch.every(tag => normalizedTags.includes(tag));
-      
+
       case 'exact':
-        return normalizedTags.length === normalizedMatch.length &&
-               normalizedTags.every(tag => normalizedMatch.includes(tag));
-      
+        return (
+          normalizedTags.length === normalizedMatch.length &&
+          normalizedTags.every(tag => normalizedMatch.includes(tag))
+        );
+
       default:
         return false;
     }
@@ -624,13 +654,13 @@ export class TagManager extends EventEmitter {
 
   /**
    * Merge multiple tag arrays.
-   * 
+   *
    * @param {...(string[] | undefined)[]} tagArrays - Tag arrays to merge
    * @returns {string[]} Merged tags
    */
   public merge(...tagArrays: (string[] | undefined)[]): string[] {
     const merged = new Set<string>();
-    
+
     for (const tags of tagArrays) {
       if (tags) {
         for (const tag of tags) {
@@ -638,20 +668,20 @@ export class TagManager extends EventEmitter {
         }
       }
     }
-    
+
     const result = Array.from(merged);
-    
+
     // Apply normalization if enabled
     if (this.options.autoNormalize) {
       return this.normalize(result);
     }
-    
+
     return result;
   }
 
   /**
    * Add tag alias.
-   * 
+   *
    * @param {string} alias - Alias tag
    * @param {string} target - Target tag
    */
@@ -662,7 +692,7 @@ export class TagManager extends EventEmitter {
 
   /**
    * Remove tag alias.
-   * 
+   *
    * @param {string} alias - Alias to remove
    */
   public removeAlias(alias: string): void {
@@ -673,7 +703,7 @@ export class TagManager extends EventEmitter {
 
   /**
    * Get all aliases.
-   * 
+   *
    * @returns {Map<string, string>} All aliases
    */
   public getAliases(): Map<string, string> {
@@ -682,7 +712,7 @@ export class TagManager extends EventEmitter {
 
   /**
    * Set tag hierarchy.
-   * 
+   *
    * @param {string} parent - Parent tag
    * @param {string[]} children - Child tags
    */
@@ -693,7 +723,7 @@ export class TagManager extends EventEmitter {
 
   /**
    * Get tag children.
-   * 
+   *
    * @param {string} parent - Parent tag
    * @returns {string[]} Child tags
    */
@@ -704,53 +734,49 @@ export class TagManager extends EventEmitter {
 
   /**
    * Get tag parents.
-   * 
+   *
    * @param {string} child - Child tag
    * @returns {string[]} Parent tags
    */
   public getParents(child: string): string[] {
     const parents: string[] = [];
-    
+
     for (const [parent, children] of this.hierarchy) {
       if (children.has(child)) {
         parents.push(parent);
       }
     }
-    
+
     return parents;
   }
 
   /**
    * Get tag with hierarchy.
-   * 
+   *
    * @param {string} tag - Tag to expand
    * @param {boolean} includeParents - Include parent tags
    * @param {boolean} includeChildren - Include child tags
    * @returns {string[]} Expanded tags
    */
-  public expandHierarchy(
-    tag: string,
-    includeParents = true,
-    includeChildren = true
-  ): string[] {
+  public expandHierarchy(tag: string, includeParents = true, includeChildren = true): string[] {
     const expanded = new Set<string>([tag]);
-    
+
     if (includeParents) {
       const parents = this.getParents(tag);
       parents.forEach(parent => expanded.add(parent));
     }
-    
+
     if (includeChildren) {
       const children = this.getChildren(tag);
       children.forEach(child => expanded.add(child));
     }
-    
+
     return Array.from(expanded);
   }
 
   /**
    * Update tag statistics.
-   * 
+   *
    * @param {string[]} tags - Tags to count
    */
   public updateStats(tags: string[]): void {
@@ -759,35 +785,34 @@ export class TagManager extends EventEmitter {
       this.stats.set(tag, count + 1);
       this.tags.add(tag);
     }
-    
+
     this.emit('statsUpdated', tags);
   }
 
   /**
    * Get tag statistics.
-   * 
+   *
    * @param {number} [limit] - Limit results
    * @returns {Array<[string, number]>} Tag counts
    */
   public getStats(limit?: number): Array<[string, number]> {
-    const sorted = Array.from(this.stats.entries())
-      .sort((a, b) => b[1] - a[1]);
-    
+    const sorted = Array.from(this.stats.entries()).sort((a, b) => b[1] - a[1]);
+
     if (limit) {
       return sorted.slice(0, limit);
     }
-    
+
     return sorted;
   }
 
   /**
    * Get comprehensive tag statistics.
-   * 
+   *
    * @returns {TagStats} Tag statistics
    */
   public getComprehensiveStats(): TagStats {
     const sorted = this.getStats();
-    
+
     return {
       totalTags: Array.from(this.stats.values()).reduce((sum, count) => sum + count, 0),
       uniqueTags: this.tags.size,
@@ -807,25 +832,28 @@ export class TagManager extends EventEmitter {
 
   /**
    * Parse tags from string.
-   * 
+   *
    * @param {string} text - Text to parse
    * @param {string} [separator] - Separator to use
    * @returns {string[]} Parsed tags
    */
   public parse(text: string, separator?: string): string[] {
     const sep = separator || this.options.separator;
-    const tags = text.split(sep).map(tag => tag.trim()).filter(tag => tag.length > 0);
-    
+    const tags = text
+      .split(sep)
+      .map(tag => tag.trim())
+      .filter(tag => tag.length > 0);
+
     if (this.options.autoNormalize) {
       return this.normalize(tags);
     }
-    
+
     return tags;
   }
 
   /**
    * Format tags to string.
-   * 
+   *
    * @param {string[]} tags - Tags to format
    * @param {string} [separator] - Separator to use
    * @returns {string} Formatted string
@@ -837,7 +865,7 @@ export class TagManager extends EventEmitter {
 
   /**
    * Convert to array helper.
-   * 
+   *
    * @param {string | string[]} value - Value to convert
    * @returns {string[]} Array of strings
    * @private
@@ -851,28 +879,215 @@ export class TagManager extends EventEmitter {
 
   /**
    * Get suggested tags based on partial input.
-   * 
+   *
    * @param {string} partial - Partial tag
    * @param {number} [limit=10] - Maximum suggestions
    * @returns {string[]} Suggested tags
    */
   public suggest(partial: string, limit = 10): string[] {
-    const normalized = this.options.autoNormalize 
+    const normalized = this.options.autoNormalize
       ? this.normalizeTag(partial)
       : partial.toLowerCase();
-    
+
     const suggestions: Array<[string, number]> = [];
-    
+
     for (const [tag, count] of this.stats) {
       if (tag.toLowerCase().startsWith(normalized)) {
         suggestions.push([tag, count]);
       }
     }
-    
+
     // Sort by frequency
     suggestions.sort((a, b) => b[1] - a[1]);
-    
+
     return suggestions.slice(0, limit).map(s => s[0]);
+  }
+
+  /**
+   * Sets a schema for structured tag validation.
+   *
+   * @param {AnySchema} schema - Schema definition for tags
+   * @param {'throw' | 'warn' | 'silent'} [mode] - Validation mode
+   *
+   * @example
+   * ```typescript
+   * import { object, string, number, array } from 'magiclogger/validation';
+   *
+   * tagManager.setSchema(
+   *   object({
+   *     category: string({ enum: ['bug', 'feature', 'docs'] }),
+   *     priority: number({ min: 1, max: 5 }),
+   *     labels: array(string())
+   *   }),
+   *   'throw'
+   * );
+   * ```
+   */
+  public setSchema(schema: AnySchema, mode?: 'throw' | 'warn' | 'silent'): void {
+    this.schema = schema;
+    if (mode) {
+      this.schemaValidationMode = mode;
+    }
+    this.emit('schemaSet', schema);
+  }
+
+  /**
+   * Adds tags with optional schema validation.
+   *
+   * @param {string | string[] | unknown} tags - Tags to add
+   * @returns {boolean} Whether tags were successfully added
+   */
+  public add(tags: string | string[] | unknown): boolean {
+    // Handle structured tags with schema
+    if (this.schema && typeof tags === 'object' && !Array.isArray(tags)) {
+      return this.addStructured(tags);
+    }
+
+    // Handle string tags
+    const stringTags = this.normalize(tags as string | string[]);
+    const validation = this.validate(stringTags);
+
+    if (!validation.valid) {
+      this.handleValidationError('String tags validation failed', validation);
+      return false;
+    }
+
+    stringTags.forEach(tag => {
+      this.tags.add(tag);
+      this.updateStats([tag]);
+    });
+
+    this.emit('tagsAdded', stringTags);
+    return true;
+  }
+
+  /**
+   * Adds a structured tag with schema validation.
+   *
+   * @private
+   * @param {unknown} tagData - Structured tag data
+   * @returns {boolean} Whether tag was added
+   */
+  private addStructured(tagData: unknown): boolean {
+    if (!this.schema) {
+      this.emit('error', new Error('Schema not set for structured tags'));
+      return false;
+    }
+
+    const result = this.validateWithSchema(tagData);
+
+    if (!result.valid) {
+      this.handleSchemaValidationError(result, tagData);
+      return this.schemaValidationMode !== 'throw';
+    }
+
+    this.structuredTags.add(result.data || tagData);
+    this.emit('structuredTagAdded', result.data || tagData);
+    return true;
+  }
+
+  /**
+   * Validates data against the configured schema.
+   *
+   * @private
+   * @param {unknown} data - Data to validate
+   * @returns {ValidationResult} Validation result
+   */
+  private validateWithSchema(data: unknown): ValidationResult {
+    if (!this.schema) {
+      return { valid: true, data };
+    }
+
+    // Lazy load validator
+    if (!this.schemaValidator) {
+      if (!SchemaValidatorClass) {
+        // Synchronous require for lazy loading - tree-shaken if never called
+        /* eslint-disable @typescript-eslint/no-var-requires */
+        const module = require('../validation/SchemaValidator');
+        /* eslint-enable @typescript-eslint/no-var-requires */
+        SchemaValidatorClass = module.SchemaValidator;
+      }
+      if (SchemaValidatorClass) {
+        this.schemaValidator = new SchemaValidatorClass();
+      }
+    }
+
+    // Guard against undefined to satisfy eslint no-non-null-assertion
+    const validator = this.schemaValidator;
+    const schema = this.schema;
+    if (!validator || !schema) {
+      return { valid: true, data } as ValidationResult;
+    }
+    return validator.validate(data, schema);
+  }
+
+  /**
+   * Handles schema validation errors.
+   *
+   * @private
+   * @param {ValidationResult} result - Validation result
+   * @param {unknown} data - Data that failed validation
+   */
+  private handleSchemaValidationError(result: ValidationResult, data: unknown): void {
+    if (!result.errors || result.errors.length === 0) return;
+
+    const errorMessage = `Tag schema validation failed:\n${result.errors
+      .map(e => `  - ${e.path}: ${e.message}`)
+      .join('\n')}`;
+
+    this.emit('schemaValidationFailed', { result, data });
+
+    switch (this.schemaValidationMode) {
+      case 'throw':
+        throw new Error(errorMessage);
+      case 'warn':
+        console.warn(`[TagManager] ${errorMessage}`);
+        break;
+      case 'silent':
+        // Silent mode - no output
+        break;
+    }
+  }
+
+  /**
+   * Handles validation errors for string tags.
+   *
+   * @private
+   * @param {string} message - Error message
+   * @param {TagValidationResult} validation - Validation result
+   */
+  private handleValidationError(message: string, validation: TagValidationResult): void {
+    const errors = validation.errors || {};
+    const errorDetails = Object.entries(errors)
+      .map(([tag, errs]) => `  - ${tag}: ${errs.join(', ')}`)
+      .join('\n');
+
+    this.emit('validationFailed', validation);
+
+    if (this.options.enableValidation) {
+      console.warn(`[TagManager] ${message}:\n${errorDetails}`);
+    }
+  }
+
+  /**
+   * Gets all tags (both string and structured).
+   *
+   * @returns {{ strings: string[], structured: unknown[] }} All tags
+   */
+  public getAllTags(): { strings: string[]; structured: unknown[] } {
+    return {
+      strings: Array.from(this.tags),
+      structured: Array.from(this.structuredTags),
+    };
+  }
+
+  /**
+   * Clears all tags.
+   */
+  public clear(): void {
+    this.tags.clear();
+    this.structuredTags.clear();
+    this.emit('tagsCleared');
   }
 
   /**
@@ -881,6 +1096,7 @@ export class TagManager extends EventEmitter {
   public destroy(): void {
     this.stats.clear();
     this.tags.clear();
+    this.structuredTags.clear();
     this.aliases.clear();
     this.hierarchy.clear();
     this.removeAllListeners();

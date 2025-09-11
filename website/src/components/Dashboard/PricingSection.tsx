@@ -64,7 +64,7 @@ const plans: PricingPlan[] = [
       '🎓 Training & onboarding'
     ],
     cta: 'Contact Sales',
-    ctaLink: 'mailto:sales@manic.agency',
+    ctaLink: 'https://manic.agency/contact',
     popular: false
   }
 ];

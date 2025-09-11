@@ -33,6 +33,7 @@
     
     // Type checking
     "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     
     // Emit settings

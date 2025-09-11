@@ -3,11 +3,11 @@
 import { isBrowserEnvironment } from '../utils/environment';
 import { Formatter } from './Formatter';
 import { Colorizer } from './Colorizer';
-import { ColorName } from '../types';
+import type { ColorName } from '../types/colors';
 
 /**
  * Configuration options for Printer.
- * 
+ *
  * @interface PrinterOptions
  */
 export interface PrinterOptions {
@@ -52,7 +52,7 @@ interface BorderChars {
 
 /**
  * Printer module abstracts output logic for both terminal and browser environments.
- * 
+ *
  * Features:
  * - Cross-platform output handling
  * - Table formatting for both environments
@@ -60,9 +60,9 @@ interface BorderChars {
  * - Stream redirection
  * - Performance optimizations
  * - Memory-safe output
- * 
+ *
  * @class Printer
- * 
+ *
  * @example
  * ```typescript
  * // Configure printer
@@ -70,10 +70,10 @@ interface BorderChars {
  *   useColors: true,
  *   timestamps: true
  * });
- * 
+ *
  * // Print formatted output
  * Printer.print('Hello World');
- * 
+ *
  * // Print table
  * Printer.printTable([
  *   { name: 'John', age: 30 },
@@ -110,7 +110,10 @@ export class Printer {
    */
   private static config: Required<PrinterOptions> = {
     useColors: true,
-    stream: typeof process !== 'undefined' ? process.stdout : undefined as unknown as NodeJS.WriteStream,
+    stream:
+      typeof process !== 'undefined'
+        ? process.stdout
+        : (undefined as unknown as NodeJS.WriteStream),
     timestamps: false,
     timestampFormat: 'HH:mm:ss.SSS',
     console: console,
@@ -153,6 +156,14 @@ export class Printer {
   };
 
   /**
+   * ANSI escape code regex pattern for stripping color codes.
+   * @private
+   * @static
+   */
+  // eslint-disable-next-line no-control-regex
+  private static readonly ansiRegex = /\x1b\[[0-9;]*m/g;
+
+  /**
    * Gets the console object to use (configured console or original).
    * @private
    * @static
@@ -164,7 +175,7 @@ export class Printer {
 
   /**
    * Configure printer options.
-   * 
+   *
    * @param {PrinterOptions} options - Configuration options
    * @static
    */
@@ -175,7 +186,7 @@ export class Printer {
 
   /**
    * Set whether to use colors in the output.
-   * 
+   *
    * @param {boolean} useColors - Whether to enable colors
    * @static
    */
@@ -218,7 +229,7 @@ export class Printer {
         // In tests, check if console is enhanced (has recursion guard)
         const recursionGuard = Symbol.for('recursionGuard');
         const hasEnhancedConsole = recursionGuard in console;
-        
+
         if (hasEnhancedConsole) {
           // Use original console to avoid recursion
           this.getConsole().log(output);
@@ -243,14 +254,17 @@ export class Printer {
   /**
    * Prints a log message to console.
    * Handles browser or terminal output.
-   * 
+   *
    * @param {string} message - The formatted message
    * @static
    */
   public static print(message: string): void {
     // Add timestamp if configured
     if (this.config.timestamps) {
-      const timestamp = this.formatter.formatTimestamp(new Date(), this.config.timestampFormat);
+      const timestamp = this.formatter.formatTimestamp(
+        new Date(),
+        this.config.timestampFormat ?? 'YYYY-MM-DD HH:mm:ss.SSS'
+      );
       message = `${timestamp} ${message}`;
     }
 
@@ -263,9 +277,9 @@ export class Printer {
       return;
     }
 
-    // Clear progress bar if active
+    // Finalize active progress bar (preserve last rendered state)
     if (this.progressState.active && !isBrowserEnvironment()) {
-      this.clearProgress();
+      this.finalizeProgress();
     }
 
     if (isBrowserEnvironment()) {
@@ -277,7 +291,7 @@ export class Printer {
         // Respect recursion guard to avoid infinite loops with enhanced console
         const recursionGuard = Symbol.for('recursionGuard');
         const hasEnhancedConsole = recursionGuard in console;
-        
+
         if (hasEnhancedConsole) {
           // Use the captured original console method to bypass enhanced console
           this.originalConsole.log(message);
@@ -294,7 +308,7 @@ export class Printer {
 
   /**
    * Print multiple lines efficiently.
-   * 
+   *
    * @param {string[]} lines - Array of lines to print
    * @static
    */
@@ -306,8 +320,18 @@ export class Printer {
       return;
     }
 
+    // If a progress bar is active, finalize it (preserve the last rendered state)
+    if (
+      !isBrowserEnvironment() &&
+      this.progressState.active &&
+      typeof process !== 'undefined' &&
+      process.stdout
+    ) {
+      this.finalizeProgress();
+    }
+
     const output = lines.join('\n');
-    
+
     if (isBrowserEnvironment()) {
       this.getConsole().log(output);
     } else {
@@ -315,7 +339,7 @@ export class Printer {
         // Respect recursion guard to avoid infinite loops with enhanced console
         const recursionGuard = Symbol.for('recursionGuard');
         const hasEnhancedConsole = recursionGuard in console;
-        
+
         if (hasEnhancedConsole) {
           this.originalConsole.log(output);
         } else {
@@ -330,7 +354,7 @@ export class Printer {
 
   /**
    * Print to error stream.
-   * 
+   *
    * @param {string} message - Error message
    * @static
    */
@@ -346,14 +370,14 @@ export class Printer {
 
   /**
    * Print progress bar visually.
-   * 
+   *
    * @param {string} bar - The filled bar string
    * @param {string} percent - The percentage string
    * @param {object} options - Additional options
    * @static
    */
   public static printProgress(
-    bar: string, 
+    bar: string,
     percent: string,
     options: {
       label?: string;
@@ -383,7 +407,7 @@ export class Printer {
       if (options.current && options.total) {
         parts.push(`${options.current}/${options.total}`);
       }
-      
+
       // Use configured console
       this.getConsole().log(parts.join(' '));
     } else {
@@ -392,7 +416,7 @@ export class Printer {
       if (options.label) parts.push(options.label);
       parts.push(bar);
       parts.push(percent);
-      
+
       if (options.showTime && this.progressState.startTime) {
         const elapsed = Date.now() - this.progressState.startTime;
         parts.push(`[${this.formatter.formatDuration(elapsed)}]`);
@@ -409,7 +433,7 @@ export class Printer {
       }
 
       const line = parts.join(' ');
-      
+
       // Track progress state
       if (!this.progressState.active) {
         this.progressState.active = true;
@@ -421,17 +445,11 @@ export class Printer {
       if (typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'test') {
         if (process.stdout && typeof process.stdout.write === 'function') {
           process.stdout.write(line);
-          if (parseFloat(percent) >= 100) {
-            process.stdout.write('\n');
-            this.progressState.active = false;
-          }
+          // Do not finalize here; allow caller to decide via endProgress
           return;
         }
         // Fallback to console.log if no stdout
         console.log(line);
-        if (parseFloat(percent) >= 100) {
-          this.progressState.active = false;
-        }
         return;
       }
 
@@ -439,13 +457,14 @@ export class Printer {
       if (typeof process !== 'undefined' && process.stdout) {
         process.stdout.write(`\r${' '.repeat(process.stdout.columns || 80)}`);
         process.stdout.write(`\r${line}`);
-        
+        // If we've reached 100%, finalize with a newline so the bar remains visible
         if (parseFloat(percent) >= 100) {
           process.stdout.write('\n');
           this.progressState.active = false;
         }
       } else {
         this.getConsole().log(line);
+        // console.log already appends a newline; mark progress as inactive if complete
         if (parseFloat(percent) >= 100) {
           this.progressState.active = false;
         }
@@ -459,15 +478,50 @@ export class Printer {
    * @static
    */
   private static clearProgress(): void {
-    if (!isBrowserEnvironment() && this.progressState.active && typeof process !== 'undefined' && process.stdout) {
+    if (
+      !isBrowserEnvironment() &&
+      this.progressState.active &&
+      typeof process !== 'undefined' &&
+      process.stdout
+    ) {
       process.stdout.write(`\r${' '.repeat(process.stdout.columns || 80)}\r`);
       this.progressState.active = false;
     }
   }
 
   /**
+   * Finalize the current progress line by moving to the next line without erasing it.
+   * @private
+   * @static
+   */
+  private static finalizeProgress(): void {
+    if (
+      !isBrowserEnvironment() &&
+      this.progressState.active &&
+      typeof process !== 'undefined' &&
+      process.stdout
+    ) {
+      process.stdout.write('\n');
+      this.progressState.active = false;
+    }
+  }
+
+  /**
+   * Public API to end a progress line.
+   * When clear is true, erase the progress line; otherwise, finalize by moving to next line.
+   */
+  public static endProgress(options: { clear?: boolean } = {}): void {
+    const { clear = false } = options;
+    if (clear) {
+      this.clearProgress();
+    } else {
+      this.finalizeProgress();
+    }
+  }
+
+  /**
    * Print tabular data with proper formatting for both environments.
-   * 
+   *
    * @param {Record<string, unknown>[]} data - Array of objects
    * @param {ColorName[]} headerColors - Colors for header row
    * @param {object} options - Table options
@@ -484,6 +538,15 @@ export class Printer {
       compact?: boolean;
     } = {}
   ): void {
+    // Ensure any active progress bar is finalized and preserved before the table
+    if (
+      !isBrowserEnvironment() &&
+      this.progressState.active &&
+      typeof process !== 'undefined' &&
+      process.stdout
+    ) {
+      this.finalizeProgress();
+    }
     if (isBrowserEnvironment()) {
       // Browser: Use console.table for better formatting
       this.getConsole().table(data);
@@ -500,7 +563,7 @@ export class Printer {
       }
 
       const {
-        maxColumnWidth = 50,
+        maxColumnWidth,
         truncate = true,
         showIndex = false,
         borderStyle = 'single',
@@ -514,7 +577,11 @@ export class Printer {
       }
 
       // Calculate column widths
-      const columnWidths = this.calculateColumnWidths(data, columns, maxColumnWidth, showIndex);
+      const resolvedMaxWidth: number =
+        typeof maxColumnWidth === 'number' && maxColumnWidth > 0 ? maxColumnWidth : 50;
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore - suppress maxWidth narrow inference (confirmed resolvedMaxWidth is number)
+      const columnWidths = this.calculateColumnWidths(data, columns, resolvedMaxWidth, showIndex);
 
       // Get border characters
       const borders = this.getBorderChars(borderStyle);
@@ -528,14 +595,16 @@ export class Printer {
       }
 
       // Header row
-      lines.push(this.buildDataRow(
-        columns.reduce((obj, col) => ({ ...obj, [col]: col }), {}),
-        columns,
-        columnWidths,
-        borders.vertical,
-        headerColors,
-        truncate
-      ));
+      lines.push(
+        this.buildDataRow(
+          columns.reduce((obj, col) => ({ ...obj, [col]: col }), {}),
+          columns,
+          columnWidths,
+          borders.vertical,
+          headerColors,
+          truncate
+        )
+      );
 
       // Separator after header
       if (borderStyle !== 'none' && !compact) {
@@ -561,8 +630,20 @@ export class Printer {
   }
 
   /**
+   * Strip ANSI escape codes from a string.
+   *
+   * @param {string} text - Text with ANSI codes
+   * @returns {string} Plain text without ANSI codes
+   * @private
+   * @static
+   */
+  private static stripAnsiCodes(text: string): string {
+    return text.replace(this.ansiRegex, '');
+  }
+
+  /**
    * Get all unique columns from data.
-   * 
+   *
    * @param {Record<string, unknown>[]} data - Table data
    * @returns {string[]} Column names
    * @private
@@ -578,7 +659,7 @@ export class Printer {
 
   /**
    * Calculate optimal column widths.
-   * 
+   *
    * @param {Record<string, unknown>[]} data - Table data
    * @param {string[]} columns - Column names
    * @param {number} maxWidth - Maximum column width
@@ -591,7 +672,7 @@ export class Printer {
     data: Record<string, unknown>[],
     columns: string[],
     maxWidth: number,
-    hasIndex: boolean
+    hasIndex?: boolean
   ): Record<string, number> {
     const widths: Record<string, number> = {};
 
@@ -612,8 +693,10 @@ export class Printer {
         widths[col] = Math.max(widths[col], strValue.length);
       });
 
-      // Apply maximum width constraint
-      widths[col] = Math.min(widths[col], maxWidth);
+      // Apply maximum width constraint (extra runtime guard)
+      if (typeof maxWidth === 'number' && maxWidth > 0) {
+        widths[col] = Math.min(widths[col], maxWidth);
+      }
     });
 
     return widths;
@@ -621,7 +704,7 @@ export class Printer {
 
   /**
    * Format a cell value for display.
-   * 
+   *
    * @param {unknown} value - Cell value
    * @returns {string} Formatted value
    * @private
@@ -641,7 +724,7 @@ export class Printer {
 
   /**
    * Get border characters for table style.
-   * 
+   *
    * @param {string} style - Border style
    * @returns {BorderChars} Border characters
    * @private
@@ -674,7 +757,7 @@ export class Printer {
 
   /**
    * Build a border line for the table.
-   * 
+   *
    * @param {Record<string, number>} widths - Column widths
    * @param {BorderChars['top']} chars - Border characters
    * @returns {string} Border line
@@ -691,7 +774,7 @@ export class Printer {
 
   /**
    * Build a data row for the table.
-   * 
+   *
    * @param {Record<string, any>} row - Row data
    * @param {string[]} columns - Column names
    * @param {Record<string, number>} widths - Column widths
@@ -712,18 +795,37 @@ export class Printer {
   ): string {
     const cells = columns.map(col => {
       let value = this.formatCellValue(row[col]);
-      const width = widths[col];
+      const w = widths[col];
+      const width = typeof w === 'number' && !Number.isNaN(w) ? w : value.length;
+      widths[col] = width; // ensure cached numeric width
 
-      // Truncate if needed
-      if (truncate && value.length > width) {
-        value = value.substring(0, width - 3) + '...';
+      // Apply colors first if needed
+      if (colors.length > 0) {
+        value = Colorizer.applyColors(value, colors);
       }
 
-      // Pad value
-      const padded = ` ${value.padEnd(width)} `;
+      // Truncate if needed (accounting for visible length without ANSI codes)
+      const visibleLength = this.stripAnsiCodes(value).length;
+      if (truncate && visibleLength > width) {
+        // For colored text, we need to be careful with truncation
+        if (colors.length > 0) {
+          // Strip colors, truncate, then reapply colors
+          const plain = this.stripAnsiCodes(value);
+          const cut = Math.max(0, width - 3);
+          const truncated = plain.substring(0, cut) + (cut < plain.length ? '...' : '');
+          value = Colorizer.applyColors(truncated, colors);
+        } else {
+          const cut = Math.max(0, width - 3);
+          value = value.substring(0, cut) + (cut < value.length ? '...' : '');
+        }
+      }
 
-      // Apply colors
-      return colors.length > 0 ? Colorizer.applyColors(padded, colors) : padded;
+      // Pad value (accounting for ANSI codes)
+      const currentVisibleLength = this.stripAnsiCodes(value).length;
+      const padLength = width - currentVisibleLength;
+      const padded = ` ${value}${' '.repeat(Math.max(0, padLength))} `;
+
+      return padded;
     });
 
     return vertical + cells.join(vertical) + vertical;
@@ -731,7 +833,7 @@ export class Printer {
 
   /**
    * Print a tree structure.
-   * 
+   *
    * @param {Record<string, unknown>} data - Tree data
    * @param {object} options - Tree options
    * @static
@@ -753,7 +855,7 @@ export class Printer {
     } = options;
 
     const lines: string[] = [];
-    
+
     // Add label
     if (label) {
       lines.push(colors ? Colorizer.bold(label) : label);
@@ -768,7 +870,7 @@ export class Printer {
 
   /**
    * Build tree structure recursively.
-   * 
+   *
    * @param {Record<string, unknown>} node - Current node
    * @param {string[]} lines - Output lines
    * @param {string} prefix - Line prefix
@@ -784,7 +886,7 @@ export class Printer {
     node: Record<string, unknown>,
     lines: string[],
     prefix: string,
-    isLast: boolean,
+    _isLast: boolean, // parameter retained for API compatibility; underscore to silence unused warning
     depth: number,
     maxDepth: number,
     showValues: boolean,
@@ -802,7 +904,7 @@ export class Printer {
       const extension = isLastEntry ? '  ' : '│ ';
 
       let line = prefix + connector + ' ';
-      
+
       if (colors) {
         line += Colorizer.cyan(key);
       } else {
@@ -849,7 +951,7 @@ export class Printer {
 
   /**
    * Move cursor to specific position (terminal only).
-   * 
+   *
    * @param {number} x - X position
    * @param {number} y - Y position
    * @static
@@ -902,7 +1004,7 @@ export class Printer {
 
   /**
    * Get terminal size.
-   * 
+   *
    * @returns {object} Terminal dimensions
    * @static
    */
@@ -919,7 +1021,7 @@ export class Printer {
 
   /**
    * Check if output is a TTY.
-   * 
+   *
    * @returns {boolean} True if TTY
    * @static
    */
@@ -933,7 +1035,7 @@ export class Printer {
 
   /**
    * Get output stream.
-   * 
+   *
    * @returns {NodeJS.WriteStream | Console} Output stream
    * @static
    */
@@ -943,7 +1045,7 @@ export class Printer {
 
   /**
    * Redirect output to a different stream.
-   * 
+   *
    * @param {NodeJS.WriteStream} stream - New output stream
    * @static
    */

@@ -1,20 +1,41 @@
 {
+  "$schema": "https://typedoc.org/schema.json",
   "entryPoints": ["src/index.ts"],
-  "out": "website/static/api",
-  "theme": "default",
-  "name": "MagicLogger API Documentation",
-  "readme": "README.md",
-  "excludePrivate": true,
-  "excludeProtected": true,
-  "excludeInternal": true,
-  "includeVersion": true,
-  "sort": ["source-order"],
-  "gitRevision": "main",
+  "entryPointStrategy": "expand",
+  "out": "website/docs/api",
+  "exclude": [
+    "**/node_modules/**",
+    "**/tests/**",
+    "**/examples/**",
+    "**/*.test.ts",
+    "**/*.spec.ts"
+  ],
+  "tsconfig": "./tsconfig.json",
   "plugin": ["typedoc-plugin-markdown"],
+  "readme": "none",
+  "githubPages": false,
   "disableSources": false,
-  "sourceLinkTemplate": "https://github.com/manicinc/magiclogger/blob/{gitRevision}/{path}#L{line}",
+  "excludePrivate": true,
+  "excludeProtected": false,
+  "excludeInternal": true,
+  "excludeExternals": false,
+  "includeVersion": false,
+  "categorizeByGroup": true,
+  "defaultCategory": "Other",
+  "categoryOrder": [
+    "Core",
+    "Transports",
+    "Types",
+    "Extensions",
+    "Utils",
+    "*"
+  ],
   "navigationLinks": {
     "GitHub": "https://github.com/manicinc/magiclogger",
-    "NPM": "https://www.npmjs.com/package/magiclogger"
+    "Documentation": "/docs/intro"
+  },
+  "sidebarLinks": {
+    "Documentation": "/docs/intro",
+    "API Reference": "/docs/api"
   }
 }

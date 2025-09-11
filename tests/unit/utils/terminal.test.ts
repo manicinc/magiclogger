@@ -82,9 +82,9 @@ describe('Terminal Utilities', () => {
       // Mock Windows Terminal environment
       process.env.TERM_PROGRAM = 'Windows Terminal';
 
-      // Reset module cache to trigger detection again
+      // Reset module cache to trigger detection again and re-import
       jest.resetModules();
-
+      const { getTerminalSupport } = await import('../../../src/utils/terminal');
       const support = getTerminalSupport();
       expect(support.rgb).toBe(true);
       expect(support.styles.strikethrough).toBe(true);
@@ -223,7 +223,7 @@ describe('Terminal Utilities', () => {
       // Mock the NODE_ENV to ensure it's not 'test' for this specific test
       const originalNodeEnv = process.env.NODE_ENV;
       process.env.NODE_ENV = 'production';
-      
+
       // Mock isStyleSupported to return false for unknown styles
       jest.spyOn(terminalSupport, 'isStyleSupported').mockImplementation((style: string) => {
         return style !== 'completelyUnknownStyle';
@@ -242,15 +242,15 @@ describe('Terminal Utilities', () => {
       // Testing 'normal' fallback for unknown styles
       const unknownResult = getFallbackStyle('completelyUnknownStyle');
       expect(unknownResult).toBe('normal');
-      
+
       // Restore original NODE_ENV
       process.env.NODE_ENV = originalNodeEnv;
-      
+
       // Restore mocks
       jest.restoreAllMocks();
     });
 
-    it('handles inconsistent terminal environments', () => {
+    it('handles inconsistent terminal environments', async () => {
       // Save original env
       const originalEnv = { ...process.env };
 
@@ -259,10 +259,9 @@ describe('Terminal Utilities', () => {
       process.env.TERM = 'xterm-256color';
       process.env.COLORTERM = 'truecolor';
 
-      // Reset terminal support to force detection
+      // Reset terminal support to force detection and re-import dynamically
       jest.resetModules();
-
-      // Import getTerminalSupport again
+      const { getTerminalSupport } = await import('../../../src/utils/terminal');
       const support = getTerminalSupport();
 
       // Should have merged properties
@@ -279,10 +278,8 @@ describe('Terminal Utilities', () => {
       // Set CI environment
       process.env.CI = 'true';
 
-      // Reset terminal support to force detection
+      // Reset terminal support to force detection and import dynamically
       jest.resetModules();
-
-      // Import getTerminalSupport using dynamic import
       return import('../../../src/utils/terminal').then(({ getTerminalSupport }) => {
         const support = getTerminalSupport();
 
@@ -325,10 +322,8 @@ describe('Terminal Utilities', () => {
       process.env.TERM = 'xterm-256color';
       process.env.COLORTERM = 'truecolor';
 
-      // Reset terminal support to force detection
+      // Reset terminal support to force detection and import dynamically
       jest.resetModules();
-
-      // Import getTerminalSupport using dynamic import
       return import('../../../src/utils/terminal').then(({ getTerminalSupport }) => {
         const support = getTerminalSupport();
 

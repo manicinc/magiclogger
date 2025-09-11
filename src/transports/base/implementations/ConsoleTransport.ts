@@ -2,42 +2,26 @@
 
 import { Transport } from '../Transport';
 import type { LogEntry } from '../../../types/transport';
-import type { LogLevel } from '../../../types/logger';
-import * as colorette from 'colorette';
+import { Colorizer } from '../../../core/Colorizer';
+import type { ColorName } from '../../../types/colors';
 
-// Define the options interface directly here since TypeScript is having issues finding it
-export interface ConsoleTransportOptions {
-  name: string;
-  enabled?: boolean;
-  level?: LogLevel;
-  levels?: LogLevel[];
-  tags?: string[];
-  excludeTags?: string[];
-  filter?: (entry: LogEntry) => boolean;
-  silent?: boolean;
-  timeout?: number;
-  format?: 'json' | 'plain' | 'custom';
-  formatter?: (entry: LogEntry) => string | Buffer;
-  useColors?: boolean;
+// Align options with shared transport types and allow a few extras for console formatting.
+import type { ConsoleTransportOptions as ConsoleTransportOptionsBase } from '../../../types/transport';
+export interface ConsoleTransportOptions extends ConsoleTransportOptionsBase {
+  // Extras specific to formatting/visibility in this implementation
   showTimestamp?: boolean;
   showLevel?: boolean;
   showLoggerId?: boolean;
   showTags?: boolean;
   showMetadata?: boolean;
   prefix?: string;
-  consoleMethods?: {
-    debug?: keyof Console;
-    info?: keyof Console;
-    warn?: keyof Console;
-    error?: keyof Console;
-    default?: keyof Console;
-    [key: string]: keyof Console | undefined;
-  };
+  // Accept both naming conventions
+  useColors?: boolean; // preferred in impl
 }
 
 /**
  * Console transport for outputting logs to stdout/stderr.
- * 
+ *
  * Features:
  * - Color-coded output by log level
  * - Pretty printing with indentation
@@ -45,10 +29,10 @@ export interface ConsoleTransportOptions {
  * - Metadata and context display
  * - Custom formatters
  * - Browser console API support
- * 
+ *
  * @class ConsoleTransport
  * @extends {Transport}
- * 
+ *
  * @example
  * ```typescript
  * const consoleTransport = new ConsoleTransport({
@@ -112,18 +96,20 @@ export class ConsoleTransport extends Transport {
    * Console methods for each log level.
    * @private
    */
-  private readonly consoleMethods: Record<string, keyof Console>;
+  private readonly consoleMethods: Record<string, 'log' | 'info' | 'warn' | 'error' | 'debug'>;
 
   /**
    * Creates a new ConsoleTransport instance.
-   * 
+   *
    * @param {ConsoleTransportOptions} options - Transport configuration
    */
   constructor(options: ConsoleTransportOptions) {
     // Default to 'debug' level for console to ensure all logs are visible unless overridden
     super({ ...options, level: options.level ?? 'debug' });
 
-    this.useColors = options.useColors ?? true;
+    // Support both `useColors` and legacy `colorize`
+    const colorizeOption = (options as unknown as { colorize?: boolean }).colorize;
+    this.useColors = options.useColors ?? colorizeOption ?? true;
     this.showTimestamp = options.showTimestamp ?? true;
     this.showLevel = options.showLevel ?? true;
     this.showLoggerId = options.showLoggerId ?? true;
@@ -131,43 +117,52 @@ export class ConsoleTransport extends Transport {
     this.showMetadata = options.showMetadata ?? false;
     this.prefix = options.prefix;
 
-    // Set up color mapping
+    // Helper to bind a color function using internal Colorizer
+    const colorFn = (name: ColorName) => (str: string) =>
+      this.useColors ? Colorizer.color(str, name, true) : str;
+
+    // Set up color mapping using internal Colorizer
     this.levelColors = {
-      debug: colorette.gray,
-      info: colorette.blue,
-      warn: colorette.yellow,
-      error: colorette.red,
-      success: colorette.green,
+      debug: colorFn('gray'),
+      info: colorFn('blue'),
+      warn: colorFn('yellow'),
+      error: colorFn('red'),
+      success: colorFn('green'),
     };
 
     // Set up console method mapping
-    const defaultMethods: Record<string, keyof Console> = {
+    const defaultMethods: Record<string, 'log' | 'info' | 'warn' | 'error' | 'debug'> = {
       debug: 'debug',
       info: 'info',
       warn: 'warn',
       error: 'error',
       success: 'log',
+      log: 'log',
+      default: 'log',
     };
 
-    // Filter out undefined values from options.consoleMethods
-    const customMethods: Record<string, keyof Console> = {};
-    if (options.consoleMethods) {
-      for (const [key, value] of Object.entries(options.consoleMethods)) {
-        if (value !== undefined) {
-          customMethods[key] = value;
-        }
+    // Sanitize and merge any provided custom methods
+    const customInput = (options.consoleMethods ?? {}) as Record<string, unknown>;
+    const methodEntries = Object.entries(customInput).filter(
+      (entry): entry is [string, 'log' | 'info' | 'warn' | 'error' | 'debug'] => {
+        const v = entry[1];
+        return v === 'log' || v === 'info' || v === 'warn' || v === 'error' || v === 'debug';
       }
-    }
+    );
+    const customMethods = Object.fromEntries(methodEntries) as Record<
+      string,
+      'log' | 'info' | 'warn' | 'error' | 'debug'
+    >;
 
-    this.consoleMethods = {
-      ...defaultMethods,
-      ...customMethods,
-    };
+    this.consoleMethods = { ...defaultMethods, ...customMethods } as Record<
+      string,
+      'log' | 'info' | 'warn' | 'error' | 'debug'
+    >;
   }
 
   /**
    * Initialize console transport (no-op).
-   * 
+   *
    * @returns {Promise<void>} Resolves immediately
    * @protected
    */
@@ -176,8 +171,15 @@ export class ConsoleTransport extends Transport {
   }
 
   /**
+   * Console is not a batching transport; let base class handle per-log stats.
+   */
+  public supportsBatching(): boolean {
+    return false;
+  }
+
+  /**
    * Log entry to console.
-   * 
+   *
    * @param {LogEntry} entry - Log entry to output
    * @returns {Promise<void>} Resolves when logged
    * @protected
@@ -185,30 +187,32 @@ export class ConsoleTransport extends Transport {
   protected async doLog(entry: LogEntry): Promise<void> {
     const output = this.formatEntry(entry);
     this.writeToConsole(entry.level, output);
+    // Signal immediate success to the base class by not throwing.
+    // Base Transport.log will increment succeeded/lastSuccess for non-batching transports.
   }
 
   /**
    * Format log entry for console output.
-   * 
+   *
    * @param {LogEntry} entry - The log entry to format
    * @returns {string | Buffer} Formatted output
    * @protected
    */
   protected formatEntry(entry: LogEntry): string | Buffer {
-    if (this.formatter) {
+    if (typeof this.formatter === 'function') {
       return this.formatter(entry);
     }
 
     switch (this.format) {
       case 'json':
         return this.formatJson(entry);
-      
+
       case 'plain':
         return this.formatPlain(entry);
-      
+
       case 'custom':
         return this.formatPlain(entry); // Fallback if no formatter
-      
+
       default:
         return this.formatPlain(entry);
     }
@@ -216,7 +220,7 @@ export class ConsoleTransport extends Transport {
 
   /**
    * Format entry as JSON.
-   * 
+   *
    * @param {LogEntry} entry - Log entry
    * @returns {string} JSON formatted output
    * @private
@@ -265,7 +269,7 @@ export class ConsoleTransport extends Transport {
 
   /**
    * Format entry as plain text.
-   * 
+   *
    * @param {LogEntry} entry - Log entry
    * @returns {string} Plain text output
    * @protected
@@ -280,8 +284,8 @@ export class ConsoleTransport extends Transport {
 
     // Timestamp
     if (this.showTimestamp) {
-      const timestamp = this.useColors 
-        ? colorette.gray(entry.timestamp)
+      const timestamp = this.useColors
+        ? Colorizer.color(entry.timestamp, 'gray', true)
         : entry.timestamp;
       parts.push(timestamp);
     }
@@ -289,16 +293,16 @@ export class ConsoleTransport extends Transport {
     // Level
     if (this.showLevel) {
       const levelStr = entry.level.toUpperCase().padEnd(7);
-      const level = this.useColors && this.levelColors[entry.level]
-        ? this.levelColors[entry.level](levelStr)
-        : levelStr;
+      const colorFn =
+        this.useColors && this.levelColors ? this.levelColors[entry.level] : undefined;
+      const level = typeof colorFn === 'function' ? colorFn(levelStr) : levelStr;
       parts.push(level);
     }
 
     // Logger ID
     if (this.showLoggerId && entry.loggerId) {
       const loggerId = this.useColors
-        ? colorette.cyan(`[${entry.loggerId}]`)
+        ? Colorizer.color(`[${entry.loggerId}]`, 'cyan', true)
         : `[${entry.loggerId}]`;
       parts.push(loggerId);
     }
@@ -306,20 +310,55 @@ export class ConsoleTransport extends Transport {
     // Tags
     if (this.showTags && entry.tags && entry.tags.length > 0) {
       const tags = this.useColors
-        ? colorette.magenta(`{${entry.tags.join(', ')}}`)
+        ? Colorizer.color(`{${entry.tags.join(', ')}}`, 'magenta', true)
         : `{${entry.tags.join(', ')}}`;
       parts.push(tags);
     }
 
-    // Message - use plain message if available to avoid double coloring
-    parts.push(entry.plainMessage || entry.message);
+    // Message - reconstruct styled message if styles are available
+    let messageOutput: string;
+
+    if ((entry as unknown as Record<string, unknown>)._styledMessage) {
+      // Use pre-styled message if available (temporary backward compat)
+      messageOutput = String((entry as unknown as Record<string, unknown>)._styledMessage);
+    } else if (entry.styles && entry.styles.length > 0 && this.useColors) {
+      // Reconstruct styled message from plain text and style ranges
+      messageOutput = this.applyStylesToMessage(entry.message, entry.styles);
+    } else {
+      // Use plain message
+      messageOutput = String(entry.message ?? '');
+    }
+
+    parts.push(messageOutput);
 
     let output = parts.join(' ');
 
-    // Error details
-    if (entry.error) {
-      const errorOutput = this.formatError(entry.error);
-      output += '\n' + errorOutput;
+    // Error details - check multiple locations where error might be stored
+    const error =
+      entry.error ||
+      (entry.context &&
+        ((entry.context as Record<string, unknown>).err ||
+          (entry.context as Record<string, unknown>).error));
+    if (error) {
+      // Display as "Error: name - message" format
+      if (typeof error === 'object' && 'message' in error) {
+        const errorName = (error as any).name || 'Error';
+        const errorLine = this.useColors
+          ? Colorizer.color(`Error: ${errorName} - ${error.message}`, 'red', true)
+          : `Error: ${errorName} - ${error.message}`;
+        output += ' ' + errorLine;
+        if ((error as any).stack) {
+          output += '\n' + (error as any).stack;
+        }
+      } else {
+        try {
+          const errorOutput =
+            typeof this.formatError === 'function' ? this.formatError(error as any) : String(error);
+          output += '\n' + errorOutput;
+        } catch {
+          /* ignore formatting errors */
+        }
+      }
     }
 
     // Metadata
@@ -338,7 +377,7 @@ export class ConsoleTransport extends Transport {
 
   /**
    * Format error for output.
-   * 
+   *
    * @param {object} error - Error object
    * @returns {string} Formatted error
    * @private
@@ -348,19 +387,18 @@ export class ConsoleTransport extends Transport {
 
     // Error name and message
     const header = this.useColors
-      ? colorette.red(`Error: ${error.name} - ${error.message}`)
+      ? Colorizer.color(`Error: ${error.name} - ${error.message}`, 'red', true)
       : `Error: ${error.name} - ${error.message}`;
     lines.push(header);
 
     // Stack trace
     if (error.stack) {
       const stackLines = error.stack.split('\n').slice(1); // Skip first line (already in header)
-      
+
       if (this.useColors) {
         stackLines.forEach(line => {
-          // Keep entire stack line gray to preserve plain substrings like
-          // "at file:line:col" for tests and readability.
-          lines.push(colorette.gray(line));
+          // Keep entire stack line gray for readability.
+          lines.push(Colorizer.color(line, 'gray', true));
         });
       } else {
         lines.push(...stackLines);
@@ -372,60 +410,81 @@ export class ConsoleTransport extends Transport {
 
   /**
    * Format metadata for output.
-   * 
+   *
    * @param {string} label - Label for the metadata
    * @param {object} data - Metadata object
    * @returns {string} Formatted metadata
    * @private
    */
   private formatMetadata(label: string, data?: Record<string, unknown>): string {
-    const header = this.useColors
-      ? colorette.gray(`${label}:`)
-      : `${label}:`;
-    
-    const json = JSON.stringify(data ?? {}, null, 2);
-    const indented = json.split('\n').map(line => '  ' + line).join('\n');
-    
-    return header + '\n' + (this.useColors ? colorette.gray(indented) : indented);
+    // Filter out internal fields and error (which is displayed separately)
+    const filteredData = { ...data } as Record<string, unknown>;
+    delete filteredData.err;
+    delete filteredData.error;
+    delete filteredData.level;
+    delete filteredData.time;
+    delete filteredData.msg;
+    delete filteredData.plainMsg;
+    delete filteredData.loggerId;
+    delete filteredData.styles;
+
+    // Skip if no data left after filtering
+    if (Object.keys(filteredData).length === 0) {
+      return '';
+    }
+
+    const header = this.useColors ? Colorizer.color(`${label}:`, 'gray', true) : `${label}:`;
+
+    const json = JSON.stringify(filteredData, null, 2);
+    const indented = json
+      .split('\n')
+      .map(line => '  ' + line)
+      .join('\n');
+
+    return header + '\n' + (this.useColors ? Colorizer.color(indented, 'gray', true) : indented);
   }
 
   /**
    * Write output to console.
-   * 
+   *
    * @param {string} level - Log level
    * @param {string | Buffer} output - Output to write
    * @private
    */
   private writeToConsole(level: string, output: string | Buffer): void {
     const outputStr = output instanceof Buffer ? output.toString() : output;
-    
+
     // Determine which console method to use
-    const methodKey = this.consoleMethods[level] || this.consoleMethods.default || 'log';
-    
+    const methodKey = this.consoleMethods[level] ?? this.consoleMethods['default'] ?? 'log';
+
     // Use direct method calls instead of dynamic access
-    switch (methodKey) {
-      case 'debug':
-        console.debug(outputStr);
-        break;
-      case 'info':
-        console.info(outputStr);
-        break;
-      case 'warn':
-        console.warn(outputStr);
-        break;
-      case 'error':
-        console.error(outputStr);
-        break;
-      case 'log':
-      default:
-        console.log(outputStr);
-        break;
+    try {
+      switch (methodKey) {
+        case 'debug':
+          console.debug?.(outputStr);
+          break;
+        case 'info':
+          console.info?.(outputStr);
+          break;
+        case 'warn':
+          console.warn?.(outputStr);
+          break;
+        case 'error':
+          console.error?.(outputStr);
+          break;
+        case 'log':
+        default:
+          console.log?.(outputStr);
+          break;
+      }
+    } catch {
+      // Swallow logging errors
     }
   }
 
   /**
    * Batch log entries.
-   * 
+   *
    * @param {LogEntry[]} entries - Entries to log
    * @returns {Promise<void>} Resolves when all logged
    * @protected
@@ -444,11 +503,60 @@ export class ConsoleTransport extends Transport {
         await this.doLog(entry);
       }
     }
+    // No error thrown means base Transport.logBatch will count successes for non-batching transports.
+  }
+
+  /**
+   * Apply styles to a plain message using style ranges.
+   * Reconstructs styled output for console display.
+   *
+   * @param {string} plainText - Plain text message
+   * @param {Array} styles - Style ranges [start, end, style]
+   * @returns {string} Styled text with ANSI codes
+   * @private
+   */
+  private applyStylesToMessage(plainText: string, styles: Array<[number, number, string]>): string {
+    if (!styles || styles.length === 0) {
+      return plainText;
+    }
+
+    // Import required modules
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { Colorizer } = require('../../../core/Colorizer');
+
+    // Sort styles by start index
+    const sortedStyles = [...styles].sort((a, b) => a[0] - b[0]);
+
+    let result = '';
+    let lastEnd = 0;
+
+    for (const [start, end, styleStr] of sortedStyles) {
+      // Add unstyled text before this range
+      result += plainText.slice(lastEnd, start);
+
+      // Parse style string (e.g., "red.bold" → ["red", "bold"])
+      const styleNames = styleStr.split('.');
+
+      // Apply styles to the text segment
+      const styledSegment = Colorizer.applyColors(
+        plainText.slice(start, end),
+        styleNames,
+        true // useColors
+      );
+
+      result += styledSegment;
+      lastEnd = end;
+    }
+
+    // Add any remaining unstyled text
+    result += plainText.slice(lastEnd);
+
+    return result;
   }
 
   /**
    * Close console transport (no-op).
-   * 
+   *
    * @returns {Promise<void>} Resolves immediately
    * @protected
    */
@@ -468,10 +576,10 @@ export class ConsoleTransport extends Transport {
 
 /**
  * Factory function to create a ConsoleTransport instance.
- * 
+ *
  * @param {Partial<ConsoleTransportOptions>} [options] - Console transport configuration options
  * @returns {ConsoleTransport} New ConsoleTransport instance
- * 
+ *
  * @example
  * ```typescript
  * const transport = createConsoleTransport({
@@ -480,7 +588,9 @@ export class ConsoleTransport extends Transport {
  * });
  * ```
  */
-export function createConsoleTransport(options: Partial<ConsoleTransportOptions> = {}): ConsoleTransport {
+export function createConsoleTransport(
+  options: Partial<ConsoleTransportOptions> = {}
+): ConsoleTransport {
   const defaultOptions: ConsoleTransportOptions = {
     name: 'console',
     enabled: true,
@@ -491,8 +601,8 @@ export function createConsoleTransport(options: Partial<ConsoleTransportOptions>
     showTags: true,
     showMetadata: false,
     prefix: '',
-    ...options
+    ...options,
   };
-  
+
   return new ConsoleTransport(defaultOptions);
 }

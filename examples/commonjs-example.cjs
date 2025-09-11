@@ -2,11 +2,16 @@
 // Usage: node scripts/commonjs-example.cjs
 
 // CommonJS import
-const { Logger } = require('magiclogger');
+// For CommonJS (.cjs), this is correct:
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { createSyncLogger } = require('../dist/index.cjs');
+
+// If you are using ES modules (.mjs or "type": "module"), use:
+// import { Logger } from '../dist/index.cjs';
 
 // Create a new logger instance with minimal settings
 // to avoid file system errors
-const logger = new Logger({
+const logger = createSyncLogger({
   verbose: true,         // Show debug messages
   writeToDisk: false     // Disable file logging to avoid errors
 });

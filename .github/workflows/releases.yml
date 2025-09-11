@@ -6,45 +6,137 @@ on:
       - main
       - master
 
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  id-token: write
+  packages: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
-    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
+    # Skip if commit message contains skip markers OR if it's a merge commit with skip-release in the PR title
+    if: |
+      !contains(github.event.head_commit.message, '[skip ci]') && 
+      !contains(github.event.head_commit.message, '[skip release]') &&
+      !contains(github.event.head_commit.message, 'skip-release')
+    timeout-minutes: 45
     
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false
+          token: ${{ secrets.GITHUB_TOKEN }}
       
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
         with:
-          node-version: '18.x'
-          cache: 'npm'
+          run_install: false
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'pnpm'
+          registry-url: 'https://registry.npmjs.org'
       
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
       
-      - name: Verify tests pass
-        run: npm test
+      - name: Run linting
+        run: pnpm run --if-present lint
+        continue-on-error: false
+      
+      - name: Run tests with coverage
+        timeout-minutes: 25
+        env:
+          CI: true
+        run: pnpm run test:coverage
+        continue-on-error: false
+      
+      - name: Build project
+        run: pnpm run --if-present build
       
       - name: Generate coverage badge
-        run: npm run test:coverage:badge
+        run: |
+          if [ -f "package.json" ] && grep -q '"test:coverage:badge"' package.json; then
+            pnpm run test:coverage:badge
+          else
+            echo "No coverage badge script found, skipping..."
+          fi
+      
+      - name: Commit coverage badge updates
+        run: |
+          if [ -n "$(git status --porcelain README.md docs/test-coverage.md docs/test_coverage.md 2>/dev/null)" ]; then
+            git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git config --local user.name "github-actions[bot]"
+            git add README.md docs/test-coverage.md docs/test_coverage.md 2>/dev/null || true
+            git diff --staged --quiet || (git commit -m "docs: update coverage badge [skip ci]" && echo "BADGE_UPDATED=true" >> $GITHUB_ENV)
+          else
+            echo "No coverage badge changes to commit"
+          fi
+      
+      - name: Push coverage badge updates
+        if: env.BADGE_UPDATED == 'true'
+        run: |
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:${{ github.ref }}
       
       - name: Semantic Release
+        id: semantic
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npx semantic-release
-      
-      - name: Commit updated coverage badge
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          if [ -n "$(git status --porcelain)" ]; then
-            git config --local user.email "action@github.com"
-            git config --local user.name "GitHub Action"
-            git add README.md docs/test-coverage.md
-            git commit -m "docs: update coverage badge [skip ci]"
-            git push
-          fi
+          npx semantic-release --ci
+      
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: |
+            coverage/
+            .nyc_output/
+          retention-days: 30
+          if-no-files-found: ignore
+      
+      - name: Comment on PR with release info
+        if: steps.semantic.outputs.new-release-published == 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { data: { sha } } = await github.rest.repos.getCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.sha
+            });
+            
+            const { data: prs } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: sha
+            });
+            
+            if (prs.length > 0) {
+              const version = '${{ steps.semantic.outputs.new-release-version }}';
+              const releaseNotes = `🎉 This PR was included in version ${version}`;
+              
+              for (const pr of prs) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pr.number,
+                  body: releaseNotes
+                });
+              }
+            }
