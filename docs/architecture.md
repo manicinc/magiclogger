@@ -30,9 +30,11 @@ interface Transport {
   name: string;
   enabled: boolean;
   log(entry: LogEntry): void | Promise<void>;
-  flush?(): Promise<void>;
-  close(): Promise<void>;
+  flush?(): void | Promise<void>;
+  close(): void | Promise<void>;
   shouldLog(entry: LogEntry): boolean;
+  logBatch?(entries: LogEntry[]): void | Promise<void>;
+  init?(): void | Promise<void>;
 }
 ```
 
@@ -82,22 +84,22 @@ No worker threads - everything runs in main thread with async I/O callbacks
 The MAGIC (Metadata And Graphics In Console) schema enables portable styled logs:
 
 ```typescript
-interface MagicLogEntry {
+interface LogEntry {
   id: string;                    // Unique identifier
   timestamp: string;              // ISO 8601 timestamp
   timestampMs: number;            // Unix timestamp in ms
   level: LogLevel;                // Log severity
-  message: string;                // Log message
-  styles?: StyleRange[];          // Style information
+  message: string;                // Plain text message
+  styles?: Array<[number, number, string]>; // Style ranges [start, end, style]
   context?: Record<string, any>;  // Structured metadata
   tags?: string[];                // Categorization tags
   loggerId?: string;              // Logger instance ID
-}
-
-interface StyleRange {
-  start: number;                  // Start position in message
-  end: number;                    // End position in message
-  styles: string[];               // Applied styles (colors, formatting)
+  error?: {                       // Error information
+    name: string;
+    message: string;
+    stack?: string;
+    code?: string | number;
+  };
 }
 ```
 

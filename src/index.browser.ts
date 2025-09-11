@@ -50,12 +50,7 @@ export class Logger {
   }
 
   // Visual helpers used by demos
-  public custom(msg: string, _colors: ColorName[] = ['white'], _prefix = 'LOG'): void {
-    // For browser demo, route to info
-    this.impl.log(msg, 'info');
-  }
-
-  public custom(msg: string, colors?: ColorName[], prefix?: string): void {
+  public custom(msg: string, colors: ColorName[] = ['white'], prefix = 'LOG'): void {
     this.impl.custom(msg, colors, prefix);
   }
   public header(title: string, _colors: ColorName[] = ['brightWhite', 'bgBlue', 'bold']): void {

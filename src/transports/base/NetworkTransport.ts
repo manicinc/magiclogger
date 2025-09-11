@@ -360,7 +360,6 @@ export abstract class NetworkTransport extends BatchingTransport {
           this.fallbackTransport = new FileTransport({
             name: `${this.name}-fallback`,
             filepath: './logs/fallback.log',
-            isDirectory: false,
           });
           break;
         }

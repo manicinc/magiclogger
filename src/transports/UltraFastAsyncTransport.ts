@@ -9,7 +9,6 @@
 
 import { Transport } from './base/Transport';
 import type { LogEntry } from '../types/transport';
-// @ts-expect-error - sonic-boom doesn't have proper TypeScript definitions
 import SonicBoom from 'sonic-boom';
 import * as path from 'path';
 import * as fs from 'fs';

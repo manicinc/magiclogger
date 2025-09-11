@@ -11,7 +11,7 @@ describe('EnhancedConsole', () => {
   beforeEach(() => {
     // Reset singleton instance
     (EnhancedConsole as any).resetInstance();
-    
+
     originalConsole = { ...console };
     mockConsole = {
       log: jest.fn(),
@@ -34,9 +34,9 @@ describe('EnhancedConsole', () => {
       profile: jest.fn(),
       profileEnd: jest.fn(),
       timeLog: jest.fn(),
-      timeStamp: jest.fn()
+      timeStamp: jest.fn(),
     };
-    
+
     // Replace global console
     Object.keys(mockConsole).forEach(key => {
       (console as any)[key] = mockConsole[key];
@@ -130,7 +130,7 @@ describe('EnhancedConsole', () => {
       enhancedConsole.group('Inner');
       enhancedConsole.groupEnd();
       enhancedConsole.groupEnd();
-      
+
       expect(mockConsole.group).toHaveBeenCalledTimes(2);
       expect(mockConsole.groupEnd).toHaveBeenCalledTimes(2);
     });
@@ -146,7 +146,7 @@ describe('EnhancedConsole', () => {
     it('should call console.table with data', () => {
       const data = [
         { name: 'Alice', age: 30 },
-        { name: 'Bob', age: 25 }
+        { name: 'Bob', age: 25 },
       ];
       enhancedConsole.table(data);
       expect(mockConsole.table).toHaveBeenCalledWith(data);
@@ -293,7 +293,7 @@ describe('EnhancedConsole', () => {
       mockConsole.log.mockImplementation(() => {
         throw new Error('Console error');
       });
-      
+
       expect(() => enhancedConsole.log('test')).not.toThrow();
     });
   });
@@ -308,7 +308,7 @@ describe('EnhancedConsole', () => {
     it('should handle circular references', () => {
       const obj: any = { a: 1 };
       obj.self = obj;
-      
+
       enhancedConsole.log(obj);
       expect(mockConsole.log).toHaveBeenCalledWith(obj);
     });

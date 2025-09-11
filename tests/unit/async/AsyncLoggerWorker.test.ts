@@ -4,13 +4,14 @@
 import type { LogEntry } from '../../../src/types/transport';
 
 // Helper to build log entries satisfying LogEntry
-const buildEntries = (n: number): LogEntry[] => Array.from({ length: n }, (_, i) => ({
-  id: `${Date.now()}-${i}`,
-  timestamp: new Date().toISOString(),
-  timestampMs: Date.now(),
-  level: 'info',
-  message: `msg-${i}`
-}));
+const buildEntries = (n: number): LogEntry[] =>
+  Array.from({ length: n }, (_, i) => ({
+    id: `${Date.now()}-${i}`,
+    timestamp: new Date().toISOString(),
+    timestampMs: Date.now(),
+    level: 'info',
+    message: `msg-${i}`,
+  }));
 
 describe('AsyncLoggerWorker core behavior', () => {
   let consoleErrorSpy: jest.SpyInstance | undefined;
@@ -20,15 +21,23 @@ describe('AsyncLoggerWorker core behavior', () => {
       consoleErrorSpy = undefined;
     }
     // Run all pending timers then restore
-    try { jest.runOnlyPendingTimers(); } catch { /* ignore */ }
+    try {
+      jest.runOnlyPendingTimers();
+    } catch {
+      /* ignore */
+    }
     jest.useRealTimers();
     jest.resetModules();
     jest.clearAllMocks();
   });
 
   it('exits when not provided worker context', async () => {
-    const exitSpy = jest.spyOn(process, 'exit').mockImplementation((() => undefined) as unknown as (code?: number) => never);
-    const errSpy = jest.spyOn(console, 'error').mockImplementation((): void => { /* noop */ });
+    const exitSpy = jest
+      .spyOn(process, 'exit')
+      .mockImplementation((() => undefined) as unknown as (code?: number) => never);
+    const errSpy = jest.spyOn(console, 'error').mockImplementation((): void => {
+      /* noop */
+    });
     jest.doMock('node:worker_threads', () => ({ parentPort: null, workerData: undefined }));
     await import('../../../src/async/AsyncLoggerWorker');
     expect(exitSpy).toHaveBeenCalledWith(1);
@@ -45,15 +54,26 @@ describe('AsyncLoggerWorker core behavior', () => {
       shutdown(): void;
       getStats(): { processed: number; bufferSize: number; batches: number; errors: number };
     }
-    let exported: { WorkerState: new (cfg: { workerId: number; batchSize?: number; flushInterval?: number; enableCompression?: boolean }) => WorkerStateLike };
+    let exported: {
+      WorkerState: new (cfg: {
+        workerId: number;
+        batchSize?: number;
+        flushInterval?: number;
+        enableCompression?: boolean;
+      }) => WorkerStateLike;
+    };
 
     const mockWorkerEnv = () => {
       jest.doMock('node:worker_threads', () => ({
         parentPort: {
-          postMessage: (...args: unknown[]) => { postMessage(...args); },
-          on: (_event: string, _handler: (m: unknown) => void) => { /* capture not needed */ }
+          postMessage: (...args: unknown[]) => {
+            postMessage(...args);
+          },
+          on: (_event: string, _handler: (m: unknown) => void) => {
+            /* capture not needed */
+          },
         },
-        workerData: { workerId: 1 }
+        workerData: { workerId: 1 },
       }));
     };
 
@@ -101,13 +121,25 @@ describe('AsyncLoggerWorker core behavior', () => {
 
     it('records errors from serialization failure', () => {
       const { WorkerState } = exported;
-      interface Circular { a: number; self?: Circular }
+      interface Circular {
+        a: number;
+        self?: Circular;
+      }
       const circular: Circular = { a: 1 };
       circular.self = circular;
       // flushInterval 0 so no periodic timer triggers after test end
       const state = new WorkerState({ workerId: 5, batchSize: 10, flushInterval: 0 });
       consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
-      (state as unknown as { buffer: LogEntry[] }).buffer = [{ id: 'x', timestamp: new Date().toISOString(), timestampMs: Date.now(), level: 'info', message: 'c', context: { circular } }];
+      (state as unknown as { buffer: LogEntry[] }).buffer = [
+        {
+          id: 'x',
+          timestamp: new Date().toISOString(),
+          timestampMs: Date.now(),
+          level: 'info',
+          message: 'c',
+          context: { circular },
+        },
+      ];
       state.flush();
       expect(state.getStats().errors).toBeGreaterThanOrEqual(1);
     });

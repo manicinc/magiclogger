@@ -1,9 +1,9 @@
 /**
  * @fileoverview Tests for HTTPTransport
- * 
+ *
  * NOTE: These tests are for the legacy HTTP transport implementation.
  * The new HTTPTransport uses worker threads and requires different testing approach.
- * 
+ *
  * TODO: Write proper tests for worker-based HTTPTransport
  */
 

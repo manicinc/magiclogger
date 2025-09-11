@@ -1,6 +1,6 @@
 /**
  * @fileoverview Lazy serialization utilities for deferred JSON conversion
- * 
+ *
  * This module provides lazy serialization capabilities to defer the
  * expensive JSON.stringify operation until actually needed by transports.
  */
@@ -13,18 +13,18 @@ import type { LogEntry } from '../types/transport';
 export class LazyLogEntry {
   private serialized: string | null = null;
   private readonly entry: LogEntry;
-  
+
   constructor(entry: LogEntry) {
     this.entry = entry;
   }
-  
+
   /**
    * Get the raw log entry without serialization
    */
   getRaw(): LogEntry {
     return this.entry;
   }
-  
+
   /**
    * Get the serialized JSON string (cached after first call)
    */
@@ -44,14 +44,14 @@ export class LazyLogEntry {
     }
     return this.serialized;
   }
-  
+
   /**
    * Get specific fields without full serialization
    */
   getField<K extends keyof LogEntry>(field: K): LogEntry[K] {
     return this.entry[field];
   }
-  
+
   /**
    * Check if entry matches filter criteria without serialization
    */
@@ -70,13 +70,13 @@ export class LazyLogEntry {
  */
 export class SchemaSerializer {
   private readonly schema: string[];
-  
+
   constructor() {
     // Define the expected schema order for optimal serialization
     this.schema = [
       'id',
       'timestamp',
-      'timestampMs', 
+      'timestampMs',
       'level',
       'message',
       'styles',
@@ -84,17 +84,17 @@ export class SchemaSerializer {
       'tags',
       'context',
       'error',
-      'metadata'
+      'metadata',
     ];
   }
-  
+
   /**
    * Fast serialization using predefined schema
    */
   serialize(entry: LogEntry): string {
     const parts: string[] = ['{'];
     let first = true;
-    
+
     for (const key of this.schema) {
       const value = entry[key as keyof LogEntry];
       if (value !== undefined) {
@@ -104,11 +104,11 @@ export class SchemaSerializer {
         first = false;
       }
     }
-    
+
     parts.push('}');
     return parts.join('');
   }
-  
+
   private stringifyValue(value: unknown): string {
     if (value === null) return 'null';
     if (typeof value === 'string') return JSON.stringify(value);
@@ -120,7 +120,7 @@ export class SchemaSerializer {
       return JSON.stringify({
         name: value.name,
         message: value.message,
-        stack: value.stack
+        stack: value.stack,
       });
     }
     // Fallback to JSON.stringify for complex objects with circular reference handling

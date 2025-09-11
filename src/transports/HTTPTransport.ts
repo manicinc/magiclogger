@@ -1,16 +1,16 @@
 /**
  * @fileoverview HTTP Transport with Worker Threads
- * 
+ *
  * Production-ready HTTP transport that uses a dedicated worker thread
  * for all network operations, ensuring zero blocking of the main thread.
- * 
+ *
  * Key features:
  * - Batching in worker thread
  * - Automatic retries with exponential backoff
  * - Compression support
  * - Circuit breaker pattern
  * - Zero main thread blocking
- * 
+ *
  * @module transports/HTTPTransport
  */
 
@@ -20,7 +20,7 @@ import type { LogEntry } from '../types/transport';
 
 /**
  * Configuration options for HTTPWorkerTransport.
- * 
+ *
  * @interface HTTPTransportOptions
  * @extends {TransportOptions}
  */
@@ -30,92 +30,92 @@ export interface HTTPTransportOptions {
    * @default 'http-worker'
    */
   name?: string;
-  
+
   /**
    * Whether the transport is enabled.
    * @default true
    */
   enabled?: boolean;
-  
+
   /**
    * HTTP endpoint URL for log submission.
    * @example 'https://logs.example.com/api/logs'
    */
   endpoint?: string;
-  
+
   /**
    * Alias for endpoint for backward compatibility.
    * @example 'https://logs.example.com/api/logs'
    */
   url?: string;
-  
+
   /**
    * HTTP method to use.
    * @default 'POST'
    */
   method?: 'POST' | 'PUT' | 'PATCH';
-  
+
   /**
    * Custom HTTP headers.
    * @example { 'Authorization': 'Bearer token', 'X-API-Key': 'key' }
    */
   headers?: Record<string, string>;
-  
+
   /**
    * Number of logs to batch before sending.
    * Higher values reduce network overhead but increase latency.
    * @default 100
    */
   batchSize?: number;
-  
+
   /**
    * Maximum time to wait before flushing batch (milliseconds).
    * Ensures logs are sent even if batch size isn't reached.
    * @default 5000
    */
   flushInterval?: number;
-  
+
   /**
    * Maximum retries for failed requests.
    * Uses exponential backoff between retries.
    * @default 3
    */
   maxRetries?: number;
-  
+
   /**
    * Initial retry delay in milliseconds.
    * Doubles with each retry (exponential backoff).
    * @default 1000
    */
   retryDelay?: number;
-  
+
   /**
    * Request timeout in milliseconds.
    * @default 30000
    */
   timeout?: number;
-  
+
   /**
    * Enable gzip compression for request body.
    * Reduces bandwidth but adds CPU overhead in worker.
    * @default false
    */
   compress?: boolean;
-  
+
   /**
    * Maximum size of the internal buffer in worker.
    * Older entries are dropped when exceeded.
    * @default 10000
    */
   maxBufferSize?: number;
-  
+
   /**
    * Circuit breaker threshold.
    * Opens circuit after this many consecutive failures.
    * @default 5
    */
   circuitBreakerThreshold?: number;
-  
+
   /**
    * Circuit breaker reset timeout in milliseconds.
    * Time to wait before attempting to close circuit.
@@ -126,14 +126,14 @@ export interface HTTPTransportOptions {
 
 /**
  * HTTP transport that uses a worker thread for all network operations.
- * 
+ *
  * This transport ensures zero blocking of the main thread by delegating
  * all CPU and I/O intensive operations to a dedicated worker thread.
  * The worker handles batching, compression, serialization, and HTTP requests.
- * 
+ *
  * @class HTTPWorkerTransport
  * @extends {Transport}
- * 
+ *
  * @example Basic Usage
  * ```typescript
  * const httpTransport = new HTTPWorkerTransport({
@@ -141,11 +141,11 @@ export interface HTTPTransportOptions {
  *   batchSize: 100,
  *   flushInterval: 5000
  * });
- * 
+ *
  * // Logs are automatically batched and sent
  * httpTransport.log(entry);  // Non-blocking
  * ```
- * 
+ *
  * @example With Authentication
  * ```typescript
  * const httpTransport = new HTTPWorkerTransport({
@@ -159,7 +159,7 @@ export interface HTTPTransportOptions {
  *   timeout: 60000   // Longer timeout
  * });
  * ```
- * 
+ *
  * @example With Circuit Breaker
  * ```typescript
  * const httpTransport = new HTTPWorkerTransport({
@@ -175,45 +175,47 @@ export class HTTPTransport extends Transport {
    * @private
    */
   private worker: Worker | null = null;
-  
+
   /**
    * Transport configuration.
    * @private
    * @readonly
    */
-  private readonly config: Required<Omit<HTTPTransportOptions, 'enabled' | 'url'>> & { enabled?: boolean; url?: string };
-  
+  private readonly config: Required<Omit<HTTPTransportOptions, 'enabled' | 'url'>> & {
+    enabled?: boolean;
+    url?: string;
+  };
+
   /**
    * Whether the worker is ready to accept logs.
    * @private
    */
   private ready = false;
-  
+
   /**
    * Queue for entries while worker is initializing.
    * @private
    */
   private initQueue: LogEntry[] = [];
-  
 
   /**
    * Creates a new HTTPWorkerTransport instance.
-   * 
+   *
    * @param {HTTPTransportOptions} options - Transport configuration
    * @throws {Error} If endpoint is not provided or invalid
    */
   constructor(options: HTTPTransportOptions) {
     super({
       name: options.name || 'http-worker',
-      enabled: options.enabled !== undefined ? options.enabled : true
+      enabled: options.enabled !== undefined ? options.enabled : true,
     });
-    
+
     // Support both 'endpoint' and 'url' properties
     const endpoint = options.endpoint || options.url;
     if (!endpoint) {
       throw new Error('HTTPWorkerTransport requires an endpoint');
     }
-    
+
     // Apply defaults - explicitly type the config object
     this.config = {
       name: options.name || 'http-worker',
@@ -231,22 +233,25 @@ export class HTTPTransport extends Transport {
       circuitBreakerResetTimeout: options.circuitBreakerResetTimeout || 60000,
       // Optional properties that may not be present
       enabled: options.enabled,
-      url: options.url
-    } as Required<Omit<HTTPTransportOptions, 'enabled' | 'url'>> & { enabled?: boolean; url?: string };
-    
+      url: options.url,
+    } as Required<Omit<HTTPTransportOptions, 'enabled' | 'url'>> & {
+      enabled?: boolean;
+      url?: string;
+    };
+
     // Lazy initialization - worker will be created on first use
   }
 
   /**
    * Initializes the worker thread with inline code.
-   * 
+   *
    * The worker handles:
    * - Batching of log entries
    * - JSON serialization
    * - Compression (if enabled)
    * - HTTP requests with retries
    * - Circuit breaker logic
-   * 
+   *
    * @private
    */
   private initializeWorker(): void {
@@ -529,14 +534,14 @@ export class HTTPTransport extends Transport {
         }
       });
     `;
-    
+
     // Create worker from string
-    this.worker = new Worker(workerCode, { 
-      eval: true 
+    this.worker = new Worker(workerCode, {
+      eval: true,
     });
-    
+
     // Set up worker event handlers
-    this.worker.on('message', (msg) => {
+    this.worker.on('message', msg => {
       switch (msg.type) {
         case 'ready':
           this.ready = true;
@@ -546,48 +551,48 @@ export class HTTPTransport extends Transport {
           }
           this.initQueue = [];
           break;
-          
+
         case 'error':
           console.error(`[${this.name}] Worker error:`, msg.error);
           // Stats tracking can be added if needed
           break;
-          
+
         case 'circuit-open':
           console.warn(`[${this.name}]`, msg.message);
           break;
-          
+
         case 'stats':
           // Stats received from worker
           break;
       }
     });
-    
-    this.worker.on('error', (error) => {
+
+    this.worker.on('error', error => {
       console.error(`[${this.name}] Worker thread error:`, error);
     });
-    
-    this.worker.on('exit', (code) => {
+
+    this.worker.on('exit', code => {
       if (code !== 0) {
         console.error(`[${this.name}] Worker stopped with exit code ${code}`);
       }
       this.worker = null;
       this.ready = false;
     });
-    
+
     // Initialize the worker
-    this.worker.postMessage({ 
-      type: 'init', 
-      config: this.config 
+    this.worker.postMessage({
+      type: 'init',
+      config: this.config,
     });
   }
 
   /**
    * Logs an entry by passing it to the worker thread.
-   * 
+   *
    * This method is non-blocking and returns immediately.
    * The entry is passed to the worker using structured cloning,
    * which is efficient for passing objects between threads.
-   * 
+   *
    * @param {LogEntry} entry - The log entry to send
    * @returns {void}
    * @protected
@@ -600,44 +605,44 @@ export class HTTPTransport extends Transport {
       this.initQueue.push(entry);
       return;
     }
-    
+
     if (!this.ready) {
       // Queue entry while worker is initializing
       this.initQueue.push(entry);
       return;
     }
-    
+
     // Pass to worker - uses structured cloning, no serialization here!
     this.worker.postMessage({ type: 'log', entry });
   }
 
   /**
    * Flushes the worker's batch immediately.
-   * 
+   *
    * Forces the worker to send any buffered logs immediately,
    * regardless of batch size or timer.
-   * 
+   *
    * @returns {Promise<void>} Resolves when flush completes
    * @public
    * @override
    */
   public async flush(): Promise<void> {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       if (!this.worker || !this.ready) {
         resolve();
         return;
       }
-      
+
       const handler = (msg: any) => {
         if (msg.type === 'flushed') {
           this.worker?.off('message', handler);
           resolve();
         }
       };
-      
+
       this.worker.on('message', handler);
       this.worker.postMessage({ type: 'flush' });
-      
+
       // Timeout after 10 seconds
       setTimeout(() => {
         this.worker?.off('message', handler);
@@ -646,20 +651,19 @@ export class HTTPTransport extends Transport {
     });
   }
 
-
   /**
    * Closes the transport and terminates the worker.
-   * 
+   *
    * Ensures all buffered logs are sent before shutting down.
-   * 
+   *
    * @returns {Promise<void>} Resolves when fully closed
    * @protected
    * @override
    */
   protected async doClose(): Promise<void> {
     if (!this.worker) return;
-    
-    return new Promise((resolve) => {
+
+    return new Promise(resolve => {
       const handler = (msg: any) => {
         if (msg.type === 'closed') {
           if (msg.stats) {
@@ -670,10 +674,10 @@ export class HTTPTransport extends Transport {
           resolve();
         }
       };
-      
+
       this.worker!.on('message', handler);
       this.worker!.postMessage({ type: 'close' });
-      
+
       // Force terminate after 30 seconds
       setTimeout(() => {
         if (this.worker) {
@@ -687,9 +691,9 @@ export class HTTPTransport extends Transport {
 
   /**
    * Initializes the transport.
-   * 
+   *
    * Waits for the worker to be ready before returning.
-   * 
+   *
    * @returns {Promise<void>} Resolves when initialized
    * @protected
    * @override
@@ -697,7 +701,7 @@ export class HTTPTransport extends Transport {
   protected async doInit(): Promise<void> {
     // Wait for worker to be ready
     if (!this.ready) {
-      await new Promise<void>((resolve) => {
+      await new Promise<void>(resolve => {
         const checkReady = () => {
           if (this.ready) {
             resolve();

@@ -1,16 +1,16 @@
 /**
  * @fileoverview File Transport with Worker Threads
- * 
+ *
  * Production-ready file transport that uses a dedicated worker thread
  * for all I/O operations, ensuring zero blocking of the main thread.
- * 
+ *
  * Key features:
  * - All I/O in worker thread
  * - Automatic file rotation
  * - Compression support
  * - Buffering in worker
  * - Structured cloning for efficient data transfer
- * 
+ *
  * @module transports/FileTransport
  */
 
@@ -20,7 +20,7 @@ import type { LogEntry } from '../types/transport';
 
 /**
  * Configuration options for FileWorkerTransport.
- * 
+ *
  * @interface FileWorkerTransportOptions
  */
 export interface FileTransportOptions {
@@ -28,41 +28,41 @@ export interface FileTransportOptions {
    * Transport name.
    */
   name?: string;
-  
+
   /**
    * File path to write logs to.
    */
   filepath: string;
-  
+
   /**
    * Whether this transport is enabled.
    * @default true
    */
   enabled?: boolean;
-  
+
   /**
    * Buffer size in the worker.
    * @default 10000
    */
   bufferSize?: number;
-  
+
   /**
    * Flush interval in milliseconds.
    * @default 100
    */
   flushInterval?: number;
-  
+
   /**
    * Format for log entries.
    * @default 'json'
    */
   format?: 'json' | 'plain';
-  
+
   /**
    * Maximum file size before rotation (bytes).
    */
   maxFileSize?: number;
-  
+
   /**
    * Whether to compress rotated files.
    * @default false
@@ -72,14 +72,14 @@ export interface FileTransportOptions {
 
 /**
  * File transport that uses a worker thread for all I/O operations.
- * 
+ *
  * This is the correct implementation that moves all heavy work
  * (buffering, serialization, file I/O) to a worker thread, keeping
  * the main thread free for application logic.
- * 
+ *
  * @class FileWorkerTransport
  * @extends {Transport}
- * 
+ *
  * @example
  * ```typescript
  * const fileTransport = new FileWorkerTransport({
@@ -87,7 +87,7 @@ export interface FileTransportOptions {
  *   bufferSize: 10000,    // Buffer in worker
  *   flushInterval: 100    // Flush every 100ms
  * });
- * 
+ *
  * // Main thread just passes the entry
  * fileTransport.log(entry);  // Non-blocking
  * ```
@@ -98,19 +98,19 @@ export class FileTransport extends Transport {
    * @private
    */
   private worker: Worker | null = null;
-  
+
   /**
    * Transport configuration.
    * @private
    */
   private readonly config: FileTransportOptions;
-  
+
   /**
    * Whether the worker is ready.
    * @private
    */
   private ready = false;
-  
+
   /**
    * Queue for entries while worker is initializing.
    * @private
@@ -119,22 +119,22 @@ export class FileTransport extends Transport {
 
   /**
    * Creates a new FileWorkerTransport instance.
-   * 
+   *
    * @param {FileWorkerTransportOptions} options - Transport configuration.
    */
   constructor(options: FileTransportOptions) {
     super({
       name: options.name || 'file-worker',
-      enabled: options.enabled !== undefined ? options.enabled : true
+      enabled: options.enabled !== undefined ? options.enabled : true,
     });
-    
+
     this.config = options;
     // Lazy initialization - worker will be created on first use
   }
 
   /**
    * Initializes the worker thread.
-   * 
+   *
    * @private
    */
   private initializeWorker(): void {
@@ -303,15 +303,15 @@ export class FileTransport extends Transport {
         }
       });
     `;
-    
+
     // Create worker from string
-    this.worker = new Worker(workerCode, { 
+    this.worker = new Worker(workerCode, {
       eval: true,
-      workerData: { config: this.config }
+      workerData: { config: this.config },
     });
-    
+
     // Set up worker event handlers
-    this.worker.on('message', (msg) => {
+    this.worker.on('message', msg => {
       if (msg.type === 'ready') {
         this.ready = true;
         // Process queued entries
@@ -323,12 +323,12 @@ export class FileTransport extends Transport {
         console.error('[FileWorkerTransport] Worker error:', msg.error);
       }
     });
-    
-    this.worker.on('error', (error) => {
+
+    this.worker.on('error', error => {
       console.error('[FileWorkerTransport] Worker thread error:', error);
     });
-    
-    this.worker.on('exit', (code) => {
+
+    this.worker.on('exit', code => {
       // Exit code 1 is expected when we call terminate()
       if (code !== 0 && code !== 1) {
         console.error(`[FileWorkerTransport] Worker stopped with exit code ${code}`);
@@ -336,21 +336,21 @@ export class FileTransport extends Transport {
       this.worker = null;
       this.ready = false;
     });
-    
+
     // Initialize the worker
-    this.worker.postMessage({ 
-      type: 'init', 
-      config: this.config 
+    this.worker.postMessage({
+      type: 'init',
+      config: this.config,
     });
   }
 
   /**
    * Logs an entry by passing it to the worker thread.
-   * 
+   *
    * This is the key method that demonstrates the correct architecture:
    * the main thread just passes the raw object to the worker,
    * with no serialization or I/O happening on the main thread.
-   * 
+   *
    * @param {LogEntry} entry - The log entry.
    * @returns {void}
    * @protected
@@ -362,39 +362,39 @@ export class FileTransport extends Transport {
       this.initQueue.push(entry);
       return;
     }
-    
+
     if (!this.ready) {
       // Queue entry while worker is initializing
       this.initQueue.push(entry);
       return;
     }
-    
+
     // Pass raw object to worker - no serialization here!
     this.worker.postMessage({ type: 'log', entry });
   }
 
   /**
    * Flushes the worker's buffer.
-   * 
+   *
    * @returns {Promise<void>}
    */
   public async flush(): Promise<void> {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       if (!this.worker || !this.ready) {
         resolve();
         return;
       }
-      
+
       const handler = (msg: any) => {
         if (msg.type === 'flushed') {
           this.worker?.off('message', handler);
           resolve();
         }
       };
-      
+
       this.worker.on('message', handler);
       this.worker.postMessage({ type: 'flush' });
-      
+
       // Timeout after 5 seconds
       setTimeout(() => {
         this.worker?.off('message', handler);
@@ -405,14 +405,14 @@ export class FileTransport extends Transport {
 
   /**
    * Closes the transport and terminates the worker.
-   * 
+   *
    * @returns {Promise<void>}
    * @protected
    */
   protected async doClose(): Promise<void> {
     if (!this.worker) return;
-    
-    return new Promise((resolve) => {
+
+    return new Promise(resolve => {
       const handler = (msg: any) => {
         if (msg.type === 'closed') {
           this.worker?.terminate();
@@ -420,10 +420,10 @@ export class FileTransport extends Transport {
           resolve();
         }
       };
-      
+
       this.worker!.on('message', handler);
       this.worker!.postMessage({ type: 'close' });
-      
+
       // Force terminate after 5 seconds
       setTimeout(() => {
         if (this.worker) {
@@ -437,7 +437,7 @@ export class FileTransport extends Transport {
 
   /**
    * Initializes the transport.
-   * 
+   *
    * @returns {Promise<void>}
    * @protected
    */
@@ -445,7 +445,7 @@ export class FileTransport extends Transport {
     // Worker is initialized in constructor
     // Wait for ready signal
     if (!this.ready) {
-      await new Promise<void>((resolve) => {
+      await new Promise<void>(resolve => {
         const checkReady = () => {
           if (this.ready) {
             resolve();

@@ -195,7 +195,7 @@ export class SyncFileTransport extends Transport {
    * @private
    * @internal
    */
-  // @ts-expect-error - Reserved for future optimization
+  // Reserved for future optimization
   private readonly _writeBuffer = '';
 
   /**

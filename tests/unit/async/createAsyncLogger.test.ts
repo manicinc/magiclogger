@@ -84,7 +84,7 @@ describe('createAsyncLogger factory', () => {
 
       // Wait for flush interval and processing
       await new Promise(resolve => setTimeout(resolve, 50));
-      
+
       // Force a flush to ensure processing completes
       await logger.flush();
 
@@ -154,7 +154,7 @@ describe('createAsyncLogger factory', () => {
 
       // Wait a bit for auto-flush to complete
       await new Promise(resolve => setTimeout(resolve, 20));
-      
+
       // Force flush to check results
       await logger.flushAndWait();
 

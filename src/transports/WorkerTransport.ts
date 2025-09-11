@@ -1,9 +1,9 @@
 /**
  * @fileoverview High-performance worker thread transport for async logging.
- * 
+ *
  * Implements Pino-style worker thread architecture with ring buffer
  * for maximum throughput and minimal main thread blocking.
- * 
+ *
  * @module transports/WorkerTransport
  */
 
@@ -13,7 +13,7 @@ import type { LogEntry, LogLevel } from '../types/transport';
 
 /**
  * Worker thread transport configuration.
- * 
+ *
  * @interface WorkerTransportOptions
  */
 export interface WorkerTransportOptions {
@@ -38,7 +38,7 @@ export interface WorkerTransportOptions {
 /**
  * Ring buffer for lock-free message passing.
  * Uses SharedArrayBuffer for zero-copy transfer to worker.
- * 
+ *
  * @class RingBuffer
  */
 class RingBuffer {
@@ -46,10 +46,10 @@ class RingBuffer {
   private view: Int32Array;
   private writeIndex = 0;
   private capacity: number;
-  
+
   /**
    * Creates a ring buffer with specified capacity.
-   * 
+   *
    * @param {number} capacity - Buffer capacity (should be power of 2)
    */
   constructor(capacity = 8192) {
@@ -58,10 +58,10 @@ class RingBuffer {
     this.buffer = new SharedArrayBuffer(this.capacity * 4);
     this.view = new Int32Array(this.buffer);
   }
-  
+
   /**
    * Adds entry to buffer without locking.
-   * 
+   *
    * @param {LogEntry} entry - Log entry to add
    * @returns {boolean} True if added successfully
    */
@@ -72,10 +72,10 @@ class RingBuffer {
     this.writeIndex++;
     return true;
   }
-  
+
   /**
    * Gets the shared buffer for worker access.
-   * 
+   *
    * @returns {SharedArrayBuffer} Shared buffer
    */
   getBuffer(): SharedArrayBuffer {
@@ -85,13 +85,13 @@ class RingBuffer {
 
 /**
  * High-performance worker thread transport.
- * 
+ *
  * Implements zero-copy message passing with ring buffer
  * and batched flushing for maximum throughput.
- * 
+ *
  * @class WorkerTransport
  * @extends {Transport}
- * 
+ *
  * @example
  * ```typescript
  * const workerTransport = new WorkerTransport({
@@ -100,7 +100,7 @@ class RingBuffer {
  *   batchSize: 100,     // Flush every 100 logs
  *   flushInterval: 10   // Or every 10ms
  * });
- * 
+ *
  * // Logs are sent to worker thread with zero blocking
  * logger.addTransport(workerTransport);
  * ```
@@ -111,19 +111,19 @@ export class WorkerTransport extends Transport {
   private pendingBatch: LogEntry[] = [];
   private flushTimer?: NodeJS.Timeout;
   protected readonly options: Required<WorkerTransportOptions>;
-  
+
   /**
    * Creates a new worker transport instance.
-   * 
+   *
    * @param {WorkerTransportOptions} options - Configuration options
    */
   constructor(options: WorkerTransportOptions) {
     super({
       name: options.name || 'worker',
       enabled: options.enabled !== false,
-      level: options.level || 'debug'
+      level: options.level || 'debug',
     });
-    
+
     this.options = {
       name: options.name || 'worker',
       enabled: options.enabled !== false,
@@ -133,21 +133,21 @@ export class WorkerTransport extends Transport {
       bufferSize: options.bufferSize || 8192,
       batchSize: options.batchSize || 100,
       // Preserve explicit 0 so timers can be disabled
-      flushInterval: options.flushInterval ?? 10
+      flushInterval: options.flushInterval ?? 10,
     };
-    
+
     // Initialize ring buffer for lock-free communication
     this.ringBuffer = new RingBuffer(this.options.bufferSize);
-    
+
     // Start worker if in main thread
     if (isMainThread) {
       this.initializeWorker();
     }
   }
-  
+
   /**
    * Initializes the worker thread.
-   * 
+   *
    * @private
    */
   private initializeWorker(): void {
@@ -156,22 +156,22 @@ export class WorkerTransport extends Transport {
       this.worker = new Worker(this.options.workerPath, {
         workerData: {
           ...this.options.workerOptions,
-          sharedBuffer: this.ringBuffer.getBuffer()
-        }
+          sharedBuffer: this.ringBuffer.getBuffer(),
+        },
       });
-      
+
       // Handle worker errors
-      this.worker.on('error', (error) => {
+      this.worker.on('error', error => {
         console.error('[WorkerTransport] Worker error:', error);
       });
-      
+
       // Handle worker exit
-      this.worker.on('exit', (code) => {
+      this.worker.on('exit', code => {
         if (code !== 0) {
           console.error(`[WorkerTransport] Worker stopped with exit code ${code}`);
         }
       });
-      
+
       // Start flush timer
       if (this.options.flushInterval > 0) {
         this.flushTimer = setInterval(() => this.flush(), this.options.flushInterval);
@@ -182,10 +182,10 @@ export class WorkerTransport extends Transport {
       console.error('[WorkerTransport] Failed to initialize worker:', error);
     }
   }
-  
+
   /**
    * Logs an entry via worker thread with zero blocking.
-   * 
+   *
    * @param {LogEntry} entry - Log entry to send
    * @returns {Promise<void>} Resolves immediately
    * @protected
@@ -193,40 +193,40 @@ export class WorkerTransport extends Transport {
    */
   protected async doLog(entry: LogEntry): Promise<void> {
     if (!this.worker) return;
-    
+
     // Add to pending batch
     this.pendingBatch.push(entry);
-    
+
     // Flush if batch size reached
     if (this.pendingBatch.length >= this.options.batchSize) {
       this.flushSync();
     }
-    
+
     // Mark in ring buffer for monitoring
     this.ringBuffer.push(entry);
   }
-  
+
   /**
    * Flushes pending logs to worker thread.
-   * 
+   *
    * @private
    */
   private flushSync(): void {
     if (this.pendingBatch.length === 0 || !this.worker) return;
-    
+
     // Send batch to worker (structured clone, not blocking)
     this.worker.postMessage({
       type: 'batch',
-      entries: this.pendingBatch
+      entries: this.pendingBatch,
     });
-    
+
     // Clear batch
     this.pendingBatch = [];
   }
-  
+
   /**
    * Public async flush method for Transport interface compliance.
-   * 
+   *
    * @returns {Promise<void>} Promise that resolves when flush is complete
    */
   public async flush(): Promise<void> {
@@ -234,10 +234,10 @@ export class WorkerTransport extends Transport {
     // Give time for message to be sent
     await new Promise(resolve => setImmediate(resolve));
   }
-  
+
   /**
    * Initializes the transport.
-   * 
+   *
    * @returns {Promise<void>}
    * @protected
    * @override
@@ -245,10 +245,10 @@ export class WorkerTransport extends Transport {
   protected async doInit(): Promise<void> {
     // Worker already initialized in constructor
   }
-  
+
   /**
    * Closes the transport and worker thread.
-   * 
+   *
    * @returns {Promise<void>}
    * @protected
    * @override
@@ -256,13 +256,13 @@ export class WorkerTransport extends Transport {
   protected async doClose(): Promise<void> {
     // Final flush
     this.flushSync();
-    
+
     // Stop flush timer
     if (this.flushTimer) {
       clearInterval(this.flushTimer);
       this.flushTimer = undefined;
     }
-    
+
     // Terminate worker
     if (this.worker) {
       await this.worker.terminate();
@@ -274,15 +274,15 @@ export class WorkerTransport extends Transport {
 /**
  * Worker thread handler for receiving log batches.
  * Use this in your worker script.
- * 
+ *
  * @example
  * ```javascript
  * // log-worker.js
  * const { parentPort, workerData } = require('worker_threads');
  * const fs = require('fs');
- * 
+ *
  * const stream = fs.createWriteStream(workerData.logFile);
- * 
+ *
  * parentPort.on('message', ({ type, entries }) => {
  *   if (type === 'batch') {
  *     for (const entry of entries) {

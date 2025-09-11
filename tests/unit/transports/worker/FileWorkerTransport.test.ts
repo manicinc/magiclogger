@@ -9,7 +9,7 @@ import { Worker } from 'worker_threads';
 
 // Mock worker_threads so we don't spawn real workers
 jest.mock('worker_threads', () => ({
-  Worker: jest.fn()
+  Worker: jest.fn(),
 }));
 
 interface MockWorker {
@@ -28,7 +28,7 @@ describe('FileWorkerTransport', () => {
       postMessage: jest.fn(),
       on: jest.fn(),
       once: jest.fn(),
-      terminate: jest.fn().mockResolvedValue(undefined)
+      terminate: jest.fn().mockResolvedValue(undefined),
     } as unknown as MockWorker;
     (Worker as unknown as jest.Mock).mockImplementation(() => mockWorker);
   });
@@ -39,7 +39,7 @@ describe('FileWorkerTransport', () => {
       timestamp: new Date().toISOString(),
       timestampMs: Date.now(),
       level: 'info',
-      message: `Msg ${i}`
+      message: `Msg ${i}`,
     } as LogEntry;
   }
 
@@ -50,24 +50,42 @@ describe('FileWorkerTransport', () => {
   });
 
   it('buffers entries until bufferSize reached', async () => {
-    const transport = new FileWorkerTransport({ path: 'logs/app.log', bufferSize: 2, flushInterval: 0 });
+    const transport = new FileWorkerTransport({
+      path: 'logs/app.log',
+      bufferSize: 2,
+      flushInterval: 0,
+    });
     await transport.log(makeEntry(1));
     expect(mockWorker.postMessage).not.toHaveBeenCalled();
     await transport.log(makeEntry(2));
     // Should auto flush batch of 2
-    expect(mockWorker.postMessage).toHaveBeenCalledWith({ type: 'WRITE_BATCH', entries: expect.any(Array) });
+    expect(mockWorker.postMessage).toHaveBeenCalledWith({
+      type: 'WRITE_BATCH',
+      entries: expect.any(Array),
+    });
   });
 
   it('flush() sends current buffer and issues FLUSH message', async () => {
-    const transport = new FileWorkerTransport({ path: 'logs/app.log', bufferSize: 100, flushInterval: 0 });
+    const transport = new FileWorkerTransport({
+      path: 'logs/app.log',
+      bufferSize: 100,
+      flushInterval: 0,
+    });
     await transport.log(makeEntry(1));
     await transport.flush();
-    expect(mockWorker.postMessage).toHaveBeenNthCalledWith(1, { type: 'WRITE_BATCH', entries: expect.any(Array) });
+    expect(mockWorker.postMessage).toHaveBeenNthCalledWith(1, {
+      type: 'WRITE_BATCH',
+      entries: expect.any(Array),
+    });
     expect(mockWorker.postMessage).toHaveBeenNthCalledWith(2, { type: 'FLUSH' });
   });
 
   it('close() flushes and sends SHUTDOWN', async () => {
-    const transport = new FileWorkerTransport({ path: 'logs/app.log', bufferSize: 10, flushInterval: 0 });
+    const transport = new FileWorkerTransport({
+      path: 'logs/app.log',
+      bufferSize: 10,
+      flushInterval: 0,
+    });
     await transport.log(makeEntry(1));
     // Simulate exit event immediately when registered via once
     (mockWorker.once as jest.Mock).mockImplementation((event: string, handler: () => void) => {
@@ -78,13 +96,18 @@ describe('FileWorkerTransport', () => {
       return mockWorker;
     });
     await transport.close();
-    expect(mockWorker.postMessage).toHaveBeenCalledWith({ type: 'WRITE_BATCH', entries: expect.any(Array) });
+    expect(mockWorker.postMessage).toHaveBeenCalledWith({
+      type: 'WRITE_BATCH',
+      entries: expect.any(Array),
+    });
     expect(mockWorker.postMessage).toHaveBeenCalledWith({ type: 'FLUSH' });
     expect(mockWorker.postMessage).toHaveBeenCalledWith({ type: 'SHUTDOWN' });
   });
 
   it('handles worker error and exit events', () => {
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => { return undefined; });
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {
+      return undefined;
+    });
     new FileWorkerTransport({ path: 'logs/app.log', flushInterval: 0 });
     // Simulate error handler registration call
     type HandlerCall = [event: string, handler: (...args: unknown[]) => unknown];
@@ -100,8 +123,8 @@ describe('FileWorkerTransport', () => {
   it('does nothing on flush when no worker / empty buffer', async () => {
     const transport = new FileWorkerTransport({ path: 'logs/app.log', flushInterval: 0 });
     // Simulate worker died
-  // @ts-expect-error intentional test of missing worker
-  (transport as { worker: unknown | null }).worker = null;
+    // @ts-expect-error intentional test of missing worker
+    (transport as { worker: unknown | null }).worker = null;
     await transport.flush();
     expect(mockWorker.postMessage).not.toHaveBeenCalled();
   });

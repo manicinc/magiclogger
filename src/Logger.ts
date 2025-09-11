@@ -128,7 +128,6 @@ export class Logger {
    */
   private readonly options: LoggerOptions;
 
-
   /**
    * Formatter instance for text formatting and styling.
    * Pre-initialized for performance.
@@ -160,14 +159,14 @@ export class Logger {
   private nodeUtilInspect?:
     | ((val: unknown, opts?: { colors?: boolean; depth?: number }) => string)
     | null;
-  
+
   // Performance optimizations: cache frequently used values
   private cachedTransportCount = -1;
   private hasTransports = false;
   private useConsoleOutput = false;
-  
+
   // Object pooling removed - minimal objects are fast to create
-  
+
   // Integer log level mapping - always used for performance
   private static readonly LEVEL_TO_INT: Record<LogLevel, number> = {
     trace: 10,
@@ -176,11 +175,8 @@ export class Logger {
     warn: 40,
     error: 50,
     fatal: 60,
-    success: 35
+    success: 35,
   };
-  
-  
-
 
   /**
    * Theme manager instance for handling themes.
@@ -213,13 +209,11 @@ export class Logger {
     // Validate and normalize options
     this.options = this.validateOptions(this.options);
 
-
     // Pre-initialize all styling components for performance
     this.formatter = new Formatter(this.useColors);
     this.styleBuilder = new StyleBuilder(this.useColors);
     this.templateParser = new TemplateParser(this.useColors);
     this.templateFormatter = this.templateParser.createFormatter();
-
 
     // Initialize transport manager
     this.transportManager = new TransportManager();
@@ -399,10 +393,6 @@ export class Logger {
       console.warn('[Logger] Failed to register console transport:', error);
     }
   }
-
-  
-
-
 
   // ============================================================
   // Variadic argument support helpers
@@ -716,24 +706,24 @@ export class Logger {
       this.hasTransports = this.transportManager !== null && this.cachedTransportCount > 0;
       this.useConsoleOutput = this.cachedTransportCount === 0 && this.options.useConsole !== false;
     }
-    
+
     // Early exit if no outputs
     if (!this.hasTransports && !this.useConsoleOutput) {
       return;
     }
-    
+
     // Fast path: Create minimal entry - ONLY required fields
     const entry: any = {
       level: Logger.LEVEL_TO_INT[level] || 30,
       time: Date.now(),
-      msg: msg
+      msg: msg,
     };
-    
+
     // Fast path: Skip style processing entirely for messages without style markers
     // This avoids expensive regex operations for 90% of logs
     // OPTIMIZATION: Check for closing tag too to avoid false positives
     const hasStyleMarkers = msg.includes('<') && msg.includes('>') && msg.includes('</>');
-    
+
     if (this.useColors && !this.options.performanceMode && hasStyleMarkers) {
       // Only parse styles if we actually have style markers
       const extracted = TextStyler.parseBracketsWithExtraction(msg, true);
@@ -747,7 +737,7 @@ export class Logger {
       entry.msg = msg;
       entry.plainMsg = msg;
     }
-    
+
     // Fast metadata handling
     if (meta) {
       // Special handling for Error objects
@@ -758,7 +748,7 @@ export class Logger {
         Object.assign(entry, meta);
       }
     }
-    
+
     // Direct dispatch - optimized hot path
     // Use cached boolean to avoid repeated checks
     if (this.hasTransports) {
@@ -1045,7 +1035,7 @@ export class Logger {
   /**
    * Prints a formatted table with borders and proper alignment.
    * Automatically handles ANSI escape codes and column width calculation.
-   * 
+   *
    * @param data - Array of objects to display as table rows
    * @param options - Table formatting options
    * @param options.border - Border style: 'single' | 'double' | 'rounded' | 'heavy' | 'none' (default: 'single')
@@ -1053,7 +1043,7 @@ export class Logger {
    * @param options.borderColor - Colors for borders (default: ['dim'])
    * @param options.alternateRowColors - Enable alternating row colors
    * @param options.alignment - Text alignment: 'left' | 'center' | 'right' (default: 'left')
-   * 
+   *
    * @example
    * ```typescript
    * logger.table([
@@ -1081,17 +1071,21 @@ export class Logger {
     if (!Array.isArray(data) || data.length === 0) {
       return;
     }
-    
+
     // Use TableFormatter for proper formatting
-    const lines = TableFormatter.format(data, {
-      border: options.border || 'single',
-      headerColor: options.headerColor || ['brightWhite', 'bold'],
-      borderColor: options.borderColor || ['dim'],
-      alternateRowColors: options.alternateRowColors,
-      alignment: options.alignment || 'left',
-      padding: 1
-    }, this.useColors);
-    
+    const lines = TableFormatter.format(
+      data,
+      {
+        border: options.border || 'single',
+        headerColor: options.headerColor || ['brightWhite', 'bold'],
+        borderColor: options.borderColor || ['dim'],
+        alternateRowColors: options.alternateRowColors,
+        alignment: options.alignment || 'left',
+        padding: 1,
+      },
+      this.useColors
+    );
+
     // Log each line
     lines.forEach((line: string) => {
       this.log(line, 'info', { type: 'table' });
@@ -1100,11 +1094,11 @@ export class Logger {
 
   /**
    * Prints a separator line.
-   * 
+   *
    * @param char - Character to use for the separator (default: '─')
    * @param width - Width of the separator line (default: 50)
    * @param color - Optional colors to apply to the separator
-   * 
+   *
    * @example
    * ```typescript
    * logger.separator('═', 60, ['cyan']);
@@ -1119,14 +1113,14 @@ export class Logger {
 
   /**
    * Prints text in a decorative box with customizable borders.
-   * 
+   *
    * @param text - Text to display inside the box (supports multiline)
    * @param options - Box formatting options
    * @param options.border - Border style: 'single' | 'double' | 'rounded' | 'heavy' (default: 'single')
    * @param options.color - Colors for the text inside the box
    * @param options.borderColor - Colors for the box borders
    * @param options.padding - Padding around the text (default: 1)
-   * 
+   *
    * @example
    * ```typescript
    * logger.box('Success!', {
@@ -1694,7 +1688,6 @@ export class Logger {
     return this.options.useColors ?? true;
   }
 
-
   /**
    * Gets the log retention days setting (deprecated).
    * @returns {number} Number of days to retain logs
@@ -1971,13 +1964,13 @@ export class Logger {
 
   // Timer support
   private timers = new Map<string, number>();
-  
+
   /**
    * Starts a timer with the given label.
    * Use timeEnd() to stop the timer and log the elapsed time.
-   * 
+   *
    * @param label - Label for the timer
-   * 
+   *
    * @example
    * ```typescript
    * logger.time('database-query');
@@ -1992,9 +1985,9 @@ export class Logger {
 
   /**
    * Stops a timer and logs the elapsed time.
-   * 
+   *
    * @param label - Label of the timer to stop
-   * 
+   *
    * @example
    * ```typescript
    * logger.time('api-call');
@@ -2014,12 +2007,12 @@ export class Logger {
 
   // Counter support
   private counters = new Map<string, number>();
-  
+
   /**
    * Counts the number of times this method is called with the same label.
-   * 
+   *
    * @param label - Label for the counter (default: 'default')
-   * 
+   *
    * @example
    * ```typescript
    * logger.count('api-calls'); // Logs: "api-calls: 1"
@@ -2039,9 +2032,9 @@ export class Logger {
 
   /**
    * Resets a counter to zero.
-   * 
+   *
    * @param label - Label of the counter to reset (default: 'default')
-   * 
+   *
    * @example
    * ```typescript
    * logger.count('errors'); // "errors: 1"
@@ -2058,9 +2051,9 @@ export class Logger {
   /**
    * Creates a collapsible group of log messages.
    * All logs after group() and before groupEnd() are visually grouped.
-   * 
+   *
    * @param label - Label for the group
-   * 
+   *
    * @example
    * ```typescript
    * logger.group('Processing batch');
@@ -2077,7 +2070,7 @@ export class Logger {
 
   /**
    * Ends the current log group.
-   * 
+   *
    * @example
    * ```typescript
    * logger.group('Database operations');

@@ -5,7 +5,7 @@ import {
   isStyleBuilder,
   type StyledPart,
   type WordStyleMap,
-  type IStyleBuilder
+  type IStyleBuilder,
 } from '../../../src/types/styling';
 
 describe('styling type guards', () => {
@@ -50,7 +50,7 @@ describe('styling type guards', () => {
       const map: WordStyleMap = {
         0: ['red', 'bold'],
         2: ['yellow'],
-        5: ['cyan', 'underline']
+        5: ['cyan', 'underline'],
       };
       expect(isWordStyleMap(map)).toBe(true);
     });
@@ -88,7 +88,7 @@ describe('styling type guards', () => {
     it('should handle string keys that are valid integers', () => {
       const map = {
         '0': ['red'],
-        '10': ['blue']
+        '10': ['blue'],
       };
       expect(isWordStyleMap(map)).toBe(true);
     });
@@ -96,68 +96,62 @@ describe('styling type guards', () => {
 
   describe('isStyleBuilder', () => {
     it('should return true for valid IStyleBuilder', () => {
-      const builder: IStyleBuilder = Object.assign(
-        (text: string) => text,
-        {
-          red: {} as IStyleBuilder,
-          green: {} as IStyleBuilder,
-          blue: {} as IStyleBuilder,
-          yellow: {} as IStyleBuilder,
-          magenta: {} as IStyleBuilder,
-          cyan: {} as IStyleBuilder,
-          white: {} as IStyleBuilder,
-          black: {} as IStyleBuilder,
-          gray: {} as IStyleBuilder,
-          grey: {} as IStyleBuilder,
-          brightRed: {} as IStyleBuilder,
-          brightGreen: {} as IStyleBuilder,
-          brightYellow: {} as IStyleBuilder,
-          brightBlue: {} as IStyleBuilder,
-          brightMagenta: {} as IStyleBuilder,
-          brightCyan: {} as IStyleBuilder,
-          brightWhite: {} as IStyleBuilder,
-          brightBlack: {} as IStyleBuilder,
-          bgRed: {} as IStyleBuilder,
-          bgGreen: {} as IStyleBuilder,
-          bgYellow: {} as IStyleBuilder,
-          bgBlue: {} as IStyleBuilder,
-          bgMagenta: {} as IStyleBuilder,
-          bgCyan: {} as IStyleBuilder,
-          bgWhite: {} as IStyleBuilder,
-          bgBlack: {} as IStyleBuilder,
-          bgGray: {} as IStyleBuilder,
-          bgGrey: {} as IStyleBuilder,
-          bgBrightRed: {} as IStyleBuilder,
-          bgBrightGreen: {} as IStyleBuilder,
-          bgBrightYellow: {} as IStyleBuilder,
-          bgBrightBlue: {} as IStyleBuilder,
-          bgBrightMagenta: {} as IStyleBuilder,
-          bgBrightCyan: {} as IStyleBuilder,
-          bgBrightWhite: {} as IStyleBuilder,
-          bgBrightBlack: {} as IStyleBuilder,
-          bold: {} as IStyleBuilder,
-          dim: {} as IStyleBuilder,
-          italic: {} as IStyleBuilder,
-          underline: {} as IStyleBuilder,
-          blink: {} as IStyleBuilder,
-          reverse: {} as IStyleBuilder,
-          inverse: {} as IStyleBuilder,
-          hidden: {} as IStyleBuilder,
-          strikethrough: {} as IStyleBuilder
-        }
-      );
+      const builder: IStyleBuilder = Object.assign((text: string) => text, {
+        red: {} as IStyleBuilder,
+        green: {} as IStyleBuilder,
+        blue: {} as IStyleBuilder,
+        yellow: {} as IStyleBuilder,
+        magenta: {} as IStyleBuilder,
+        cyan: {} as IStyleBuilder,
+        white: {} as IStyleBuilder,
+        black: {} as IStyleBuilder,
+        gray: {} as IStyleBuilder,
+        grey: {} as IStyleBuilder,
+        brightRed: {} as IStyleBuilder,
+        brightGreen: {} as IStyleBuilder,
+        brightYellow: {} as IStyleBuilder,
+        brightBlue: {} as IStyleBuilder,
+        brightMagenta: {} as IStyleBuilder,
+        brightCyan: {} as IStyleBuilder,
+        brightWhite: {} as IStyleBuilder,
+        brightBlack: {} as IStyleBuilder,
+        bgRed: {} as IStyleBuilder,
+        bgGreen: {} as IStyleBuilder,
+        bgYellow: {} as IStyleBuilder,
+        bgBlue: {} as IStyleBuilder,
+        bgMagenta: {} as IStyleBuilder,
+        bgCyan: {} as IStyleBuilder,
+        bgWhite: {} as IStyleBuilder,
+        bgBlack: {} as IStyleBuilder,
+        bgGray: {} as IStyleBuilder,
+        bgGrey: {} as IStyleBuilder,
+        bgBrightRed: {} as IStyleBuilder,
+        bgBrightGreen: {} as IStyleBuilder,
+        bgBrightYellow: {} as IStyleBuilder,
+        bgBrightBlue: {} as IStyleBuilder,
+        bgBrightMagenta: {} as IStyleBuilder,
+        bgBrightCyan: {} as IStyleBuilder,
+        bgBrightWhite: {} as IStyleBuilder,
+        bgBrightBlack: {} as IStyleBuilder,
+        bold: {} as IStyleBuilder,
+        dim: {} as IStyleBuilder,
+        italic: {} as IStyleBuilder,
+        underline: {} as IStyleBuilder,
+        blink: {} as IStyleBuilder,
+        reverse: {} as IStyleBuilder,
+        inverse: {} as IStyleBuilder,
+        hidden: {} as IStyleBuilder,
+        strikethrough: {} as IStyleBuilder,
+      });
       expect(isStyleBuilder(builder)).toBe(true);
     });
 
     it('should return true for minimal valid IStyleBuilder', () => {
-      const builder = Object.assign(
-        (text: string) => text,
-        {
-          red: {},
-          green: {},
-          blue: {}
-        }
-      );
+      const builder = Object.assign((text: string) => text, {
+        red: {},
+        green: {},
+        blue: {},
+      });
       expect(isStyleBuilder(builder)).toBe(true);
     });
 
@@ -176,14 +170,11 @@ describe('styling type guards', () => {
     });
 
     it('should return false for function with only some properties', () => {
-      const partialBuilder = Object.assign(
-        (text: string) => text,
-        {
-          red: {},
-          green: {}
-          // missing blue
-        }
-      );
+      const partialBuilder = Object.assign((text: string) => text, {
+        red: {},
+        green: {},
+        // missing blue
+      });
       expect(isStyleBuilder(partialBuilder)).toBe(false);
     });
   });

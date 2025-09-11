@@ -82,7 +82,11 @@ async function showAnimatedLogo(_logger: Logger): Promise<void> {
   console.log('');
 
   // Tagline with gradient
-  const tagline = gradientText('✨ Beautiful Terminal & Browser Logs Styling Made Magical ✨', 'cyan', 'magenta');
+  const tagline = gradientText(
+    '✨ Beautiful Terminal & Browser Logs Styling Made Magical ✨',
+    'cyan',
+    'magenta'
+  );
   console.log(tagline);
 
   await sleep(1000);
@@ -141,7 +145,9 @@ async function animatedProgressDemo(logger: Logger): Promise<void> {
   // Animated progress bar
   logger.info(logger.s.cyan('Downloading packages...'));
   for (let i = 0; i <= 100; i += 10) {
-    process.stdout.write('\r' + logger.s.dim(`[${('█').repeat(Math.floor(i/3.3)).padEnd(30)}] ${i}%`));
+    process.stdout.write(
+      '\r' + logger.s.dim(`[${'█'.repeat(Math.floor(i / 3.3)).padEnd(30)}] ${i}%`)
+    );
     await sleep(100);
   }
   process.stdout.write('\n');
@@ -217,9 +223,11 @@ async function templateLiteralStyling(logger: Logger): Promise<void> {
 
   // Using template literals with @ syntax
   logger.info(
-    logger.s.red.bold(`Errors: ${errorCount}`) + ' | ' +
-    logger.s.yellow(`Warnings: ${warningCount}`) + ' | ' +
-    logger.s.green(`Duration: ${duration}ms`)
+    logger.s.red.bold(`Errors: ${errorCount}`) +
+      ' | ' +
+      logger.s.yellow(`Warnings: ${warningCount}`) +
+      ' | ' +
+      logger.s.green(`Duration: ${duration}ms`)
   );
   await sleep(300);
 
@@ -228,11 +236,15 @@ async function templateLiteralStyling(logger: Logger): Promise<void> {
   const environment = 'production';
 
   logger.info(
-    logger.s.cyan.bold(username) + ' ' +
-    logger.s.dim('successfully') + ' ' +
-    logger.s.green.bold(action) + ' ' +
-    logger.s.dim('to') + ' ' +
-    logger.s.magenta.underline(environment)
+    logger.s.cyan.bold(username) +
+      ' ' +
+      logger.s.dim('successfully') +
+      ' ' +
+      logger.s.green.bold(action) +
+      ' ' +
+      logger.s.dim('to') +
+      ' ' +
+      logger.s.magenta.underline(environment)
   );
   await sleep(500);
 }
@@ -254,7 +266,7 @@ async function colorfulTableDemo(logger: Logger): Promise<void> {
       p50: logger.s.green('45ms'),
       p95: logger.s.yellow('120ms'),
       p99: logger.s.red('250ms'),
-      status: logger.s.green.bold('✓')
+      status: logger.s.green.bold('✓'),
     },
     {
       endpoint: logger.s.cyan('/api/posts'),
@@ -262,7 +274,7 @@ async function colorfulTableDemo(logger: Logger): Promise<void> {
       p50: logger.s.green('23ms'),
       p95: logger.s.yellow('67ms'),
       p99: logger.s.red('145ms'),
-      status: logger.s.green.bold('✓')
+      status: logger.s.green.bold('✓'),
     },
     {
       endpoint: logger.s.cyan('/api/auth'),
@@ -270,17 +282,17 @@ async function colorfulTableDemo(logger: Logger): Promise<void> {
       p50: logger.s.green('89ms'),
       p95: logger.s.yellow('203ms'),
       p99: logger.s.red('412ms'),
-      status: logger.s.yellow.bold('!')
-    }
+      status: logger.s.yellow.bold('!'),
+    },
   ];
 
   // Use the new table method with double borders
   logger.table(tableData, {
     border: 'double',
     headerColor: ['brightWhite', 'bold'],
-    borderColor: ['blue']
+    borderColor: ['blue'],
   });
-  
+
   await sleep(500);
 }
 
@@ -310,10 +322,13 @@ async function realWorldExamples(logger: Logger): Promise<void> {
   // Deployment Status
   logger.info(
     logger.s.white('DEPLOY: ') +
-    logger.s.green('✓') + ' Deployment ' +
-    logger.s.cyan.bold('v3.2.1') + ' to ' +
-    logger.s.magenta.bold('production') + ' ' +
-    logger.s.green.bold('successful')
+      logger.s.green('✓') +
+      ' Deployment ' +
+      logger.s.cyan.bold('v3.2.1') +
+      ' to ' +
+      logger.s.magenta.bold('production') +
+      ' ' +
+      logger.s.green.bold('successful')
   );
   await sleep(300);
 
@@ -356,24 +371,27 @@ async function asciiArtAndDecorations(logger: Logger): Promise<void> {
     border: 'double',
     borderColor: ['cyan'],
     color: ['yellow', 'bold'],
-    padding: 2
+    padding: 2,
   });
   await sleep(300);
 
   // Feature list using the new list method
-  logger.list([
-    'Rich color support',
-    'High performance',
-    'Flexible API',
-    'Beautiful tables',
-    'Rainbow effects',
-    'Pure magic'
-  ], {
-    bullet: '✨',
-    bulletColor: ['yellow'],
-    itemColor: ['white'],
-    indent: 2
-  });
+  logger.list(
+    [
+      'Rich color support',
+      'High performance',
+      'Flexible API',
+      'Beautiful tables',
+      'Rainbow effects',
+      'Pure magic',
+    ],
+    {
+      bullet: '✨',
+      bulletColor: ['yellow'],
+      itemColor: ['white'],
+      indent: 2,
+    }
+  );
 
   await sleep(500);
 }
@@ -399,8 +417,13 @@ async function grandFinale(logger: Logger): Promise<void> {
   await sleep(500);
 
   // Links
-  logger.info('[Link] 🔗 GitHub Repository: ' + logger.s.cyan.underline('https://github.com/manicinc/magiclogger'));
-  logger.info('[Link] 📦 NPM Package: ' + logger.s.cyan.underline('https://npmjs.com/package/magiclogger'));
+  logger.info(
+    '[Link] 🔗 GitHub Repository: ' +
+      logger.s.cyan.underline('https://github.com/manicinc/magiclogger')
+  );
+  logger.info(
+    '[Link] 📦 NPM Package: ' + logger.s.cyan.underline('https://npmjs.com/package/magiclogger')
+  );
 
   console.log('\n' + logger.s.green.bold('Thank you for watching! Happy logging! 🚀'));
 }
@@ -411,7 +434,7 @@ async function grandFinale(logger: Logger): Promise<void> {
 async function runDemo(): Promise<void> {
   const logger = new Logger({
     useColors: true,
-    useConsole: true
+    useConsole: true,
   });
 
   try {

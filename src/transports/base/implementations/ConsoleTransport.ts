@@ -334,25 +334,26 @@ export class ConsoleTransport extends Transport {
     let output = parts.join(' ');
 
     // Error details - check multiple locations where error might be stored
-    const error = entry.error || 
-                  (entry.context && ((entry.context as Record<string, unknown>).err || (entry.context as Record<string, unknown>).error));
+    const error =
+      entry.error ||
+      (entry.context &&
+        ((entry.context as Record<string, unknown>).err ||
+          (entry.context as Record<string, unknown>).error));
     if (error) {
       // Display as "Error: name - message" format
       if (typeof error === 'object' && 'message' in error) {
-        const errorName = error.name || 'Error';
+        const errorName = (error as any).name || 'Error';
         const errorLine = this.useColors
           ? Colorizer.color(`Error: ${errorName} - ${error.message}`, 'red', true)
           : `Error: ${errorName} - ${error.message}`;
         output += ' ' + errorLine;
-        if (error.stack) {
-          output += '\n' + error.stack;
+        if ((error as any).stack) {
+          output += '\n' + (error as any).stack;
         }
       } else {
         try {
           const errorOutput =
-            typeof this.formatError === 'function'
-              ? this.formatError(error)
-              : String(error);
+            typeof this.formatError === 'function' ? this.formatError(error as any) : String(error);
           output += '\n' + errorOutput;
         } catch {
           /* ignore formatting errors */
@@ -426,12 +427,12 @@ export class ConsoleTransport extends Transport {
     delete filteredData.plainMsg;
     delete filteredData.loggerId;
     delete filteredData.styles;
-    
+
     // Skip if no data left after filtering
     if (Object.keys(filteredData).length === 0) {
       return '';
     }
-    
+
     const header = this.useColors ? Colorizer.color(`${label}:`, 'gray', true) : `${label}:`;
 
     const json = JSON.stringify(filteredData, null, 2);

@@ -64,11 +64,12 @@ export const path = {
       .filter(p => p != null)
       .map(p => String(p))
       .filter(p => p !== '');
-    
+
     if (filtered.length === 0) return '';
-    
+
     // Join and clean up multiple slashes
-    return filtered.join('/')
+    return filtered
+      .join('/')
       .replace(/\/+/g, '/')
       .replace(/^\/*/, filtered[0]?.startsWith('/') ? '/' : '');
   },
@@ -97,7 +98,7 @@ export const path = {
     p = p.replace(/\/*$/, '');
     const lastSlash = p.lastIndexOf('/');
     const base = lastSlash === -1 ? p : p.substring(lastSlash + 1);
-    
+
     // Remove extension if provided
     if (ext && base.endsWith(ext)) {
       return base.substring(0, base.length - ext.length);
@@ -105,7 +106,7 @@ export const path = {
     return base;
   },
   sep: '/',
-  delimiter: ':'
+  delimiter: ':',
 };
 
 // Empty os implementation for browser
@@ -120,8 +121,8 @@ export const os = {
   homedir: () => '/',
   cpus: () => [],
   totalmem: () => 2147483648, // 2GB
-  freemem: () => 1073741824,  // 1GB
-  uptime: () => Math.floor(performance.now() / 1000)
+  freemem: () => 1073741824, // 1GB
+  uptime: () => Math.floor(performance.now() / 1000),
 };
 
 // Export all polyfills in a single object

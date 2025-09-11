@@ -11,7 +11,7 @@ describe('TableFormatter', () => {
         { name: 'Alice', age: 30, city: 'New York' },
         { name: 'Bob', age: 25, city: 'Los Angeles' },
       ];
-      
+
       const result = TableFormatter.formatTable(data);
       expect(result).toContain('name');
       expect(result).toContain('age');
@@ -103,10 +103,10 @@ describe('TableFormatter', () => {
       ];
       const result = TableFormatter.formatTable(data);
       const lines = result.split('\n');
-      
+
       // Check that header separators exist
       expect(lines.some(line => line.includes('─'))).toBe(true);
-      
+
       // Check that pipes exist for column separation
       expect(lines.some(line => line.includes('│'))).toBe(true);
     });
@@ -140,12 +140,7 @@ describe('TableFormatter', () => {
     });
 
     it('should handle mixed types in same column', () => {
-      const data = [
-        { value: 'string' },
-        { value: 123 },
-        { value: true },
-        { value: null },
-      ];
+      const data = [{ value: 'string' }, { value: 123 }, { value: true }, { value: null }];
       const result = TableFormatter.formatTable(data);
       expect(result).toContain('string');
       expect(result).toContain('123');
@@ -167,7 +162,7 @@ describe('TableFormatter', () => {
       const data = [{ field: veryLongString }];
       const result = TableFormatter.formatTable(data);
       const lines = result.split('\n');
-      
+
       // Check that no line is excessively long
       lines.forEach(line => {
         expect(line.length).toBeLessThan(250);
@@ -185,11 +180,7 @@ describe('TableFormatter', () => {
     });
 
     it('should handle single column', () => {
-      const data = [
-        { only: 'first' },
-        { only: 'second' },
-        { only: 'third' },
-      ];
+      const data = [{ only: 'first' }, { only: 'second' }, { only: 'third' }];
       const result = TableFormatter.formatTable(data);
       expect(result).toContain('only');
       expect(result).toContain('first');
@@ -198,10 +189,20 @@ describe('TableFormatter', () => {
     });
 
     it('should handle many columns', () => {
-      const data = [{
-        a: 1, b: 2, c: 3, d: 4, e: 5,
-        f: 6, g: 7, h: 8, i: 9, j: 10,
-      }];
+      const data = [
+        {
+          a: 1,
+          b: 2,
+          c: 3,
+          d: 4,
+          e: 5,
+          f: 6,
+          g: 7,
+          h: 8,
+          i: 9,
+          j: 10,
+        },
+      ];
       const result = TableFormatter.formatTable(data);
       expect(result).toContain('1');
       expect(result).toContain('5');
@@ -214,13 +215,13 @@ describe('TableFormatter', () => {
         { id: 2, name: 'Bob' },
       ];
       const result = TableFormatter.formatTable(data);
-      
+
       // Should have top border
       expect(result).toMatch(/^┌/);
-      
+
       // Should have bottom border
       expect(result).toMatch(/└[─┴]+┘$/m);
-      
+
       // Should have column separators
       expect(result).toContain('│');
     });
@@ -249,7 +250,7 @@ describe('TableFormatter', () => {
       const longValue = 'x'.repeat(100);
       const data = [{ field: longValue }];
       const result = TableFormatter.formatTable(data);
-      
+
       // Should contain truncation indicator
       expect(result.includes('...') || result.includes(longValue.substring(0, 50))).toBe(true);
     });
@@ -274,17 +275,17 @@ describe('TableFormatter', () => {
         { id: 2, name: 'Bob Smith', age: 25, city: 'Los Angeles', active: false },
         { id: 3, name: 'Charlie Brown', age: 35, city: 'Chicago', active: true },
       ];
-      
+
       const result = TableFormatter.formatTable(data);
-      
+
       // Should be multi-line
       const lines = result.split('\n');
       expect(lines.length).toBeGreaterThan(5);
-      
+
       // Should have consistent formatting
       const dataLines = lines.filter(l => l.includes('│'));
       const columnCounts = dataLines.map(l => l.split('│').length);
-      
+
       // All data lines should have same number of columns
       const firstCount = columnCounts[0];
       columnCounts.forEach(count => {

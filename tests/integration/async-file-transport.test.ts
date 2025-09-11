@@ -306,9 +306,11 @@ describe('AsyncFileTransport Integration', () => {
       // Measure async logging time
       const asyncStart = performance.now();
       for (let i = 0; i < 1000; i++) {
+        const now = Date.now();
         await asyncTransport.log({
           id: `${i}`,
-          timestamp: new Date().toISOString(),
+          timestamp: new Date(now).toISOString(),
+          timestampMs: now,
           level: 'info',
           message: 'Test',
         });
@@ -318,9 +320,11 @@ describe('AsyncFileTransport Integration', () => {
       // Measure sync logging time
       const syncStart = performance.now();
       for (let i = 0; i < 1000; i++) {
+        const now = Date.now();
         await syncTransport.log({
           id: `${i}`,
-          timestamp: new Date().toISOString(),
+          timestamp: new Date(now).toISOString(),
+          timestampMs: now,
           level: 'info',
           message: 'Test',
         });

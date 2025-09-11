@@ -5,11 +5,11 @@
  * Features batching, compression, retries, and circuit breaker pattern.
  *
  * @module transports/http
- * 
+ *
  * @example
  * ```typescript
  * import { HTTPTransport } from 'magiclogger/transports/http';
- * 
+ *
  * const httpTransport = new HTTPTransport({
  *   endpoint: 'https://logs.example.com/api/logs',
  *   batchSize: 100,
@@ -18,7 +18,7 @@
  *     'Authorization': 'Bearer ' + token
  *   }
  * });
- * 
+ *
  * // Non-blocking - handled in worker thread
  * httpTransport.log(entry);
  * ```
@@ -33,14 +33,14 @@ import { HTTPTransport } from './HTTPTransport';
 
 /**
  * Creates an HTTP transport using worker threads.
- * 
+ *
  * All network operations happen in a dedicated worker thread,
  * including batching, compression, and retries.
- * 
+ *
  * @param {string} endpoint - HTTP endpoint URL
  * @param {Record<string, unknown>} [options] - Transport options
  * @returns {HTTPTransport} Worker-based HTTP transport
- * 
+ *
  * @example
  * ```typescript
  * const transport = createHTTPTransport('https://logs.example.com', {
@@ -54,10 +54,10 @@ import { HTTPTransport } from './HTTPTransport';
  */
 export function createHTTPTransport(endpoint: string, options?: Record<string, unknown>) {
   const hostName = new URL(endpoint).hostname;
-  return new HTTPTransport({ 
+  return new HTTPTransport({
     name: `http-${hostName}`,
-    endpoint, 
-    ...options 
+    endpoint,
+    ...options,
   });
 }
 
@@ -73,13 +73,13 @@ import { TransportRegistry } from './index';
 TransportRegistry.register('http', config => {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { type, ...httpOptions } = config;
-  
+
   // Support both 'endpoint' and 'url' for compatibility
   const endpoint = httpOptions.endpoint || httpOptions.url;
   if (!endpoint) {
     throw new Error('HTTPTransport requires url option');
   }
-  
+
   return new HTTPTransport({
     name: config.name || 'http',
     endpoint: endpoint as string,

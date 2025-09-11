@@ -48,7 +48,6 @@
  * @since 2.0.0 - Rewritten to use sonic-boom for better performance
  */
 
-// @ts-expect-error - sonic-boom doesn't have proper TypeScript definitions
 import SonicBoom from 'sonic-boom';
 import { Transport } from './base/Transport';
 import type { LogEntry, LogLevel, MinimalLogEntry } from '../types/transport';

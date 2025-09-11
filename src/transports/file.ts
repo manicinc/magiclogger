@@ -5,11 +5,11 @@
  * This ensures zero blocking of the main thread event loop.
  *
  * @module transports/file
- * 
+ *
  * @example
  * ```typescript
  * import { FileTransport } from 'magiclogger/transports/file';
- * 
+ *
  * const fileTransport = new FileTransport({
  *   filepath: './logs/app.log',
  *   maxFileSize: 100_000_000,  // 100MB rotation
@@ -17,7 +17,7 @@
  *   bufferSize: 10000,          // Buffer in worker
  *   flushInterval: 100          // Flush every 100ms
  * });
- * 
+ *
  * // Main thread just passes entries - no blocking
  * fileTransport.log(entry);
  * ```
@@ -32,14 +32,14 @@ import { FileTransport } from './FileTransport';
 
 /**
  * Creates a file transport using worker threads.
- * 
+ *
  * All file I/O operations happen in a dedicated worker thread,
  * ensuring the main thread remains responsive.
- * 
+ *
  * @param {string} filepath - Path to the log file
  * @param {Record<string, unknown>} [options] - Transport options
  * @returns {FileTransport} Worker-based file transport
- * 
+ *
  * @example
  * ```typescript
  * const transport = createFileTransport('./logs/app.log', {
@@ -51,10 +51,10 @@ import { FileTransport } from './FileTransport';
  */
 export function createFileTransport(filepath: string, options?: Record<string, unknown>) {
   const sanitizedName = filepath.replace(/[^\w-]/g, '-');
-  return new FileTransport({ 
-    name: `file-${sanitizedName}`, 
-    filepath, 
-    ...options 
+  return new FileTransport({
+    name: `file-${sanitizedName}`,
+    filepath,
+    ...options,
   });
 }
 
@@ -69,13 +69,16 @@ import { TransportRegistry } from './index';
 
 TransportRegistry.register('file', config => {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { type, ...fileOptions } = config;
+  const { type, format, ...fileOptions } = config;
   if (!fileOptions.filepath) {
     throw new Error('FileTransport requires filepath option');
   }
+  // Only pass format if it's 'json' or 'plain'
+  const validFormat = format === 'json' || format === 'plain' ? format : undefined;
   return new FileTransport({
     name: config.name || 'file',
     filepath: fileOptions.filepath as string,
+    ...(validFormat && { format: validFormat }),
     ...fileOptions,
   });
 });

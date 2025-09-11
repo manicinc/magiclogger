@@ -37,7 +37,6 @@ export type { LoggerOptions } from './types/logger';
 export { AsyncLogger } from './async/AsyncLogger';
 export type { AsyncLoggerOptions } from './async/AsyncLogger';
 
-
 /**
  * Production-ready transports using correct architecture.
  * File and HTTP use worker threads, Console is synchronous.
@@ -47,7 +46,6 @@ export { FileTransport } from './transports/FileTransport';
 export { HTTPTransport } from './transports/HTTPTransport';
 export type { FileTransportOptions } from './transports/FileTransport';
 export type { HTTPTransportOptions } from './transports/HTTPTransport';
-
 
 /**
  * Synchronous logger with blocking I/O.
@@ -224,7 +222,7 @@ export {
   extractStyles,
   applyStyles,
   optimizeStyleRanges,
-  validateStyleRanges
+  validateStyleRanges,
 } from './utils/style-extractor';
 
 // ==========================================
@@ -254,7 +252,6 @@ export type {
 // Utility Types
 // ==========================================
 
-
 /**
  * Type guard to check if a logger is async.
  */
@@ -276,14 +273,14 @@ export function isSyncLogger(logger: unknown): logger is SyncLogger {
 /**
  * Creates a high-performance async logger that routes directly to transports.
  * Each transport manages its own buffering and threading strategy for optimal performance.
- * 
+ *
  * @param options - Configuration options for async logger
  * @param options.transports - Array of transports to log to
  * @param options.onFlush - Optional callback when transports flush
  * @param options.redactor - Optional redactor for sensitive data
  * @param options.rateLimiter - Optional rate limiter configuration
  * @returns AsyncLogger instance that routes logs directly to transports
- * 
+ *
  * @example
  * ```typescript
  * // Create async logger with worker thread transports
@@ -294,7 +291,7 @@ export function isSyncLogger(logger: unknown): logger is SyncLogger {
  *     new SyncConsoleTransport() // Immediate feedback in development
  *   ]
  * });
- * 
+ *
  * // Logs are routed directly to each transport
  * logger.info('Each transport handles this independently');
  * ```

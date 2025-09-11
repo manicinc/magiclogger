@@ -4,7 +4,11 @@
  */
 
 import { Worker } from 'worker_threads';
-import { WorkerTransport, workerHandler, type WorkerTransportOptions } from '../../../src/transports/WorkerTransport';
+import {
+  WorkerTransport,
+  workerHandler,
+  type WorkerTransportOptions,
+} from '../../../src/transports/WorkerTransport';
 import type { LogEntry } from '../../../src/types/transport';
 
 // Mock worker_threads
@@ -12,7 +16,7 @@ jest.mock('worker_threads', () => ({
   Worker: jest.fn(),
   isMainThread: true,
   parentPort: null,
-  workerData: null
+  workerData: null,
 }));
 
 interface MockWorker {
@@ -49,9 +53,9 @@ describe('WorkerTransport', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     // Create mock worker
-  mockWorker = {
+    mockWorker = {
       postMessage: jest.fn(),
       terminate: jest.fn().mockResolvedValue(undefined),
       on: jest.fn(),
@@ -77,12 +81,14 @@ describe('WorkerTransport', () => {
       stderr: null,
       resourceLimits: {},
       performance: {
-        eventLoopUtilization: jest.fn()
-      }
-  } as unknown as MockWorker;
+        eventLoopUtilization: jest.fn(),
+      },
+    } as unknown as MockWorker;
 
     // Mock Worker constructor
-  (Worker as jest.MockedClass<typeof Worker>).mockImplementation(() => mockWorker as unknown as Worker);
+    (Worker as jest.MockedClass<typeof Worker>).mockImplementation(
+      () => mockWorker as unknown as Worker
+    );
   });
 
   afterEach(async () => {
@@ -94,7 +100,7 @@ describe('WorkerTransport', () => {
   describe('Initialization', () => {
     it('should create transport with default options', () => {
       const options: WorkerTransportOptions = {
-        workerPath: './log-worker.js'
+        workerPath: './log-worker.js',
       };
 
       transport = new WorkerTransport(options);
@@ -105,8 +111,8 @@ describe('WorkerTransport', () => {
         './log-worker.js',
         expect.objectContaining({
           workerData: expect.objectContaining({
-            sharedBuffer: expect.any(SharedArrayBuffer)
-          })
+            sharedBuffer: expect.any(SharedArrayBuffer),
+          }),
         })
       );
     });
@@ -120,7 +126,7 @@ describe('WorkerTransport', () => {
         workerOptions: { customOption: true },
         bufferSize: 16384,
         batchSize: 200,
-        flushInterval: 20
+        flushInterval: 20,
       };
 
       transport = new WorkerTransport(options);
@@ -131,21 +137,21 @@ describe('WorkerTransport', () => {
         expect.objectContaining({
           workerData: expect.objectContaining({
             customOption: true,
-            sharedBuffer: expect.any(SharedArrayBuffer)
-          })
+            sharedBuffer: expect.any(SharedArrayBuffer),
+          }),
         })
       );
     });
 
     it('should handle worker initialization errors', () => {
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-      
+
       (Worker as jest.MockedClass<typeof Worker>).mockImplementation(() => {
         throw new Error('Worker init failed');
       });
 
       const options: WorkerTransportOptions = {
-        workerPath: './invalid-worker.js'
+        workerPath: './invalid-worker.js',
       };
 
       transport = new WorkerTransport(options);
@@ -160,7 +166,7 @@ describe('WorkerTransport', () => {
 
     it('should set up worker event handlers', () => {
       const options: WorkerTransportOptions = {
-        workerPath: './log-worker.js'
+        workerPath: './log-worker.js',
       };
 
       transport = new WorkerTransport(options);
@@ -175,7 +181,7 @@ describe('WorkerTransport', () => {
       const options: WorkerTransportOptions = {
         workerPath: './log-worker.js',
         batchSize: 2,
-        flushInterval: 0 // Disable auto-flush for testing
+        flushInterval: 0, // Disable auto-flush for testing
       };
       transport = new WorkerTransport(options);
     });
@@ -186,7 +192,7 @@ describe('WorkerTransport', () => {
         timestamp: new Date().toISOString(),
         timestampMs: Date.now(),
         level: 'info',
-        message: 'Test 1'
+        message: 'Test 1',
       };
 
       const entry2: LogEntry = {
@@ -194,11 +200,11 @@ describe('WorkerTransport', () => {
         timestamp: new Date().toISOString(),
         timestampMs: Date.now(),
         level: 'error',
-        message: 'Test 2'
+        message: 'Test 2',
       };
 
       await transport.log(entry1);
-      
+
       // Should not send yet (batch size is 2)
       expect(mockWorker.postMessage).not.toHaveBeenCalled();
 
@@ -207,7 +213,7 @@ describe('WorkerTransport', () => {
       // Should send batch now
       expect(mockWorker.postMessage).toHaveBeenCalledWith({
         type: 'batch',
-        entries: [entry1, entry2]
+        entries: [entry1, entry2],
       });
     });
 
@@ -217,11 +223,11 @@ describe('WorkerTransport', () => {
         timestamp: new Date().toISOString(),
         timestampMs: Date.now(),
         level: 'info',
-        message: 'Test'
+        message: 'Test',
       };
 
       await transport.log(entry);
-      
+
       // Should not send yet
       expect(mockWorker.postMessage).not.toHaveBeenCalled();
 
@@ -230,7 +236,7 @@ describe('WorkerTransport', () => {
       // Should send after flush
       expect(mockWorker.postMessage).toHaveBeenCalledWith({
         type: 'batch',
-        entries: [entry]
+        entries: [entry],
       });
     });
 
@@ -245,7 +251,7 @@ describe('WorkerTransport', () => {
       const options: WorkerTransportOptions = {
         workerPath: './log-worker.js',
         level: 'warn',
-        batchSize: 1
+        batchSize: 1,
       };
       transport = new WorkerTransport(options);
 
@@ -254,7 +260,7 @@ describe('WorkerTransport', () => {
         timestamp: new Date().toISOString(),
         timestampMs: Date.now(),
         level: 'debug',
-        message: 'Debug'
+        message: 'Debug',
       };
 
       const errorEntry: LogEntry = {
@@ -262,12 +268,12 @@ describe('WorkerTransport', () => {
         timestamp: new Date().toISOString(),
         timestampMs: Date.now(),
         level: 'error',
-        message: 'Error'
+        message: 'Error',
       };
 
       // Debug should be filtered
       expect(transport.shouldLog(debugEntry)).toBe(false);
-      
+
       // Error should pass
       expect(transport.shouldLog(errorEntry)).toBe(true);
     });
@@ -277,7 +283,7 @@ describe('WorkerTransport', () => {
     it('should use SharedArrayBuffer for zero-copy transfer', () => {
       const options: WorkerTransportOptions = {
         workerPath: './log-worker.js',
-        bufferSize: 8192
+        bufferSize: 8192,
       };
 
       transport = new WorkerTransport(options);
@@ -286,8 +292,8 @@ describe('WorkerTransport', () => {
         './log-worker.js',
         expect.objectContaining({
           workerData: expect.objectContaining({
-            sharedBuffer: expect.any(SharedArrayBuffer)
-          })
+            sharedBuffer: expect.any(SharedArrayBuffer),
+          }),
         })
       );
     });
@@ -295,7 +301,7 @@ describe('WorkerTransport', () => {
     it('should handle buffer size as power of 2', () => {
       const options: WorkerTransportOptions = {
         workerPath: './log-worker.js',
-        bufferSize: 5000 // Not power of 2
+        bufferSize: 5000, // Not power of 2
       };
 
       transport = new WorkerTransport(options);
@@ -305,8 +311,8 @@ describe('WorkerTransport', () => {
         './log-worker.js',
         expect.objectContaining({
           workerData: expect.objectContaining({
-            sharedBuffer: expect.any(SharedArrayBuffer)
-          })
+            sharedBuffer: expect.any(SharedArrayBuffer),
+          }),
         })
       );
     });
@@ -319,7 +325,7 @@ describe('WorkerTransport', () => {
       const options: WorkerTransportOptions = {
         workerPath: './log-worker.js',
         batchSize: 100,
-        flushInterval: 10
+        flushInterval: 10,
       };
 
       transport = new WorkerTransport(options);
@@ -329,7 +335,7 @@ describe('WorkerTransport', () => {
         timestamp: new Date().toISOString(),
         timestampMs: Date.now(),
         level: 'info',
-        message: 'Test'
+        message: 'Test',
       };
 
       await transport.log(entry);
@@ -340,18 +346,18 @@ describe('WorkerTransport', () => {
 
       expect(mockWorker.postMessage).toHaveBeenCalledWith({
         type: 'batch',
-        entries: [entry]
+        entries: [entry],
       });
     });
 
     it('should stop auto-flush on close', async () => {
       const options: WorkerTransportOptions = {
         workerPath: './log-worker.js',
-        flushInterval: 10
+        flushInterval: 10,
       };
 
       transport = new WorkerTransport(options);
-      
+
       const clearIntervalSpy = jest.spyOn(global, 'clearInterval');
 
       await transport.close();
@@ -373,11 +379,17 @@ describe('WorkerTransport', () => {
     it('flush() early returns when worker removed', async () => {
       transport = new WorkerTransport({ workerPath: './log-worker.js', flushInterval: 0 });
       // Log one entry so there's a pending batch
-  const entry: LogEntry = { id: 'x', timestamp: new Date().toISOString(), timestampMs: Date.now(), level: 'info', message: 'pending' };
+      const entry: LogEntry = {
+        id: 'x',
+        timestamp: new Date().toISOString(),
+        timestampMs: Date.now(),
+        level: 'info',
+        message: 'pending',
+      };
       await transport.log(entry);
       // Remove worker to hit early-return branch in flushSync
       // @ts-expect-error test mutation
-  (transport as { worker?: unknown }).worker = undefined;
+      (transport as { worker?: unknown }).worker = undefined;
       await transport.flush();
       // Should not have sent because worker missing
       expect(mockWorker.postMessage).not.toHaveBeenCalled();
@@ -387,57 +399,51 @@ describe('WorkerTransport', () => {
   describe('Worker Events', () => {
     beforeEach(() => {
       const options: WorkerTransportOptions = {
-        workerPath: './log-worker.js'
+        workerPath: './log-worker.js',
       };
       transport = new WorkerTransport(options);
     });
 
     it('should handle worker errors', () => {
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-      
+
       // Get the error handler
-      const errorHandler = mockWorker.on.mock.calls.find(
-        call => call[0] === 'error'
-      )?.[1];
+      const errorHandler = mockWorker.on.mock.calls.find(call => call[0] === 'error')?.[1];
 
       const error = new Error('Worker error');
       errorHandler?.(error);
 
       expect(consoleErrorSpy).toHaveBeenCalledWith('[WorkerTransport] Worker error:', error);
-      
+
       consoleErrorSpy.mockRestore();
     });
 
     it('should handle worker exit with non-zero code', () => {
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-      
+
       // Get the exit handler
-      const exitHandler = mockWorker.on.mock.calls.find(
-        call => call[0] === 'exit'
-      )?.[1];
+      const exitHandler = mockWorker.on.mock.calls.find(call => call[0] === 'exit')?.[1];
 
       exitHandler?.(1);
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         '[WorkerTransport] Worker stopped with exit code 1'
       );
-      
+
       consoleErrorSpy.mockRestore();
     });
 
     it('should handle worker exit with zero code', () => {
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-      
+
       // Get the exit handler
-      const exitHandler = mockWorker.on.mock.calls.find(
-        call => call[0] === 'exit'
-      )?.[1];
+      const exitHandler = mockWorker.on.mock.calls.find(call => call[0] === 'exit')?.[1];
 
       exitHandler?.(0);
 
       // Should not log error for normal exit
       expect(consoleErrorSpy).not.toHaveBeenCalled();
-      
+
       consoleErrorSpy.mockRestore();
     });
   });
@@ -446,7 +452,7 @@ describe('WorkerTransport', () => {
     it('should flush and terminate worker on close', async () => {
       const options: WorkerTransportOptions = {
         workerPath: './log-worker.js',
-        batchSize: 10
+        batchSize: 10,
       };
 
       transport = new WorkerTransport(options);
@@ -456,7 +462,7 @@ describe('WorkerTransport', () => {
         timestamp: new Date().toISOString(),
         timestampMs: Date.now(),
         level: 'info',
-        message: 'Final log'
+        message: 'Final log',
       };
 
       await transport.log(entry);
@@ -465,7 +471,7 @@ describe('WorkerTransport', () => {
       // Should flush pending logs
       expect(mockWorker.postMessage).toHaveBeenCalledWith({
         type: 'batch',
-        entries: [entry]
+        entries: [entry],
       });
 
       // Should terminate worker
@@ -474,7 +480,7 @@ describe('WorkerTransport', () => {
 
     it('should handle multiple close calls', async () => {
       const options: WorkerTransportOptions = {
-        workerPath: './log-worker.js'
+        workerPath: './log-worker.js',
       };
 
       transport = new WorkerTransport(options);
@@ -488,11 +494,11 @@ describe('WorkerTransport', () => {
 
     it('should not log after close', async () => {
       const options: WorkerTransportOptions = {
-        workerPath: './log-worker.js'
+        workerPath: './log-worker.js',
       };
 
       transport = new WorkerTransport(options);
-      
+
       await transport.close();
 
       const entry: LogEntry = {
@@ -500,7 +506,7 @@ describe('WorkerTransport', () => {
         timestamp: new Date().toISOString(),
         timestampMs: Date.now(),
         level: 'info',
-        message: 'Should not log'
+        message: 'Should not log',
       };
 
       await transport.log(entry);
@@ -516,18 +522,20 @@ describe('WorkerTransport', () => {
         workerPath: './log-worker.js',
         bufferSize: 16384,
         batchSize: 1000,
-        flushInterval: 0
+        flushInterval: 0,
       };
 
       transport = new WorkerTransport(options);
 
-      const entries: LogEntry[] = Array(10000).fill(null).map((_, i) => ({
-        id: `${i}`,
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
-        level: 'info',
-        message: `Message ${i}`
-      }));
+      const entries: LogEntry[] = Array(10000)
+        .fill(null)
+        .map((_, i) => ({
+          id: `${i}`,
+          timestamp: new Date().toISOString(),
+          timestampMs: Date.now(),
+          level: 'info',
+          message: `Message ${i}`,
+        }));
 
       // Log all entries
       for (const entry of entries) {
@@ -541,35 +549,37 @@ describe('WorkerTransport', () => {
     it('should handle concurrent logging', async () => {
       const options: WorkerTransportOptions = {
         workerPath: './log-worker.js',
-        batchSize: 100
+        batchSize: 100,
       };
 
       transport = new WorkerTransport(options);
 
-      const promises = Array(100).fill(null).map((_, i) => 
-        transport.log({
-          id: `${i}`,
-          timestamp: new Date().toISOString(),
-          timestampMs: Date.now(),
-          level: 'info',
-          message: `Concurrent ${i}`
-        })
-      );
+      const promises = Array(100)
+        .fill(null)
+        .map((_, i) =>
+          transport.log({
+            id: `${i}`,
+            timestamp: new Date().toISOString(),
+            timestampMs: Date.now(),
+            level: 'info',
+            message: `Concurrent ${i}`,
+          })
+        );
 
       await Promise.all(promises);
 
       expect(mockWorker.postMessage).toHaveBeenCalledWith({
         type: 'batch',
-        entries: expect.arrayContaining([
-          expect.objectContaining({ message: 'Concurrent 0' })
-        ])
+        entries: expect.arrayContaining([expect.objectContaining({ message: 'Concurrent 0' })]),
       });
     });
   });
 });
 
 describe('workerHandler', () => {
-  interface MockParentPort { on: jest.Mock }
+  interface MockParentPort {
+    on: jest.Mock;
+  }
   let mockParentPort: MockParentPort;
   let originalIsMainThread: boolean;
   let originalParentPort: unknown;
@@ -579,24 +589,24 @@ describe('workerHandler', () => {
 
   beforeEach(() => {
     // Save original values
-  originalIsMainThread = workerThreads.isMainThread;
-  originalParentPort = workerThreads.parentPort;
+    originalIsMainThread = workerThreads.isMainThread;
+    originalParentPort = workerThreads.parentPort;
 
     // Mock as worker thread
-  mockParentPort = { on: jest.fn() };
-  workerThreads.isMainThread = false;
-  workerThreads.parentPort = mockParentPort;
+    mockParentPort = { on: jest.fn() };
+    workerThreads.isMainThread = false;
+    workerThreads.parentPort = mockParentPort;
   });
 
   afterEach(() => {
     // Restore original values
-  workerThreads.isMainThread = originalIsMainThread;
-  workerThreads.parentPort = originalParentPort;
+    workerThreads.isMainThread = originalIsMainThread;
+    workerThreads.parentPort = originalParentPort;
   });
 
   it('should set up message handler in worker', () => {
     const handler = jest.fn();
-    
+
     workerHandler(handler);
 
     expect(mockParentPort.on).toHaveBeenCalledWith('message', expect.any(Function));
@@ -604,21 +614,21 @@ describe('workerHandler', () => {
 
   it('should call handler for batch messages', () => {
     const handler = jest.fn();
-    
+
     workerHandler(handler);
 
     // Get the message handler
     const messageHandler = mockParentPort.on.mock.calls[0][1];
-    
-      const entries: LogEntry[] = [
-        {
-          id: '1',
-          timestamp: new Date().toISOString(),
-          timestampMs: Date.now(),
-          level: 'info',
-          message: 'Test'
-        }
-      ];
+
+    const entries: LogEntry[] = [
+      {
+        id: '1',
+        timestamp: new Date().toISOString(),
+        timestampMs: Date.now(),
+        level: 'info',
+        message: 'Test',
+      },
+    ];
 
     messageHandler({ type: 'batch', entries });
 
@@ -627,22 +637,22 @@ describe('workerHandler', () => {
 
   it('should ignore non-batch messages', () => {
     const handler = jest.fn();
-    
+
     workerHandler(handler);
 
     // Get the message handler
     const messageHandler = mockParentPort.on.mock.calls[0][1];
-    
+
     messageHandler({ type: 'other', data: 'test' });
 
     expect(handler).not.toHaveBeenCalled();
   });
 
   it('should not set up handler in main thread', () => {
-  workerThreads.isMainThread = true;
-    
+    workerThreads.isMainThread = true;
+
     const handler = jest.fn();
-    
+
     workerHandler(handler);
 
     expect(mockParentPort.on).not.toHaveBeenCalled();

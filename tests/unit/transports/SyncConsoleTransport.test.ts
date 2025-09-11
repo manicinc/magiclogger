@@ -190,8 +190,8 @@ describe('SyncConsoleTransport', () => {
         context: {
           user: 'john',
           action: 'login',
-          ip: '127.0.0.1'
-        }
+          ip: '127.0.0.1',
+        },
       };
 
       transport.log(entry);
@@ -210,7 +210,7 @@ describe('SyncConsoleTransport', () => {
         level: 'info',
         message: 'Tagged message',
         loggerId: 'test-logger',
-        tags: ['api', 'auth', 'v2']
+        tags: ['api', 'auth', 'v2'],
       };
 
       transport.log(entry);
@@ -229,8 +229,8 @@ describe('SyncConsoleTransport', () => {
         loggerId: 'test-logger',
         error: testError,
         context: {
-          stack: testError.stack
-        }
+          stack: testError.stack,
+        },
       };
 
       transport.log(entry);
@@ -306,7 +306,7 @@ describe('SyncConsoleTransport', () => {
   describe('Level-specific console methods', () => {
     it('should use appropriate console method for each level', () => {
       const transport = new SyncConsoleTransport();
-      
+
       const levels: Array<[LogEntry['level'], keyof typeof consoleSpy]> = [
         ['info', 'log'],
         ['error', 'error'],
@@ -317,7 +317,7 @@ describe('SyncConsoleTransport', () => {
 
       levels.forEach(([level, method]) => {
         jest.clearAllMocks();
-        
+
         const entry: LogEntry = {
           id: `test-${level}`,
           timestamp: new Date().toISOString(),
@@ -369,7 +369,7 @@ describe('SyncConsoleTransport', () => {
       const transport = new SyncConsoleTransport();
       const circular: any = { a: 1 };
       circular.self = circular;
-      
+
       const entry: LogEntry = {
         id: '138',
         timestamp: new Date().toISOString(),

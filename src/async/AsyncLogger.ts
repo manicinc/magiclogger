@@ -534,11 +534,11 @@ export class AsyncLogger extends EventEmitter {
       // In CommonJS, use .cjs extension for better compatibility
       workerPath = join(__dirname, 'AsyncLoggerWorker.cjs');
     } else if (typeof process !== 'undefined' && process.env.NODE_ENV !== 'test') {
-    /**
-     * Strategy 2: For ESM environments, we skip dynamic import.meta detection
-     * to avoid bundler issues and potential runtime errors.
-     * Instead, we rely on the build output structure being predictable.
-     */
+      /**
+       * Strategy 2: For ESM environments, we skip dynamic import.meta detection
+       * to avoid bundler issues and potential runtime errors.
+       * Instead, we rely on the build output structure being predictable.
+       */
       // For ESM environments, we need to find the worker file without using require('fs')
       // Strategy: Use import.meta.url if available, otherwise use process.cwd()
 
@@ -575,10 +575,10 @@ export class AsyncLogger extends EventEmitter {
         }
       }
     } else {
-    /**
-     * Strategy 3: Use relative path from dist folder.
-     * This works in production builds where files are compiled.
-     */
+      /**
+       * Strategy 3: Use relative path from dist folder.
+       * This works in production builds where files are compiled.
+       */
       /**
        * Try multiple possible locations for the worker file.
        * This handles different build configurations.

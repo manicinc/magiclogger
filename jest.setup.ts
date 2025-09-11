@@ -216,7 +216,27 @@ import * as fsModule from 'fs';
 import * as pathModule from 'path';
 
 // Import necessary types to fix TS4023 error
-import type { ReadStreamOptions, WriteStreamOptions } from 'fs';
+// These are internal types from Node.js that we need to recreate
+interface ReadStreamOptions {
+  flags?: string;
+  encoding?: BufferEncoding;
+  fd?: number;
+  mode?: number;
+  autoClose?: boolean;
+  start?: number;
+  end?: number;
+  highWaterMark?: number;
+}
+
+interface WriteStreamOptions {
+  flags?: string;
+  encoding?: BufferEncoding;
+  fd?: number;
+  mode?: number;
+  autoClose?: boolean;
+  start?: number;
+  highWaterMark?: number;
+}
 
 // ----------------------
 // FS mocks helper API

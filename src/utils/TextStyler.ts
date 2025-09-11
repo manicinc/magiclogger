@@ -57,10 +57,10 @@ export class TextStyler {
   private static readonly WORD_SPLIT_REGEX = /(\s+)/;
   private static readonly AT_TEMPLATE_REGEX = /@(\w+(?:\.\w+)*?)\{([^}]+)\}/g;
   private static readonly STYLE_DOT_REGEX = /\./;
-  
+
   // Cache for parsed style strings to avoid repeated parsing
   private static readonly styleParseCache = new Map<string, ColorName[]>();
-  
+
   // Hoisted valid styles set for parseStyleString checks
   private static readonly VALID_STYLES: Set<string> = new Set<string>([
     'black',
@@ -355,19 +355,16 @@ export class TextStyler {
       previousResult = result;
 
       // Match <styles>content</> using pre-compiled regex
-      result = result.replace(
-        TextStyler.BRACKET_REGEX,
-        (match, styleString, content) => {
-          // Parse styles (dot-separated)
-          const styles = TextStyler.parseStyleString(styleString);
+      result = result.replace(TextStyler.BRACKET_REGEX, (match, styleString, content) => {
+        // Parse styles (dot-separated)
+        const styles = TextStyler.parseStyleString(styleString);
 
-          if (styles.length === 0) {
-            return content;
-          }
-
-          return Colorizer.applyColors(content, styles, useColors);
+        if (styles.length === 0) {
+          return content;
         }
-      );
+
+        return Colorizer.applyColors(content, styles, useColors);
+      });
 
       iterations++;
     }
@@ -405,13 +402,13 @@ export class TextStyler {
     if (!text) {
       return { plainText: '', styledText: '', styles: undefined };
     }
-    
+
     // OPTIMIZATION: Fast path for text without styles (most common case)
     // Check for angle brackets first before any processing
     if (!text.includes('<') || !text.includes('>')) {
       return { plainText: text, styledText: text, styles: undefined };
     }
-    
+
     // Check cache first - this is the hot path for styled text
     const cacheKey = StyleCache.makeKey(text, ['extraction'], useColors);
     const cache = StyleCache.getInstance();
@@ -420,10 +417,10 @@ export class TextStyler {
       // For extraction, we cache the entire result as JSON in the styled field
       // The plain field contains the plain text for quick access
       try {
-        const cachedData = JSON.parse(cached.styled) as { 
-          plainText: string; 
-          styledText: string; 
-          styles?: StyleRange[] 
+        const cachedData = JSON.parse(cached.styled) as {
+          plainText: string;
+          styledText: string;
+          styles?: StyleRange[];
         };
         return cachedData;
       } catch {
@@ -441,20 +438,17 @@ export class TextStyler {
     // This regex is more efficient as it avoids the negative lookahead
     const regex = /<([^>]*?)>(.*?)<\/>/g;
     let match: RegExpExecArray | null;
-    
+
     // Pre-process for nested tags in a single pass if needed
     let processedText = text;
     if (text.includes('</></>')) {
       // Only do nested processing if we detect nested closing tags
       const nestedPattern = /<([^>]+)><([^>]+)>([^<]*)<\/><\/>/g;
-      processedText = text.replace(
-        nestedPattern,
-        (match, outerStyle, innerStyle, content) => {
-          // Combine styles from nested tags
-          const combinedStyle = `${outerStyle}.${innerStyle}`;
-          return `<${combinedStyle}>${content}</>`;
-        }
-      );
+      processedText = text.replace(nestedPattern, (match, outerStyle, innerStyle, content) => {
+        // Combine styles from nested tags
+        const combinedStyle = `${outerStyle}.${innerStyle}`;
+        return `<${combinedStyle}>${content}</>`;
+      });
     }
 
     while ((match = regex.exec(processedText)) !== null) {
@@ -514,11 +508,11 @@ export class TextStyler {
     }
 
     const result = { plainText, styledText, styles };
-    
+
     // Cache the result for future use
     // Store the full result as JSON in styled field, plain text in plain field
     cache.set(cacheKey, JSON.stringify(result), plainText);
-    
+
     return result;
   }
 
@@ -539,7 +533,7 @@ export class TextStyler {
     if (!styleString || styleString === '/' || styleString === '</>') {
       return [];
     }
-    
+
     // Check cache first
     const cached = TextStyler.styleParseCache.get(styleString);
     if (cached) {
@@ -666,10 +660,10 @@ export class TextStyler {
         result.push(styleToProcess as ColorName);
       }
     }
-    
+
     // Cache the result
     TextStyler.styleParseCache.set(styleString, result);
-    
+
     // Limit cache size to prevent memory issues
     if (TextStyler.styleParseCache.size > 1000) {
       // Clear the oldest half of entries

@@ -717,11 +717,11 @@ export class SyncLogger {
   /**
    * Logs a custom styled message with optional prefix.
    * Supports arbitrary color combinations and custom prefixes.
-   * 
+   *
    * @param msg - Message to log
    * @param colors - Array of color names to apply (default: ['white'])
    * @param prefix - Custom prefix for the message (default: 'LOG')
-   * 
+   *
    * @example
    * ```typescript
    * logger.custom('Database connected', ['green', 'bold'], 'DB');
@@ -737,10 +737,10 @@ export class SyncLogger {
 
   /**
    * Logs a message with a predefined style preset.
-   * 
+   *
    * @param msg - Message to log
    * @param preset - Style preset name
-   * 
+   *
    * @example
    * ```typescript
    * logger.styled('Critical system failure', 'error');
@@ -756,11 +756,11 @@ export class SyncLogger {
 
   /**
    * Colors specific parts of a message based on a color map.
-   * 
+   *
    * @param message - The message to log
    * @param colorMap - Map of text patterns to color arrays
    * @returns The styled message string
-   * 
+   *
    * @example
    * ```typescript
    * logger.colorParts('User john_doe uploaded data.json', {
@@ -782,10 +782,10 @@ export class SyncLogger {
 
   /**
    * Displays data in a formatted table.
-   * 
+   *
    * @param data - Array of objects to display
    * @param options - Table formatting options
-   * 
+   *
    * @example
    * ```typescript
    * logger.table([
@@ -808,16 +808,20 @@ export class SyncLogger {
     if (!Array.isArray(data) || data.length === 0) {
       return;
     }
-    
-    const lines = TableFormatter.format(data, {
-      border: options.border || 'single',
-      headerColor: options.headerColor || ['brightWhite', 'bold'],
-      borderColor: options.borderColor || ['dim'],
-      alternateRowColors: options.alternateRowColors,
-      alignment: options.alignment || 'left',
-      padding: 1
-    }, this.options.useColors);
-    
+
+    const lines = TableFormatter.format(
+      data,
+      {
+        border: options.border || 'single',
+        headerColor: options.headerColor || ['brightWhite', 'bold'],
+        borderColor: options.borderColor || ['dim'],
+        alternateRowColors: options.alternateRowColors,
+        alignment: options.alignment || 'left',
+        padding: 1,
+      },
+      this.options.useColors
+    );
+
     lines.forEach((line: string) => {
       this.log(line, 'info', { type: 'table' });
     });
@@ -825,10 +829,10 @@ export class SyncLogger {
 
   /**
    * Prints text in a decorative box.
-   * 
+   *
    * @param text - Text to display in box
    * @param options - Box formatting options
-   * 
+   *
    * @example
    * ```typescript
    * logger.box('Success!', {
@@ -855,10 +859,10 @@ export class SyncLogger {
 
   /**
    * Prints a formatted list with bullets.
-   * 
+   *
    * @param items - Array of items to display
    * @param options - List formatting options
-   * 
+   *
    * @example
    * ```typescript
    * logger.list(['Item 1', 'Item 2', 'Item 3']);
@@ -882,10 +886,10 @@ export class SyncLogger {
 
   // Timer support
   private timers = new Map<string, number>();
-  
+
   /**
    * Starts a timer with the given label.
-   * 
+   *
    * @param label - Timer label
    * @example
    * ```typescript
@@ -901,7 +905,7 @@ export class SyncLogger {
 
   /**
    * Stops a timer and logs elapsed time.
-   * 
+   *
    * @param label - Timer label to stop
    * @public
    */
@@ -916,10 +920,10 @@ export class SyncLogger {
 
   // Counter support
   private counters = new Map<string, number>();
-  
+
   /**
    * Counts occurrences with a label.
-   * 
+   *
    * @param label - Counter label
    * @example
    * ```typescript
@@ -937,7 +941,7 @@ export class SyncLogger {
 
   /**
    * Resets a counter.
-   * 
+   *
    * @param label - Counter label to reset
    * @public
    */
@@ -947,7 +951,7 @@ export class SyncLogger {
 
   /**
    * Creates a log group (for API compatibility).
-   * 
+   *
    * @param label - Group label
    * @public
    */

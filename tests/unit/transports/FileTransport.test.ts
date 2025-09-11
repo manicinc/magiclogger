@@ -48,7 +48,7 @@ describe('FileTransport', () => {
       // Add a method to disable auto-responses
       _disableAutoRespond: false,
     };
-    (Worker as jest.Mock).mockImplementation(() => mockWorker);
+    (Worker as unknown as jest.Mock).mockImplementation(() => mockWorker);
   });
 
   describe('Constructor', () => {

@@ -1,6 +1,6 @@
 /**
  * @fileoverview Object pooling to reduce GC pressure
- * 
+ *
  * Reuses log entry objects to minimize allocations and reduce
  * garbage collection overhead in high-throughput scenarios.
  */
@@ -16,7 +16,7 @@ export class LogEntryPool {
   private created = 0;
   private borrowed = 0;
   private returned = 0;
-  
+
   constructor(maxSize = 1000) {
     this.maxSize = maxSize;
     // Pre-allocate some entries
@@ -24,37 +24,37 @@ export class LogEntryPool {
       this.pool.push(this.createEntry());
     }
   }
-  
+
   /**
    * Borrow an entry from the pool
    */
   acquire(): LogEntry {
     this.borrowed++;
-    
+
     if (this.pool.length > 0) {
       return this.pool.pop()!;
     }
-    
+
     // Create new entry if pool is empty
     return this.createEntry();
   }
-  
+
   /**
    * Return an entry to the pool
    */
   release(entry: LogEntry): void {
     this.returned++;
-    
+
     if (this.pool.length >= this.maxSize) {
       // Pool is full, let GC handle it
       return;
     }
-    
+
     // Reset entry for reuse
     this.resetEntry(entry);
     this.pool.push(entry);
   }
-  
+
   /**
    * Get pool statistics
    */
@@ -64,11 +64,10 @@ export class LogEntryPool {
       created: this.created,
       borrowed: this.borrowed,
       returned: this.returned,
-      hitRate: this.borrowed > 0 ? 
-        (this.borrowed - this.created) / this.borrowed : 0
+      hitRate: this.borrowed > 0 ? (this.borrowed - this.created) / this.borrowed : 0,
     };
   }
-  
+
   private createEntry(): LogEntry {
     this.created++;
     return {
@@ -85,7 +84,7 @@ export class LogEntryPool {
       metadata: undefined,
     };
   }
-  
+
   private resetEntry(entry: LogEntry): void {
     entry.id = '';
     entry.timestamp = '';

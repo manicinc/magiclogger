@@ -76,7 +76,7 @@ export interface LoggerOptions {
   /**
    * Enable performance mode to disable styling for maximum throughput.
    * When enabled, all styling is bypassed for 3x+ performance improvement.
-   * 
+   *
    * @default false
    */
   performanceMode?: boolean;
@@ -317,7 +317,6 @@ export interface LoggerOptions {
   queueManager?:
     | import('../extensions/QueueManager').QueueManager
     | import('../extensions/QueueManager').QueueManagerOptions;
-
 }
 
 /**

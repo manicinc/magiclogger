@@ -17,10 +17,12 @@ describe('AsyncLogger', () => {
   beforeEach(() => {
     mockTransport = {
       name: 'mock',
+      enabled: true,
       log: jest.fn(),
       flush: jest.fn(),
       close: jest.fn(),
-    };
+      shouldLog: jest.fn().mockReturnValue(true),
+    } as jest.Mocked<Transport>;
   });
 
   describe('Core Functionality', () => {
@@ -53,17 +55,21 @@ describe('AsyncLogger', () => {
     it('should route to multiple transports', async () => {
       const transport1 = {
         name: 'transport1',
+        enabled: true,
         log: jest.fn(),
         flush: jest.fn(),
         close: jest.fn(),
-      };
+        shouldLog: jest.fn().mockReturnValue(true),
+      } as jest.Mocked<Transport>;
 
       const transport2 = {
         name: 'transport2',
+        enabled: true,
         log: jest.fn(),
         flush: jest.fn(),
         close: jest.fn(),
-      };
+        shouldLog: jest.fn().mockReturnValue(true),
+      } as jest.Mocked<Transport>;
 
       const logger = new AsyncLogger({
         transports: [transport1, transport2],
@@ -219,17 +225,21 @@ describe('AsyncLogger', () => {
     it('should flush all transports', async () => {
       const transport1 = {
         name: 'transport1',
+        enabled: true,
         log: jest.fn(),
         flush: jest.fn().mockResolvedValue(undefined),
         close: jest.fn(),
-      };
+        shouldLog: jest.fn().mockReturnValue(true),
+      } as jest.Mocked<Transport>;
 
       const transport2 = {
         name: 'transport2',
+        enabled: true,
         log: jest.fn(),
         flush: jest.fn().mockResolvedValue(undefined),
         close: jest.fn(),
-      };
+        shouldLog: jest.fn().mockReturnValue(true),
+      } as jest.Mocked<Transport>;
 
       const logger = new AsyncLogger({
         transports: [transport1, transport2],
@@ -244,17 +254,21 @@ describe('AsyncLogger', () => {
     it('should close all transports', async () => {
       const transport1 = {
         name: 'transport1',
+        enabled: true,
         log: jest.fn(),
         flush: jest.fn(),
         close: jest.fn().mockResolvedValue(undefined),
-      };
+        shouldLog: jest.fn().mockReturnValue(true),
+      } as jest.Mocked<Transport>;
 
       const transport2 = {
         name: 'transport2',
+        enabled: true,
         log: jest.fn(),
         flush: jest.fn(),
         close: jest.fn().mockResolvedValue(undefined),
-      };
+        shouldLog: jest.fn().mockReturnValue(true),
+      } as jest.Mocked<Transport>;
 
       const logger = new AsyncLogger({
         transports: [transport1, transport2],
@@ -297,7 +311,7 @@ describe('AsyncLogger', () => {
     it('should not use queueMicrotask', () => {
       // Spy on global queueMicrotask if it exists
       const originalQueueMicrotask = global.queueMicrotask;
-      if (originalQueueMicrotask) {
+      if (typeof originalQueueMicrotask !== 'undefined') {
         global.queueMicrotask = jest.fn();
       }
 
@@ -320,7 +334,7 @@ describe('AsyncLogger', () => {
       expect(callCount).toBe(0);
 
       // Always restore original if it was mocked
-      if (originalQueueMicrotask) {
+      if (typeof originalQueueMicrotask !== 'undefined') {
         global.queueMicrotask = originalQueueMicrotask;
       }
     });
@@ -345,6 +359,7 @@ describe('AsyncLogger', () => {
 
       const bufferingTransport = {
         name: 'buffering',
+        enabled: true,
         buffer: transportBuffer,
         log: jest.fn().mockImplementation((entry: LogEntry) => {
           // Transport decides to buffer entries instead of writing immediately
@@ -357,7 +372,8 @@ describe('AsyncLogger', () => {
           // For testing, we just track that it was called
         }),
         close: jest.fn(),
-      };
+        shouldLog: jest.fn().mockReturnValue(true),
+      } as jest.Mocked<Transport> & { buffer: LogEntry[] };
 
       const logger = new AsyncLogger({
         transports: [bufferingTransport],

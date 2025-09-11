@@ -4,7 +4,7 @@ describe('Logger variadic args & meta wrappers', () => {
   let originalConsoleLog: Console['log'];
   let originalConsoleInfo: Console['info'];
   let originalConsoleError: Console['error'];
-  
+
   beforeEach(() => {
     originalConsoleLog = console.log;
     originalConsoleInfo = console.info;
@@ -13,7 +13,7 @@ describe('Logger variadic args & meta wrappers', () => {
     console.info = jest.fn();
     console.error = jest.fn();
   });
-  
+
   afterEach(() => {
     console.log = originalConsoleLog;
     console.info = originalConsoleInfo;

@@ -17,20 +17,20 @@ describe('LazySerializer', () => {
       loggerId: 'test-logger',
       tags: ['test', 'unit'],
       context: { user: 'john', action: 'login' },
-      metadata: { version: '1.0.0' }
+      metadata: { version: '1.0.0' },
     });
 
     it('should create a lazy log entry', () => {
       const entry = createMockEntry();
       const lazyEntry = new LazyLogEntry(entry);
-      
+
       expect(lazyEntry).toBeInstanceOf(LazyLogEntry);
     });
 
     it('should return raw entry without serialization', () => {
       const entry = createMockEntry();
       const lazyEntry = new LazyLogEntry(entry);
-      
+
       const raw = lazyEntry.getRaw();
       expect(raw).toBe(entry);
       expect(raw.id).toBe('test-123');
@@ -39,13 +39,13 @@ describe('LazySerializer', () => {
     it('should serialize to JSON on first call and cache result', () => {
       const entry = createMockEntry();
       const lazyEntry = new LazyLogEntry(entry);
-      
+
       // First call - should serialize
       const json1 = lazyEntry.toJSON();
       expect(typeof json1).toBe('string');
       expect(json1).toContain('test-123');
       expect(json1).toContain('Test message');
-      
+
       // Second call - should return cached value
       const json2 = lazyEntry.toJSON();
       expect(json2).toBe(json1); // Same reference, meaning cached
@@ -54,7 +54,7 @@ describe('LazySerializer', () => {
     it('should get specific fields without serialization', () => {
       const entry = createMockEntry();
       const lazyEntry = new LazyLogEntry(entry);
-      
+
       expect(lazyEntry.getField('id')).toBe('test-123');
       expect(lazyEntry.getField('level')).toBe('info');
       expect(lazyEntry.getField('message')).toBe('Test message');
@@ -64,11 +64,11 @@ describe('LazySerializer', () => {
     it('should match filter criteria', () => {
       const entry = createMockEntry();
       const lazyEntry = new LazyLogEntry(entry);
-      
+
       // Should match exact criteria
       expect(lazyEntry.matches({ level: 'info' })).toBe(true);
       expect(lazyEntry.matches({ id: 'test-123', level: 'info' })).toBe(true);
-      
+
       // Should not match different criteria
       expect(lazyEntry.matches({ level: 'error' })).toBe(false);
       expect(lazyEntry.matches({ id: 'wrong-id' })).toBe(false);
@@ -77,7 +77,7 @@ describe('LazySerializer', () => {
     it('should match empty filter', () => {
       const entry = createMockEntry();
       const lazyEntry = new LazyLogEntry(entry);
-      
+
       expect(lazyEntry.matches({})).toBe(true);
     });
 
@@ -85,7 +85,7 @@ describe('LazySerializer', () => {
       const entry = createMockEntry();
       delete (entry as any).metadata;
       const lazyEntry = new LazyLogEntry(entry);
-      
+
       expect(lazyEntry.matches({ metadata: undefined })).toBe(true);
     });
   });
@@ -108,12 +108,12 @@ describe('LazySerializer', () => {
         tags: ['test', 'unit'],
         context: { user: 'john' },
         error: new Error('Test error'),
-        metadata: { version: '1.0.0' }
+        metadata: { version: '1.0.0' },
       };
-      
+
       const serializer = new SchemaSerializer();
       const json = serializer.serialize(entry);
-      
+
       expect(typeof json).toBe('string');
       expect(json).toContain('"id":"test-123"');
       expect(json).toContain('"level":"info"');
@@ -127,12 +127,12 @@ describe('LazySerializer', () => {
         timestamp: '2024-01-01T00:00:00.000Z',
         timestampMs: 1704067200000,
         level: 'debug',
-        message: 'Minimal'
+        message: 'Minimal',
       };
-      
+
       const serializer = new SchemaSerializer();
       const json = serializer.serialize(entry);
-      
+
       expect(json).toContain('"id":"minimal"');
       expect(json).toContain('"message":"Minimal"');
       expect(json).not.toContain('tags');
@@ -153,14 +153,14 @@ describe('LazySerializer', () => {
           null: null,
           date: new Date('2024-01-01'),
           array: [1, 2, 3],
-          object: { nested: 'value' }
-        }
+          object: { nested: 'value' },
+        },
       };
-      
+
       const serializer = new SchemaSerializer();
       const json = serializer.serialize(entry);
       const parsed = JSON.parse(json);
-      
+
       expect(parsed.context.string).toBe('text');
       expect(parsed.context.number).toBe(42);
       expect(parsed.context.boolean).toBe(true);
@@ -172,20 +172,20 @@ describe('LazySerializer', () => {
     it('should serialize Error objects properly', () => {
       const error = new Error('Test error');
       error.name = 'TestError';
-      
+
       const entry: LogEntry = {
         id: 'error-test',
         timestamp: '2024-01-01T00:00:00.000Z',
         timestampMs: 1704067200000,
         level: 'error',
         message: 'Error occurred',
-        error: error
+        error: error,
       };
-      
+
       const serializer = new SchemaSerializer();
       const json = serializer.serialize(entry);
       const parsed = JSON.parse(json);
-      
+
       expect(parsed.error.name).toBe('TestError');
       expect(parsed.error.message).toBe('Test error');
       expect(parsed.error.stack).toBeDefined();
@@ -200,14 +200,14 @@ describe('LazySerializer', () => {
         message: 'Test "quotes" and \n newlines \t tabs',
         context: {
           unicode: '😀 emoji',
-          escaped: 'back\\slash'
-        }
+          escaped: 'back\\slash',
+        },
       };
-      
+
       const serializer = new SchemaSerializer();
       const json = serializer.serialize(entry);
       const parsed = JSON.parse(json);
-      
+
       expect(parsed.message).toBe('Test "quotes" and \n newlines \t tabs');
       expect(parsed.context.unicode).toBe('😀 emoji');
       expect(parsed.context.escaped).toBe('back\\slash');
@@ -220,18 +220,18 @@ describe('LazySerializer', () => {
         level: 'info',
         id: 'order-test',
         timestampMs: 1704067200000,
-        timestamp: '2024-01-01T00:00:00.000Z'
+        timestamp: '2024-01-01T00:00:00.000Z',
       };
-      
+
       const serializer = new SchemaSerializer();
       const json = serializer.serialize(entry);
-      
+
       // Check that fields appear in schema order
       const idIndex = json.indexOf('"id"');
       const timestampIndex = json.indexOf('"timestamp"');
       const levelIndex = json.indexOf('"level"');
       const messageIndex = json.indexOf('"message"');
-      
+
       expect(idIndex).toBeLessThan(timestampIndex);
       expect(timestampIndex).toBeLessThan(levelIndex);
       expect(levelIndex).toBeLessThan(messageIndex);
@@ -242,7 +242,7 @@ describe('LazySerializer', () => {
     it('should handle circular references in LazyLogEntry', () => {
       const entry: any = createMockEntry();
       entry.circular = entry;
-      
+
       const lazyEntry = new LazyLogEntry(entry);
       const json = lazyEntry.toJSON();
       expect(json).toContain('[Circular]');
@@ -252,7 +252,7 @@ describe('LazySerializer', () => {
       const entry: any = createMockEntry();
       entry.context = { deep: { nested: { ref: null } } };
       entry.context.deep.nested.ref = entry.context;
-      
+
       const lazyEntry = new LazyLogEntry(entry);
       const json = lazyEntry.toJSON();
       expect(json).toContain('[Circular]');
@@ -268,14 +268,14 @@ describe('LazySerializer', () => {
         get message() {
           callCount++;
           return 'Dynamic message';
-        }
+        },
       };
-      
+
       const lazyEntry = new LazyLogEntry(entry);
       lazyEntry.toJSON();
       lazyEntry.toJSON();
       lazyEntry.toJSON();
-      
+
       // Getter should only be called once
       expect(callCount).toBe(1);
     });
@@ -287,9 +287,9 @@ describe('LazySerializer', () => {
         timestampMs: 1704067200000,
         level: 'info',
         message: undefined,
-        context: undefined
+        context: undefined,
       };
-      
+
       const lazyEntry = new LazyLogEntry(entry);
       const json = lazyEntry.toJSON();
       expect(() => JSON.parse(json)).not.toThrow();
@@ -299,9 +299,9 @@ describe('LazySerializer', () => {
       const entry: Partial<LogEntry> = {
         id: 'partial',
         level: 'info',
-        message: 'Partial entry'
+        message: 'Partial entry',
       };
-      
+
       const serializer = new SchemaSerializer();
       const json = serializer.serialize(entry as LogEntry);
       expect(() => JSON.parse(json)).not.toThrow();
@@ -315,10 +315,10 @@ describe('LazySerializer', () => {
         level: 'info',
         message: 'BigInt test',
         context: {
-          big: BigInt(9007199254740991)
-        }
+          big: BigInt(9007199254740991),
+        },
       };
-      
+
       const serializer = new SchemaSerializer();
       const json = serializer.serialize(entry);
       expect(json).toBeDefined();
@@ -334,10 +334,10 @@ describe('LazySerializer', () => {
         message: 'Symbol test',
         context: {
           [sym]: 'symbol value',
-          regular: 'regular value'
-        }
+          regular: 'regular value',
+        },
       };
-      
+
       const serializer = new SchemaSerializer();
       const json = serializer.serialize(entry);
       const parsed = JSON.parse(json);
@@ -354,7 +354,7 @@ describe('LazySerializer', () => {
         loggerId: 'test-logger',
         tags: ['test', 'unit'],
         context: { user: 'john', action: 'login' },
-        metadata: { version: '1.0.0' }
+        metadata: { version: '1.0.0' },
       };
     }
   });

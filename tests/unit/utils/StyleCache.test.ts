@@ -25,7 +25,7 @@ describe('StyleCache', () => {
     it('should store and retrieve cached entries', () => {
       const key = 'test-key';
       cache.set(key, 'styled-text', 'plain-text');
-      
+
       const entry = cache.get(key);
       expect(entry).toBeDefined();
       expect(entry?.styled).toBe('styled-text');
@@ -41,7 +41,7 @@ describe('StyleCache', () => {
       const key = 'update-test';
       cache.set(key, 'original', 'original-plain');
       cache.set(key, 'updated', 'updated-plain');
-      
+
       const entry = cache.get(key);
       expect(entry?.styled).toBe('updated');
       expect(entry?.plain).toBe('updated-plain');
@@ -98,17 +98,17 @@ describe('StyleCache', () => {
     it('should evict least recently used entries when cache is full', () => {
       // Create a cache with small size for testing
       const smallCache = new (StyleCache as any)(3); // Access constructor directly
-      
+
       smallCache.set('key1', 'styled1', 'plain1');
       smallCache.set('key2', 'styled2', 'plain2');
       smallCache.set('key3', 'styled3', 'plain3');
-      
+
       // Access key1 to make it recently used
       smallCache.get('key1');
-      
+
       // Add new entry, should evict key2 (least recently used)
       smallCache.set('key4', 'styled4', 'plain4');
-      
+
       expect(smallCache.get('key1')).toBeDefined();
       expect(smallCache.get('key2')).toBeNull();
       expect(smallCache.get('key3')).toBeDefined();
@@ -117,12 +117,12 @@ describe('StyleCache', () => {
 
     it('should update hit count on cache hits', () => {
       cache.set('hit-test', 'styled', 'plain');
-      
+
       // Access multiple times
       cache.get('hit-test');
       cache.get('hit-test');
       cache.get('hit-test');
-      
+
       const entry = cache.get('hit-test');
       expect(entry?.hits).toBeGreaterThan(1);
     });
@@ -134,16 +134,16 @@ describe('StyleCache', () => {
       const initialStats = cache.getStats();
       expect(initialStats.hits).toBe(0);
       expect(initialStats.misses).toBe(0);
-      
+
       // Add entry
       cache.set('stats-test', 'styled', 'plain');
-      
+
       // Hit
       cache.get('stats-test');
       let stats = cache.getStats();
       expect(stats.hits).toBe(1);
       expect(stats.misses).toBe(0);
-      
+
       // Miss
       cache.get('non-existent');
       stats = cache.getStats();
@@ -154,16 +154,16 @@ describe('StyleCache', () => {
     it('should calculate hit rate correctly', () => {
       cache.clear();
       cache.set('test', 'styled', 'plain');
-      
+
       // 3 hits
       cache.get('test');
       cache.get('test');
       cache.get('test');
-      
+
       // 2 misses
       cache.get('miss1');
       cache.get('miss2');
-      
+
       const stats = cache.getStats();
       expect(stats.hitRate).toBe('60.00%'); // 3 hits / 5 total = 60%
     });
@@ -178,10 +178,10 @@ describe('StyleCache', () => {
       cache.clear();
       let stats = cache.getStats();
       expect(stats.size).toBe(0);
-      
+
       cache.set('key1', 'styled1', 'plain1');
       cache.set('key2', 'styled2', 'plain2');
-      
+
       stats = cache.getStats();
       expect(stats.size).toBe(2);
     });
@@ -196,25 +196,25 @@ describe('StyleCache', () => {
     it('should expire entries after TTL', async () => {
       // Create cache with 100ms TTL
       const ttlCache = new (StyleCache as any)(1000, 100);
-      
+
       ttlCache.set('ttl-test', 'styled', 'plain');
       expect(ttlCache.get('ttl-test')).toBeDefined();
-      
+
       // Wait for TTL to expire
       await new Promise(resolve => setTimeout(resolve, 150));
-      
+
       expect(ttlCache.get('ttl-test')).toBeNull();
     });
 
     it('should not expire entries before TTL', async () => {
       // Create cache with 200ms TTL
       const ttlCache = new (StyleCache as any)(1000, 200);
-      
+
       ttlCache.set('ttl-test', 'styled', 'plain');
-      
+
       // Wait less than TTL
       await new Promise(resolve => setTimeout(resolve, 50));
-      
+
       expect(ttlCache.get('ttl-test')).toBeDefined();
     });
 
@@ -231,9 +231,9 @@ describe('StyleCache', () => {
       cache.set('key1', 'styled1', 'plain1');
       cache.set('key2', 'styled2', 'plain2');
       cache.set('key3', 'styled3', 'plain3');
-      
+
       cache.clear();
-      
+
       expect(cache.get('key1')).toBeNull();
       expect(cache.get('key2')).toBeNull();
       expect(cache.get('key3')).toBeNull();
@@ -243,9 +243,9 @@ describe('StyleCache', () => {
       cache.set('test', 'styled', 'plain');
       cache.get('test');
       cache.get('miss');
-      
+
       cache.clear();
-      
+
       const stats = cache.getStats();
       expect(stats.hits).toBe(0);
       expect(stats.misses).toBe(0);
@@ -288,7 +288,7 @@ describe('StyleCache', () => {
       const specialStyled = '\x1b[31mRed\x1b[0m';
       const specialPlain = 'Red\nWith\tSpecial\rChars';
       cache.set('special', specialStyled, specialPlain);
-      
+
       const entry = cache.get('special');
       expect(entry?.styled).toBe(specialStyled);
       expect(entry?.plain).toBe(specialPlain);
@@ -298,17 +298,17 @@ describe('StyleCache', () => {
   describe('Performance Characteristics', () => {
     it('should handle large cache efficiently', () => {
       const start = Date.now();
-      
+
       // Add many entries
       for (let i = 0; i < 1000; i++) {
         cache.set(`perf-${i}`, `styled-${i}`, `plain-${i}`);
       }
-      
+
       // Access entries
       for (let i = 0; i < 1000; i++) {
         cache.get(`perf-${i}`);
       }
-      
+
       const duration = Date.now() - start;
       expect(duration).toBeLessThan(100); // Should complete quickly
     });
@@ -316,14 +316,14 @@ describe('StyleCache', () => {
     it('should benefit from cache hits', () => {
       const key = 'perf-test';
       cache.set(key, 'styled', 'plain');
-      
+
       const iterations = 10000;
       const start = Date.now();
-      
+
       for (let i = 0; i < iterations; i++) {
         cache.get(key);
       }
-      
+
       const duration = Date.now() - start;
       const opsPerMs = iterations / duration;
       expect(opsPerMs).toBeGreaterThan(100); // Should be very fast

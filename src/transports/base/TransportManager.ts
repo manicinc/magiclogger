@@ -668,7 +668,7 @@ export class TransportManager extends EventEmitter {
     if ('id' in entry && 'timestamp' in entry) {
       return entry as LogEntry;
     }
-    
+
     // Convert MinimalLogEntry to LogEntry
     const minimal = entry as MinimalLogEntry;
     const time = minimal.time || Date.now();
@@ -679,36 +679,36 @@ export class TransportManager extends EventEmitter {
       35: 'success',
       40: 'warn',
       50: 'error',
-      60: 'fatal'
+      60: 'fatal',
     };
-    
+
     const logEntry: LogEntry = {
       id: `${time}-${Math.random().toString(36).substr(2, 9)}`,
       timestamp: new Date(time).toISOString(),
       timestampMs: time,
       level: levelMap[minimal.level] || 'info',
-      message: minimal.plainMsg || minimal.msg || '',  // Use plain text if available
+      message: minimal.plainMsg || minimal.msg || '', // Use plain text if available
       context: minimal,
-      loggerId: minimal.loggerId
+      loggerId: minimal.loggerId,
     };
-    
+
     // Preserve styles if present
     if (minimal.styles) {
       logEntry.styles = minimal.styles;
     }
-    
+
     return logEntry;
   }
 
   /**
    * High-performance synchronous log dispatch optimized for minimal overhead.
-   * 
+   *
    * Performance optimizations:
    * - Early exit conditions to avoid unnecessary processing
-   * - Cached transport list to reduce iteration overhead  
+   * - Cached transport list to reduce iteration overhead
    * - Minimal object allocation in hot path
    * - Direct dispatch without promise overhead
-   * 
+   *
    * @param {LogEntry} entry - Log entry to dispatch
    * @returns {void}
    */
@@ -734,14 +734,14 @@ export class TransportManager extends EventEmitter {
      */
     const hasFilters = this.globalFilters.length > 0;
     const hasTransformers = this.globalTransformers.length > 0;
-    
+
     // Only convert to full LogEntry if filters/transformers need it
     let processedEntry: MinimalLogEntry | LogEntry = entry;
-    
+
     if (hasFilters || hasTransformers) {
       // Convert once for filters and transformers
       const logEntry = this.toLogEntry(entry);
-      
+
       // Apply filters
       if (hasFilters) {
         for (let i = 0; i < this.globalFilters.length; i++) {
@@ -751,7 +751,7 @@ export class TransportManager extends EventEmitter {
           }
         }
       }
-      
+
       // Apply transformers
       processedEntry = logEntry;
       if (hasTransformers) {
@@ -772,20 +772,25 @@ export class TransportManager extends EventEmitter {
       if (!transport.enabled) {
         continue;
       }
-      
+
       // Most transports can work with MinimalLogEntry
       // Only convert to LogEntry if transport.shouldLog needs it
       let entryToLog = processedEntry;
-      
+
       // Check if transport needs full LogEntry for shouldLog check
       if (!transport.shouldLog(processedEntry as LogEntry)) {
         continue;
       }
-      
+
       try {
         // Use synchronous method if available
-        if ('logSync' in transport && typeof (transport as Record<string, unknown>).logSync === 'function') {
-          (transport as Record<string, unknown> & { logSync: (entry: unknown) => void }).logSync(entryToLog);
+        if (
+          'logSync' in transport &&
+          typeof (transport as Record<string, unknown>).logSync === 'function'
+        ) {
+          (transport as Record<string, unknown> & { logSync: (entry: unknown) => void }).logSync(
+            entryToLog
+          );
         } else {
           // Only convert to full LogEntry if transport.log needs it
           if (!('id' in entryToLog)) {
@@ -804,15 +809,14 @@ export class TransportManager extends EventEmitter {
      */
     if (this.aggregationManager?.enabled) {
       this.aggregationManager.logBuffer.push(processedEntry as LogEntry);
-      
+
       /**
        * Limit buffer size to prevent memory issues.
        * Oldest entries are removed when limit is exceeded.
        */
       const maxBufferSize = 10000;
       if (this.aggregationManager.logBuffer.length > maxBufferSize) {
-        this.aggregationManager.logBuffer = 
-          this.aggregationManager.logBuffer.slice(-maxBufferSize);
+        this.aggregationManager.logBuffer = this.aggregationManager.logBuffer.slice(-maxBufferSize);
       }
     }
   }

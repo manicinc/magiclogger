@@ -1,10 +1,10 @@
 /**
  * Fully synchronous console transport for immediate output.
- * 
+ *
  * This transport implements the correct architecture where console
  * output is completely synchronous with no promises, callbacks, or
  * async operations. Perfect for development and debugging.
- * 
+ *
  * @module transports/SyncConsoleTransport
  */
 
@@ -13,7 +13,7 @@ import type { LogEntry, LogLevel } from '../types/transport';
 
 /**
  * Configuration options for SyncConsoleTransport.
- * 
+ *
  * @interface SyncConsoleTransportOptions
  */
 export interface SyncConsoleTransportOptions {
@@ -22,43 +22,43 @@ export interface SyncConsoleTransportOptions {
    * @default 'sync-console'
    */
   name?: string;
-  
+
   /**
    * Whether the transport is enabled.
    * @default true
    */
   enabled?: boolean;
-  
+
   /**
    * Whether to use colors.
    * @default true
    */
   useColors?: boolean;
-  
+
   /**
    * Whether to show timestamps.
    * @default false
    */
   showTimestamp?: boolean;
-  
+
   /**
    * Whether to show log level.
    * @default true
    */
   showLevel?: boolean;
-  
+
   /**
    * Whether to show metadata.
    * @default false
    */
   showMetadata?: boolean;
-  
+
   /**
    * Minimum log level.
    * @default 'debug'
    */
   level?: LogLevel;
-  
+
   /**
    * Custom prefix for all logs.
    */
@@ -67,14 +67,14 @@ export interface SyncConsoleTransportOptions {
 
 /**
  * Fully synchronous console transport.
- * 
+ *
  * This transport writes directly to console with no async operations,
  * promises, or callbacks. It provides immediate feedback which is
  * essential for development and debugging.
- * 
+ *
  * @class SyncConsoleTransport
  * @extends {Transport}
- * 
+ *
  * @example
  * ```typescript
  * const consoleTransport = new SyncConsoleTransport({
@@ -82,7 +82,7 @@ export interface SyncConsoleTransportOptions {
  *   showTimestamp: true,
  *   showLevel: true
  * });
- * 
+ *
  * // Direct, synchronous output
  * consoleTransport.log(entry);  // Appears immediately
  * ```
@@ -93,21 +93,21 @@ export class SyncConsoleTransport extends Transport {
    * @private
    */
   private readonly consoleOptions: SyncConsoleTransportOptions;
-  
+
   /**
    * ANSI color codes for each log level.
    * @private
    */
   private readonly levelColors: Record<LogLevel, string> = {
-    trace: '\x1b[90m',    // gray
-    debug: '\x1b[36m',    // cyan
-    info: '\x1b[37m',     // white
-    success: '\x1b[32m',  // green
-    warn: '\x1b[33m',     // yellow
-    error: '\x1b[31m',    // red
-    fatal: '\x1b[35m'     // magenta
+    trace: '\x1b[90m', // gray
+    debug: '\x1b[36m', // cyan
+    info: '\x1b[37m', // white
+    success: '\x1b[32m', // green
+    warn: '\x1b[33m', // yellow
+    error: '\x1b[31m', // red
+    fatal: '\x1b[35m', // magenta
   };
-  
+
   /**
    * Console methods for each log level.
    * @private
@@ -119,12 +119,12 @@ export class SyncConsoleTransport extends Transport {
     success: 'log',
     warn: 'warn',
     error: 'error',
-    fatal: 'error'
+    fatal: 'error',
   };
 
   /**
    * Creates a new SyncConsoleTransport instance.
-   * 
+   *
    * @param {SyncConsoleTransportOptions} [options] - Transport configuration.
    */
   constructor(options: SyncConsoleTransportOptions = {}) {
@@ -132,9 +132,9 @@ export class SyncConsoleTransport extends Transport {
       name: options.name || 'sync-console',
       enabled: options.enabled !== false,
       level: options.level || 'debug',
-      format: 'plain'  // Console should use plain format by default
+      format: 'plain', // Console should use plain format by default
     });
-    
+
     this.consoleOptions = {
       useColors: options.useColors !== false,
       showTimestamp: options.showTimestamp || false,
@@ -142,16 +142,16 @@ export class SyncConsoleTransport extends Transport {
       showMetadata: options.showMetadata !== false, // Default to true for compatibility
       level: options.level || 'debug',
       prefix: options.prefix,
-      ...options
+      ...options,
     };
   }
 
   /**
    * Logs an entry synchronously to the console.
-   * 
+   *
    * This is the key method that demonstrates the correct architecture:
    * completely synchronous with no promises or async operations.
-   * 
+   *
    * @param {LogEntry} entry - The log entry.
    * @returns {Promise<void>} Resolves immediately since this is synchronous.
    * @protected
@@ -160,20 +160,20 @@ export class SyncConsoleTransport extends Transport {
   protected async doLog(entry: LogEntry): Promise<void> {
     // Format the log line
     const line = this.formatConsoleEntry(entry);
-    
+
     // Get the appropriate console method
     const method = this.consoleMethods[entry.level] || 'log';
-    
+
     // Direct, synchronous output
     console[method](line);
   }
-  
+
   /**
    * High-performance synchronous log method.
-   * 
+   *
    * Called directly by TransportManager.logSync() to avoid async overhead.
    * This method provides maximum performance by skipping Promise allocation.
-   * 
+   *
    * @param {LogEntry} entry - The log entry.
    * @returns {void}
    * @public
@@ -182,19 +182,19 @@ export class SyncConsoleTransport extends Transport {
     if (!this.enabled || !this.shouldLog(entry)) {
       return;
     }
-    
+
     this.stats.processed++;
-    
+
     try {
       // Format the log line
       const line = this.formatConsoleEntry(entry);
-      
+
       // Get the appropriate console method
       const method = this.consoleMethods[entry.level] || 'log';
-      
+
       // Direct, synchronous output
       console[method](line);
-      
+
       this.stats.succeeded++;
     } catch (error) {
       this.stats.failed++;
@@ -204,19 +204,19 @@ export class SyncConsoleTransport extends Transport {
 
   /**
    * Formats a log entry for console output.
-   * 
+   *
    * @param {LogEntry} entry - The log entry.
    * @returns {string} Formatted log line.
    * @private
    */
   private formatConsoleEntry(entry: LogEntry): string {
     const parts: string[] = [];
-    
+
     // Add prefix if configured
     if (this.consoleOptions.prefix) {
       parts.push(this.consoleOptions.prefix);
     }
-    
+
     // Add timestamp if configured
     if (this.consoleOptions.showTimestamp) {
       const timestamp = entry.timestamp || new Date().toISOString();
@@ -226,7 +226,7 @@ export class SyncConsoleTransport extends Transport {
         parts.push(`[${timestamp}]`);
       }
     }
-    
+
     // Add log level if configured
     if (this.consoleOptions.showLevel) {
       const level = entry.level.toUpperCase().padEnd(7);
@@ -237,10 +237,10 @@ export class SyncConsoleTransport extends Transport {
         parts.push(`[${level}]`);
       }
     }
-    
+
     // Add message
     parts.push(entry.message);
-    
+
     // Add metadata if configured
     if (this.consoleOptions.showMetadata && entry.context) {
       const meta = this.formatMetadata(entry.context);
@@ -248,7 +248,7 @@ export class SyncConsoleTransport extends Transport {
         parts.push(meta);
       }
     }
-    
+
     // Add error stack if present - check both entry.error and entry.context.err
     const error = entry.error || (entry.context && (entry.context as any).err);
     if (error) {
@@ -265,13 +265,13 @@ export class SyncConsoleTransport extends Transport {
         parts.push('\n' + errorObj.stack);
       }
     }
-    
+
     return parts.join(' ');
   }
 
   /**
    * Formats metadata for display.
-   * 
+   *
    * @param {any} metadata - The metadata to format.
    * @returns {string} Formatted metadata.
    * @private
@@ -280,7 +280,7 @@ export class SyncConsoleTransport extends Transport {
     if (!metadata || typeof metadata !== 'object') {
       return '';
     }
-    
+
     // Filter out internal fields and error (which is displayed separately)
     const filteredMeta = { ...metadata };
     delete filteredMeta.err;
@@ -289,13 +289,13 @@ export class SyncConsoleTransport extends Transport {
     delete filteredMeta.time;
     delete filteredMeta.msg;
     delete filteredMeta.loggerId;
-    
+
     // For simple objects, inline them
     const keys = Object.keys(filteredMeta);
     if (keys.length === 0) {
       return '';
     }
-    
+
     if (keys.length <= 3) {
       const pairs = keys.map(key => {
         const value = filteredMeta[key];
@@ -304,14 +304,14 @@ export class SyncConsoleTransport extends Transport {
         }
         return `${key}=[object]`;
       });
-      
+
       if (this.consoleOptions.useColors) {
         return `\x1b[90m{${pairs.join(', ')}}\x1b[0m`;
       } else {
         return `{${pairs.join(', ')}}`;
       }
     }
-    
+
     // For complex objects, use JSON
     try {
       const json = JSON.stringify(filteredMeta, null, 2);
@@ -328,7 +328,7 @@ export class SyncConsoleTransport extends Transport {
   /**
    * Initializes the transport.
    * No-op for console transport.
-   * 
+   *
    * @returns {Promise<void>}
    * @protected
    * @override
@@ -340,7 +340,7 @@ export class SyncConsoleTransport extends Transport {
   /**
    * Closes the transport.
    * No-op for console transport.
-   * 
+   *
    * @returns {Promise<void>}
    * @protected
    * @override
