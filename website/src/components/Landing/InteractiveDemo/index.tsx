@@ -43,16 +43,11 @@ export default function InteractiveDemo() {
       try {
         let Logger: any | undefined;
         try {
-          // Try to import the browser-specific build first
-          ({ Logger } = await import('magiclogger/dist/index.browser.js'));
+          // Try to import magiclogger - the package.json exports handle browser vs node
+          ({ Logger } = await import('magiclogger'));
         } catch (_err) {
-          try {
-            // Fallback to regular import
-            ({ Logger } = await import('magiclogger'));
-          } catch (_err2) {
-            // Attempt local shim (aliased in webpack too)
-            ({ Logger } = await import('../../../shims/magiclogger'));
-          }
+          // Attempt local shim (aliased in webpack too)
+          ({ Logger } = await import('../../../shims/magiclogger'));
         }
         if (Logger) {
           const loggerInstance = new Logger({
