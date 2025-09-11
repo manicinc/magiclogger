@@ -15,21 +15,27 @@ export function generateId(): string {
   if (typeof globalThis !== 'undefined' && globalThis.crypto?.randomUUID) {
     return globalThis.crypto.randomUUID();
   }
-  
-  // Node.js crypto module
-  try {
-    const crypto = require('crypto');
-    if (crypto.randomUUID) {
-      return crypto.randomUUID();
+
+  // Node.js crypto module - check if we're in Node environment
+  if (typeof process !== 'undefined' && process.versions?.node) {
+    try {
+      // Use dynamic import for Node.js crypto
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const crypto = require('crypto');
+      if (crypto.randomUUID) {
+        return crypto.randomUUID();
+      }
+    } catch {
+      // crypto not available
     }
-  } catch {
-    // crypto not available
   }
-  
+
   // Fallback: timestamp + counter + random
   // Counter ensures uniqueness even if called multiple times in same millisecond
   counter = (counter + 1) % 100000;
   const timestamp = Date.now();
-  const random = Math.floor(Math.random() * 0x1000000).toString(16).padStart(6, '0');
+  const random = Math.floor(Math.random() * 0x1000000)
+    .toString(16)
+    .padStart(6, '0');
   return `${timestamp}-${counter.toString().padStart(5, '0')}-${random}`;
 }
