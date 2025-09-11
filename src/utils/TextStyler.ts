@@ -371,7 +371,9 @@ export class TextStyler {
     }
 
     // Cache the result for future use
-    cache.set(cacheKey, result, text.replace(/<([^>]+)>([^<]*)<\/>/g, '$2'));
+    // Use the safe, predefined regex for extracting plain text
+    const plainText = text.replace(TextStyler.BRACKET_STRIP_REGEX, '$2');
+    cache.set(cacheKey, result, plainText);
 
     return result;
   }
