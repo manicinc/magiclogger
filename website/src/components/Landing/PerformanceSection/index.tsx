@@ -12,20 +12,20 @@ const benchmarks = {
     data: [
       { name: 'Winston (Styled)', value: 287066, percentage: 100, color: '#fee140' },
       { name: 'Winston (Plain)', value: 212986, percentage: 74, color: '#ffd700' },
-      { name: 'MagicLogger (Plain)', value: 135311, percentage: 47, color: '#667eea' },
+      { name: 'MagicLogger (Sync)', value: 135311, percentage: 47, color: '#667eea' },
       { name: 'Pino (Manual ANSI)', value: 85714, percentage: 30, color: '#4facfe' },
-      { name: 'MagicLogger (Styled)', value: 51415, percentage: 18, color: '#9945ff' }
+      { name: 'MagicLogger (Sync + Styles)', value: 51415, percentage: 18, color: '#9945ff' }
     ]
   },
   async: {
     title: 'Async Performance',
     description: 'Production performance with real file I/O',
     data: [
-      { name: 'Pino (Plain)', value: 443133, percentage: 100, color: '#4facfe' },
-      { name: 'Pino (Manual ANSI)', value: 316090, percentage: 71, color: '#00d4ff' },
+      { name: 'Pino', value: 443133, percentage: 100, color: '#4facfe' },
+      { name: 'Pino (Manual ANSI Async)', value: 316090, percentage: 71, color: '#00d4ff' },
       { name: 'Pino (Pretty)', value: 231927, percentage: 52, color: '#40a9ff' },
-      { name: 'MagicLogger (Plain)', value: 196760, percentage: 44, color: '#667eea' },
-      { name: 'MagicLogger (Styled)', value: 169096, percentage: 38, color: '#9945ff' }
+      { name: 'MagicLogger (Async)', value: 196760, percentage: 44, color: '#667eea' },
+      { name: 'MagicLogger (Async + Styles)', value: 169096, percentage: 38, color: '#9945ff' }
     ]
   },
   bundle: {

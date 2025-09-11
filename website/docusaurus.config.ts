@@ -167,8 +167,8 @@ const config: Config = {
       'docusaurus-plugin-typedoc',
       {
         // TypeDoc options
-        entryPoints: ['../src'],
-        entryPointStrategy: 'expand',
+        entryPoints: ['../src/index.ts'],
+        entryPointStrategy: 'resolve',
         tsconfig: '../tsconfig.json',
         out: 'api',
         sidebar: {
@@ -177,8 +177,9 @@ const config: Config = {
         },
         watch: process.env.TYPEDOC_WATCH === 'true',
         excludePrivate: true,
-        excludeProtected: false,
+        excludeProtected: true,
         excludeInternal: true,
+        excludeExternals: true,
         readme: 'none',
         exclude: [
           '**/node_modules/**',
@@ -186,6 +187,8 @@ const config: Config = {
           '**/examples/**',
           '**/*.test.ts',
           '**/*.spec.ts',
+          '**/utils/**',
+          '**/validation/**',
         ],
       },
     ],
