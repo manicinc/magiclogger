@@ -54,6 +54,10 @@ export class Logger {
     // For browser demo, route to info
     this.impl.log(msg, 'info');
   }
+
+  public custom(msg: string, colors?: ColorName[], prefix?: string): void {
+    this.impl.custom(msg, colors, prefix);
+  }
   public header(title: string, _colors: ColorName[] = ['brightWhite', 'bgBlue', 'bold']): void {
     this.impl.header(title, _colors);
   }
@@ -104,7 +108,12 @@ export class Logger {
   }
 
   // Unified API methods
-  public progressBar(progress: number, length?: number, completeChar?: string, incompleteChar?: string): void {
+  public progressBar(
+    progress: number,
+    length?: number,
+    completeChar?: string,
+    incompleteChar?: string
+  ): void {
     this.impl.progressBar(progress, length, completeChar, incompleteChar);
   }
 
@@ -130,10 +139,6 @@ export class Logger {
 
   public list(items: string[], options?: any): void {
     this.impl.list(items, options);
-  }
-
-  public custom(msg: string, colors?: ColorName[], prefix?: string): void {
-    this.impl.custom(msg, colors, prefix);
   }
 
   public styled(msg: string, preset: any): void {

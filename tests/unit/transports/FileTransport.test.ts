@@ -14,12 +14,12 @@ jest.mock('worker_threads', () => ({
 
 describe('FileTransport', () => {
   let mockWorker: any;
-  let eventHandlers: Record<string, Function> = {};
+  let eventHandlers: Record<string, (...args: any[]) => void> = {};
 
   beforeEach(() => {
     jest.clearAllMocks();
     eventHandlers = {};
-    
+
     mockWorker = {
       postMessage: jest.fn().mockImplementation((message: any) => {
         // Simulate worker responses
@@ -39,9 +39,9 @@ describe('FileTransport', () => {
           }
         });
       }),
-      on: jest.fn().mockImplementation((event: string, handler: Function) => {
+      on: jest.fn().mockImplementation((event: string, handler: (...args: any[]) => void) => {
         eventHandlers[event] = handler;
-        return mockWorker;  // Return this for chaining
+        return mockWorker; // Return this for chaining
       }),
       off: jest.fn(),
       terminate: jest.fn(),
@@ -54,7 +54,7 @@ describe('FileTransport', () => {
   describe('Constructor', () => {
     it('should create transport with required filepath', () => {
       const transport = new FileTransport({
-        filepath: '/tmp/test.log'
+        filepath: '/tmp/test.log',
       });
       expect(transport.name).toBe('file-worker');
       expect(transport.enabled).toBe(true);
@@ -63,7 +63,7 @@ describe('FileTransport', () => {
     it('should accept custom name', () => {
       const transport = new FileTransport({
         name: 'custom-file',
-        filepath: '/tmp/test.log'
+        filepath: '/tmp/test.log',
       });
       expect(transport.name).toBe('custom-file');
     });
@@ -71,7 +71,7 @@ describe('FileTransport', () => {
     it('should respect enabled option', () => {
       const transport = new FileTransport({
         filepath: '/tmp/test.log',
-        enabled: false
+        enabled: false,
       });
       expect(transport.enabled).toBe(false);
     });
@@ -80,7 +80,7 @@ describe('FileTransport', () => {
       const transport = new FileTransport({
         filepath: '/tmp/test.log',
         bufferSize: 5000,
-        flushInterval: 200
+        flushInterval: 200,
       });
       expect(transport).toBeDefined();
     });
@@ -88,7 +88,7 @@ describe('FileTransport', () => {
     it('should accept format option', () => {
       const transport = new FileTransport({
         filepath: '/tmp/test.log',
-        format: 'json'
+        format: 'json',
       });
       expect(transport).toBeDefined();
     });
@@ -97,7 +97,7 @@ describe('FileTransport', () => {
       const transport = new FileTransport({
         filepath: '/tmp/test.log',
         maxFileSize: 1024 * 1024 * 10, // 10MB
-        compress: true
+        compress: true,
       });
       expect(transport).toBeDefined();
     });
@@ -106,9 +106,9 @@ describe('FileTransport', () => {
   describe('Worker initialization', () => {
     it('should lazily initialize worker on first log', async () => {
       const transport = new FileTransport({
-        filepath: '/tmp/test.log'
+        filepath: '/tmp/test.log',
       });
-      
+
       expect(Worker).not.toHaveBeenCalled();
 
       const entry: LogEntry = {
@@ -117,23 +117,23 @@ describe('FileTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: 'Test message',
-        loggerId: 'test-logger'
+        loggerId: 'test-logger',
       };
 
       await transport.log(entry);
-      
+
       expect(Worker).toHaveBeenCalledTimes(1);
       expect(mockWorker.postMessage).toHaveBeenCalledWith({
         type: 'init',
         config: expect.objectContaining({
-          filepath: '/tmp/test.log'
-        })
+          filepath: '/tmp/test.log',
+        }),
       });
     });
 
     it('should queue entries while worker is initializing', async () => {
       const transport = new FileTransport({
-        filepath: '/tmp/test.log'
+        filepath: '/tmp/test.log',
       });
 
       // Set up message handler before logging
@@ -151,7 +151,7 @@ describe('FileTransport', () => {
           timestampMs: Date.now(),
           level: 'info',
           message: 'First',
-          loggerId: 'test'
+          loggerId: 'test',
         },
         {
           id: '2',
@@ -159,8 +159,8 @@ describe('FileTransport', () => {
           timestampMs: Date.now(),
           level: 'info',
           message: 'Second',
-          loggerId: 'test'
-        }
+          loggerId: 'test',
+        },
       ];
 
       // Log entries before worker is ready
@@ -176,9 +176,7 @@ describe('FileTransport', () => {
       await new Promise(resolve => setImmediate(resolve));
 
       // Verify queued entries were sent
-      const logCalls = mockWorker.postMessage.mock.calls.filter(
-        call => call[0].type === 'log'
-      );
+      const logCalls = mockWorker.postMessage.mock.calls.filter(call => call[0].type === 'log');
       expect(logCalls).toHaveLength(2);
     });
   });
@@ -186,7 +184,7 @@ describe('FileTransport', () => {
   describe('Logging operations', () => {
     it('should send log entries to worker', async () => {
       const transport = new FileTransport({
-        filepath: '/tmp/test.log'
+        filepath: '/tmp/test.log',
       });
 
       // Set up message handler
@@ -203,11 +201,11 @@ describe('FileTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: 'Test message',
-        loggerId: 'test-logger'
+        loggerId: 'test-logger',
       };
-      
+
       await transport.log(entry);
-      
+
       if (messageHandler) {
         messageHandler({ type: 'ready' });
       }
@@ -217,13 +215,13 @@ describe('FileTransport', () => {
 
       expect(mockWorker.postMessage).toHaveBeenCalledWith({
         type: 'log',
-        entry
+        entry,
       });
     });
 
     it('should handle different log levels', async () => {
       const transport = new FileTransport({
-        filepath: '/tmp/test.log'
+        filepath: '/tmp/test.log',
       });
       // Override the level to allow debug
       (transport as any).level = 'debug';
@@ -235,21 +233,21 @@ describe('FileTransport', () => {
         timestampMs: Date.now(),
         level,
         message: `Test ${level} message`,
-        loggerId: 'test-logger'
+        loggerId: 'test-logger',
       }));
-      
+
       // Log all entries
       for (const entry of entries) {
         await transport.log(entry);
       }
-      
+
       // Wait for all ready signals to be processed
       await new Promise(resolve => setTimeout(resolve, 100));
-      
+
       // Check that we got log calls for each level
       const logCalls = mockWorker.postMessage.mock.calls.filter(call => call[0].type === 'log');
       expect(logCalls.length).toBe(levels.length);
-      
+
       // Check that each level was logged
       for (const level of levels) {
         const levelFound = logCalls.some(call => call[0].entry?.level === level);
@@ -259,7 +257,7 @@ describe('FileTransport', () => {
 
     it('should handle entries with metadata', async () => {
       const transport = new FileTransport({
-        filepath: '/tmp/test.log'
+        filepath: '/tmp/test.log',
       });
 
       const entry: LogEntry = {
@@ -272,22 +270,22 @@ describe('FileTransport', () => {
         context: {
           user: 'john',
           action: 'login',
-          ip: '192.168.1.1'
+          ip: '192.168.1.1',
         },
-        tags: ['auth', 'api']
+        tags: ['auth', 'api'],
       };
 
       await transport.log(entry);
-      
+
       // Wait for the ready signal to be processed
       await new Promise(resolve => setImmediate(resolve));
-      
+
       expect(mockWorker.postMessage).toHaveBeenCalledWith(
         expect.objectContaining({
           entry: expect.objectContaining({
             context: entry.context,
-            tags: entry.tags
-          })
+            tags: entry.tags,
+          }),
         })
       );
     });
@@ -295,7 +293,7 @@ describe('FileTransport', () => {
     it('should not log when transport is disabled', async () => {
       const transport = new FileTransport({
         filepath: '/tmp/test.log',
-        enabled: false
+        enabled: false,
       });
 
       const entry: LogEntry = {
@@ -304,11 +302,11 @@ describe('FileTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: 'Should not log',
-        loggerId: 'test-logger'
+        loggerId: 'test-logger',
       };
 
       await transport.log(entry);
-      
+
       expect(Worker).not.toHaveBeenCalled();
       expect(mockWorker.postMessage).not.toHaveBeenCalled();
     });
@@ -317,7 +315,7 @@ describe('FileTransport', () => {
   describe('Flush operation', () => {
     it('should flush buffered entries', async () => {
       const transport = new FileTransport({
-        filepath: '/tmp/test.log'
+        filepath: '/tmp/test.log',
       });
 
       // Initialize worker and set up message handler immediately
@@ -334,7 +332,7 @@ describe('FileTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: 'Test',
-        loggerId: 'test'
+        loggerId: 'test',
       });
 
       // Simulate worker ready
@@ -344,24 +342,24 @@ describe('FileTransport', () => {
 
       // Start flush and immediately respond
       const flushPromise = transport.flush();
-      
+
       // Simulate flushed response
       if (messageHandler) {
         messageHandler({ type: 'flushed' });
       }
-      
+
       await flushPromise;
 
       expect(mockWorker.postMessage).toHaveBeenCalledWith({
-        type: 'flush'
+        type: 'flush',
       });
     });
 
     it('should handle flush timeout', async () => {
       jest.useFakeTimers();
-      
+
       const transport = new FileTransport({
-        filepath: '/tmp/test.log'
+        filepath: '/tmp/test.log',
       });
 
       // Set up message handler
@@ -379,7 +377,7 @@ describe('FileTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: 'Test',
-        loggerId: 'test'
+        loggerId: 'test',
       });
 
       // Simulate ready
@@ -389,12 +387,12 @@ describe('FileTransport', () => {
 
       // Don't send flushed message, let it timeout
       const flushPromise = transport.flush();
-      
+
       // Fast-forward timers
       jest.advanceTimersByTime(11000);
-      
+
       await expect(flushPromise).resolves.toBeUndefined();
-      
+
       jest.useRealTimers();
     });
   });
@@ -402,7 +400,7 @@ describe('FileTransport', () => {
   describe('Close operation', () => {
     it('should close worker and clean up', async () => {
       const transport = new FileTransport({
-        filepath: '/tmp/test.log'
+        filepath: '/tmp/test.log',
       });
 
       // Initialize worker by logging something
@@ -412,7 +410,7 @@ describe('FileTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: 'Test',
-        loggerId: 'test'
+        loggerId: 'test',
       });
 
       // Wait for initialization
@@ -422,14 +420,14 @@ describe('FileTransport', () => {
       await transport.close();
 
       expect(mockWorker.postMessage).toHaveBeenCalledWith({
-        type: 'close'
+        type: 'close',
       });
       expect(mockWorker.terminate).toHaveBeenCalled();
     });
 
     it('should terminate worker after close', async () => {
       const transport = new FileTransport({
-        filepath: '/tmp/test.log'
+        filepath: '/tmp/test.log',
       });
 
       // Initialize worker by logging something
@@ -439,12 +437,12 @@ describe('FileTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: 'Test',
-        loggerId: 'test'
+        loggerId: 'test',
       });
 
       // Wait for initialization
       await new Promise(resolve => setTimeout(resolve, 50));
-      
+
       await transport.close();
 
       expect(mockWorker.terminate).toHaveBeenCalled();
@@ -452,28 +450,32 @@ describe('FileTransport', () => {
 
     it.skip('should force terminate after timeout', async () => {
       jest.useFakeTimers();
-      
+
       const transport = new FileTransport({
-        filepath: '/tmp/test.log'
+        filepath: '/tmp/test.log',
       });
 
       // Force the transport to have a worker by calling protected method
       (transport as any).worker = mockWorker;
 
       // Mock postMessage to never respond to close
-      mockWorker.postMessage.mockImplementation(() => {});
-      mockWorker.on.mockImplementation(() => {});
+      mockWorker.postMessage.mockImplementation(() => {
+        /* No-op for timeout test */
+      });
+      mockWorker.on.mockImplementation(() => {
+        /* No-op for timeout test */
+      });
 
       // Start close
       const closePromise = transport.close();
-      
+
       // Fast-forward past timeout (5 seconds as per doClose implementation)
       jest.advanceTimersByTime(6000);
-      
+
       await closePromise;
 
       expect(mockWorker.terminate).toHaveBeenCalled();
-      
+
       jest.useRealTimers();
     });
   });
@@ -481,9 +483,9 @@ describe('FileTransport', () => {
   describe('Worker error handling', () => {
     it('should handle worker errors', async () => {
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-      
+
       const transport = new FileTransport({
-        filepath: '/tmp/test.log'
+        filepath: '/tmp/test.log',
       });
 
       await transport.log({
@@ -492,14 +494,12 @@ describe('FileTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: 'Test',
-        loggerId: 'test'
+        loggerId: 'test',
       });
 
       // Simulate worker error
-      const errorHandler = mockWorker.on.mock.calls.find(
-        call => call[0] === 'error'
-      )?.[1];
-      
+      const errorHandler = mockWorker.on.mock.calls.find(call => call[0] === 'error')?.[1];
+
       if (errorHandler) {
         errorHandler(new Error('Worker error'));
       }
@@ -514,9 +514,9 @@ describe('FileTransport', () => {
 
     it('should handle worker exit with error code', async () => {
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-      
+
       const transport = new FileTransport({
-        filepath: '/tmp/test.log'
+        filepath: '/tmp/test.log',
       });
 
       await transport.log({
@@ -525,16 +525,14 @@ describe('FileTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: 'Test',
-        loggerId: 'test'
+        loggerId: 'test',
       });
 
       // Simulate worker exit with error (code 2, not 1)
-      const exitHandler = mockWorker.on.mock.calls.find(
-        call => call[0] === 'exit'
-      )?.[1];
-      
+      const exitHandler = mockWorker.on.mock.calls.find(call => call[0] === 'exit')?.[1];
+
       if (exitHandler) {
-        exitHandler(2);  // Use exit code 2 instead of 1
+        exitHandler(2); // Use exit code 2 instead of 1
       }
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
@@ -546,9 +544,9 @@ describe('FileTransport', () => {
 
     it('should handle worker error messages', async () => {
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-      
+
       const transport = new FileTransport({
-        filepath: '/tmp/test.log'
+        filepath: '/tmp/test.log',
       });
 
       await transport.log({
@@ -557,19 +555,17 @@ describe('FileTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: 'Test',
-        loggerId: 'test'
+        loggerId: 'test',
       });
 
       // Simulate error message from worker
-      const messageHandler = mockWorker.on.mock.calls.find(
-        call => call[0] === 'message'
-      )?.[1];
-      
+      const messageHandler = mockWorker.on.mock.calls.find(call => call[0] === 'message')?.[1];
+
       if (messageHandler) {
-        messageHandler({ 
-          type: 'error', 
+        messageHandler({
+          type: 'error',
           error: 'Failed to write to file',
-          stats: { failed: 1 }
+          stats: { failed: 1 },
         });
       }
 
@@ -586,7 +582,7 @@ describe('FileTransport', () => {
     it('should configure JSON format', () => {
       const transport = new FileTransport({
         filepath: '/tmp/test.log',
-        format: 'json'
+        format: 'json',
       });
       expect(transport).toBeDefined();
     });
@@ -594,7 +590,7 @@ describe('FileTransport', () => {
     it('should configure plain format', () => {
       const transport = new FileTransport({
         filepath: '/tmp/test.log',
-        format: 'plain'
+        format: 'plain',
       });
       expect(transport).toBeDefined();
     });
@@ -602,7 +598,7 @@ describe('FileTransport', () => {
     it('should configure buffer size', () => {
       const transport = new FileTransport({
         filepath: '/tmp/test.log',
-        bufferSize: 20000
+        bufferSize: 20000,
       });
       expect(transport).toBeDefined();
     });
@@ -610,7 +606,7 @@ describe('FileTransport', () => {
     it('should configure flush interval', () => {
       const transport = new FileTransport({
         filepath: '/tmp/test.log',
-        flushInterval: 500
+        flushInterval: 500,
       });
       expect(transport).toBeDefined();
     });
@@ -619,7 +615,7 @@ describe('FileTransport', () => {
       const transport = new FileTransport({
         filepath: '/tmp/test.log',
         maxFileSize: 1024 * 1024 * 5, // 5MB
-        compress: true
+        compress: true,
       });
       expect(transport).toBeDefined();
     });

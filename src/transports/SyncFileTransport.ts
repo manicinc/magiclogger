@@ -1,18 +1,18 @@
 /**
  * @fileoverview High-performance synchronous file transport with intelligent batching.
- * 
+ *
  * Implements advanced write optimization techniques including:
  * - Write coalescing to minimize system calls
  * - Large kernel buffers for improved throughput
  * - Intelligent batching based on message size
  * - Automatic file rotation support
  * - Crash-safe write patterns
- * 
+ *
  * Performance characteristics:
  * - Throughput: 50,000+ ops/sec on modern SSDs
  * - Latency: Sub-millisecond for buffered writes
  * - Memory: Configurable buffer sizes (default 64KB)
- * 
+ *
  * @module transports/SyncFileTransport
  * @author MagicLogger Contributors
  * @copyright 2024 MagicLogger
@@ -26,7 +26,7 @@ import type { LogEntry, LogLevel, MinimalLogEntry } from '../types/transport';
 
 /**
  * Configuration options for the synchronous file transport.
- * 
+ *
  * @interface SyncFileTransportOptions
  * @since 1.0.0
  */
@@ -58,12 +58,12 @@ export interface SyncFileTransportOptions {
   /**
    * Number of log entries to buffer before writing.
    * Higher values improve throughput but increase memory usage and risk of data loss.
-   * 
+   *
    * WARNING: Buffered logs can be lost if the process crashes!
    * - bufferSize=1: Immediate write (safest, ~20k ops/sec)
-   * - bufferSize=100: Small buffer (balanced, ~40k ops/sec) 
+   * - bufferSize=100: Small buffer (balanced, ~40k ops/sec)
    * - bufferSize=1000: Large buffer (fastest but risky, ~25k ops/sec)
-   * 
+   *
    * @default 1000
    */
   bufferSize?: number;
@@ -119,7 +119,7 @@ export interface SyncFileTransportOptions {
 
 /**
  * Performance metrics for monitoring transport health.
- * 
+ *
  * @interface FileTransportMetrics
  * @since 1.0.0
  */
@@ -142,14 +142,14 @@ interface FileTransportMetrics {
 
 /**
  * High-performance synchronous file transport with advanced buffering.
- * 
+ *
  * Designed for maximum throughput while maintaining data integrity.
  * Uses write coalescing and large buffers to minimize system call overhead.
- * 
+ *
  * @class SyncFileTransport
  * @extends {Transport}
  * @since 1.0.0
- * 
+ *
  * @example Basic usage
  * ```typescript
  * const transport = new SyncFileTransport({
@@ -157,10 +157,10 @@ interface FileTransportMetrics {
  *   bufferSize: 1000,
  *   flushInterval: 100
  * });
- * 
+ *
  * logger.addTransport(transport);
  * ```
- * 
+ *
  * @example With rotation
  * ```typescript
  * const transport = new SyncFileTransport({
@@ -195,7 +195,7 @@ export class SyncFileTransport extends Transport {
    * @private
    * @internal
    */
-  // @ts-ignore - Reserved for future optimization
+  // @ts-expect-error - Reserved for future optimization
   private readonly _writeBuffer = '';
 
   /**
@@ -221,7 +221,7 @@ export class SyncFileTransport extends Transport {
     flushCount: 0,
     averageFlushSize: 0,
     rotations: 0,
-    lastWrite: 0
+    lastWrite: 0,
   };
 
   /**
@@ -232,7 +232,7 @@ export class SyncFileTransport extends Transport {
 
   /**
    * Creates a new synchronous file transport instance.
-   * 
+   *
    * @param {SyncFileTransportOptions} options - Transport configuration
    * @throws {Error} If filepath is not provided
    */
@@ -240,7 +240,7 @@ export class SyncFileTransport extends Transport {
     super({
       name: options.name || 'sync-file',
       enabled: options.enabled !== false,
-      level: options.level || 'debug'
+      level: options.level || 'debug',
     });
 
     if (!options.filepath) {
@@ -259,7 +259,7 @@ export class SyncFileTransport extends Transport {
       maxFiles: options.maxFiles || 5,
       timestamp: options.timestamp || false,
       formatter: options.formatter || this.defaultFormatter,
-      forceSync: options.forceSync || false
+      forceSync: options.forceSync || false,
     };
 
     this.initialize();
@@ -268,7 +268,7 @@ export class SyncFileTransport extends Transport {
   /**
    * Initializes the file transport.
    * Creates directories, opens file descriptor, and starts flush timer.
-   * 
+   *
    * @private
    */
   private initialize(): void {
@@ -305,7 +305,7 @@ export class SyncFileTransport extends Transport {
       this.flushTimer = setInterval(() => {
         this.flush();
       }, this.options.flushInterval);
-      
+
       /**
        * Allow the process to exit even if timer is active.
        * Important for CLI tools and test environments.
@@ -319,7 +319,7 @@ export class SyncFileTransport extends Transport {
   /**
    * Default formatter for log entries.
    * Produces compact JSON lines format.
-   * 
+   *
    * @private
    * @param {LogEntry} entry - Log entry to format
    * @returns {string} Formatted log line
@@ -330,7 +330,7 @@ export class SyncFileTransport extends Transport {
 
   /**
    * Checks if file rotation is needed based on size.
-   * 
+   *
    * @private
    * @returns {boolean} True if rotation is needed
    */
@@ -341,7 +341,7 @@ export class SyncFileTransport extends Transport {
   /**
    * Performs file rotation.
    * Closes current file and creates a new one with timestamp.
-   * 
+   *
    * @private
    */
   private rotate(): void {
@@ -390,7 +390,7 @@ export class SyncFileTransport extends Transport {
 
   /**
    * Removes old rotated files exceeding maxFiles limit.
-   * 
+   *
    * @private
    */
   private cleanupRotatedFiles(): void {
@@ -398,16 +398,17 @@ export class SyncFileTransport extends Transport {
 
     const dir = path.dirname(this.options.filepath);
     const base = path.basename(this.options.filepath, path.extname(this.options.filepath));
-    
+
     /**
      * Find all rotated files matching the pattern.
      */
-    const files = fs.readdirSync(dir)
+    const files = fs
+      .readdirSync(dir)
       .filter(f => f.startsWith(base) && f !== path.basename(this.options.filepath))
       .map(f => ({
         name: f,
         path: path.join(dir, f),
-        mtime: fs.statSync(path.join(dir, f)).mtime.getTime()
+        mtime: fs.statSync(path.join(dir, f)).mtime.getTime(),
       }))
       .sort((a, b) => b.mtime - a.mtime);
 
@@ -428,7 +429,7 @@ export class SyncFileTransport extends Transport {
   /**
    * Initializes the transport.
    * Required by Transport base class.
-   * 
+   *
    * @protected
    * @override
    * @returns {Promise<void>} Resolves when initialized
@@ -440,7 +441,7 @@ export class SyncFileTransport extends Transport {
 
   /**
    * Processes a log entry for output.
-   * 
+   *
    * @protected
    * @override
    * @param {LogEntry} entry - Log entry to process
@@ -449,27 +450,27 @@ export class SyncFileTransport extends Transport {
   /**
    * High-performance synchronous log method.
    * Bypasses async overhead for maximum speed.
-   * 
+   *
    * @param {MinimalLogEntry | LogEntry} entry - The log entry
    * @public
    */
   public logSync(entry: MinimalLogEntry | LogEntry): void {
     if (this.isClosing || !this.enabled || !this.fd) return;
-    
+
     // Fast path: Direct write for unbuffered mode
     if (this.options.bufferSize === 0) {
       try {
         // Format directly from minimal entry
         const line = this.formatMinimalEntry(entry) + '\n';
         const bytes = Buffer.byteLength(line, 'utf8');
-        
+
         fs.writeSync(this.fd!, line);
-        
+
         this.metrics.writeCount++;
         this.metrics.bytesWritten += bytes;
         this.currentFileSize += bytes;
         this.metrics.lastWrite = Date.now();
-        
+
         // Check rotation
         if (this.options.maxFileSize > 0 && this.currentFileSize >= this.options.maxFileSize) {
           this.rotate();
@@ -479,16 +480,16 @@ export class SyncFileTransport extends Transport {
       }
       return;
     }
-    
+
     // Buffered mode: Add to buffer
     this.buffer.push(entry as LogEntry);
     this.metrics.bufferLength = this.buffer.length;
-    
+
     if (this.buffer.length >= this.options.bufferSize) {
       this.flush();
     }
   }
-  
+
   /**
    * Format minimal entry without expensive conversions.
    * @private
@@ -499,26 +500,26 @@ export class SyncFileTransport extends Transport {
       const minimal = entry as MinimalLogEntry;
       const levelMap: Record<number, string> = {
         10: 'TRACE',
-        20: 'DEBUG', 
+        20: 'DEBUG',
         30: 'INFO',
         35: 'SUCCESS',
         40: 'WARN',
         50: 'ERROR',
-        60: 'FATAL'
+        60: 'FATAL',
       };
-      
+
       // Simple JSON format without expensive operations
       return JSON.stringify({
         level: levelMap[minimal.level] || 'INFO',
         time: minimal.time,
-        msg: minimal.plainMsg || minimal.msg
+        msg: minimal.plainMsg || minimal.msg,
       });
     }
-    
+
     // Fallback to full format
     return this.options.formatter(entry as LogEntry);
   }
-  
+
   protected async doLog(entry: LogEntry): Promise<void> {
     if (this.isClosing) return;
 
@@ -541,7 +542,7 @@ export class SyncFileTransport extends Transport {
   /**
    * Flushes buffered entries to disk.
    * Implements write coalescing for optimal performance.
-   * 
+   *
    * @public
    * @override
    * @returns {Promise<void>} Resolves when flush completes
@@ -562,7 +563,7 @@ export class SyncFileTransport extends Transport {
      * This minimizes system calls and improves performance.
      */
     const data = entries.map(entry => this.options.formatter(entry)).join('');
-    
+
     /**
      * Check if rotation is needed before writing.
      */
@@ -576,7 +577,7 @@ export class SyncFileTransport extends Transport {
      */
     try {
       const bytesWritten = fs.writeSync(this.fd!, data);
-      
+
       /**
        * Update metrics for monitoring.
        */
@@ -585,15 +586,14 @@ export class SyncFileTransport extends Transport {
       this.currentFileSize += bytesWritten;
       this.metrics.flushCount++;
       this.metrics.lastWrite = Date.now();
-      
+
       /**
        * Calculate rolling average flush size.
        */
       const avgWeight = 0.9;
-      this.metrics.averageFlushSize = 
-        this.metrics.averageFlushSize * avgWeight + 
-        entries.length * (1 - avgWeight);
-      
+      this.metrics.averageFlushSize =
+        this.metrics.averageFlushSize * avgWeight + entries.length * (1 - avgWeight);
+
       /**
        * Force kernel buffer flush based on configuration.
        * - forceSync=true: Always fsync (maximum durability, ~1000 ops/sec)
@@ -617,18 +617,18 @@ export class SyncFileTransport extends Transport {
 
   /**
    * Gets current transport statistics.
-   * 
+   *
    * Returns enhanced statistics including file-specific metrics.
    * Overrides the base method to provide comprehensive monitoring data.
-   * 
+   *
    * @public
-   * @override  
+   * @override
    * @returns {Record<string, any>} Transport statistics with file metrics
    */
-  // @ts-ignore - Intentionally extending return type with additional metrics
+  // @ts-expect-error - Intentionally extending return type with additional metrics
   public getStats(): Record<string, any> {
     const baseStats = super.getStats();
-    
+
     /**
      * Combine base statistics with file-specific metrics.
      * This provides comprehensive monitoring data.
@@ -647,14 +647,14 @@ export class SyncFileTransport extends Transport {
       flushCount: this.metrics.flushCount,
       averageFlushSize: this.metrics.averageFlushSize,
       rotations: this.metrics.rotations,
-      lastWrite: this.metrics.lastWrite
+      lastWrite: this.metrics.lastWrite,
     };
   }
 
   /**
    * Handles cleanup when closing.
    * Required by Transport base class.
-   * 
+   *
    * @protected
    * @override
    * @returns {Promise<void>} Resolves when closed
@@ -687,12 +687,11 @@ export class SyncFileTransport extends Transport {
       }
       this.fd = null;
     }
-
   }
 
   /**
    * Public close method that calls the base class close.
-   * 
+   *
    * @public
    * @override
    * @returns {Promise<void>} Resolves when closed

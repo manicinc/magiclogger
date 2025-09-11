@@ -13,14 +13,14 @@ jest.mock('worker_threads', () => ({
   Worker: jest.fn(),
   isMainThread: true,
   parentPort: null,
-  workerData: null
+  workerData: null,
 }));
 
 jest.mock('fs', () => ({
   ...jest.requireActual('fs'),
   createWriteStream: jest.fn(),
   existsSync: jest.fn(),
-  mkdirSync: jest.fn()
+  mkdirSync: jest.fn(),
 }));
 
 describe('FileWorker', () => {
@@ -31,14 +31,14 @@ describe('FileWorker', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     // Mock stream
     mockStream = {
       write: jest.fn((data, callback) => {
         if (callback) callback();
         return true;
       }),
-      end: jest.fn((callback) => {
+      end: jest.fn(callback => {
         if (callback) callback();
       }),
       on: jest.fn(),
@@ -55,7 +55,7 @@ describe('FileWorker', () => {
       prependListener: jest.fn(),
       prependOnceListener: jest.fn(),
       rawListeners: jest.fn(),
-      setMaxListeners: jest.fn()
+      setMaxListeners: jest.fn(),
     };
 
     (fs.createWriteStream as jest.Mock).mockReturnValue(mockStream);
@@ -94,8 +94,8 @@ describe('FileWorker', () => {
       stderr: null,
       resourceLimits: {},
       performance: {
-        eventLoopUtilization: jest.fn()
-      }
+        eventLoopUtilization: jest.fn(),
+      },
     };
 
     (Worker as jest.MockedClass<typeof Worker>).mockImplementation(() => mockWorker as any);
@@ -106,7 +106,7 @@ describe('FileWorker', () => {
       const workerPath = path.join(__dirname, '../../../../src/transports/worker/FileWorker.js');
       const workerData = {
         filePath: './logs/app.log',
-        append: true
+        append: true,
       };
 
       new Worker(workerPath, { workerData });
@@ -121,8 +121,8 @@ describe('FileWorker', () => {
       new Worker(workerPath, {
         workerData: {
           filePath: './logs/deep/nested/app.log',
-          append: false
-        }
+          append: false,
+        },
       });
 
       // Simulate worker initialization
@@ -142,8 +142,8 @@ describe('FileWorker', () => {
       new Worker(workerPath, {
         workerData: {
           filePath: '/root/protected.log',
-          append: false
-        }
+          append: false,
+        },
       });
 
       // Would send error message in actual worker
@@ -157,8 +157,8 @@ describe('FileWorker', () => {
       new Worker(workerPath, {
         workerData: {
           filePath: './logs/app.log',
-          append: true
-        }
+          append: true,
+        },
       });
     });
 
@@ -168,14 +168,14 @@ describe('FileWorker', () => {
           id: '1',
           timestamp: '2024-01-01T00:00:00Z',
           level: 'info',
-          message: 'Test message 1'
+          message: 'Test message 1',
         },
         {
           id: '2',
           timestamp: '2024-01-01T00:00:01Z',
           level: 'error',
-          message: 'Test message 2'
-        }
+          message: 'Test message 2',
+        },
       ];
 
       mockWorker.postMessage({ type: 'BATCH', entries });
@@ -183,24 +183,26 @@ describe('FileWorker', () => {
       // Verify message was sent
       expect(mockWorker.postMessage).toHaveBeenCalledWith({
         type: 'BATCH',
-        entries
+        entries,
       });
     });
 
     it('should handle large batches', () => {
-      const entries: LogEntry[] = Array(10000).fill(null).map((_, i) => ({
-        id: `${i}`,
-        timestamp: new Date().toISOString(),
-        level: 'info',
-        message: `Message ${i}`,
-        context: { index: i }
-      }));
+      const entries: LogEntry[] = Array(10000)
+        .fill(null)
+        .map((_, i) => ({
+          id: `${i}`,
+          timestamp: new Date().toISOString(),
+          level: 'info',
+          message: `Message ${i}`,
+          context: { index: i },
+        }));
 
       mockWorker.postMessage({ type: 'BATCH', entries });
 
       expect(mockWorker.postMessage).toHaveBeenCalledWith({
         type: 'BATCH',
-        entries
+        entries,
       });
     });
 
@@ -208,12 +210,14 @@ describe('FileWorker', () => {
       // Mock stream as busy
       mockStream.write.mockReturnValue(false);
 
-      const entries: LogEntry[] = Array(100).fill(null).map((_, i) => ({
-        id: `${i}`,
-        timestamp: new Date().toISOString(),
-        level: 'info',
-        message: `Message ${i}`
-      }));
+      const entries: LogEntry[] = Array(100)
+        .fill(null)
+        .map((_, i) => ({
+          id: `${i}`,
+          timestamp: new Date().toISOString(),
+          level: 'info',
+          message: `Message ${i}`,
+        }));
 
       mockWorker.postMessage({ type: 'BATCH', entries });
 
@@ -228,39 +232,36 @@ describe('FileWorker', () => {
       new Worker(workerPath, {
         workerData: {
           filePath: './logs/app.log',
-          append: true
-        }
+          append: true,
+        },
       });
     });
 
     it('should handle stream errors', () => {
       // Simulate stream error
-      const errorHandler = mockStream.on.mock.calls.find(
-        call => call[0] === 'error'
-      )?.[1];
+      const errorHandler = mockStream.on.mock.calls.find(call => call[0] === 'error')?.[1];
 
+      // Test error handler if it was set up
       if (errorHandler) {
         const error = new Error('Disk full');
         errorHandler(error);
-        
-        // Would send error message to parent
-        // In test, we verify handler setup
-        expect(mockStream.on).toHaveBeenCalledWith('error', expect.any(Function));
       }
+
+      // Always verify handler setup
+      expect(mockStream.on).toHaveBeenCalledWith('error', expect.any(Function));
     });
 
     it('should handle stream drain events', () => {
       // Simulate drain event
-      const drainHandler = mockStream.on.mock.calls.find(
-        call => call[0] === 'drain'
-      )?.[1];
+      const drainHandler = mockStream.on.mock.calls.find(call => call[0] === 'drain')?.[1];
 
+      // Test drain handler if it was set up
       if (drainHandler) {
         drainHandler();
-        
-        // Would continue writing buffered data
-        expect(mockStream.on).toHaveBeenCalledWith('drain', expect.any(Function));
       }
+
+      // Always verify handler setup
+      expect(mockStream.on).toHaveBeenCalledWith('drain', expect.any(Function));
     });
   });
 
@@ -270,8 +271,8 @@ describe('FileWorker', () => {
       new Worker(workerPath, {
         workerData: {
           filePath: './logs/app.log',
-          append: true
-        }
+          append: true,
+        },
       });
     });
 
@@ -281,8 +282,8 @@ describe('FileWorker', () => {
           id: '1',
           timestamp: new Date().toISOString(),
           level: 'info',
-          message: 'Buffered message'
-        }
+          message: 'Buffered message',
+        },
       ];
 
       mockWorker.postMessage({ type: 'BATCH', entries });
@@ -302,8 +303,8 @@ describe('FileWorker', () => {
         stats: {
           totalWritten: 1000,
           bufferSize: 0,
-          errors: 0
-        }
+          errors: 0,
+        },
       });
 
       expect(onMessage).toHaveBeenCalledWith({
@@ -311,8 +312,8 @@ describe('FileWorker', () => {
         stats: {
           totalWritten: 1000,
           bufferSize: 0,
-          errors: 0
-        }
+          errors: 0,
+        },
       });
     });
   });
@@ -323,8 +324,8 @@ describe('FileWorker', () => {
       new Worker(workerPath, {
         workerData: {
           filePath: './logs/app.log',
-          append: true
-        }
+          append: true,
+        },
       });
     });
 
@@ -340,8 +341,8 @@ describe('FileWorker', () => {
           id: '1',
           timestamp: new Date().toISOString(),
           level: 'info',
-          message: 'Final message'
-        }
+          message: 'Final message',
+        },
       ];
 
       mockWorker.postMessage({ type: 'BATCH', entries });
@@ -364,8 +365,8 @@ describe('FileWorker', () => {
       new Worker(workerPath, {
         workerData: {
           filePath: './logs/app.log',
-          append: true
-        }
+          append: true,
+        },
       });
 
       // Stream created with append flag
@@ -373,8 +374,8 @@ describe('FileWorker', () => {
         workerPath,
         expect.objectContaining({
           workerData: expect.objectContaining({
-            append: true
-          })
+            append: true,
+          }),
         })
       );
     });
@@ -384,8 +385,8 @@ describe('FileWorker', () => {
       new Worker(workerPath, {
         workerData: {
           filePath: './logs/app.log',
-          append: false
-        }
+          append: false,
+        },
       });
 
       // Stream created with write flag
@@ -393,8 +394,8 @@ describe('FileWorker', () => {
         workerPath,
         expect.objectContaining({
           workerData: expect.objectContaining({
-            append: false
-          })
+            append: false,
+          }),
         })
       );
     });
@@ -406,8 +407,8 @@ describe('FileWorker', () => {
       new Worker(workerPath, {
         workerData: {
           filePath: './logs/app.log',
-          append: true
-        }
+          append: true,
+        },
       });
     });
 
@@ -416,12 +417,14 @@ describe('FileWorker', () => {
       const entriesPerBatch = 100;
 
       for (let i = 0; i < batches; i++) {
-        const entries: LogEntry[] = Array(entriesPerBatch).fill(null).map((_, j) => ({
-          id: `${i}-${j}`,
-          timestamp: new Date().toISOString(),
-          level: 'info',
-          message: `Batch ${i} Message ${j}`
-        }));
+        const entries: LogEntry[] = Array(entriesPerBatch)
+          .fill(null)
+          .map((_, j) => ({
+            id: `${i}-${j}`,
+            timestamp: new Date().toISOString(),
+            level: 'info',
+            message: `Batch ${i} Message ${j}`,
+          }));
 
         mockWorker.postMessage({ type: 'BATCH', entries });
       }
@@ -436,15 +439,15 @@ describe('FileWorker', () => {
         metrics: {
           writesPerSecond: 10000,
           avgWriteTime: 0.5,
-          bufferUtilization: 0.3
-        }
+          bufferUtilization: 0.3,
+        },
       });
 
       expect(onMessage).toHaveBeenCalledWith({
         type: 'METRICS',
         metrics: expect.objectContaining({
-          writesPerSecond: 10000
-        })
+          writesPerSecond: 10000,
+        }),
       });
     });
   });
@@ -455,8 +458,8 @@ describe('FileWorker', () => {
       new Worker(workerPath, {
         workerData: {
           filePath: './logs/app.log',
-          append: true
-        }
+          append: true,
+        },
       });
     });
 
@@ -471,8 +474,8 @@ describe('FileWorker', () => {
           id: '1',
           timestamp: new Date().toISOString(),
           level: 'error',
-          message: 'This will fail'
-        }
+          message: 'This will fail',
+        },
       ];
 
       mockWorker.postMessage({ type: 'BATCH', entries });
@@ -492,12 +495,14 @@ describe('FileWorker', () => {
         return true;
       });
 
-      const entries: LogEntry[] = Array(5).fill(null).map((_, i) => ({
-        id: `${i}`,
-        timestamp: new Date().toISOString(),
-        level: 'info',
-        message: `Message ${i}`
-      }));
+      const entries: LogEntry[] = Array(5)
+        .fill(null)
+        .map((_, i) => ({
+          id: `${i}`,
+          timestamp: new Date().toISOString(),
+          level: 'info',
+          message: `Message ${i}`,
+        }));
 
       mockWorker.postMessage({ type: 'BATCH', entries });
 

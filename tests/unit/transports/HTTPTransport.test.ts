@@ -14,12 +14,12 @@ jest.mock('worker_threads', () => ({
 
 describe('HTTPTransport', () => {
   let mockWorker: any;
-  let eventHandlers: Record<string, Function> = {};
+  let eventHandlers: Record<string, (...args: any[]) => void> = {};
 
   beforeEach(() => {
     jest.clearAllMocks();
     eventHandlers = {};
-    
+
     mockWorker = {
       postMessage: jest.fn().mockImplementation((message: any) => {
         // Simulate worker responses
@@ -39,9 +39,9 @@ describe('HTTPTransport', () => {
           }
         });
       }),
-      on: jest.fn().mockImplementation((event: string, handler: Function) => {
+      on: jest.fn().mockImplementation((event: string, handler: (...args: any[]) => void) => {
         eventHandlers[event] = handler;
-        return mockWorker;  // Return this for chaining
+        return mockWorker; // Return this for chaining
       }),
       off: jest.fn(),
       terminate: jest.fn(),
@@ -52,7 +52,7 @@ describe('HTTPTransport', () => {
   describe('Constructor', () => {
     it('should create transport with required endpoint', () => {
       const transport = new HTTPTransport({
-        endpoint: 'https://logs.example.com/api'
+        endpoint: 'https://logs.example.com/api',
       });
       expect(transport.name).toBe('http-worker');
       expect(transport.enabled).toBe(true);
@@ -60,7 +60,7 @@ describe('HTTPTransport', () => {
 
     it('should accept url as alias for endpoint', () => {
       const transport = new HTTPTransport({
-        url: 'https://logs.example.com/api'
+        url: 'https://logs.example.com/api',
       });
       expect(transport.name).toBe('http-worker');
       expect(transport.enabled).toBe(true);
@@ -75,7 +75,7 @@ describe('HTTPTransport', () => {
     it('should accept custom name', () => {
       const transport = new HTTPTransport({
         name: 'custom-http',
-        endpoint: 'https://logs.example.com'
+        endpoint: 'https://logs.example.com',
       });
       expect(transport.name).toBe('custom-http');
     });
@@ -83,7 +83,7 @@ describe('HTTPTransport', () => {
     it('should respect enabled option', () => {
       const transport = new HTTPTransport({
         endpoint: 'https://logs.example.com',
-        enabled: false
+        enabled: false,
       });
       expect(transport.enabled).toBe(false);
     });
@@ -91,7 +91,7 @@ describe('HTTPTransport', () => {
     it('should accept HTTP method configuration', () => {
       const transport = new HTTPTransport({
         endpoint: 'https://logs.example.com',
-        method: 'PUT'
+        method: 'PUT',
       });
       expect(transport).toBeDefined();
     });
@@ -100,9 +100,9 @@ describe('HTTPTransport', () => {
       const transport = new HTTPTransport({
         endpoint: 'https://logs.example.com',
         headers: {
-          'Authorization': 'Bearer token123',
-          'X-API-Key': 'secret'
-        }
+          Authorization: 'Bearer token123',
+          'X-API-Key': 'secret',
+        },
       });
       expect(transport).toBeDefined();
     });
@@ -111,7 +111,7 @@ describe('HTTPTransport', () => {
       const transport = new HTTPTransport({
         endpoint: 'https://logs.example.com',
         batchSize: 200,
-        flushInterval: 10000
+        flushInterval: 10000,
       });
       expect(transport).toBeDefined();
     });
@@ -120,7 +120,7 @@ describe('HTTPTransport', () => {
       const transport = new HTTPTransport({
         endpoint: 'https://logs.example.com',
         maxRetries: 5,
-        retryDelay: 2000
+        retryDelay: 2000,
       });
       expect(transport).toBeDefined();
     });
@@ -128,7 +128,7 @@ describe('HTTPTransport', () => {
     it('should accept compression option', () => {
       const transport = new HTTPTransport({
         endpoint: 'https://logs.example.com',
-        compress: true
+        compress: true,
       });
       expect(transport).toBeDefined();
     });
@@ -137,7 +137,7 @@ describe('HTTPTransport', () => {
       const transport = new HTTPTransport({
         endpoint: 'https://logs.example.com',
         circuitBreakerThreshold: 3,
-        circuitBreakerResetTimeout: 30000
+        circuitBreakerResetTimeout: 30000,
       });
       expect(transport).toBeDefined();
     });
@@ -146,9 +146,9 @@ describe('HTTPTransport', () => {
   describe('Worker initialization', () => {
     it('should lazily initialize worker on first log', async () => {
       const transport = new HTTPTransport({
-        endpoint: 'https://logs.example.com'
+        endpoint: 'https://logs.example.com',
       });
-      
+
       expect(Worker).not.toHaveBeenCalled();
 
       const entry: LogEntry = {
@@ -157,23 +157,23 @@ describe('HTTPTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: 'Test message',
-        loggerId: 'test-logger'
+        loggerId: 'test-logger',
       };
 
       await transport.log(entry);
-      
+
       expect(Worker).toHaveBeenCalledTimes(1);
       expect(mockWorker.postMessage).toHaveBeenCalledWith({
         type: 'init',
         config: expect.objectContaining({
-          endpoint: 'https://logs.example.com'
-        })
+          endpoint: 'https://logs.example.com',
+        }),
       });
     });
 
     it('should queue entries while worker is initializing', async () => {
       const transport = new HTTPTransport({
-        endpoint: 'https://logs.example.com'
+        endpoint: 'https://logs.example.com',
       });
 
       const entries: LogEntry[] = [
@@ -183,7 +183,7 @@ describe('HTTPTransport', () => {
           timestampMs: Date.now(),
           level: 'info',
           message: 'First',
-          loggerId: 'test'
+          loggerId: 'test',
         },
         {
           id: '2',
@@ -191,8 +191,8 @@ describe('HTTPTransport', () => {
           timestampMs: Date.now(),
           level: 'error',
           message: 'Second',
-          loggerId: 'test'
-        }
+          loggerId: 'test',
+        },
       ];
 
       // Log entries before worker is ready
@@ -200,18 +200,14 @@ describe('HTTPTransport', () => {
       await transport.log(entries[1]);
 
       // Simulate worker ready
-      const readyHandler = mockWorker.on.mock.calls.find(
-        call => call[0] === 'message'
-      )?.[1];
-      
+      const readyHandler = mockWorker.on.mock.calls.find(call => call[0] === 'message')?.[1];
+
       if (readyHandler) {
         readyHandler({ type: 'ready' });
       }
 
       // Verify queued entries were sent
-      const logCalls = mockWorker.postMessage.mock.calls.filter(
-        call => call[0].type === 'log'
-      );
+      const logCalls = mockWorker.postMessage.mock.calls.filter(call => call[0].type === 'log');
       expect(logCalls).toHaveLength(2);
     });
   });
@@ -219,7 +215,7 @@ describe('HTTPTransport', () => {
   describe('Logging operations', () => {
     it('should send log entries to worker', async () => {
       const transport = new HTTPTransport({
-        endpoint: 'https://logs.example.com'
+        endpoint: 'https://logs.example.com',
       });
 
       const entry: LogEntry = {
@@ -229,17 +225,15 @@ describe('HTTPTransport', () => {
         level: 'info',
         message: 'Test message',
         loggerId: 'test-logger',
-        context: { userId: 123 }
+        context: { userId: 123 },
       };
 
       // Initialize and make ready
       await transport.log(entry);
-      
+
       // Simulate worker ready
-      const readyHandler = mockWorker.on.mock.calls.find(
-        call => call[0] === 'message'
-      )?.[1];
-      
+      const readyHandler = mockWorker.on.mock.calls.find(call => call[0] === 'message')?.[1];
+
       if (readyHandler) {
         readyHandler({ type: 'ready' });
       }
@@ -249,14 +243,14 @@ describe('HTTPTransport', () => {
 
       expect(mockWorker.postMessage).toHaveBeenCalledWith({
         type: 'log',
-        entry
+        entry,
       });
     });
 
     it('should batch multiple log entries', async () => {
       const transport = new HTTPTransport({
         endpoint: 'https://logs.example.com',
-        batchSize: 5
+        batchSize: 5,
       });
 
       // Simulate ready state
@@ -266,13 +260,11 @@ describe('HTTPTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: 'Init',
-        loggerId: 'test'
+        loggerId: 'test',
       });
 
-      const readyHandler = mockWorker.on.mock.calls.find(
-        call => call[0] === 'message'
-      )?.[1];
-      
+      const readyHandler = mockWorker.on.mock.calls.find(call => call[0] === 'message')?.[1];
+
       if (readyHandler) {
         readyHandler({ type: 'ready' });
       }
@@ -285,21 +277,19 @@ describe('HTTPTransport', () => {
           timestampMs: Date.now(),
           level: 'info',
           message: `Message ${i}`,
-          loggerId: 'test'
+          loggerId: 'test',
         });
       }
 
       // All entries should be sent to worker for batching
-      const logCalls = mockWorker.postMessage.mock.calls.filter(
-        call => call[0].type === 'log'
-      );
+      const logCalls = mockWorker.postMessage.mock.calls.filter(call => call[0].type === 'log');
       expect(logCalls.length).toBeGreaterThan(0);
     });
 
     it('should not log when transport is disabled', async () => {
       const transport = new HTTPTransport({
         endpoint: 'https://logs.example.com',
-        enabled: false
+        enabled: false,
       });
 
       const entry: LogEntry = {
@@ -308,11 +298,11 @@ describe('HTTPTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: 'Should not log',
-        loggerId: 'test-logger'
+        loggerId: 'test-logger',
       };
 
       await transport.log(entry);
-      
+
       expect(Worker).not.toHaveBeenCalled();
       expect(mockWorker.postMessage).not.toHaveBeenCalled();
     });
@@ -321,7 +311,7 @@ describe('HTTPTransport', () => {
   describe('Flush operation', () => {
     it('should flush buffered entries', async () => {
       const transport = new HTTPTransport({
-        endpoint: 'https://logs.example.com'
+        endpoint: 'https://logs.example.com',
       });
 
       // Initialize worker
@@ -331,14 +321,12 @@ describe('HTTPTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: 'Test',
-        loggerId: 'test'
+        loggerId: 'test',
       });
 
       // Simulate worker ready
-      const messageHandler = mockWorker.on.mock.calls.find(
-        call => call[0] === 'message'
-      )?.[1];
-      
+      const messageHandler = mockWorker.on.mock.calls.find(call => call[0] === 'message')?.[1];
+
       if (messageHandler) {
         messageHandler({ type: 'ready' });
       }
@@ -346,13 +334,13 @@ describe('HTTPTransport', () => {
       await transport.flush();
 
       expect(mockWorker.postMessage).toHaveBeenCalledWith({
-        type: 'flush'
+        type: 'flush',
       });
     });
 
     it('should resolve flush when worker responds', async () => {
       const transport = new HTTPTransport({
-        endpoint: 'https://logs.example.com'
+        endpoint: 'https://logs.example.com',
       });
 
       // Initialize
@@ -362,19 +350,17 @@ describe('HTTPTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: 'Test',
-        loggerId: 'test'
+        loggerId: 'test',
       });
 
-      const messageHandler = mockWorker.on.mock.calls.find(
-        call => call[0] === 'message'
-      )?.[1];
-      
+      const messageHandler = mockWorker.on.mock.calls.find(call => call[0] === 'message')?.[1];
+
       if (messageHandler) {
         messageHandler({ type: 'ready' });
       }
 
       const flushPromise = transport.flush();
-      
+
       // Simulate flush complete
       if (messageHandler) {
         messageHandler({ type: 'flushed' });
@@ -385,9 +371,9 @@ describe('HTTPTransport', () => {
 
     it('should handle flush timeout', async () => {
       jest.useFakeTimers();
-      
+
       const transport = new HTTPTransport({
-        endpoint: 'https://logs.example.com'
+        endpoint: 'https://logs.example.com',
       });
 
       // Initialize
@@ -397,24 +383,22 @@ describe('HTTPTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: 'Test',
-        loggerId: 'test'
+        loggerId: 'test',
       });
 
-      const messageHandler = mockWorker.on.mock.calls.find(
-        call => call[0] === 'message'
-      )?.[1];
-      
+      const messageHandler = mockWorker.on.mock.calls.find(call => call[0] === 'message')?.[1];
+
       if (messageHandler) {
         messageHandler({ type: 'ready' });
       }
 
       const flushPromise = transport.flush();
-      
+
       // Fast-forward past timeout
       jest.advanceTimersByTime(11000);
-      
+
       await expect(flushPromise).resolves.toBeUndefined();
-      
+
       jest.useRealTimers();
     });
   });
@@ -422,7 +406,7 @@ describe('HTTPTransport', () => {
   describe('Close operation', () => {
     it('should close worker and clean up', async () => {
       const transport = new HTTPTransport({
-        endpoint: 'https://logs.example.com'
+        endpoint: 'https://logs.example.com',
       });
 
       // Initialize by logging something
@@ -432,7 +416,7 @@ describe('HTTPTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: 'Test',
-        loggerId: 'test'
+        loggerId: 'test',
       });
 
       // Wait for initialization
@@ -441,16 +425,16 @@ describe('HTTPTransport', () => {
       await transport.close();
 
       expect(mockWorker.postMessage).toHaveBeenCalledWith({
-        type: 'close'
+        type: 'close',
       });
       expect(mockWorker.terminate).toHaveBeenCalled();
     });
 
     it('should log final stats on close', async () => {
       const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
-      
+
       const transport = new HTTPTransport({
-        endpoint: 'https://logs.example.com'
+        endpoint: 'https://logs.example.com',
       });
 
       // Initialize by logging something
@@ -460,12 +444,12 @@ describe('HTTPTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: 'Test',
-        loggerId: 'test'
+        loggerId: 'test',
       });
 
       // Wait for initialization
       await new Promise(resolve => setTimeout(resolve, 50));
-      
+
       await transport.close();
 
       expect(consoleLogSpy).toHaveBeenCalledWith(
@@ -478,7 +462,7 @@ describe('HTTPTransport', () => {
 
     it('should terminate worker after close', async () => {
       const transport = new HTTPTransport({
-        endpoint: 'https://logs.example.com'
+        endpoint: 'https://logs.example.com',
       });
 
       // Initialize by logging something
@@ -488,7 +472,7 @@ describe('HTTPTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: 'Test',
-        loggerId: 'test'
+        loggerId: 'test',
       });
 
       // Wait for initialization
@@ -503,9 +487,9 @@ describe('HTTPTransport', () => {
   describe('Worker error handling', () => {
     it('should handle worker errors', async () => {
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-      
+
       const transport = new HTTPTransport({
-        endpoint: 'https://logs.example.com'
+        endpoint: 'https://logs.example.com',
       });
 
       await transport.log({
@@ -514,13 +498,11 @@ describe('HTTPTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: 'Test',
-        loggerId: 'test'
+        loggerId: 'test',
       });
 
-      const errorHandler = mockWorker.on.mock.calls.find(
-        call => call[0] === 'error'
-      )?.[1];
-      
+      const errorHandler = mockWorker.on.mock.calls.find(call => call[0] === 'error')?.[1];
+
       if (errorHandler) {
         errorHandler(new Error('Worker crashed'));
       }
@@ -535,9 +517,9 @@ describe('HTTPTransport', () => {
 
     it('should handle circuit breaker open messages', async () => {
       const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
-      
+
       const transport = new HTTPTransport({
-        endpoint: 'https://logs.example.com'
+        endpoint: 'https://logs.example.com',
       });
 
       await transport.log({
@@ -546,17 +528,15 @@ describe('HTTPTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: 'Test',
-        loggerId: 'test'
+        loggerId: 'test',
       });
 
-      const messageHandler = mockWorker.on.mock.calls.find(
-        call => call[0] === 'message'
-      )?.[1];
-      
+      const messageHandler = mockWorker.on.mock.calls.find(call => call[0] === 'message')?.[1];
+
       if (messageHandler) {
-        messageHandler({ 
+        messageHandler({
           type: 'circuit-open',
-          message: 'Circuit breaker opened after 5 failures'
+          message: 'Circuit breaker opened after 5 failures',
         });
       }
 
@@ -570,9 +550,9 @@ describe('HTTPTransport', () => {
 
     it('should handle worker exit with error code', async () => {
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-      
+
       const transport = new HTTPTransport({
-        endpoint: 'https://logs.example.com'
+        endpoint: 'https://logs.example.com',
       });
 
       await transport.log({
@@ -581,13 +561,11 @@ describe('HTTPTransport', () => {
         timestampMs: Date.now(),
         level: 'info',
         message: 'Test',
-        loggerId: 'test'
+        loggerId: 'test',
       });
 
-      const exitHandler = mockWorker.on.mock.calls.find(
-        call => call[0] === 'exit'
-      )?.[1];
-      
+      const exitHandler = mockWorker.on.mock.calls.find(call => call[0] === 'exit')?.[1];
+
       if (exitHandler) {
         exitHandler(1);
       }
@@ -603,12 +581,12 @@ describe('HTTPTransport', () => {
   describe('Configuration edge cases', () => {
     it('should handle both endpoint and url properties', () => {
       const transport1 = new HTTPTransport({
-        endpoint: 'https://logs1.example.com'
+        endpoint: 'https://logs1.example.com',
       });
       expect(transport1).toBeDefined();
 
       const transport2 = new HTTPTransport({
-        url: 'https://logs2.example.com'
+        url: 'https://logs2.example.com',
       });
       expect(transport2).toBeDefined();
     });
@@ -616,7 +594,7 @@ describe('HTTPTransport', () => {
     it('should prefer endpoint over url if both provided', () => {
       const transport = new HTTPTransport({
         endpoint: 'https://primary.example.com',
-        url: 'https://fallback.example.com'
+        url: 'https://fallback.example.com',
       });
 
       expect(transport).toBeDefined();
@@ -625,11 +603,11 @@ describe('HTTPTransport', () => {
 
     it('should handle all HTTP methods', () => {
       const methods: Array<'POST' | 'PUT' | 'PATCH'> = ['POST', 'PUT', 'PATCH'];
-      
+
       methods.forEach(method => {
         const transport = new HTTPTransport({
           endpoint: 'https://logs.example.com',
-          method
+          method,
         });
         expect(transport).toBeDefined();
       });
@@ -638,7 +616,7 @@ describe('HTTPTransport', () => {
     it('should handle large buffer configuration', () => {
       const transport = new HTTPTransport({
         endpoint: 'https://logs.example.com',
-        maxBufferSize: 100000
+        maxBufferSize: 100000,
       });
       expect(transport).toBeDefined();
     });
@@ -646,7 +624,7 @@ describe('HTTPTransport', () => {
     it('should handle timeout configuration', () => {
       const transport = new HTTPTransport({
         endpoint: 'https://logs.example.com',
-        timeout: 60000
+        timeout: 60000,
       });
       expect(transport).toBeDefined();
     });

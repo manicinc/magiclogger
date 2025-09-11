@@ -1,6 +1,6 @@
 /**
  * @fileoverview Tests for AsyncLogger implementation
- * 
+ *
  * Tests the correct async logger architecture where:
  * - Logger only routes to transports, no buffering at logger level
  * - Each transport manages its own buffering/threading strategy
@@ -13,7 +13,7 @@ import type { LogEntry } from '../../../src/types/transport';
 
 describe('AsyncLogger', () => {
   let mockTransport: jest.Mocked<Transport>;
-  
+
   beforeEach(() => {
     mockTransport = {
       name: 'mock',
@@ -26,7 +26,7 @@ describe('AsyncLogger', () => {
   describe('Core Functionality', () => {
     it('should route logs directly to transports', async () => {
       const logger = new AsyncLogger({
-        transports: [mockTransport]
+        transports: [mockTransport],
       });
 
       // Wait for logger initialization
@@ -45,7 +45,7 @@ describe('AsyncLogger', () => {
       expect(mockTransport.log).toHaveBeenCalledWith(
         expect.objectContaining({
           level: 'info',
-          message: 'Test message'
+          message: 'Test message',
         })
       );
     });
@@ -57,16 +57,16 @@ describe('AsyncLogger', () => {
         flush: jest.fn(),
         close: jest.fn(),
       };
-      
+
       const transport2 = {
-        name: 'transport2', 
+        name: 'transport2',
         log: jest.fn(),
         flush: jest.fn(),
         close: jest.fn(),
       };
 
       const logger = new AsyncLogger({
-        transports: [transport1, transport2]
+        transports: [transport1, transport2],
       });
 
       await logger.waitForReady();
@@ -77,18 +77,18 @@ describe('AsyncLogger', () => {
       // Both transports should receive the log
       expect(transport1.log).toHaveBeenCalledTimes(1);
       expect(transport2.log).toHaveBeenCalledTimes(1);
-      
+
       expect(transport1.log).toHaveBeenCalledWith(
         expect.objectContaining({
           level: 'error',
-          message: 'Error occurred'
+          message: 'Error occurred',
         })
       );
     });
 
     it('should not buffer at logger level', async () => {
       const logger = new AsyncLogger({
-        transports: [mockTransport]
+        transports: [mockTransport],
       });
 
       // Log multiple messages
@@ -107,7 +107,7 @@ describe('AsyncLogger', () => {
   describe('Log Levels', () => {
     it('should support all log levels', async () => {
       const logger = new AsyncLogger({
-        transports: [mockTransport]
+        transports: [mockTransport],
       });
 
       await logger.waitForReady();
@@ -119,7 +119,7 @@ describe('AsyncLogger', () => {
       await new Promise(resolve => setImmediate(resolve));
 
       expect(mockTransport.log).toHaveBeenCalledTimes(4);
-      
+
       const calls = mockTransport.log.mock.calls;
       expect(calls[0][0].level).toBe('debug');
       expect(calls[1][0].level).toBe('info');
@@ -131,7 +131,7 @@ describe('AsyncLogger', () => {
   describe('Metadata', () => {
     it('should include metadata with logs', async () => {
       const logger = new AsyncLogger({
-        transports: [mockTransport]
+        transports: [mockTransport],
       });
 
       await logger.waitForReady();
@@ -143,14 +143,14 @@ describe('AsyncLogger', () => {
         expect.objectContaining({
           level: 'info',
           message: 'User action',
-          context: { userId: 123, action: 'login' }
+          context: { userId: 123, action: 'login' },
         })
       );
     });
 
     it('should handle errors as metadata', async () => {
       const logger = new AsyncLogger({
-        transports: [mockTransport]
+        transports: [mockTransport],
       });
 
       await logger.waitForReady();
@@ -163,7 +163,7 @@ describe('AsyncLogger', () => {
         expect.objectContaining({
           level: 'error',
           message: 'Operation failed',
-          context: { error }
+          context: { error },
         })
       );
     });
@@ -172,7 +172,7 @@ describe('AsyncLogger', () => {
   describe('Transport Management', () => {
     it('should add transports dynamically', async () => {
       const logger = new AsyncLogger();
-      
+
       await logger.waitForReady();
       logger.info('Before transport');
       logger.flush();
@@ -183,13 +183,13 @@ describe('AsyncLogger', () => {
       logger.info('After transport');
       logger.flush();
       await new Promise(resolve => setImmediate(resolve));
-      
+
       expect(mockTransport.log).toHaveBeenCalledTimes(1);
     });
 
     it('should remove transports', async () => {
       const logger = new AsyncLogger({
-        transports: [mockTransport]
+        transports: [mockTransport],
       });
 
       await logger.waitForReady();
@@ -206,7 +206,7 @@ describe('AsyncLogger', () => {
       const transport2 = { ...mockTransport, name: 'console' };
 
       const logger = new AsyncLogger({
-        transports: [transport1, transport2]
+        transports: [transport1, transport2],
       });
 
       await logger.waitForReady();
@@ -223,7 +223,7 @@ describe('AsyncLogger', () => {
         flush: jest.fn().mockResolvedValue(undefined),
         close: jest.fn(),
       };
-      
+
       const transport2 = {
         name: 'transport2',
         log: jest.fn(),
@@ -232,7 +232,7 @@ describe('AsyncLogger', () => {
       };
 
       const logger = new AsyncLogger({
-        transports: [transport1, transport2]
+        transports: [transport1, transport2],
       });
 
       await logger.flush();
@@ -248,7 +248,7 @@ describe('AsyncLogger', () => {
         flush: jest.fn(),
         close: jest.fn().mockResolvedValue(undefined),
       };
-      
+
       const transport2 = {
         name: 'transport2',
         log: jest.fn(),
@@ -257,7 +257,7 @@ describe('AsyncLogger', () => {
       };
 
       const logger = new AsyncLogger({
-        transports: [transport1, transport2]
+        transports: [transport1, transport2],
       });
 
       await logger.close();
@@ -270,10 +270,10 @@ describe('AsyncLogger', () => {
   describe('onFlush Callback', () => {
     it('should call onFlush when transports flush', async () => {
       const onFlush = jest.fn();
-      
+
       const logger = new AsyncLogger({
         transports: [mockTransport],
-        onFlush
+        onFlush,
       });
 
       // Log some entries
@@ -287,7 +287,7 @@ describe('AsyncLogger', () => {
       expect(onFlush).toHaveBeenCalledWith(
         expect.arrayContaining([
           expect.objectContaining({ message: 'Message 1' }),
-          expect.objectContaining({ message: 'Message 2' })
+          expect.objectContaining({ message: 'Message 2' }),
         ])
       );
     });
@@ -302,20 +302,32 @@ describe('AsyncLogger', () => {
       }
 
       const logger = new AsyncLogger({
-        transports: [mockTransport]
+        transports: [mockTransport],
       });
 
       logger.info('Test');
 
+      // Test if queueMicrotask was called (only if it was mocked)
+      const wasMocked = originalQueueMicrotask !== undefined;
+      const mockToTest = wasMocked ? global.queueMicrotask : jest.fn();
+
+      // Verify the mock wasn't called
+      expect(mockToTest).toBeDefined();
+      expect(wasMocked && typeof mockToTest === 'function').toBe(wasMocked);
+
+      // For mocked function, verify it wasn't called
+      const callCount = wasMocked ? (mockToTest as jest.Mock).mock?.calls?.length ?? 0 : 0;
+      expect(callCount).toBe(0);
+
+      // Always restore original if it was mocked
       if (originalQueueMicrotask) {
-        expect(global.queueMicrotask).not.toHaveBeenCalled();
         global.queueMicrotask = originalQueueMicrotask;
       }
     });
 
     it('should not have buffer configuration at logger level', () => {
       const logger = new AsyncLogger({
-        transports: [mockTransport]
+        transports: [mockTransport],
       });
 
       // AsyncLogger should not expose buffer-related properties publicly
@@ -330,7 +342,7 @@ describe('AsyncLogger', () => {
       // Mock a transport with its own buffering strategy
       const transportBuffer: LogEntry[] = [];
       const flushCalled = jest.fn();
-      
+
       const bufferingTransport = {
         name: 'buffering',
         buffer: transportBuffer,
@@ -348,26 +360,26 @@ describe('AsyncLogger', () => {
       };
 
       const logger = new AsyncLogger({
-        transports: [bufferingTransport]
+        transports: [bufferingTransport],
       });
 
       await logger.waitForReady();
-      
+
       // Log a message
       logger.info('Buffered by transport');
-      
+
       // Flush to process the message
       await logger.flush();
-      
+
       // Transport should have received the log
       expect(bufferingTransport.log).toHaveBeenCalled();
       expect(bufferingTransport.log).toHaveBeenCalledWith(
         expect.objectContaining({ message: 'Buffered by transport' })
       );
-      
+
       // Transport's flush method should also have been called
       expect(bufferingTransport.flush).toHaveBeenCalled();
-      
+
       // This demonstrates that transports control their own buffering/flushing strategy
       expect(flushCalled).toHaveBeenCalled();
     });

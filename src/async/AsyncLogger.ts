@@ -1,28 +1,28 @@
 /**
  * @fileoverview Asynchronous logger with true non-blocking I/O using worker threads.
- * 
+ *
  * Provides high-performance logging that doesn't block the main event loop by
  * offloading serialization and I/O to a dedicated worker thread pool.
- * 
+ *
  * @module async/AsyncLogger
  * @author MagicLogger Contributors
  * @copyright 2024 MagicLogger
  * @license MIT
  * @since 1.0.0
- * 
+ *
  * @example Basic usage
  * ```typescript
  * import { AsyncLogger } from 'magiclogger';
- * 
+ *
  * const logger = new AsyncLogger({
  *   transports: [new ConsoleTransport()],
  *   worker: { poolSize: 2 }
  * });
- * 
+ *
  * logger.info('Application started');
  * await logger.close();
  * ```
- * 
+ *
  * @example With metrics monitoring
  * ```typescript
  * const logger = new AsyncLogger({
@@ -33,13 +33,13 @@
  *     flushInterval: 100
  *   }
  * });
- * 
+ *
  * logger.on('metrics', (metrics) => {
  *   console.log(`Processed: ${metrics.totalLogs}`);
  *   console.log(`Worker utilization: ${metrics.workerUtilization}%`);
  * });
  * ```
- * 
+ *
  * @example Custom onFlush callback
  * ```typescript
  * const logger = new AsyncLogger({
@@ -53,6 +53,7 @@
 
 import { Worker } from 'node:worker_threads';
 import { join } from 'node:path';
+import { existsSync } from 'node:fs';
 import { EventEmitter } from 'events';
 import { StyleBuilder } from '../core/StyleBuilder';
 import { TemplateParser } from '../parsers/TemplateParser';
@@ -63,7 +64,7 @@ import { SyncConsoleTransport } from '../transports/SyncConsoleTransport';
 
 /**
  * Configuration options for the AsyncLogger.
- * 
+ *
  * @interface AsyncLoggerOptions
  * @since 1.0.0
  */
@@ -104,7 +105,7 @@ export interface AsyncLoggerOptions {
 
 /**
  * Performance metrics for monitoring logger health.
- * 
+ *
  * @interface AsyncLoggerMetrics
  * @since 1.0.0
  */
@@ -125,7 +126,7 @@ interface AsyncLoggerMetrics {
 
 /**
  * Message types for worker communication protocol.
- * 
+ *
  * @enum {string}
  * @readonly
  * @since 1.0.0
@@ -138,12 +139,12 @@ const WorkerMessageType = {
   READY: 'READY',
   ACK: 'ACK',
   ERROR: 'ERROR',
-  METRICS: 'METRICS'
+  METRICS: 'METRICS',
 } as const;
 
 /**
  * Worker thread wrapper for managed lifecycle.
- * 
+ *
  * @class WorkerThread
  * @since 1.0.0
  */
@@ -155,7 +156,7 @@ class WorkerThread extends EventEmitter {
 
   /**
    * Creates a new worker thread wrapper.
-   * 
+   *
    * @param {number} id - Worker ID for identification
    * @param {string} workerPath - Path to worker script
    */
@@ -167,7 +168,7 @@ class WorkerThread extends EventEmitter {
 
   /**
    * Initializes the worker thread and sets up communication.
-   * 
+   *
    * @private
    * @param {string} workerPath - Path to worker script
    * @returns {void}
@@ -176,21 +177,21 @@ class WorkerThread extends EventEmitter {
     // Worker files need proper extension - use .cjs for CommonJS environments
     // The async worker should work with both .js and .cjs but .cjs is more compatible
     let finalWorkerPath = workerPath;
-    
+
     // Always try .cjs first if the original path ends with .js
     // This provides better compatibility across different module systems
     if (workerPath.endsWith('.js') && !workerPath.includes('AsyncLoggerWorker.cjs')) {
       const cjsPath = workerPath.replace(/\.js$/, '.cjs');
       finalWorkerPath = cjsPath;
     }
-    
+
     this.worker = new Worker(finalWorkerPath, {
       workerData: { workerId: this.id },
       // Add eval option to support both CJS and ESM contexts
-      eval: false
+      eval: false,
     });
 
-    this.worker.on('message', (msg) => {
+    this.worker.on('message', msg => {
       switch (msg.type) {
         case WorkerMessageType.READY:
           this.ready = true;
@@ -209,11 +210,11 @@ class WorkerThread extends EventEmitter {
       }
     });
 
-    this.worker.on('error', (error) => {
+    this.worker.on('error', error => {
       this.emit('error', error);
     });
 
-    this.worker.on('exit', (code) => {
+    this.worker.on('exit', code => {
       if (code !== 0) {
         this.emit('error', new Error(`Worker ${this.id} exited with code ${code}`));
       }
@@ -224,7 +225,7 @@ class WorkerThread extends EventEmitter {
 
   /**
    * Sends a message to the worker thread.
-   * 
+   *
    * @param {any} message - Message to send
    * @returns {boolean} Success status
    */
@@ -237,7 +238,7 @@ class WorkerThread extends EventEmitter {
 
   /**
    * Gets the current load on this worker.
-   * 
+   *
    * @returns {number} Number of pending operations
    */
   getLoad(): number {
@@ -246,7 +247,7 @@ class WorkerThread extends EventEmitter {
 
   /**
    * Checks if the worker is available for processing.
-   * 
+   *
    * @returns {boolean} Availability status
    */
   isAvailable(): boolean {
@@ -255,7 +256,7 @@ class WorkerThread extends EventEmitter {
 
   /**
    * Terminates the worker thread gracefully.
-   * 
+   *
    * @returns {Promise<void>} Resolves when terminated
    */
   async terminate(): Promise<void> {
@@ -269,30 +270,30 @@ class WorkerThread extends EventEmitter {
 
 /**
  * High-performance asynchronous logger using worker threads.
- * 
+ *
  * Offloads CPU-intensive operations like serialization and I/O to worker
  * threads, keeping the main event loop responsive. Ideal for high-throughput
  * applications that cannot afford blocking operations.
- * 
+ *
  * @class AsyncLogger
  * @extends {EventEmitter}
  * @since 1.0.0
- * 
+ *
  * @example Basic usage
  * ```typescript
  * const logger = new AsyncLogger({
  *   transports: [new ConsoleTransport()],
  *   worker: { poolSize: 2 }
  * });
- * 
+ *
  * // Non-blocking log operations
  * logger.info('Server started');
  * logger.error('Connection failed', { host: 'db.example.com' });
- * 
+ *
  * // Graceful shutdown
  * await logger.close();
  * ```
- * 
+ *
  * @example With metrics monitoring
  * ```typescript
  * const logger = new AsyncLogger({
@@ -302,7 +303,7 @@ class WorkerThread extends EventEmitter {
  *     batchSize: 1000
  *   }
  * });
- * 
+ *
  * // Monitor performance
  * logger.on('metrics', (metrics) => {
  *   console.log(`Processed: ${metrics.totalLogs}`);
@@ -313,37 +314,37 @@ class WorkerThread extends EventEmitter {
 export class AsyncLogger extends EventEmitter {
   /** @private {Transport[]} Active transports */
   private readonly transports: Transport[];
-  
+
   /** @private {string} Logger instance ID */
   private readonly id: string;
-  
+
   /** @private {boolean} Whether to use colors */
   private readonly useColors: boolean;
-  
+
   /** @private {StyleBuilder} Style builder instance for chainable styling */
   private readonly styleBuilder: StyleBuilder;
-  
+
   /** @private {TemplateParser} Template parser instance for template literal styling */
   private readonly templateParser: TemplateParser;
-  
+
   /** @private {TemplateFormatter} Cached template formatter function */
   private readonly templateFormatter: TemplateFormatter;
-  
+
   /** @private {WorkerThread[]} Worker thread pool */
   private workers: WorkerThread[] = [];
-  
+
   /** @private {number} Current worker index for round-robin */
   private currentWorker = 0;
-  
+
   /** @private {LogEntry[]} Batch buffer */
   private batch: LogEntry[] = [];
-  
+
   /** @private {NodeJS.Timeout | null} Batch flush timer */
   private batchTimer: NodeJS.Timeout | null = null;
-  
+
   /** @private {NodeJS.Timeout | null} Periodic flush timer */
   private flushTimer: NodeJS.Timeout | null = null;
-  
+
   /** @private {AsyncLoggerMetrics} Performance metrics */
   private readonly metrics: AsyncLoggerMetrics = {
     totalLogs: 0,
@@ -351,51 +352,51 @@ export class AsyncLogger extends EventEmitter {
     batchSize: 0,
     avgBatchSize: 0,
     droppedLogs: 0,
-    workerUtilization: 0
+    workerUtilization: 0,
   };
-  
+
   /** @private {boolean} Metrics collection enabled */
   private readonly enableMetrics: boolean;
-  
+
   /** @private {number} Batch size configuration */
   private readonly batchSize: number;
-  
+
   /** @private {number} Batch timeout configuration */
   private readonly batchTimeout: number;
-  
+
   /** @private {number} Flush interval configuration */
   private readonly flushInterval: number;
-  
+
   /** @private {boolean} Worker threads enabled */
   private readonly useWorkers: boolean;
-  
+
   /** @private {number} Worker pool size */
   private readonly poolSize: number;
-  
+
   /** @private {(entries: LogEntry[]) => void | Promise<void> | undefined} Callback for flush events */
   private readonly onFlush?: (entries: LogEntry[]) => void | Promise<void>;
-  
+
   /** @private {boolean} Logger initialization state */
   private initialized = false;
-  
+
   /** @private {Promise<void>} Initialization promise */
   private initPromise: Promise<void>;
-  
+
   /** @private {boolean} Logger is closing */
   private isClosing = false;
-  
+
   /** @private {Set<Transport>} Transports that have been closed */
   private closedTransports = new Set<Transport>();
 
   /**
    * Creates a new AsyncLogger instance.
-   * 
+   *
    * @param {AsyncLoggerOptions} [options={}] - Configuration options
    * @throws {Error} If worker thread creation fails
    */
   constructor(options: AsyncLoggerOptions = {}) {
     super();
-    
+
     /**
      * Initialize transports with intelligent defaults.
      * When no transports are provided, a console transport is added by default
@@ -408,44 +409,46 @@ export class AsyncLogger extends EventEmitter {
     } else {
       this.transports = [];
     }
-    
+
     /**
      * Configure the flush callback for batch processing.
      * The onFlush callback is invoked when log entries need to be written
      * to transports. If not provided, a default implementation writes to
      * all configured transports.
      */
-    this.onFlush = options.onFlush || ((entries: LogEntry[]) => {
-      /**
-       * Default flush implementation sends entries to all transports.
-       * This ensures logs are properly written regardless of transport type.
-       */
-      for (const entry of entries) {
-        for (const transport of this.transports) {
-          try {
-            transport.log(entry);
-          } catch (error) {
-            /**
-             * Transport errors are caught to prevent one failing transport
-             * from affecting others. Errors are only logged in non-test
-             * environments to avoid noise during testing.
-             */
-            if (process.env.NODE_ENV !== 'test' && !process.env.JEST_WORKER_ID) {
-              console.error(`[${this.id}] Transport ${transport.name} error:`, error);
+    this.onFlush =
+      options.onFlush ||
+      ((entries: LogEntry[]) => {
+        /**
+         * Default flush implementation sends entries to all transports.
+         * This ensures logs are properly written regardless of transport type.
+         */
+        for (const entry of entries) {
+          for (const transport of this.transports) {
+            try {
+              transport.log(entry);
+            } catch (error) {
+              /**
+               * Transport errors are caught to prevent one failing transport
+               * from affecting others. Errors are only logged in non-test
+               * environments to avoid noise during testing.
+               */
+              if (process.env.NODE_ENV !== 'test' && !process.env.JEST_WORKER_ID) {
+                console.error(`[${this.id}] Transport ${transport.name} error:`, error);
+              }
             }
           }
         }
-      }
-    })
-    
+      });
+
     this.id = options.id || `async-logger-${Date.now()}`;
     this.enableMetrics = options.enableMetrics || false;
     this.useColors = options.useColors !== false; // Default to true for styling support
-    
+
     this.styleBuilder = new StyleBuilder(this.useColors);
     this.templateParser = new TemplateParser(this.useColors);
     this.templateFormatter = this.templateParser.createFormatter();
-    
+
     // Worker configuration optimized for balanced performance
     const workerConfig = options.worker || {};
     this.poolSize = workerConfig.poolSize || 2; // Balanced worker count - reduces memory while maintaining parallelism
@@ -454,14 +457,14 @@ export class AsyncLogger extends EventEmitter {
     this.batchTimeout = workerConfig.batchTimeout || 10; // Slightly longer timeout to allow better batching like Pino
     this.flushInterval = workerConfig.flushInterval || options.buffer?.flushInterval || 100; // Less aggressive flushing for better batching
     this.useWorkers = workerConfig.enabled !== false && typeof Worker !== 'undefined';
-    
+
     // Initialize based on worker availability
     this.initPromise = this.initialize();
   }
 
   /**
    * Initializes the logger and worker thread pool.
-   * 
+   *
    * @private
    * @returns {Promise<void>} Resolves when initialization complete
    */
@@ -498,10 +501,10 @@ export class AsyncLogger extends EventEmitter {
 
   /**
    * Initializes the worker thread pool for parallel log processing.
-   * 
+   *
    * Worker threads provide true parallelism for CPU-intensive operations
    * like serialization and compression, keeping the main thread responsive.
-   * 
+   *
    * @private
    * @returns {Promise<void>} Resolves when workers are ready
    * @throws {Error} If worker initialization fails
@@ -516,13 +519,13 @@ export class AsyncLogger extends EventEmitter {
     if (process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID) {
       throw new Error('Worker threads disabled in test environment');
     }
-    
+
     /**
      * Resolve worker script path based on the runtime environment.
      * The worker script must be a compiled JavaScript file.
      */
     let workerPath = '';
-    
+
     /**
      * Strategy 1: Check for __dirname (CommonJS environments).
      * This is the most reliable method when available.
@@ -530,16 +533,15 @@ export class AsyncLogger extends EventEmitter {
     if (typeof __dirname !== 'undefined') {
       // In CommonJS, use .cjs extension for better compatibility
       workerPath = join(__dirname, 'AsyncLoggerWorker.cjs');
-    } 
+    } else if (typeof process !== 'undefined' && process.env.NODE_ENV !== 'test') {
     /**
      * Strategy 2: For ESM environments, we skip dynamic import.meta detection
      * to avoid bundler issues and potential runtime errors.
      * Instead, we rely on the build output structure being predictable.
      */
-    else if (typeof process !== 'undefined' && process.env.NODE_ENV !== 'test') {
       // For ESM environments, we need to find the worker file without using require('fs')
       // Strategy: Use import.meta.url if available, otherwise use process.cwd()
-      
+
       // Try to determine the best path based on current working directory
       // Since we can't use import.meta.url reliably in all contexts, we'll use cwd-based detection
       {
@@ -560,11 +562,11 @@ export class AsyncLogger extends EventEmitter {
           join(cwd, 'async', 'AsyncLoggerWorker.cjs'),
           join(cwd, 'async', 'AsyncLoggerWorker.js'),
         ];
-        
+
         // Try each path - first one wins
         // We can't check if file exists in ESM without fs, so we'll just try the most likely path
         workerPath = possiblePaths[0]!;
-        
+
         // For scripts/performance directory specifically - prefer .cjs
         if (cwd.includes('scripts') && cwd.includes('performance')) {
           workerPath = join(cwd, '..', '..', 'dist', 'async', 'AsyncLoggerWorker.cjs');
@@ -572,12 +574,11 @@ export class AsyncLogger extends EventEmitter {
           workerPath = join(cwd, '..', 'dist', 'async', 'AsyncLoggerWorker.cjs');
         }
       }
-    }
+    } else {
     /**
      * Strategy 3: Use relative path from dist folder.
      * This works in production builds where files are compiled.
      */
-    else {
       /**
        * Try multiple possible locations for the worker file.
        * This handles different build configurations.
@@ -586,19 +587,19 @@ export class AsyncLogger extends EventEmitter {
         join(process.cwd(), 'dist', 'async', 'AsyncLoggerWorker.js'),
         join(process.cwd(), 'dist', 'AsyncLoggerWorker.js'),
         join(process.cwd(), 'lib', 'async', 'AsyncLoggerWorker.js'),
-        join(process.cwd(), 'build', 'async', 'AsyncLoggerWorker.js')
+        join(process.cwd(), 'build', 'async', 'AsyncLoggerWorker.js'),
       ];
-      
+
       /**
        * Find the first existing worker file.
        */
       for (const candidatePath of possiblePaths) {
-        if (require('fs').existsSync(candidatePath)) {
+        if (existsSync(candidatePath)) {
           workerPath = candidatePath;
           break;
         }
       }
-      
+
       /**
        * If no worker file found, use the first candidate.
        * The error will be caught and handled gracefully.
@@ -607,70 +608,70 @@ export class AsyncLogger extends EventEmitter {
         workerPath = possiblePaths[0]!;
       }
     }
-    
+
     // Ensure workerPath is assigned
     if (!workerPath) {
       throw new Error('Unable to determine worker path');
     }
-    
+
     // Create worker pool
     const workerPromises: Promise<void>[] = [];
-    
+
     for (let i = 0; i < this.poolSize; i++) {
       const worker = new WorkerThread(i, workerPath);
-      
+
       const readyPromise = new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(() => {
           reject(new Error(`Worker ${i} initialization timeout`));
         }, 5000);
-        
+
         worker.once('ready', () => {
           clearTimeout(timeout);
           resolve();
         });
-        
-        worker.once('error', (error) => {
+
+        worker.once('error', error => {
           clearTimeout(timeout);
           reject(error);
         });
       });
-      
+
       this.workers.push(worker);
       workerPromises.push(readyPromise);
-      
+
       // Set up worker event handlers
-      worker.on('error', (error) => {
+      worker.on('error', error => {
         // Only log in non-test environments to avoid Jest warnings
         if (process.env.NODE_ENV !== 'test' && !process.env.JEST_WORKER_ID) {
           console.error(`[${this.id}] Worker ${i} error:`, error);
         }
       });
-      
-      worker.on('metrics', (metrics) => {
+
+      worker.on('metrics', metrics => {
         if (this.enableMetrics) {
           this.updateMetrics(metrics);
         }
       });
     }
-    
+
     // Wait for all workers to be ready
     await Promise.all(workerPromises);
-    
+
     // Initialize workers with transports
     for (const worker of this.workers) {
       worker.send({
         type: WorkerMessageType.INIT,
         transports: this.transports.map(t => ({
           name: t.name,
-          type: 'custom' // Transport interface doesn't have type property
-        }))
+          type: 'custom', // Transport interface doesn't have type property
+        })),
       });
     }
   }
 
   /**
    * Sets up fallback mode without worker threads.
-   * 
+   *
    * @private
    * @returns {void}
    */
@@ -684,7 +685,7 @@ export class AsyncLogger extends EventEmitter {
 
   /**
    * Updates performance metrics.
-   * 
+   *
    * @private
    * @param {Partial<AsyncLoggerMetrics>} updates - Metric updates
    * @returns {void}
@@ -696,28 +697,28 @@ export class AsyncLogger extends EventEmitter {
 
   /**
    * Selects the next available worker using round-robin.
-   * 
+   *
    * @private
    * @returns {WorkerThread | null} Selected worker or null
    */
   private selectWorker(): WorkerThread | null {
     if (this.workers.length === 0) return null;
-    
+
     // Try to find an available worker
     for (let i = 0; i < this.workers.length; i++) {
       const idx = (this.currentWorker + i) % this.workers.length;
       const worker = this.workers[idx]!;
-      
+
       if (worker.isAvailable()) {
         this.currentWorker = (idx + 1) % this.workers.length;
         return worker;
       }
     }
-    
+
     // All workers busy, use least loaded
     let minLoad = Infinity;
     let selected = this.workers[0]!;
-    
+
     for (const worker of this.workers) {
       const load = worker.getLoad();
       if (load < minLoad) {
@@ -725,26 +726,26 @@ export class AsyncLogger extends EventEmitter {
         selected = worker;
       }
     }
-    
+
     return selected;
   }
 
   /**
    * Adds a log entry to the batch buffer.
    * Optimized for minimal overhead and faster batching.
-   * 
+   *
    * @private
    * @param {LogEntry} entry - Log entry to buffer
    * @returns {void}
    */
   private addToBatch(entry: LogEntry): void {
     this.batch.push(entry);
-    
+
     if (this.enableMetrics) {
       this.metrics.batchSize = this.batch.length;
       this.metrics.totalLogs++;
     }
-    
+
     // Auto-flush when batch is full
     if (this.batch.length >= this.batchSize) {
       // Direct flush without async IIFE overhead
@@ -755,7 +756,7 @@ export class AsyncLogger extends EventEmitter {
       });
       return;
     }
-    
+
     // Use queueMicrotask for faster scheduling than setTimeout
     if (!this.batchTimer) {
       this.batchTimer = setTimeout(() => {
@@ -771,7 +772,7 @@ export class AsyncLogger extends EventEmitter {
 
   /**
    * Flushes the current batch to workers or transports.
-   * 
+   *
    * @public
    * @returns {Promise<void>} Promise that resolves when flush is complete
    */
@@ -780,29 +781,29 @@ export class AsyncLogger extends EventEmitter {
       clearTimeout(this.batchTimer);
       this.batchTimer = null;
     }
-    
+
     // Process any pending batch entries first
     if (this.batch.length > 0) {
       const entries = [...this.batch];
       this.batch = [];
-      
+
       if (this.enableMetrics) {
         this.metrics.batchesSent++;
-        this.metrics.avgBatchSize = 
-          (this.metrics.avgBatchSize * (this.metrics.batchesSent - 1) + entries.length) 
-          / this.metrics.batchesSent;
+        this.metrics.avgBatchSize =
+          (this.metrics.avgBatchSize * (this.metrics.batchesSent - 1) + entries.length) /
+          this.metrics.batchesSent;
         this.metrics.batchSize = 0;
       }
-      
+
       // Send to worker or process directly
       if (this.workers.length > 0) {
         const worker = this.selectWorker();
         if (worker) {
           worker.send({
             type: WorkerMessageType.LOG_BATCH,
-            payload: entries
+            payload: entries,
           });
-          
+
           if (this.enableMetrics) {
             const totalLoad = this.workers.reduce((sum, w) => sum + w.getLoad(), 0);
             const maxLoad = this.workers.length * 10;
@@ -843,12 +844,12 @@ export class AsyncLogger extends EventEmitter {
         }
       }
     }
-    
+
     // Always flush transports regardless of whether we had entries
     const flushPromises = this.transports
       .filter(t => typeof t.flush === 'function')
       .map(t => t.flush!());
-    
+
     if (flushPromises.length > 0) {
       await Promise.all(flushPromises);
     }
@@ -856,51 +857,55 @@ export class AsyncLogger extends EventEmitter {
 
   /**
    * Internal log method optimized for minimal allocations.
-   * 
+   *
    * @private
    * @param {string} message - Log message
    * @param {LogLevel} level - Log level
    * @param {Record<string, unknown>} [meta] - Metadata
    * @returns {{ success: boolean }} Result of the log operation
    */
-  private logInternal(message: string, level: LogLevel, meta?: Record<string, unknown>): { success: boolean } {
+  private logInternal(
+    message: string,
+    level: LogLevel,
+    meta?: Record<string, unknown>
+  ): { success: boolean } {
     // CRITICAL OPTIMIZATION: Don't process styles in main thread for async logger!
     // Style processing should happen in the worker thread to avoid blocking.
     // This is the key difference between sync and async performance.
-    
+
     // Optimized entry creation with single timestamp call
     const now = Date.now();
     const entry: any = {
       level: level,
-      message: message,  // Send RAW message to worker
+      message: message, // Send RAW message to worker
       timestamp: now,
-      time: now,  // Keep for backward compatibility
+      time: now, // Keep for backward compatibility
       // Tell worker whether to apply styles
-      useColors: this.useColors
+      useColors: this.useColors,
     };
-    
+
     // Only add fields if needed to reduce object size
     if (meta && Object.keys(meta).length > 0) {
       entry.context = meta;
     }
-    
+
     // Only add logger ID if not default
     if (this.id && !this.id.startsWith('async-logger-')) {
       entry.loggerId = this.id;
     }
-    
+
     this.addToBatch(entry);
     return { success: true };
   }
 
   /**
    * Logs an info-level message.
-   * 
+   *
    * @public
    * @param {string} message - Message to log
    * @param {Record<string, unknown>} [meta] - Optional metadata
    * @returns {{ success: boolean }} Result of the log operation
-   * 
+   *
    * @example
    * ```typescript
    * logger.info('User logged in', { userId: 123, ip: '192.168.1.1' });
@@ -912,12 +917,12 @@ export class AsyncLogger extends EventEmitter {
 
   /**
    * Logs an error-level message.
-   * 
+   *
    * @public
    * @param {string} message - Error message
    * @param {Error | Record<string, unknown>} [error] - Error or metadata
    * @returns {{ success: boolean }} Result of the log operation
-   * 
+   *
    * @example
    * ```typescript
    * try {
@@ -928,15 +933,16 @@ export class AsyncLogger extends EventEmitter {
    * ```
    */
   public error(message: string, error?: Error | Record<string, unknown>): { success: boolean } {
-    const meta = error instanceof Error 
-      ? { error: { name: error.name, message: error.message, stack: error.stack } }
-      : error;
+    const meta =
+      error instanceof Error
+        ? { error: { name: error.name, message: error.message, stack: error.stack } }
+        : error;
     return this.logInternal(message, 'error', meta);
   }
 
   /**
    * Logs a warning-level message.
-   * 
+   *
    * @public
    * @param {string} message - Warning message
    * @param {Record<string, unknown>} [meta] - Optional metadata
@@ -948,7 +954,7 @@ export class AsyncLogger extends EventEmitter {
 
   /**
    * Logs a debug-level message.
-   * 
+   *
    * @public
    * @param {string} message - Debug message
    * @param {Record<string, unknown>} [meta] - Optional metadata
@@ -960,35 +966,40 @@ export class AsyncLogger extends EventEmitter {
 
   /**
    * Logs a critical message with retry on failure.
-   * 
+   *
    * @public
    * @param {LogLevel} level - Log level
    * @param {string} message - Log message
    * @param {Record<string, unknown>} [meta] - Optional metadata
    * @returns {Promise<void>} Promise that resolves when logged
    */
-  public async logCritical(level: LogLevel, message: string, meta?: Record<string, unknown>): Promise<void> {
+  public async logCritical(
+    level: LogLevel,
+    message: string,
+    meta?: Record<string, unknown>
+  ): Promise<void> {
     // Log the message
     this.logInternal(message, level, meta);
-    
+
     // Immediately flush for critical logs
     await this.flush();
   }
 
   /**
    * Gets the current buffer utilization percentage.
-   * 
+   *
    * @public
    * @returns {number} Utilization percentage (0-100)
    */
   public getUtilization(): number {
-    const capacity = this.batchSize === 100 ? 16384 : this.batchSize === 32768 ? 32768 : this.batchSize;
+    const capacity =
+      this.batchSize === 100 ? 16384 : this.batchSize === 32768 ? 32768 : this.batchSize;
     return capacity > 0 ? (this.batch.length / capacity) * 100 : 0;
   }
 
   /**
    * Checks if the logger is experiencing backpressure.
-   * 
+   *
    * @public
    * @returns {boolean} True if backpressured
    */
@@ -999,7 +1010,7 @@ export class AsyncLogger extends EventEmitter {
 
   /**
    * Gets current performance metrics.
-   * 
+   *
    * @public
    * @returns {AsyncLoggerMetrics} Current metrics
    */
@@ -1009,7 +1020,7 @@ export class AsyncLogger extends EventEmitter {
 
   /**
    * Gets current logger statistics including buffer information.
-   * 
+   *
    * @public
    * @returns {object} Statistics object with buffer and performance info
    */
@@ -1023,25 +1034,26 @@ export class AsyncLogger extends EventEmitter {
     };
     metrics: AsyncLoggerMetrics;
   } {
-    const capacity = this.batchSize === 100 ? 16384 : this.batchSize === 32768 ? 32768 : this.batchSize; // Match configured size
+    const capacity =
+      this.batchSize === 100 ? 16384 : this.batchSize === 32768 ? 32768 : this.batchSize; // Match configured size
     const current = this.batch.length;
     const utilization = capacity > 0 ? (current / capacity) * 100 : 0;
-    
+
     return {
       buffer: {
         size: current,
         capacity,
         current,
         dropped: this.metrics.droppedLogs,
-        utilization
+        utilization,
       },
-      metrics: { ...this.metrics }
+      metrics: { ...this.metrics },
     };
   }
 
   /**
    * Flushes all pending logs and waits for completion.
-   * 
+   *
    * @public
    * @returns {Promise<void>} Promise that resolves when flush is complete
    */
@@ -1052,7 +1064,7 @@ export class AsyncLogger extends EventEmitter {
 
   /**
    * Adds a transport to the logger.
-   * 
+   *
    * @public
    * @param {Transport} transport - Transport to add
    * @returns {void}
@@ -1066,7 +1078,7 @@ export class AsyncLogger extends EventEmitter {
 
   /**
    * Removes a transport from the logger.
-   * 
+   *
    * @public
    * @param {string} name - Name of transport to remove
    * @returns {void}
@@ -1081,18 +1093,18 @@ export class AsyncLogger extends EventEmitter {
 
   /**
    * Lists all transport names.
-   * 
+   *
    * @public
    * @returns {string[]} Array of transport names
    */
   public listTransports(): string[] {
     return this.transports.map(t => t.name);
   }
-  
+
   /**
    * Style chain for creating styled messages (matches Logger API).
    * Provides chainable style methods for text formatting.
-   * 
+   *
    * @public
    * @readonly
    * @returns {IStyleBuilder} Chainable style builder
@@ -1104,11 +1116,11 @@ export class AsyncLogger extends EventEmitter {
   public get s(): IStyleBuilder {
     return this.styleBuilder as unknown as IStyleBuilder;
   }
-  
+
   /**
    * Alias for the style builder (s).
    * Provides a more descriptive name for the chainable style API.
-   * 
+   *
    * @public
    * @readonly
    * @returns {IStyleBuilder} Chainable style builder
@@ -1116,11 +1128,11 @@ export class AsyncLogger extends EventEmitter {
   public get style(): IStyleBuilder {
     return this.s;
   }
-  
+
   /**
    * Template literal formatter for inline styling.
    * Uses the same TemplateParser as Logger for consistency.
-   * 
+   *
    * @public
    * @readonly
    * @returns {TemplateFormatter} Template formatter function
@@ -1137,7 +1149,7 @@ export class AsyncLogger extends EventEmitter {
 
   /**
    * Waits for logger initialization to complete.
-   * 
+   *
    * @public
    * @returns {Promise<void>} Resolves when ready
    */
@@ -1147,10 +1159,10 @@ export class AsyncLogger extends EventEmitter {
 
   /**
    * Closes the logger and terminates worker threads.
-   * 
+   *
    * @public
    * @returns {Promise<void>} Resolves when closed
-   * 
+   *
    * @example
    * ```typescript
    * // Graceful shutdown
@@ -1166,25 +1178,25 @@ export class AsyncLogger extends EventEmitter {
       return;
     }
     this.isClosing = true;
-    
+
     // Clear timers
     if (this.flushTimer) {
       clearInterval(this.flushTimer);
       this.flushTimer = null;
     }
-    
+
     if (this.batchTimer) {
       clearTimeout(this.batchTimer);
       this.batchTimer = null;
     }
-    
+
     // Flush remaining logs
     await this.flush();
-    
+
     // Terminate workers
     await Promise.all(this.workers.map(w => w.terminate()));
     this.workers = [];
-    
+
     // Close transports (only ones not already closed)
     const closePromises: Promise<void>[] = [];
     for (const transport of this.transports) {
@@ -1197,7 +1209,7 @@ export class AsyncLogger extends EventEmitter {
       }
     }
     await Promise.all(closePromises);
-    
+
     this.initialized = false;
     this.emit('closed');
   }
@@ -1205,10 +1217,10 @@ export class AsyncLogger extends EventEmitter {
 
 /**
  * Creates a new AsyncLogger instance.
- * 
+ *
  * @param {AsyncLoggerOptions} [options] - Logger options
  * @returns {AsyncLogger} Logger instance
- * 
+ *
  * @since 1.0.0
  * @example
  * ```typescript

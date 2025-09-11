@@ -763,21 +763,6 @@ export class BrowserLogger extends LoggerBase {
   }
 
   /**
-   * Prints a separator line.
-   *
-   * @param {string} [char='-'] - Character to use
-   * @param {number} [length=50] - Length of separator
-   *
-   * @example
-   * ```typescript
-   * logger.separator('=', 30);
-   * ```
-   */
-  public separator(char = '-', length = 50): void {
-    console.log(char.repeat(length));
-  }
-
-  /**
    * Prints a table from an array of objects.
    *
    * @param {Record<string, unknown>[]} data - Data to display
@@ -1270,13 +1255,13 @@ export class BrowserLogger extends LoggerBase {
 
   // Timer support for unified API
   private timers = new Map<string, number>();
-  
+
   /**
    * Starts a timer with the given label.
    * Uses browser's performance.now() for high precision.
-   * 
+   *
    * @param label - Label for the timer
-   * 
+   *
    * @example
    * ```typescript
    * logger.time('api-call');
@@ -1291,7 +1276,7 @@ export class BrowserLogger extends LoggerBase {
 
   /**
    * Stops a timer and logs the elapsed time.
-   * 
+   *
    * @param label - Label of the timer to stop
    * @public
    */
@@ -1306,12 +1291,12 @@ export class BrowserLogger extends LoggerBase {
 
   // Counter support for unified API
   private counters = new Map<string, number>();
-  
+
   /**
    * Counts the number of times this method is called with the same label.
-   * 
+   *
    * @param label - Label for the counter (default: 'default')
-   * 
+   *
    * @example
    * ```typescript
    * logger.count('button-clicks'); // "button-clicks: 1"
@@ -1328,7 +1313,7 @@ export class BrowserLogger extends LoggerBase {
 
   /**
    * Resets a counter to zero.
-   * 
+   *
    * @param label - Label of the counter to reset
    * @public
    */
@@ -1339,10 +1324,10 @@ export class BrowserLogger extends LoggerBase {
   /**
    * Displays text in a decorative box (browser console limitation).
    * Falls back to styled console output.
-   * 
+   *
    * @param text - Text to display in box
    * @param options - Box formatting options
-   * 
+   *
    * @example
    * ```typescript
    * logger.box('Success!', {
@@ -1363,7 +1348,7 @@ export class BrowserLogger extends LoggerBase {
     // Browser console doesn't support box drawing, use styled output
     const borderColor = options.borderColor || ['cyan'];
     const color = options.color || ['white'];
-    
+
     // Create a visual separator
     console.log('%c' + '═'.repeat(text.length + 4), this.getConsoleStyle(borderColor));
     console.log('%c║ ' + text + ' ║', this.getConsoleStyle(color));
@@ -1372,10 +1357,10 @@ export class BrowserLogger extends LoggerBase {
 
   /**
    * Prints a formatted list with bullets.
-   * 
+   *
    * @param items - Array of items to display
    * @param options - List formatting options
-   * 
+   *
    * @example
    * ```typescript
    * logger.list(['Item 1', 'Item 2', 'Item 3']);
@@ -1395,7 +1380,7 @@ export class BrowserLogger extends LoggerBase {
     const bulletColor = options.bulletColor || ['cyan'];
     const itemColor = options.itemColor || ['white'];
     const indent = ' '.repeat(options.indent || 2);
-    
+
     items.forEach(item => {
       console.log(
         '%c' + indent + bullet + ' %c' + item,
@@ -1411,30 +1396,53 @@ export class BrowserLogger extends LoggerBase {
    */
   private getConsoleStyle(colors: ColorName[]): string {
     const styles: string[] = [];
-    
+
     for (const color of colors) {
       switch (color) {
-        case 'red': styles.push('color: #ff5555'); break;
-        case 'green': styles.push('color: #50fa7b'); break;
-        case 'yellow': styles.push('color: #f1fa8c'); break;
-        case 'blue': styles.push('color: #8be9fd'); break;
-        case 'magenta': styles.push('color: #ff79c6'); break;
-        case 'cyan': styles.push('color: #8be9fd'); break;
-        case 'white': styles.push('color: #f8f8f2'); break;
-        case 'gray': styles.push('color: #6272a4'); break;
-        case 'bold': styles.push('font-weight: bold'); break;
-        case 'italic': styles.push('font-style: italic'); break;
-        case 'underline': styles.push('text-decoration: underline'); break;
-        default: break;
+        case 'red':
+          styles.push('color: #ff5555');
+          break;
+        case 'green':
+          styles.push('color: #50fa7b');
+          break;
+        case 'yellow':
+          styles.push('color: #f1fa8c');
+          break;
+        case 'blue':
+          styles.push('color: #8be9fd');
+          break;
+        case 'magenta':
+          styles.push('color: #ff79c6');
+          break;
+        case 'cyan':
+          styles.push('color: #8be9fd');
+          break;
+        case 'white':
+          styles.push('color: #f8f8f2');
+          break;
+        case 'gray':
+          styles.push('color: #6272a4');
+          break;
+        case 'bold':
+          styles.push('font-weight: bold');
+          break;
+        case 'italic':
+          styles.push('font-style: italic');
+          break;
+        case 'underline':
+          styles.push('text-decoration: underline');
+          break;
+        default:
+          break;
       }
     }
-    
+
     return styles.join('; ');
   }
 
   /**
    * Prints a separator line (browser console limitation).
-   * 
+   *
    * @param char - Character to use for separator
    * @param width - Width of separator
    * @param color - Colors to apply
