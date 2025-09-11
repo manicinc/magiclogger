@@ -242,11 +242,24 @@ interface WriteStreamOptions {
 // FS mocks helper API
 // ----------------------
 // Type assertion without export to avoid TS4023 naming issue
-const typedFsMocks = fsModule as jest.Mocked<typeof fsModule> & {
+// Type the fs mocks without exporting complex nested types
+type FsMocks = {
   resetAll: () => void;
+  existsSync: jest.Mock;
+  mkdirSync: jest.Mock;
+  writeFileSync: jest.Mock;
+  createWriteStream: jest.Mock;
+  createReadStream: jest.Mock;
+  readFileSync: jest.Mock;
+  statSync: jest.Mock;
+  readdirSync: jest.Mock;
+  unlinkSync: jest.Mock;
+  appendFileSync: jest.Mock;
+  rmdirSync: jest.Mock;
+  rmSync: jest.Mock;
 };
 
-export const fsMocks = typedFsMocks;
+export const fsMocks = fsModule as unknown as FsMocks;
 
 // Dynamically attach resetAll helper
 fsMocks.resetAll = () => {

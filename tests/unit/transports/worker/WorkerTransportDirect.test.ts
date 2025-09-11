@@ -60,18 +60,18 @@ describe('WorkerTransport Direct Coverage', () => {
       const transport = new WorkerTransport();
       await transport.init();
 
-      const firstCallCount = (Worker as jest.Mock).mock.calls.length;
+      const firstCallCount = (Worker as unknown as jest.Mock).mock.calls.length;
 
       await transport.init();
 
-      expect((Worker as jest.Mock).mock.calls.length).toBe(firstCallCount);
+      expect((Worker as unknown as jest.Mock).mock.calls.length).toBe(firstCallCount);
     });
 
     it('should close worker and cleanup', async () => {
       const transport = new WorkerTransport();
       await transport.init();
 
-      const mockWorker = (Worker as jest.Mock).mock.results[0].value;
+      const mockWorker = (Worker as unknown as jest.Mock).mock.results[0].value;
 
       await transport.close();
 
@@ -140,7 +140,7 @@ describe('WorkerTransport Direct Coverage', () => {
       const transport = new WorkerTransport();
       await transport.init();
 
-      const mockWorker = (Worker as jest.Mock).mock.results[0].value;
+      const mockWorker = (Worker as unknown as jest.Mock).mock.results[0].value;
       const errorHandler = mockWorker.on.mock.calls.find((call: any) => call[0] === 'error')?.[1];
 
       const error = new Error('Worker error');
@@ -157,7 +157,7 @@ describe('WorkerTransport Direct Coverage', () => {
       const transport = new WorkerTransport();
       await transport.init();
 
-      const mockWorker = (Worker as jest.Mock).mock.results[0].value;
+      const mockWorker = (Worker as unknown as jest.Mock).mock.results[0].value;
       const exitHandler = mockWorker.on.mock.calls.find((call: any) => call[0] === 'exit')?.[1];
 
       // Non-zero exit code
@@ -177,7 +177,7 @@ describe('WorkerTransport Direct Coverage', () => {
       // Mark as closing
       await transport.close();
 
-      const mockWorker = (Worker as jest.Mock).mock.results[0].value;
+      const mockWorker = (Worker as unknown as jest.Mock).mock.results[0].value;
       const exitHandler = mockWorker.on.mock.calls.find((call: any) => call[0] === 'exit')?.[1];
 
       // Zero exit code

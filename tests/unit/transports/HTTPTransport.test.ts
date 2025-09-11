@@ -46,7 +46,7 @@ describe('HTTPTransport', () => {
       off: jest.fn(),
       terminate: jest.fn(),
     };
-    (Worker as jest.Mock).mockImplementation(() => mockWorker);
+    (Worker as unknown as jest.Mock).mockImplementation(() => mockWorker);
   });
 
   describe('Constructor', () => {
@@ -200,14 +200,16 @@ describe('HTTPTransport', () => {
       await transport.log(entries[1]);
 
       // Simulate worker ready
-      const readyHandler = mockWorker.on.mock.calls.find(call => call[0] === 'message')?.[1];
+      const readyHandler = mockWorker.on.mock.calls.find((call: any) => call[0] === 'message')?.[1];
 
       if (readyHandler) {
         readyHandler({ type: 'ready' });
       }
 
       // Verify queued entries were sent
-      const logCalls = mockWorker.postMessage.mock.calls.filter(call => call[0].type === 'log');
+      const logCalls = mockWorker.postMessage.mock.calls.filter(
+        (call: any) => call[0].type === 'log'
+      );
       expect(logCalls).toHaveLength(2);
     });
   });
@@ -232,7 +234,7 @@ describe('HTTPTransport', () => {
       await transport.log(entry);
 
       // Simulate worker ready
-      const readyHandler = mockWorker.on.mock.calls.find(call => call[0] === 'message')?.[1];
+      const readyHandler = mockWorker.on.mock.calls.find((call: any) => call[0] === 'message')?.[1];
 
       if (readyHandler) {
         readyHandler({ type: 'ready' });
@@ -263,7 +265,7 @@ describe('HTTPTransport', () => {
         loggerId: 'test',
       });
 
-      const readyHandler = mockWorker.on.mock.calls.find(call => call[0] === 'message')?.[1];
+      const readyHandler = mockWorker.on.mock.calls.find((call: any) => call[0] === 'message')?.[1];
 
       if (readyHandler) {
         readyHandler({ type: 'ready' });
@@ -282,7 +284,9 @@ describe('HTTPTransport', () => {
       }
 
       // All entries should be sent to worker for batching
-      const logCalls = mockWorker.postMessage.mock.calls.filter(call => call[0].type === 'log');
+      const logCalls = mockWorker.postMessage.mock.calls.filter(
+        (call: any) => call[0].type === 'log'
+      );
       expect(logCalls.length).toBeGreaterThan(0);
     });
 
@@ -325,7 +329,9 @@ describe('HTTPTransport', () => {
       });
 
       // Simulate worker ready
-      const messageHandler = mockWorker.on.mock.calls.find(call => call[0] === 'message')?.[1];
+      const messageHandler = mockWorker.on.mock.calls.find(
+        (call: any) => call[0] === 'message'
+      )?.[1];
 
       if (messageHandler) {
         messageHandler({ type: 'ready' });
@@ -353,7 +359,9 @@ describe('HTTPTransport', () => {
         loggerId: 'test',
       });
 
-      const messageHandler = mockWorker.on.mock.calls.find(call => call[0] === 'message')?.[1];
+      const messageHandler = mockWorker.on.mock.calls.find(
+        (call: any) => call[0] === 'message'
+      )?.[1];
 
       if (messageHandler) {
         messageHandler({ type: 'ready' });
@@ -386,7 +394,9 @@ describe('HTTPTransport', () => {
         loggerId: 'test',
       });
 
-      const messageHandler = mockWorker.on.mock.calls.find(call => call[0] === 'message')?.[1];
+      const messageHandler = mockWorker.on.mock.calls.find(
+        (call: any) => call[0] === 'message'
+      )?.[1];
 
       if (messageHandler) {
         messageHandler({ type: 'ready' });
@@ -501,7 +511,7 @@ describe('HTTPTransport', () => {
         loggerId: 'test',
       });
 
-      const errorHandler = mockWorker.on.mock.calls.find(call => call[0] === 'error')?.[1];
+      const errorHandler = mockWorker.on.mock.calls.find((call: any) => call[0] === 'error')?.[1];
 
       if (errorHandler) {
         errorHandler(new Error('Worker crashed'));
@@ -531,7 +541,9 @@ describe('HTTPTransport', () => {
         loggerId: 'test',
       });
 
-      const messageHandler = mockWorker.on.mock.calls.find(call => call[0] === 'message')?.[1];
+      const messageHandler = mockWorker.on.mock.calls.find(
+        (call: any) => call[0] === 'message'
+      )?.[1];
 
       if (messageHandler) {
         messageHandler({
@@ -564,7 +576,7 @@ describe('HTTPTransport', () => {
         loggerId: 'test',
       });
 
-      const exitHandler = mockWorker.on.mock.calls.find(call => call[0] === 'exit')?.[1];
+      const exitHandler = mockWorker.on.mock.calls.find((call: any) => call[0] === 'exit')?.[1];
 
       if (exitHandler) {
         exitHandler(1);

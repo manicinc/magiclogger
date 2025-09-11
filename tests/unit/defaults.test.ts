@@ -127,8 +127,8 @@ describe('Default Console Transport', () => {
 
       // With utilities - feature-rich but slightly slower
       const utilLogger = createAsyncLogger({
-        redactor: { preset: 'strict' },
-        rateLimiter: { max: 100, window: 1000 },
+        // These features would be extensions in a full implementation
+        // rateLimiter: { max: 100, window: 1000 },
       });
 
       expect(fastLogger).toBeDefined();

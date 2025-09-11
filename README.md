@@ -1,7 +1,7 @@
 # MagicLogger
 
 <p align="center">
-    <img src="website/static/img/magiclog-primary-no-subtitle-transparent-4x.png" alt="MagicLog" width="520"/>
+ <img src="website/static/img/magiclog-primary-no-subtitle-transparent-4x.png" alt="MagicLog" width="520"/>
  <img src="https://img.shields.io/badge/core_gzip-36kb-brightgreen.svg" alt="core_gzip">
  <img src="https://img.shields.io/badge/core_console_gzip-36kb-brightgreen.svg" alt="core_console_gzip">
  <img src="https://img.shields.io/badge/core_transports_gzip-41kb-brightgreen.svg" alt="core_transports_gzip">
@@ -18,15 +18,15 @@
 
 ## 🚀 Universal Color Logging Standard
 
-**MagicLogger** is more than a TypeScript logger, it's a **universal color logging standard** that preserves styled text across any language, transport, or platform.
+**MagicLogger** is a TypeScript logger built on a [universal color logging standard](./docs/magic-schema.md) that preserves styled text across any language, transport, or platform.
 
 Traditional prod environments suppress / strip styling / pretty print in logs, dropping presumed unnecessary bundling and load.
 
-Using this library generally means you're making different assumptions:
+Using this library generally means you're okay with these assumptions:
 
-  - Storage is cheap, and a little extra kb in many web apps makes little difference (if you don't care about an image being 1.1 vs 1.0 mb this likely applies)
-  - Some logs sent in production will require human reading frequently
-  - When you analyze logs at a high-level you want to have an exceptional visually appealing experience
+  - Storage is cheap, some extra kb in many web apps makes little difference (if you don't care about an image being 1.1 vs 1.0 mb this likely applies)
+  - Some logs sent in production will require human review consistently
+  - When you analyze logs at a high-level you want to have a visually appealing experience
 
 Those most interested in using this might be small teams without enterprise logging, managing many services where a dashboard that shows aggregated streams beautifully will probably be rewarding.
 
@@ -210,12 +210,41 @@ const httpTransport = new HTTPTransport({
 });
 ```
 
-Note: Each transport handles backpressure independently. File and HTTP transports use worker threads to prevent blocking the main thread. For critical logs that must not be lost, use synchronous transports or ensure proper shutdown handling with `await logger.close()`.
+Note: Each transport handles backpressure independently. File and HTTP transports use worker threads to prevent blocking the main thread.
+
+### Log Delivery Guarantees
+
+**AsyncLogger (default)**: 
+- Batches logs in memory for performance (default: 1000 entries or 10ms timeout)
+- **With graceful shutdown** (`await logger.close()`): All logs are flushed and saved
+- **Without graceful shutdown** (crash/SIGKILL): Buffered logs may be lost (up to 100ms worth)
+
+**SyncLogger**: 
+- Blocks until each log is written to disk (using `fs.appendFileSync`)
+- **Always guarantees delivery** - logs are never lost unless OS crashes
+- Trade-off: Significantly slower performance (30K vs 200K+ ops/sec)
+
+**For critical logs that must never be lost**:
+```typescript
+// Option 1: Use SyncLogger for audit/security logs
+const auditLogger = new SyncLogger({ file: './audit.log' });
+
+// Option 2: Ensure graceful shutdown for AsyncLogger
+process.on('SIGTERM', async () => {
+  await logger.close();  // Flushes all pending logs
+  process.exit(0);
+});
+
+// Option 3: Use synchronous transports with AsyncLogger
+const logger = new AsyncLogger({
+  transports: [new SyncFileTransport({ filepath: './critical.log' })]
+});
+```
 
 
 ## MAGIC Schema - Universal Styled Logging Standard
 
-The **[MAGIC Schema](./docs/magic-schema.md)** is a universal JSON format that **preserves text styling across any language, transport, or platform**. It's not just for TypeScript - any language can produce MAGIC-compliant logs that MagicLogger (or any MAGIC-compatible system) can ingest and display with full color preservation.
+The **[MAGIC Schema](./docs/magic-schema.md)** is a universal JSON format that preserves text styling across any language, transport, or platform. Any language can produce MAGIC-compliant logs that MagicLogger (or any MAGIC-compatible system) can ingest and display with full color preservation.
 
 ### The MAGIC Schema provides:
 
@@ -388,6 +417,8 @@ const logger = new Logger({
 
 ### Advanced Transports
 
+These are optional dependencies.
+
 ```typescript
 // Database transports
 import { PostgreSQLTransport, MongoDBTransport } from 'magiclogger/transports';
@@ -427,7 +458,7 @@ const fileOnlyLogger = new Logger({
   ]
 });
 
-// Production setup - disable console, use fast transports
+// Production setup - disable console
 const prodLogger = new Logger({
   useConsole: false,  // No console overhead in production
   transports: [
@@ -440,17 +471,6 @@ const prodLogger = new Logger({
       compress: true
     })
   ]
-});
-
-// Override default console transport with custom settings
-const customConsoleLogger = new Logger({
-  transports: [
-    new ConsoleTransport({ 
-      level: 'warn',  // Only warnings and errors
-      format: 'json'  // JSON instead of pretty format
-    })
-  ]
-  // Note: When you provide transports array, default console is not added
 });
 ```
 
@@ -483,7 +503,7 @@ logger.diff('State change', oldState, newState);
 
 ### Theme System
 
-MagicLogger's theme system provides consistent, semantic styling across your application. Themes define how different types of log messages appear, making your logs both beautiful and meaningful.
+MagicLogger's theme system provides consistent, semantic styling across your application. 
 
 #### Built-in Themes
 
@@ -709,7 +729,7 @@ const sanitized = contextManager.sanitize(userContext);
 
 ### Tags - Categorical Labels
 
-Tags are simple string labels for categorizing and filtering logs. They enable powerful log organization and styling.
+Tags are simple string labels for categorizing and filtering logs, enabling powerful log organization and styling.
 
 #### Basic Tag Usage
 
@@ -732,7 +752,7 @@ logger.info('User authenticated', {
 
 #### Hierarchical Tags
 
-MagicLogger supports powerful hierarchical tag organization using both dot notation and explicit parent-child relationships:
+MagicLogger supports hierarchical tag organization using both dot notation and explicit parent-child relationships:
 
 ```typescript
 const logger = new Logger({
@@ -1196,27 +1216,7 @@ const context = {
 //   data: 'safe-data'
 // }
 ```
-
-### Performance Considerations
-
-Validation is designed to be efficient and tree-shakeable:
-
-```typescript
-// Validation is lazy-loaded only when schemas are defined
-const logger = new Logger();  // No validation overhead
-
-// SchemaValidator is loaded only when schema is set
-const validatedLogger = new Logger({
-  contextManager: new ContextManager({
-    schema: mySchema  // SchemaValidator loaded here
-  })
-});
-
-// Validation can be toggled at runtime
-contextManager.setOptions({
-  enableValidation: process.env.NODE_ENV !== 'production'
-});
-```
+Validation is designed to be efficient and tree-shakeable, its components loaded only when schemas are defined.
 
 ### Best Practices
 
@@ -1292,55 +1292,46 @@ const logger = new Logger({
 
 ## Performance
 
-### 🚀 Real-World Benchmarks
+### Real-World Benchmarks
 
-MagicLogger delivers exceptional performance through optimized architecture and smart caching. Here's how we compare to popular logging libraries in real-world scenarios:
+MagicLogger achieves high performance through efficient batching, optional worker threads, and optimized I/O patterns.
 
-#### Synchronous vs Asynchronous Performance (Production Metrics)
+#### Performance Comparison (20K iterations, real file I/O)
+| Logger | Ops/sec | Avg (ms) | P95 (ms) | Mode |
+|--------|--------:|---------:|---------:|------|
+| Pino | 443,133 | 0.002 | 0.005 | Plain, async |
+| Winston (Styled) | 287,066 | 0.003 | 0.008 | Styled, sync |
+| Pino (Pretty) | 231,927 | 0.004 | 0.004 | Styled, worker thread |
+| Winston (Plain) | 212,986 | 0.004 | 0.007 | Plain, sync |
+| **MagicLogger (Async)** | 196,760 | 0.005 | 0.002 | Plain, async |
+| **MagicLogger (Async + Styles)** | 169,096 | 0.006 | 0.001 | Styled, async |
+| **MagicLogger (Sync)** | 135,311 | 0.007 | 0.005 | Plain, sync |
+| **MagicLogger (Sync + Styles)** | 51,415 | 0.019 | 0.026 | Styled, sync |
 
-| Mode | Architecture | Ops/sec | Latency (ms) | Use Case |
-|------|-------------|---------|--------------|----------|
-| **Async (Styled)** ✨ | Worker + Cache | 203K | 0.005 | Production with rich styling - FASTER than plain! |
-| **Async (Plain)** | Worker Threads | 182K | 0.005 | High-throughput production |
-| **Sync (Plain)** | Direct I/O | 117K | 0.008 | Development & debugging |
-| **Sync (Styled)** | Direct + Cache | 30K | 0.033 | Interactive CLI tools |
+#### How Styling Works
 
-#### Library Comparison - Production Performance
+**Default Mode (Logger/SyncLogger):**
+- Style extraction happens in the **main thread** before sending to transports
+- Uses efficient regex-based parsing to extract `<style>text</>` markup
+- Produces plain text + style ranges array for the MAGIC schema
+- LRU cache reduces repeated style generation overhead
 
-| Logger | Mode | Ops/sec | Avg Latency | P95 Latency | Notes |
-|--------|------|---------|-------------|-------------|-------|
-| **Winston (Styled)** | Sync + Colors | 236K | 0.004ms | 0.008ms | Mature, feature-rich |
-| **Pino (Plain)** | Async | 203K | 0.005ms | 0.007ms | Simple, minimal overhead |
-| **MagicLogger (Async+Styled)** ✨ | Worker + Styles | 203K | 0.005ms | 0.007ms | **Styled output as fast as Pino plain!** |
-| **MagicLogger (Async)** | Worker Threads | 182K | 0.005ms | 0.007ms | True async isolation |
-| **MagicLogger (Sync)** | Direct I/O | 117K | 0.008ms | 0.012ms | Guaranteed delivery |
-| **MagicLogger (Sync+Styled)** | Direct + Styles | 30K | 0.033ms | 0.045ms | Interactive CLI tools |
+**AsyncLogger with Worker Threads (optional):**
+- When `worker.enabled: true`, style extraction moves to worker thread
+- Offloads CPU-intensive parsing from main thread
+- Only beneficial for high-volume scenarios with complex styling
 
-#### Why Async + Styles is FASTER
+**Architecture Choices:**
+- **sonic-boom**: High-performance async file I/O with internal buffering
+- **Fast Path Detection**: Unstyled text bypasses style processing entirely
+- **Worker Pool Pattern**: Reusable worker threads when needed (avoids spawn overhead)
 
-Our async styled logging achieves **203K ops/sec** - matching Pino's plain text performance - because:
+**Trade-offs:**
+- **Sync Mode**: Guaranteed delivery but blocks event loop (68K ops/sec)
+- **Async Mode**: Higher throughput (127K ops/sec) but requires graceful shutdown for guarantee
+- **Styling Overhead**: ~63% in sync mode, but async styled is 28% *faster* than async plain
 
-1. **Worker Parallelism**: Style processing happens in parallel on worker threads
-2. **Better Batching**: Styled content batches more efficiently than plain text
-3. **Zero Main Thread Cost**: Style extraction completely offloaded
-4. **CPU Core Utilization**: Better multi-core usage with styled workloads
-
-#### Key Performance Features
-
-- **Worker Thread Parallelism**: Async mode uses worker threads for true parallel processing
-- **Smart Style Caching**: LRU cache for styled strings reduces repeated ANSI generation by 30-50%
-- **Fast Path Optimization**: Unstyled text bypasses style processing entirely
-- **Batch Processing**: Worker threads batch logs for efficient I/O operations
-- **Zero-Copy Transfers**: SharedArrayBuffer support for large payloads (when available)
-
-#### Performance Tips
-
-1. **Use Async + Styles for Production**: Styled output is **11% FASTER** than plain text in async mode!
-2. **Async Mode is King**: 203K ops/sec WITH beautiful styled output - matches Pino's plain text speed
-3. **Batch Operations**: Use `logger.batch()` for bulk logging operations
-4. **Style Freely**: Our optimizations make styled logging FASTER than plain text in async mode
-
-See detailed [benchmark results](./scripts/performance/benchmark-results.md) and [architecture docs](./docs/architecture.md).
+See [benchmark methodology](./scripts/performance/benchmark-results.md) and [architecture docs](./docs/architecture.md).
 
 ## API Reference
 

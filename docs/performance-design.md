@@ -85,17 +85,16 @@ The MAGIC schema's styling system shows surprising results - **async styled logg
 - Sync plain text: 116,814 ops/sec
 - Sync styled text: 30,026 ops/sec (74% overhead)
 
-**Why Async+Styles is Faster:**
-- Worker threads handle style processing in parallel
-- Batching is more efficient with styled content
-- Style extraction offloaded from main thread
-- Better CPU utilization across cores
+**Styling Performance Characteristics:**
+- **Default mode**: Style extraction in main thread (~0.01-0.05ms per log)
+- **Worker mode (optional)**: Style extraction in worker thread (frees main thread)
+- **Trade-off**: Worker threads add IPC overhead but enable parallelism
 
 **Optimization Strategies:**
-- Style extraction happens in worker threads
-- Styles cached and reused where possible
-- Optimized regex patterns for style parsing (removed negative lookahead)
-- Fast-path detection for unstyled text
+- LRU cache for repeated style patterns
+- Fast-path detection bypasses parsing for unstyled text
+- Optimized regex patterns (removed negative lookahead)
+- Style ranges stored as compact arrays in MAGIC schema
 
 ## Memory Management
 
@@ -193,9 +192,11 @@ const TEST_DATA = {
 MagicLogger's performance design achieves an excellent balance between **architectural soundness** and **high performance**. The worker thread architecture provides true asynchronous logging with complete isolation while maintaining competitive throughput. With our optimizations, MagicLogger achieves 364,754 ops/sec for plain text and an impressive 317,262 ops/sec with full styling (only 13% overhead in async mode!), making it ideal for production services that want both beautiful logs and high performance. Key achievements:
 
 - **Never blocking the main thread**
-- **Complete crash isolation**
+- **Worker crash isolation** (transport failures don't affect main thread)
 - **True parallel processing**
 - **Explicit backpressure management**
 - **Rich styling capabilities**
+
+Note: While worker threads provide isolation from transport crashes, logs in the batch buffer (up to 100ms worth) may be lost if the main process crashes unexpectedly. Use SyncLogger or ensure graceful shutdown with `await logger.close()` for critical logs that must never be lost.
 
 This design philosophy ensures MagicLogger scales gracefully from development to production, providing consistent behavior and predictable performance across all environments.

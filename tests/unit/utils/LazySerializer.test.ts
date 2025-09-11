@@ -103,7 +103,7 @@ describe('LazySerializer', () => {
         timestampMs: 1704067200000,
         level: 'info',
         message: 'Test message',
-        styles: [{ start: 0, end: 4, styles: ['red'] }],
+        styles: [[0, 4, 'red']],
         loggerId: 'test-logger',
         tags: ['test', 'unit'],
         context: { user: 'john' },

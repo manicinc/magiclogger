@@ -176,7 +176,9 @@ describe('FileTransport', () => {
       await new Promise(resolve => setImmediate(resolve));
 
       // Verify queued entries were sent
-      const logCalls = mockWorker.postMessage.mock.calls.filter(call => call[0].type === 'log');
+      const logCalls = mockWorker.postMessage.mock.calls.filter(
+        (call: any) => call[0].type === 'log'
+      );
       expect(logCalls).toHaveLength(2);
     });
   });
@@ -245,12 +247,14 @@ describe('FileTransport', () => {
       await new Promise(resolve => setTimeout(resolve, 100));
 
       // Check that we got log calls for each level
-      const logCalls = mockWorker.postMessage.mock.calls.filter(call => call[0].type === 'log');
+      const logCalls = mockWorker.postMessage.mock.calls.filter(
+        (call: any) => call[0].type === 'log'
+      );
       expect(logCalls.length).toBe(levels.length);
 
       // Check that each level was logged
       for (const level of levels) {
-        const levelFound = logCalls.some(call => call[0].entry?.level === level);
+        const levelFound = logCalls.some((call: any) => call[0].entry?.level === level);
         expect(levelFound).toBe(true);
       }
     });
@@ -498,7 +502,7 @@ describe('FileTransport', () => {
       });
 
       // Simulate worker error
-      const errorHandler = mockWorker.on.mock.calls.find(call => call[0] === 'error')?.[1];
+      const errorHandler = mockWorker.on.mock.calls.find((call: any) => call[0] === 'error')?.[1];
 
       if (errorHandler) {
         errorHandler(new Error('Worker error'));
@@ -529,7 +533,7 @@ describe('FileTransport', () => {
       });
 
       // Simulate worker exit with error (code 2, not 1)
-      const exitHandler = mockWorker.on.mock.calls.find(call => call[0] === 'exit')?.[1];
+      const exitHandler = mockWorker.on.mock.calls.find((call: any) => call[0] === 'exit')?.[1];
 
       if (exitHandler) {
         exitHandler(2); // Use exit code 2 instead of 1
@@ -559,7 +563,9 @@ describe('FileTransport', () => {
       });
 
       // Simulate error message from worker
-      const messageHandler = mockWorker.on.mock.calls.find(call => call[0] === 'message')?.[1];
+      const messageHandler = mockWorker.on.mock.calls.find(
+        (call: any) => call[0] === 'message'
+      )?.[1];
 
       if (messageHandler) {
         messageHandler({

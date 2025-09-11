@@ -25,10 +25,6 @@ describe('TraceContextMiddleware', () => {
     state: new Map(),
   });
 
-  beforeEach(() => {
-    middleware = new TraceContextMiddleware();
-  });
-
   describe('Constructor and Configuration', () => {
     it('should create middleware with default options', () => {
       const mw = new TraceContextMiddleware();
@@ -280,7 +276,9 @@ describe('TraceContextMiddleware', () => {
       const entry = createMockEntry();
       const result = mw.process(entry, createMockContext());
 
-      expect((result.entry as any)?.customTraceField).toBeDefined();
+      expect(
+        (result.entry as LogEntry & { customTraceField?: unknown })?.customTraceField
+      ).toBeDefined();
       expect(result.entry?.trace).toBeUndefined();
     });
   });

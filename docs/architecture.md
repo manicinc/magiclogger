@@ -2,25 +2,30 @@
 
 ## Overview
 
-MagicLogger is a high-performance, feature-rich logging library for TypeScript/JavaScript applications. **Our core mission: Beautiful, styled logs in production environments with minimal performance overhead.** We achieve this through optimized async architecture and the MAGIC schema format, proving that you don't have to sacrifice aesthetics for performance.
+MagicLogger is a high-performance, feature-rich logging library for TypeScript/JavaScript applications. Our goal is to provide styled logs in production environments with minimal performance overhead through efficient I/O patterns and smart caching.
 
 ## Core Components
 
 ### 1. Logger Classes
 
+#### Logger (Default)
+- **Purpose**: Synchronous logging with optional buffering for balanced performance
+- **Use Cases**: General-purpose logging, development
+- **Implementation**: Direct transport calls with optional buffering
+
 #### SyncLogger
-- **Purpose**: Provides blocking, synchronous logging for scenarios requiring guaranteed delivery
+- **Purpose**: Explicit blocking I/O for guaranteed delivery
 - **Use Cases**: Audit logging, debugging, crash-resilient logging
 - **Trade-offs**: Blocks event loop, guarantees write completion
 
 #### AsyncLogger
-- **Purpose**: Non-blocking logging using batching and async I/O
+- **Purpose**: Non-blocking logging with optional worker threads
 - **Implementation**: 
-  - Uses batching for efficiency
-  - Falls back to `setImmediate` for async behavior
-  - No longer uses worker threads by default
+  - Uses batching for efficiency (default: 1000 entries or 10ms)
+  - Worker threads optional via `worker.enabled` option
+  - Falls back to `setImmediate` if workers unavailable
 - **Use Cases**: High-throughput applications, web servers
-- **Trade-offs**: Better performance, potential log loss under extreme load
+- **Trade-offs**: Better performance, requires graceful shutdown for delivery guarantee
 
 ### 2. Transport System
 
@@ -54,9 +59,9 @@ interface Transport {
 - Implements backpressure handling
 - Provides metrics and health monitoring
 
-### 3. Async I/O Architecture (Updated)
+### 3. Async I/O Architecture
 
-#### AsyncFileTransport with sonic-boom
+#### Default: AsyncFileTransport with sonic-boom
 ```
 Main Thread                    Async I/O
     │                               │
@@ -69,15 +74,32 @@ Main Thread                    Async I/O
         └─ Direct to sonic-boom       └─ Disk
 ```
 
-No worker threads - everything runs in main thread with async I/O callbacks
+**Default behavior**: Uses sonic-boom for async I/O without worker threads - efficient for most use cases
 
-#### Worker Communication Protocol
+#### Optional: WorkerTransport for CPU-intensive workloads
+```
+Main Thread                    Worker Thread Pool
+    │                               │
+    ├─ Logger                     ├─ Worker 1
+    │   ├─ Format Entry           │   ├─ Process batch
+    │   └─ Send to Worker         │   └─ Write to file
+    │                             │
+    └─ WorkerTransport            ├─ Worker 2 (if poolSize > 1)
+        ├─ Batch logs                 ├─ Process batch
+        └─ IPC transfer               └─ Write to file
+```
+
+**Worker threads are optional**: Only use `WorkerTransport` when you need true parallelism for CPU-intensive processing
+
+#### Worker Communication Protocol (When using WorkerTransport)
 - **INIT**: Initialize worker with transport config
 - **LOG_BATCH**: Send batch of logs to process
 - **FLUSH**: Force flush buffered logs
 - **SHUTDOWN**: Graceful worker termination
 - **ACK**: Acknowledge batch processing
 - **METRICS**: Performance metrics updates
+
+**Note**: This protocol only applies when explicitly using `WorkerTransport`, not the default `AsyncFileTransport`
 
 ### 4. MAGIC Schema
 
@@ -111,57 +133,106 @@ interface LogEntry {
 - **Memory**: Minimal buffering
 - **Reliability**: Guaranteed delivery (blocks until written)
 
-### Asynchronous Logging (Worker Threads)
-- **Throughput**: ~182K ops/sec plain text, ~203K ops/sec with styles (11% FASTER!)
-- **Latency**: 0.005ms average (non-blocking with IPC)
-- **Memory**: 1KB batch buffer + worker thread memory (~10MB per worker)
-- **Reliability**: Best-effort with explicit backpressure feedback
-- **Trade-off**: Styled output is FASTER than plain text due to parallel processing
+### Asynchronous Logging
+- **Throughput**: ~127K ops/sec plain text, ~163K ops/sec with styles
+- **Latency**: 0.007ms average (non-blocking)
+- **Memory**: Minimal with sonic-boom buffering
+- **Reliability**: Best-effort, requires graceful shutdown for guarantee
+- **Note**: Styled async outperforms plain sync (163K vs 68K ops/sec)
 
-### Worker Thread Architecture Benefits
-- **True Parallelism**: CPU-intensive operations run in parallel
+### Architecture Benefits
+
+#### Default Async (sonic-boom)
 - **Non-blocking**: Main thread never blocks on I/O
+- **Efficient buffering**: Automatic flush at configurable thresholds
+- **Low overhead**: No IPC or thread management costs
+- **Production-ready**: Battle-tested in Pino ecosystem
+
+#### Optional Worker Threads (WorkerTransport)
+- **True parallelism**: CPU-intensive operations run in parallel
 - **Isolation**: Transport failures don't affect main thread
 - **Scalability**: Pool size adjustable based on workload
-- **Style Acceleration**: Worker threads process styles in parallel, improving performance
+- **Use cases**: Heavy transformations, encryption, compression
 
-### Real-World Performance Comparison (Production Metrics)
+**Recommendation**: Start with default `AsyncFileTransport`. Only use `WorkerTransport` if you have specific CPU-intensive requirements that benefit from parallelism.
 
-| Logger | Architecture | Throughput (ops/sec) | Avg Latency | Strengths |
-|--------|-------------|---------------------|--------------|-----------|  
-| Winston (Styled) | Multi-stream | 236,182 | 0.004ms | Mature, feature-rich ecosystem |
-| MagicLogger (Async+Styled) | Worker threads | 203,303 | 0.005ms | **Styled as fast as Pino plain!** |
-| Pino (Plain) | Main thread I/O | 203,354 | 0.005ms | Simple, minimal overhead |
-| MagicLogger (Async) | Worker threads | 182,454 | 0.005ms | True async, thread isolation |
-| MagicLogger (Sync) | Direct I/O | 116,814 | 0.008ms | Guaranteed delivery |
-| MagicLogger (Sync+Styled) | Direct writes | 30,026 | 0.033ms | Interactive CLI tools |
+### Worker Thread Considerations
 
-**Note**: All performance metrics are based on real file I/O operations with realistic log payloads, not null transports. Async+Styled outperforms plain text due to worker parallelism.
+Based on Node.js best practices:
+
+**When to use worker threads:**
+- CPU-intensive transformations (encryption, compression)
+- Complex log formatting requiring heavy computation
+- Isolation requirements (untrusted log processing)
+
+**When NOT to use worker threads:**
+- Simple I/O operations (file writes, network requests)
+- Basic log formatting and styling
+- Low-volume logging scenarios
+
+**Performance trade-offs:**
+- Worker creation overhead: ~10-50ms per worker
+- IPC overhead: ~0.1-0.5ms per message batch
+- Memory overhead: ~10MB per worker thread
+- Optimal worker count: Number of CPU cores (typically 2-4)
+
+For most logging scenarios, the default async I/O without workers provides the best balance of performance and simplicity.
+
+### Real-World Performance Comparison
+
+| Logger | Architecture | Throughput (ops/sec) | Avg Latency | Use Case |
+|--------|-------------|---------------------|--------------|----------|
+| Pino (Plain) | Async I/O | 226,046 | 0.004ms | High-throughput, minimal overhead |
+| MagicLogger (Async+Styled) | Async I/O + Cache | 163,350 | 0.006ms | Styled production logging |
+| Winston (Styled) | Multi-stream | 153,448 | 0.006ms | Feature-rich ecosystem |
+| MagicLogger (Async) | Async I/O | 127,402 | 0.007ms | Non-blocking production |
+| MagicLogger (Sync) | Direct I/O | 67,803 | 0.014ms | Guaranteed delivery |
+| MagicLogger (Sync+Styled) | Direct I/O + Styles | 24,856 | 0.040ms | Interactive CLI tools |
+
+**Key insights**:
+- Async styled (163K) outperforms sync plain (68K) by 2.4x
+- Styling overhead: 63% in sync mode, -28% in async (faster due to better batching)
+- All metrics from real file I/O with production-like payloads
 
 ## Design Decisions
 
-### 1. Worker Threads for True Async
-- **Choice**: Worker thread pool with IPC batching
-- **Rationale**: Complete isolation, true parallelism, non-blocking guarantees
-- **Benefit**: Styled output is 11% FASTER than plain text in async mode!
+### 1. Async I/O Strategy
+- **Default**: sonic-boom for efficient async file I/O
+- **Rationale**: Proven performance, minimal overhead, no IPC costs
+- **Optional**: WorkerTransport for CPU-intensive workloads requiring parallelism
 
-### 2. Optimized Batching Strategy
+### 2. Batching Strategy
 - **Default**: 1000 entries or 10ms timeout
-- **Rationale**: Balance between IPC overhead reduction and latency
-- **Tunable**: Via `batchSize` and `batchTimeout` options
-- **Pool Size**: 2 workers by default for balanced memory usage and parallelism
-- **Flush Interval**: 100ms periodic flush for reliability
+- **Rationale**: Balance between syscall reduction and latency
+- **Tunable**: Via `bufferSize` and `flushInterval` options
+- **sonic-boom**: Internal buffering with automatic flush at minLength
 
 ### 3. Serialization Format
 - **Choice**: JSON with MAGIC extensions
 - **Rationale**: Universal compatibility, structured data
 - **Trade-off**: Larger payload vs. binary formats
 
-### 4. Style Preservation
-- **Implementation**: Style ranges in metadata
-- **Rationale**: Portable across transports and languages
-- **Cost**: ~10-15% overhead for styled logs
-- **Optimization**: Fast-path detection and style caching minimize overhead
+### 4. Style Processing Architecture
+
+#### Where Styling Happens
+
+**Default (Logger/SyncLogger):**
+- Style extraction occurs in the **MAIN THREAD**
+- Uses `extractStyles()` function to parse `<style>text</>` markup
+- Produces `{ plainText, styles: [[start, end, style], ...] }`
+- Result stored in LogEntry for MAGIC schema compliance
+
+**AsyncLogger with Workers (optional):**
+- When worker threads enabled, style extraction moves to **WORKER THREAD**
+- `AsyncLoggerWorker` calls `TextStyler.parseBracketsWithExtraction()`
+- Offloads regex parsing and string manipulation from main thread
+- Only beneficial for high-volume logs with complex styling
+
+#### Performance Characteristics
+- **Main thread styling**: ~0.01-0.05ms per log with caching
+- **Worker thread styling**: Adds IPC overhead (~0.1ms) but frees main thread
+- **Optimization**: LRU cache and fast-path detection minimize overhead
+- **Trade-off**: Worker threads only worth it at >10K logs/sec with heavy styling
 
 ## Memory Management
 

@@ -155,7 +155,9 @@ describe('SyncConsoleTransport', () => {
       expect(consoleSpy.log).toHaveBeenCalled();
       // Check that ANSI color codes are included
       const callArgs = consoleSpy.log.mock.calls[0];
-      expect(callArgs.some(arg => typeof arg === 'string' && arg.includes('\x1b'))).toBe(true);
+      expect(callArgs.some((arg: any) => typeof arg === 'string' && arg.includes('\x1b'))).toBe(
+        true
+      );
     });
 
     it('should not apply colors when useColors is false', () => {
@@ -173,7 +175,9 @@ describe('SyncConsoleTransport', () => {
       expect(consoleSpy.log).toHaveBeenCalled();
       // Check that no ANSI color codes are included
       const callArgs = consoleSpy.log.mock.calls[0];
-      expect(callArgs.every(arg => typeof arg !== 'string' || !arg.includes('\x1b'))).toBe(true);
+      expect(callArgs.every((arg: any) => typeof arg !== 'string' || !arg.includes('\x1b'))).toBe(
+        true
+      );
     });
   });
 

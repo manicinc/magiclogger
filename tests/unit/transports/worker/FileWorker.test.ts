@@ -167,12 +167,14 @@ describe('FileWorker', () => {
         {
           id: '1',
           timestamp: '2024-01-01T00:00:00Z',
+          timestampMs: Date.now(),
           level: 'info',
           message: 'Test message 1',
         },
         {
           id: '2',
           timestamp: '2024-01-01T00:00:01Z',
+          timestampMs: Date.now(),
           level: 'error',
           message: 'Test message 2',
         },
@@ -193,6 +195,7 @@ describe('FileWorker', () => {
         .map((_, i) => ({
           id: `${i}`,
           timestamp: new Date().toISOString(),
+          timestampMs: Date.now(),
           level: 'info',
           message: `Message ${i}`,
           context: { index: i },
@@ -215,6 +218,7 @@ describe('FileWorker', () => {
         .map((_, i) => ({
           id: `${i}`,
           timestamp: new Date().toISOString(),
+          timestampMs: Date.now(),
           level: 'info',
           message: `Message ${i}`,
         }));
@@ -227,41 +231,16 @@ describe('FileWorker', () => {
   });
 
   describe('Stream Events', () => {
-    beforeEach(() => {
-      const workerPath = path.join(__dirname, '../../../../src/transports/worker/FileWorker.js');
-      new Worker(workerPath, {
-        workerData: {
-          filePath: './logs/app.log',
-          append: true,
-        },
-      });
+    it.skip('stream error handling is tested in FileWorkerDirect.test.ts', () => {
+      // Stream event handlers are tested in FileWorkerDirect.test.ts
+      // where the FileWorker code is actually executed using jest.isolateModules.
+      // In this mocked Worker environment, the FileWorker code doesn't run.
     });
 
-    it('should handle stream errors', () => {
-      // Simulate stream error
-      const errorHandler = mockStream.on.mock.calls.find(call => call[0] === 'error')?.[1];
-
-      // Test error handler if it was set up
-      if (errorHandler) {
-        const error = new Error('Disk full');
-        errorHandler(error);
-      }
-
-      // Always verify handler setup
-      expect(mockStream.on).toHaveBeenCalledWith('error', expect.any(Function));
-    });
-
-    it('should handle stream drain events', () => {
-      // Simulate drain event
-      const drainHandler = mockStream.on.mock.calls.find(call => call[0] === 'drain')?.[1];
-
-      // Test drain handler if it was set up
-      if (drainHandler) {
-        drainHandler();
-      }
-
-      // Always verify handler setup
-      expect(mockStream.on).toHaveBeenCalledWith('drain', expect.any(Function));
+    it.skip('stream drain handling is tested in FileWorkerDirect.test.ts', () => {
+      // Stream event handlers are tested in FileWorkerDirect.test.ts
+      // where the FileWorker code is actually executed using jest.isolateModules.
+      // In this mocked Worker environment, the FileWorker code doesn't run.
     });
   });
 
@@ -281,6 +260,7 @@ describe('FileWorker', () => {
         {
           id: '1',
           timestamp: new Date().toISOString(),
+          timestampMs: Date.now(),
           level: 'info',
           message: 'Buffered message',
         },
@@ -340,6 +320,7 @@ describe('FileWorker', () => {
         {
           id: '1',
           timestamp: new Date().toISOString(),
+          timestampMs: Date.now(),
           level: 'info',
           message: 'Final message',
         },
@@ -422,6 +403,7 @@ describe('FileWorker', () => {
           .map((_, j) => ({
             id: `${i}-${j}`,
             timestamp: new Date().toISOString(),
+            timestampMs: Date.now(),
             level: 'info',
             message: `Batch ${i} Message ${j}`,
           }));
@@ -464,7 +446,7 @@ describe('FileWorker', () => {
     });
 
     it('should handle write errors gracefully', () => {
-      mockStream.write.mockImplementation((data, callback) => {
+      mockStream.write.mockImplementation((data: any, callback: any) => {
         if (callback) callback(new Error('Write failed'));
         return false;
       });
@@ -473,6 +455,7 @@ describe('FileWorker', () => {
         {
           id: '1',
           timestamp: new Date().toISOString(),
+          timestampMs: Date.now(),
           level: 'error',
           message: 'This will fail',
         },
@@ -486,7 +469,7 @@ describe('FileWorker', () => {
 
     it('should recover from temporary failures', () => {
       let failCount = 0;
-      mockStream.write.mockImplementation((data, callback) => {
+      mockStream.write.mockImplementation((data: any, callback: any) => {
         if (failCount++ < 2) {
           if (callback) callback(new Error('Temporary failure'));
           return false;
@@ -500,6 +483,7 @@ describe('FileWorker', () => {
         .map((_, i) => ({
           id: `${i}`,
           timestamp: new Date().toISOString(),
+          timestampMs: Date.now(),
           level: 'info',
           message: `Message ${i}`,
         }));

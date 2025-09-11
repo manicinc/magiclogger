@@ -183,7 +183,7 @@ describe('AsyncLogger Worker Thread Integration', () => {
         transports: [slowTransport],
         worker: {
           enabled: true,
-          maxQueueSize: 100,
+          batchSize: 100,
         },
       });
 

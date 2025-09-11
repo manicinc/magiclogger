@@ -9,7 +9,9 @@ describe('NullTransport', () => {
   beforeEach(() => {
     transport = new NullTransport();
     mockLogEntry = {
+      id: 'test-id',
       timestamp: new Date().toISOString(),
+      timestampMs: Date.now(),
       level: 'info',
       message: 'Test message',
       metadata: {},

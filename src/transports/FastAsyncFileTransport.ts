@@ -31,7 +31,7 @@ export class FastAsyncFileTransport extends Transport {
   private readonly maxWrite: number;
   private isWriting = false;
   private writeQueue: string[] = [];
-  private closing = false;
+  protected override closing = false;
 
   constructor(options: FastAsyncFileTransportOptions) {
     super({

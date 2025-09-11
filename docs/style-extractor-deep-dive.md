@@ -4,6 +4,14 @@
 
 The style extractor is the heart of MagicLogger's MAGIC schema implementation. It transforms our angle-bracket syntax (`<red.bold>text</>`) into a portable format that preserves styling across any transport or platform.
 
+## Execution Context
+
+**Where style extraction happens:**
+- **Default (Logger/SyncLogger)**: Runs in the **main thread** via `extractStyles()` function
+- **AsyncLogger with workers**: Can run in **worker thread** via `TextStyler.parseBracketsWithExtraction()`
+- **Performance**: Main thread extraction is fast (~0.01-0.05ms) with caching
+- **Trade-off**: Worker threads only beneficial at very high volumes (>10K logs/sec)
+
 ## The Annotated Algorithm
 
 ```typescript

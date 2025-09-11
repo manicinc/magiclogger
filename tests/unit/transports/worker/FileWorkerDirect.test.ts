@@ -166,7 +166,9 @@ describe('FileWorker Direct Coverage', () => {
       require('../../../../src/transports/worker/FileWorker');
 
       // Find error handler
-      const errorHandler = mockWriteStream.on.mock.calls.find(call => call[0] === 'error')?.[1];
+      const errorHandler = mockWriteStream.on.mock.calls.find(
+        (call: any) => call[0] === 'error'
+      )?.[1];
 
       expect(errorHandler).toBeDefined();
 
@@ -192,7 +194,9 @@ describe('FileWorker Direct Coverage', () => {
       require('../../../../src/transports/worker/FileWorker');
 
       // Find drain handler
-      const drainHandler = mockWriteStream.on.mock.calls.find(call => call[0] === 'drain')?.[1];
+      const drainHandler = mockWriteStream.on.mock.calls.find(
+        (call: any) => call[0] === 'drain'
+      )?.[1];
 
       expect(drainHandler).toBeDefined();
 

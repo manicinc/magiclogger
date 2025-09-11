@@ -4,20 +4,20 @@
  */
 
 // No-op function for unimplemented methods
-const noop = () => {
+const noop = (..._args: any[]) => {
   /* noop */
 };
 
 // Empty fs implementation for browser
 export const fs = {
-  existsSync: () => false,
+  existsSync: (_path: string) => false,
   mkdirSync: noop,
   writeFileSync: noop,
   appendFileSync: noop,
-  readFileSync: () => '',
-  readFile: () => Promise.resolve(new Uint8Array()),
-  readdirSync: () => [],
-  statSync: () => ({
+  readFileSync: (_path: string, _encoding?: string) => '',
+  readFile: (_path: string) => Promise.resolve(new Uint8Array()),
+  readdirSync: (_path: string) => [],
+  statSync: (_path: string) => ({
     isDirectory: () => false,
     isFile: () => false,
     isBlockDevice: () => false,
