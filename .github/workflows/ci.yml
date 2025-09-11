@@ -327,6 +327,8 @@ jobs:
           NODE_ENV=production npm run build
         env:
           NODE_ENV: production
+          GA_TRACKING_ID: ${{ secrets.GA_TRACKING_ID }}
+          MS_CLARITY_ID: ${{ secrets.MS_CLARITY_ID }}
       
       - name: Deploy to gh-pages branch
         uses: peaceiris/actions-gh-pages@v3
