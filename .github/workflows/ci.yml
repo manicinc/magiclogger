@@ -310,7 +310,16 @@ jobs:
       
       - name: Install website dependencies
         working-directory: ./website
-        run: npm ci
+        run: |
+          if [ -f "pnpm-lock.yaml" ]; then
+            pnpm install --frozen-lockfile
+          elif [ -f "package-lock.json" ]; then
+            npm ci
+          else
+            echo "Error: No lockfile found (pnpm-lock.yaml or package-lock.json)"
+            echo "Please commit a lockfile to ensure reproducible builds"
+            exit 1
+          fi
       
       - name: Sync documentation
         run: |

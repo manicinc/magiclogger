@@ -21,7 +21,11 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
-    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[skip release]') }}
+    # Skip if commit message contains skip markers OR if it's a merge commit with skip-release in the PR title
+    if: |
+      !contains(github.event.head_commit.message, '[skip ci]') && 
+      !contains(github.event.head_commit.message, '[skip release]') &&
+      !contains(github.event.head_commit.message, 'skip-release')
     timeout-minutes: 45
     
     steps:
