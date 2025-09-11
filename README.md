@@ -12,6 +12,11 @@
 </p>
 
 <p align="center">
+  <!-- CI/CD Status -->
+  <a href="https://github.com/manicinc/magiclogger/actions/workflows/ci.yml"><img src="https://github.com/manicinc/magiclogger/actions/workflows/ci.yml/badge.svg?branch=master" alt="CI"></a>
+  <a href="https://github.com/manicinc/magiclogger/actions/workflows/releases.yml"><img src="https://github.com/manicinc/magiclogger/actions/workflows/releases.yml/badge.svg?branch=master" alt="Release"></a>
+  <a href="https://github.com/manicinc/magiclogger/actions/workflows/deploy-docs.yml"><img src="https://github.com/manicinc/magiclogger/actions/workflows/deploy-docs.yml/badge.svg?branch=master" alt="Docs"></a>
+  <br />
   <!-- Project Stats -->
   <a href="https://github.com/manicinc/magiclogger"><img src="https://img.shields.io/github/stars/manicinc/magiclogger?style=social" alt="GitHub Stars"></a>
   <img src="https://img.shields.io/npm/v/magiclogger" alt="npm version">
@@ -1426,70 +1431,6 @@ MIT © [Manic.agency](https://manic.agency)
 </p>
 
 ## 📦 Build Output Sizes
-
-| File | Format | Raw Size | Gzip |
-|------|--------|----------|------|
-| `index.cjs` | CJS | 9.87 kB | 2.24 kB |
-| `index.js` | ESM | 6.23 kB | 1.87 kB |
-| `index.d.ts` | Types | 132 kB | 28.1 kB |
-
-### Core Bundle Sizes (gzipped)
-
-| Scenario | Size |
-|----------|------|
-| Core (bare minimum) | 37.4 kB |
-| Core + Console Transport | 37.4 kB |
-| Core + All Basic Transports | 42.3 kB |
-
-*Generated via `scripts/analyze-build.js`.*
-
-| File | Format | Raw Size | Gzip |
-|------|--------|----------|------|
-| `index.cjs` | CJS | 9.87 kB | 2.24 kB |
-| `index.js` | ESM | 6.23 kB | 1.87 kB |
-| `index.d.ts` | Types | 132 kB | 28.1 kB |
-
-### Core Bundle Sizes (gzipped)
-
-| Scenario | Size |
-|----------|------|
-| Core (bare minimum) | 37.3 kB |
-| Core + Console Transport | 37.3 kB |
-| Core + All Basic Transports | 42.3 kB |
-
-*Generated via `scripts/analyze-build.js`.*
-
-| File | Format | Raw Size | Gzip |
-|------|--------|----------|------|
-| `index.cjs` | CJS | 9.87 kB | 2.24 kB |
-| `index.js` | ESM | 6.23 kB | 1.87 kB |
-| `index.d.ts` | Types | 132 kB | 28.1 kB |
-
-### Core Bundle Sizes (gzipped)
-
-| Scenario | Size |
-|----------|------|
-| Core (bare minimum) | 37.3 kB |
-| Core + Console Transport | 37.3 kB |
-| Core + All Basic Transports | 42.3 kB |
-
-*Generated via `scripts/analyze-build.js`.*
-
-| File | Format | Raw Size | Gzip |
-|------|--------|----------|------|
-| `index.cjs` | CJS | 9.87 kB | 2.24 kB |
-| `index.js` | ESM | 6.23 kB | 1.87 kB |
-| `index.d.ts` | Types | 132 kB | 28.1 kB |
-
-### Core Bundle Sizes (gzipped)
-
-| Scenario | Size |
-|----------|------|
-| Core (bare minimum) | 37.3 kB |
-| Core + Console Transport | 37.3 kB |
-| Core + All Basic Transports | 42.3 kB |
-
-*Generated via `scripts/analyze-build.js`.*
 
 | File | Format | Raw Size | Gzip |
 |------|--------|----------|------|

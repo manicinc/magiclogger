@@ -287,6 +287,8 @@ async function injectIntoReadme(table) {
   const essentialScenarios = [
     ['Core (bare minimum)', allMeasurements['Core (bare minimum)']],
     ['Core + Console Transport', allMeasurements['Core + Console Transport']],
+    ['Core + File Transport', allMeasurements['Core + File Transport']],
+    ['Core + HTTP Transport', allMeasurements['Core + HTTP Transport']],
     ['Core + All Basic Transports', allMeasurements['Core + All Basic Transports']],
   ].filter(([_, size]) => size)
     .map(([name, size]) => `| ${name} | ${prettyBytes(size)} |`)
