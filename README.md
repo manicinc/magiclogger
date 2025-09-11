@@ -97,16 +97,12 @@ const logger = new Logger({
 const logger = new Logger();  // Console transport created automatically
 
 // Sync logger - blocking I/O for guaranteed delivery
+// Note: You likely won't need SyncLogger as AsyncLogger has excellent performance
+// and reliability. Only use for audit logs or when absolute write guarantees are required.
 const auditLogger = new SyncLogger({ 
   file: './audit.log',
   forceFlush: true  // fsync after each write
 });
-
-// Smart logger - auto-detects best mode
-import { createSmartLogger } from 'magiclogger';
-const smartLogger = createSmartLogger();
-// Dev/TTY: Sync for immediate feedback
-// Production: Async for performance
 ```
 
 ## Styling APIs
@@ -226,15 +222,18 @@ Note: Each transport handles backpressure independently. File and HTTP transport
 
 ### Log Delivery Guarantees
 
-**AsyncLogger (default)**: 
-- Batches logs in memory for performance (default: 1000 entries or 10ms timeout)
+**Logger (default - recommended)**: 
+- High performance with excellent reliability (200K+ ops/sec)
+- Batches logs efficiently in memory (default: 1000 entries or 10ms timeout)
 - **With graceful shutdown** (`await logger.close()`): All logs are flushed and saved
 - **Without graceful shutdown** (crash/SIGKILL): Buffered logs may be lost (up to 100ms worth)
+- Suitable for 99% of use cases including production applications
 
-**SyncLogger**: 
+**SyncLogger (rarely needed)**: 
 - Blocks until each log is written to disk (using `fs.appendFileSync`)
 - **Always guarantees delivery** - logs are never lost unless OS crashes
-- Trade-off: Significantly slower performance (30K vs 200K+ ops/sec)
+- Trade-off: Significantly slower performance as it's not currently optimized (50k+ ops/sec)
+- For critical auditing or regulatory logging
 
 **For critical logs that must never be lost**:
 ```typescript
