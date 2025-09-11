@@ -478,7 +478,6 @@
     "prepublishOnly": "npm run test && npm run lint && npm run build && npm run test:coverage:badge && npm run analyze:build",
     "prepare": "npm run clean && husky",
     "version": "npm run format && git add -A src",
-    "postversion": "git push && git push --tags",
     "release:manual": "npm run preflight && npm run version:bump",
     "security:audit": "pnpm audit || true",
     "security:deps": "npx license-checker --summary",
