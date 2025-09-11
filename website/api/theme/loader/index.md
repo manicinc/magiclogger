@@ -1,0 +1,7 @@
+# theme/loader
+
+## Functions
+
+- [getTheme](functions/getTheme.md)
+- [listThemes](functions/listThemes.md)
+- [loadThemes](functions/loadThemes.md)

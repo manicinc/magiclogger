@@ -112,8 +112,9 @@ export default function PerformanceSection() {
             <p>
               MagicLogger prioritizes developer experience with beautiful, styled logs preserved end-to-end through production.
               While Pino leads in raw throughput (443k ops/sec), MagicLogger achieves respectable performance (169k ops/sec styled)
-              with the MAGIC Schema ensuring your colored logs display perfectly in dashboards. 
-              <a href="/docs/performance-design#styling-optimizations" style={{ marginLeft: '8px', color: '#667eea' }}>
+              with the MAGIC Schema ensuring your colored logs display perfectly in dashboards.
+              {' '}
+              <a href="/docs/performance-design#styling-optimizations" className={styles.performanceLink}>
                 Learn about our style optimization techniques →
               </a>
             </p>
