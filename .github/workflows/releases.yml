@@ -21,25 +21,12 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
-    # Skip if commit message contains skip markers OR if it's a docs/chore/style commit
+    # Always run for merge commits and direct feat/fix commits
+    # Skip only for direct non-releasable commits (docs, chore, style, etc.)
     if: |
       !contains(github.event.head_commit.message, '[skip ci]') && 
       !contains(github.event.head_commit.message, '[skip release]') &&
-      !contains(github.event.head_commit.message, 'skip-release') &&
-      !startsWith(github.event.head_commit.message, 'docs:') &&
-      !startsWith(github.event.head_commit.message, 'docs(') &&
-      !startsWith(github.event.head_commit.message, 'chore:') &&
-      !startsWith(github.event.head_commit.message, 'chore(') &&
-      !startsWith(github.event.head_commit.message, 'style:') &&
-      !startsWith(github.event.head_commit.message, 'style(') &&
-      !startsWith(github.event.head_commit.message, 'test:') &&
-      !startsWith(github.event.head_commit.message, 'test(') &&
-      !startsWith(github.event.head_commit.message, 'ci:') &&
-      !startsWith(github.event.head_commit.message, 'ci(') &&
-      !startsWith(github.event.head_commit.message, 'build:') &&
-      !startsWith(github.event.head_commit.message, 'build(') &&
-      !startsWith(github.event.head_commit.message, 'refactor:') &&
-      !startsWith(github.event.head_commit.message, 'refactor(')
+      !contains(github.event.head_commit.message, 'skip-release')
     timeout-minutes: 45
     
     steps:
