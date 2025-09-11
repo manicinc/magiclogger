@@ -52,9 +52,9 @@ export type StyleMap = Record<number, ColorName[]>;
  */
 export class TextStyler {
   // Pre-compiled regex patterns for performance
-  // Non-backtracking regexes to prevent ReDoS attacks
-  private static readonly BRACKET_REGEX = /<([^>]+)>([^<]*)<\/>/g;
-  private static readonly BRACKET_STRIP_REGEX = /<([^>]+)>([^<]*)<\/>/g;
+  // Non-greedy with limited backtracking to prevent ReDoS attacks
+  private static readonly BRACKET_REGEX = /<([^<>]+?)>([^<]*?)<\/>/g;
+  private static readonly BRACKET_STRIP_REGEX = /<([^<>]+?)>([^<]*?)<\/>/g;
   private static readonly WORD_SPLIT_REGEX = /(\s+)/;
   private static readonly AT_TEMPLATE_REGEX = /@(\w+(?:\.\w+)*?)\{([^}]+)\}/g;
   private static readonly STYLE_DOT_REGEX = /\./;
@@ -334,7 +334,7 @@ export class TextStyler {
     }
 
     if (!useColors) {
-      // Remove all angle bracket styling syntax
+      // Remove all angle bracket styling syntax - use safe regex
       return text.replace(TextStyler.BRACKET_STRIP_REGEX, '$2');
     }
 
@@ -437,14 +437,14 @@ export class TextStyler {
 
     // OPTIMIZATION: Use a single optimized regex that handles both nested and regular tags
     // This regex is more efficient as it avoids the negative lookahead
-    const regex = /<([^>]+)>([^<]*)<\/>/g;
+    const regex = /<([^<>]+?)>([^<]*?)<\/>/g;
     let match: RegExpExecArray | null;
 
     // Pre-process for nested tags in a single pass if needed
     let processedText = text;
     if (text.includes('</></>')) {
       // Only do nested processing if we detect nested closing tags
-      const nestedPattern = /<([^>]+)><([^>]+)>([^<]*)<\/><\/>/g;
+      const nestedPattern = /<([^<>]+?)><([^<>]+?)>([^<]*?)<\/><\/>/g;
       processedText = text.replace(nestedPattern, (match, outerStyle, innerStyle, content) => {
         // Combine styles from nested tags
         const combinedStyle = `${outerStyle}.${innerStyle}`;

@@ -160,6 +160,8 @@ const config: Config = {
   // Plugin to alias 'magiclogger' to the local dist build during docs build/serve.
   // Falls back to a local shim when dist isn't built so the site still compiles.
   plugins: [
+    // Combined Analytics Plugin (Google Analytics + Microsoft Clarity)
+    require('./src/plugins/analyticsPlugin'),
     // TypeDoc plugin for API documentation
     [
       'docusaurus-plugin-typedoc',

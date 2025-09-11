@@ -25,7 +25,6 @@ export default defineConfig(options => {
     'transports/base': 'src/transports/index.ts', // registry + base classes
     'transports/SyncFileTransport': 'src/transports/SyncFileTransport.ts', // High-performance sync file transport
     'transports/AsyncFileTransport': 'src/transports/AsyncFileTransport.ts', // High-perf async with sonic-boom
-    'transports/FastAsyncFileTransport': 'src/transports/FastAsyncFileTransport.ts', // Optimized async transport
 
     // Theme system
     'theme/theme': 'src/theme/theme.ts',
