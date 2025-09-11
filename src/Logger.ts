@@ -679,7 +679,8 @@ export class Logger {
   public parseBrackets(text: string): string {
     // Skip parsing in performance mode
     if (this.options.performanceMode) {
-      return text.replace(/<([^>]*?)>(.*?)<\/>/g, '$2');
+      // Use non-backtracking regex to prevent ReDoS
+      return text.replace(/<([^>]+)>([^<]*)<\/>/g, '$2');
     }
     return TextStyler.parseBrackets(text, this.useColors);
   }

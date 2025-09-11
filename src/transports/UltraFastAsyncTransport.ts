@@ -95,8 +95,9 @@ export class UltraFastAsyncTransport extends Transport {
       const level = entry.level || 'info';
       const time = entry.time || entry.timestampMs || Date.now();
 
-      // Direct string concatenation is faster than JSON.stringify for simple objects
-      json = `{"level":"${level}","time":${time},"msg":"${msg.replace(/"/g, '\\"')}"}`;
+      // Properly escape strings for JSON - handle both backslashes and quotes
+      const escapedMsg = msg.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+      json = `{"level":"${level}","time":${time},"msg":"${escapedMsg}"}`;
     }
 
     this.sonic.write(json + '\n');

@@ -52,8 +52,9 @@ export type StyleMap = Record<number, ColorName[]>;
  */
 export class TextStyler {
   // Pre-compiled regex patterns for performance
-  private static readonly BRACKET_REGEX = /<([^>]*?)>((?:(?!<[^>]*?>).)*?)<\/>/g;
-  private static readonly BRACKET_STRIP_REGEX = /<([^>]*?)>(.*?)<\/>/g;
+  // Non-backtracking regexes to prevent ReDoS attacks
+  private static readonly BRACKET_REGEX = /<([^>]+)>([^<]*)<\/>/g;
+  private static readonly BRACKET_STRIP_REGEX = /<([^>]+)>([^<]*)<\/>/g;
   private static readonly WORD_SPLIT_REGEX = /(\s+)/;
   private static readonly AT_TEMPLATE_REGEX = /@(\w+(?:\.\w+)*?)\{([^}]+)\}/g;
   private static readonly STYLE_DOT_REGEX = /\./;
@@ -370,7 +371,7 @@ export class TextStyler {
     }
 
     // Cache the result for future use
-    cache.set(cacheKey, result, text.replace(/<([^>]*?)>(.*?)<\/>/g, '$2'));
+    cache.set(cacheKey, result, text.replace(/<([^>]+)>([^<]*)<\/>/g, '$2'));
 
     return result;
   }
@@ -436,7 +437,7 @@ export class TextStyler {
 
     // OPTIMIZATION: Use a single optimized regex that handles both nested and regular tags
     // This regex is more efficient as it avoids the negative lookahead
-    const regex = /<([^>]*?)>(.*?)<\/>/g;
+    const regex = /<([^>]+)>([^<]*)<\/>/g;
     let match: RegExpExecArray | null;
 
     // Pre-process for nested tags in a single pass if needed
