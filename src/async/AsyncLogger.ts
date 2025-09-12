@@ -495,6 +495,11 @@ export class AsyncLogger extends EventEmitter {
           await this.flush();
         })();
       }, this.flushInterval);
+      
+      // Allow process to exit even if timer is active (for tests)
+      if (this.flushTimer && typeof this.flushTimer.unref === 'function') {
+        this.flushTimer.unref();
+      }
     }
 
     this.initialized = true;

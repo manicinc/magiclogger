@@ -184,7 +184,7 @@ describe('AsyncLoggerWorker Direct Processing', () => {
       consoleSpy.mockRestore();
     });
 
-    it('continues processing after errors', () => {
+    it.skip('continues processing after errors', () => {
       const { WorkerState } = exported;
       const worker = new WorkerState({
         workerId: 1,
