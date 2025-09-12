@@ -88,16 +88,16 @@ const config: Config = {
           label: 'Documentation',
         },
         {
-          href: '/api/',
+          type: 'docSidebar',
+          sidebarId: 'apiSidebar',
           label: 'API Reference',
           position: 'left',
-          target: '_self',
         },
         { to: '/blog', label: 'Blog', position: 'left' },
         {
           href: 'https://manic.agency/contact',
           label: 'Contact',
-          position: 'right',
+          position: 'left',
           target: '_blank',
         },
         {
@@ -109,8 +109,9 @@ const config: Config = {
         },
         {
           href: 'https://github.com/manicinc/magiclogger',
-          label: 'GitHub',
           position: 'right',
+          className: 'header-github-link',
+          'aria-label': 'GitHub repository',
         },
       ],
     },

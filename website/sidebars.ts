@@ -1,5 +1,13 @@
 import type { SidebarsConfig } from '@docusaurus/plugin-content-docs';
 
+// Import the generated TypeDoc sidebar
+let typedocSidebar;
+try {
+  typedocSidebar = require('./api/typedoc-sidebar.cjs');
+} catch {
+  typedocSidebar = null;
+}
+
 /**
  * Creating a sidebar enables you to:
  - create an ordered group of docs
@@ -54,6 +62,8 @@ const sidebars: SidebarsConfig = {
       ],
     },
   ],
+  // Add TypeDoc API sidebar if it exists
+  ...(typedocSidebar ? { apiSidebar: typedocSidebar.items } : {}),
 };
 
 export default sidebars;

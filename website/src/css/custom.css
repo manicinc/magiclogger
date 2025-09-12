@@ -595,6 +595,25 @@ code {
   /* Mobile menu sidebar */
   .navbar-sidebar {
     top: 60px !important;
+    background: var(--ifm-navbar-background-color);
+    z-index: var(--ifm-z-index-fixed);
+  }
+  
+  /* Ensure menu items are visible in mobile sidebar */
+  .navbar-sidebar .menu__list {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  
+  .navbar-sidebar .navbar__item {
+    display: block !important;
+    padding: 0.5rem 1rem;
+  }
+  
+  .navbar-sidebar .navbar__link {
+    display: block !important;
+    color: var(--ifm-navbar-link-color);
   }
   
   .hero {

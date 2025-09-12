@@ -10,7 +10,6 @@ import { useColorMode } from '@docusaurus/theme-common';
 import styles from './styles.module.css';
 
 export default function HeroSection() {
-  const { displayedText } = useTypingEffect('Async by default with blazing fast styled logging for modern JavaScript', 40);
   const { colorMode } = useColorMode();
   const isDarkTheme = colorMode === 'dark';
   const [copied, setCopied] = React.useState(false);
@@ -43,11 +42,6 @@ export default function HeroSection() {
 
             <p className={styles.heroTagline}>
               Visual Dashboard for Beautiful Logs End-to-End
-            </p>
-
-            <p className={styles.heroDescription}>
-              {displayedText}
-              <span className={styles.cursor}>|</span>
             </p>
 
             <p className={styles.heroSubDescription}>
