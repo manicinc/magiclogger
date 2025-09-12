@@ -5,6 +5,11 @@ on:
     branches:
       - main
       - master
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+      - master
 
 permissions:
   contents: write
@@ -23,15 +28,23 @@ jobs:
     runs-on: ubuntu-latest
     # Skip for commits that don't need releases
     if: |
-      !contains(github.event.head_commit.message, '[skip ci]') && 
-      !contains(github.event.head_commit.message, '[skip release]') &&
-      !contains(github.event.head_commit.message, 'skip-release') &&
-      !startsWith(github.event.head_commit.message, 'chore:') &&
-      !startsWith(github.event.head_commit.message, 'docs:') &&
-      !startsWith(github.event.head_commit.message, 'style:') &&
-      !startsWith(github.event.head_commit.message, 'test:') &&
-      !startsWith(github.event.head_commit.message, 'ci:') &&
-      !startsWith(github.event.head_commit.message, 'build:')
+      (github.event_name == 'push' && 
+       !contains(github.event.head_commit.message, '[skip ci]') && 
+       !contains(github.event.head_commit.message, '[skip release]') &&
+       !contains(github.event.head_commit.message, 'skip-release') &&
+       !startsWith(github.event.head_commit.message, 'chore:') &&
+       !startsWith(github.event.head_commit.message, 'docs:') &&
+       !startsWith(github.event.head_commit.message, 'style:') &&
+       !startsWith(github.event.head_commit.message, 'test:') &&
+       !startsWith(github.event.head_commit.message, 'ci:') &&
+       !startsWith(github.event.head_commit.message, 'build:') &&
+       (startsWith(github.event.head_commit.message, 'feat:') ||
+        startsWith(github.event.head_commit.message, 'fix:') ||
+        startsWith(github.event.head_commit.message, 'perf:') ||
+        contains(github.event.head_commit.message, 'BREAKING CHANGE'))) ||
+      (github.event_name == 'pull_request' && 
+       github.event.pull_request.merged == true &&
+       !contains(github.event.pull_request.labels.*.name, 'skip-release'))
     timeout-minutes: 45
     
     steps:
