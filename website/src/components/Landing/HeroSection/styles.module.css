@@ -176,14 +176,15 @@
 }
 
 .primaryButton {
-  background: linear-gradient(135deg, #9945ff 0%, #00d4ff 100%) !important;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
   color: white !important;
   box-shadow: 
-    0 4px 15px rgba(153, 69, 255, 0.3),
-    0 1px 3px rgba(0, 0, 0, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    0 10px 25px -5px rgba(99, 102, 241, 0.5),
+    0 8px 10px -6px rgba(99, 102, 241, 0.5);
   position: relative;
   overflow: hidden;
+  font-weight: 600 !important;
+  letter-spacing: 0.025em;
 }
 
 .primaryButton::before {
@@ -203,54 +204,56 @@
 }
 
 .primaryButton:hover {
-  transform: translateY(-3px) scale(1.02);
+  transform: translateY(-2px);
   box-shadow: 
-    0 8px 25px rgba(153, 69, 255, 0.4),
-    0 2px 8px rgba(0, 0, 0, 0.15),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    0 20px 25px -5px rgba(99, 102, 241, 0.5),
+    0 8px 10px -6px rgba(99, 102, 241, 0.5);
   color: white !important;
+  background: linear-gradient(135deg, #7c7ff3 0%, #9f71f8 100%) !important;
 }
 
 .secondaryButton,
 .githubButton {
-  background: linear-gradient(145deg, #ffffff, #f0f0f0) !important;
-  color: var(--ifm-color-content) !important;
+  background: white !important;
+  color: #4b5563 !important;
   box-shadow: 
-    6px 6px 12px rgba(0, 0, 0, 0.1),
-    -6px -6px 12px rgba(255, 255, 255, 0.9),
-    inset 1px 1px 0 rgba(255, 255, 255, 0.6);
-  border: none !important;
+    0 1px 3px 0 rgba(0, 0, 0, 0.1),
+    0 1px 2px -1px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb !important;
   position: relative;
   overflow: hidden;
+  font-weight: 600 !important;
 }
 
 [data-theme='dark'] .secondaryButton,
 [data-theme='dark'] .githubButton {
-  background: linear-gradient(145deg, #2a2a2a, #1a1a1a) !important;
+  background: #1f2937 !important;
+  color: #d1d5db !important;
   box-shadow: 
-    6px 6px 12px rgba(0, 0, 0, 0.5),
-    -6px -6px 12px rgba(255, 255, 255, 0.05),
-    inset 1px 1px 0 rgba(255, 255, 255, 0.1);
+    0 1px 3px 0 rgba(0, 0, 0, 0.3),
+    0 1px 2px -1px rgba(0, 0, 0, 0.3);
+  border: 1px solid #374151 !important;
 }
 
 .secondaryButton:hover,
 .githubButton:hover {
-  transform: translateY(-3px) scale(1.02);
+  transform: translateY(-2px);
   box-shadow: 
-    8px 8px 16px rgba(0, 0, 0, 0.15),
-    -8px -8px 16px rgba(255, 255, 255, 0.9),
-    inset 2px 2px 4px rgba(255, 255, 255, 0.6),
-    0 0 20px rgba(153, 69, 255, 0.2);
-  color: var(--magic-purple) !important;
+    0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  color: #6366f1 !important;
+  background: #f9fafb !important;
+  border-color: #6366f1 !important;
 }
 
 [data-theme='dark'] .secondaryButton:hover,
 [data-theme='dark'] .githubButton:hover {
   box-shadow: 
-    8px 8px 16px rgba(0, 0, 0, 0.6),
-    -8px -8px 16px rgba(255, 255, 255, 0.08),
-    inset 2px 2px 4px rgba(255, 255, 255, 0.15),
-    0 0 20px rgba(153, 69, 255, 0.3);
+    0 10px 15px -3px rgba(0, 0, 0, 0.4),
+    0 4px 6px -4px rgba(0, 0, 0, 0.4);
+  color: #a5b4fc !important;
+  background: #374151 !important;
+  border-color: #6366f1 !important;
 }
 
 /* Terminal - Clean and Modern */
@@ -574,18 +577,18 @@
 
 /* Dashboard Button Styles */
 .dashboardButton {
-  background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%) !important;
+  background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%) !important;
   color: white !important;
-  border: 2px solid transparent !important;
+  border: none !important;
   box-shadow: 
-    0 4px 15px rgba(149, 165, 166, 0.3),
-    0 1px 3px rgba(0, 0, 0, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    0 10px 25px -5px rgba(236, 72, 153, 0.5),
+    0 8px 10px -6px rgba(236, 72, 153, 0.5);
   position: relative;
   overflow: hidden;
   transition: all 0.3s ease;
-  opacity: 0.85;
   text-decoration: none !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.025em;
 }
 
 .dashboardButton::before {
@@ -603,13 +606,11 @@
 }
 
 .dashboardButton:hover {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-  opacity: 1;
-  transform: translateY(-3px) scale(1.02);
+  background: linear-gradient(135deg, #f472b6 0%, #fb7185 100%) !important;
+  transform: translateY(-2px);
   box-shadow: 
-    0 8px 25px rgba(102, 126, 234, 0.4),
-    0 2px 8px rgba(0, 0, 0, 0.15),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    0 20px 25px -5px rgba(236, 72, 153, 0.5),
+    0 8px 10px -6px rgba(236, 72, 153, 0.5);
   color: white !important;
 }
 
@@ -619,17 +620,17 @@
 
 .comingSoonBadge {
   position: absolute;
-  top: -8px;
-  right: -8px;
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  color: white;
-  padding: 2px 8px;
+  top: -10px;
+  right: -10px;
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  color: #1f2937;
+  padding: 4px 10px;
   border-radius: 12px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  box-shadow: 0 2px 8px rgba(245, 87, 108, 0.4);
+  box-shadow: 0 4px 10px rgba(251, 191, 36, 0.5);
   animation: pulse 2s infinite;
 }
 
@@ -643,21 +644,20 @@
 }
 
 [data-theme='dark'] .dashboardButton {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%) !important;
   box-shadow: 
-    0 4px 15px rgba(102, 126, 234, 0.5),
-    0 1px 3px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    0 10px 25px -5px rgba(236, 72, 153, 0.6),
+    0 8px 10px -6px rgba(236, 72, 153, 0.6);
 }
 
-[data-theme='dark'] .dashboardButtonDisabled {
-  background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%) !important;
-  opacity: 0.6;
+[data-theme='dark'] .dashboardButton:hover {
+  background: linear-gradient(135deg, #f472b6 0%, #fb7185 100%) !important;
 }
 
 [data-theme='dark'] .comingSoonBadge {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  box-shadow: 0 2px 10px rgba(245, 87, 108, 0.6);
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  color: #1f2937;
+  box-shadow: 0 4px 10px rgba(251, 191, 36, 0.6);
 }
 
 /* Newsletter CTA Section */

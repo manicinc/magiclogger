@@ -133,12 +133,52 @@
 
 html {
   scroll-behavior: smooth;
+  background-color: var(--neo-bg);
 }
 
 body {
   background-color: var(--neo-bg);
   min-height: 100vh;
   font-family: var(--ifm-font-family-base);
+}
+
+/* Fix for docs pages background consistency */
+.main-wrapper,
+main,
+.docMainContainer_node_modules-\@docusaurus-theme-classic-lib-theme-DocPage-Layout-Main-styles-module,
+.docsWrapper_node_modules-\@docusaurus-theme-classic-lib-theme-DocPage-Layout-styles-module,
+[class*="docMainContainer"],
+[class*="docsWrapper"],
+.theme-doc-markdown,
+.markdown {
+  background-color: var(--neo-bg) !important;
+}
+
+article,
+.theme-doc-item-container {
+  background-color: transparent !important;
+}
+
+/* Ensure docs sidebar has consistent background */
+.theme-doc-sidebar-container,
+aside[class*="docSidebarContainer"] {
+  background-color: var(--neo-bg-alt) !important;
+  border-right: 1px solid var(--glass-border);
+}
+
+/* Fix any gray backgrounds on scroll */
+.container,
+.row,
+.col {
+  background-color: transparent !important;
+}
+
+/* Ensure consistent background in all doc views */
+.docPage__5DB,
+.sidebarViewport_Xe31,
+.docMainContainer_gTbr,
+.container_3iiI {
+  background-color: var(--neo-bg) !important;
 }
 
 /* Navbar Styling - Clean and Professional */
@@ -211,48 +251,153 @@ body {
   background: var(--neo-bg);
 }
 
-/* Clean Buttons */
+/* Modern Sleek Buttons */
 .button {
-  background: var(--neo-surface);
-  box-shadow: var(--neo-shadow-small);
-  border: 1px solid var(--glass-border);
-  padding: 0.75rem 1.5rem;
-  border-radius: var(--neo-radius-medium);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white !important;
+  border: none;
+  padding: 0.875rem 2rem;
+  border-radius: 12px;
   font-weight: 600;
-  transition: var(--neo-transition);
+  font-size: 1rem;
+  letter-spacing: 0.025em;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  text-decoration: none;
+  gap: 0.625rem;
+  text-decoration: none !important;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  position: relative;
+  overflow: hidden;
+}
+
+.button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%);
+  transition: opacity 0.3s;
+  opacity: 0;
 }
 
 .button:hover {
   transform: translateY(-2px);
-  box-shadow: var(--neo-shadow-medium);
-  text-decoration: none;
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
+  text-decoration: none !important;
+  color: white !important;
+}
+
+.button:hover::before {
+  opacity: 1;
+}
+
+.button:active {
+  transform: translateY(0);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
 }
 
 .button--primary {
-  background: var(--magic-gradient);
-  color: white;
-  border: none;
-  box-shadow: 0 4px 12px rgba(153, 69, 255, 0.3);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white !important;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
 }
 
 .button--primary:hover {
-  box-shadow: 0 6px 20px rgba(153, 69, 255, 0.4);
-  color: white;
+  background: linear-gradient(135deg, #7c8ff0 0%, #8a5bb6 100%);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
+  color: white !important;
 }
 
 .button--secondary {
-  background: var(--neo-surface);
-  color: var(--ifm-color-content);
+  background: rgba(102, 126, 234, 0.1);
+  color: #667eea !important;
+  border: 2px solid #667eea;
+  box-shadow: none;
 }
 
 .button--secondary:hover {
-  background: var(--neo-bg-alt);
-  color: var(--ifm-color-primary);
+  background: #667eea;
+  color: white !important;
+  border-color: #667eea;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+/* Button variants for specific uses */
+.button--outline {
+  background: transparent;
+  color: var(--ifm-color-primary) !important;
+  border: 2px solid var(--ifm-color-primary);
+  box-shadow: none;
+}
+
+.button--outline:hover {
+  background: var(--ifm-color-primary);
+  color: white !important;
+  box-shadow: 0 4px 15px rgba(153, 69, 255, 0.4);
+}
+
+.button--lg {
+  padding: 1rem 2.5rem;
+  font-size: 1.125rem;
+}
+
+.button--sm {
+  padding: 0.625rem 1.25rem;
+  font-size: 0.875rem;
+}
+
+/* Dark mode button adjustments */
+[data-theme='dark'] .button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white !important;
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.5);
+}
+
+[data-theme='dark'] .button:hover {
+  background: linear-gradient(135deg, #7c8ff0 0%, #8a5bb6 100%);
+  box-shadow: 0 8px 30px rgba(102, 126, 234, 0.6);
+  color: white !important;
+}
+
+[data-theme='dark'] .button--secondary {
+  background: rgba(102, 126, 234, 0.2);
+  color: #a5b4fc !important;
+  border: 2px solid #667eea;
+}
+
+[data-theme='dark'] .button--secondary:hover {
+  background: #667eea;
+  color: white !important;
+  border-color: #667eea;
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.5);
+}
+
+/* Hero button specific styles */
+.hero__buttons {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+  flex-wrap: wrap;
+}
+
+.hero .button {
+  min-width: 160px;
+  justify-content: center;
+}
+
+/* Icon in button */
+.button svg {
+  width: 20px;
+  height: 20px;
+  transition: transform 0.3s;
+}
+
+.button:hover svg {
+  transform: translateX(2px);
 }
 
 /* Cards */
