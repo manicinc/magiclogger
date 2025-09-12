@@ -169,4 +169,6 @@ nul
 
 # Performance benchmark test files and temporary directories
 scripts/performance/tmp-bench/
-scripts/performance/test-*.log
+scripts/performance/test-*.log# Ignore npm lockfile (using pnpm)
+package-lock.json
+website/package-lock.json

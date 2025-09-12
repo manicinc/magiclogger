@@ -312,15 +312,8 @@ jobs:
       - name: Install website dependencies
         working-directory: ./website
         run: |
-          if [ -f "pnpm-lock.yaml" ]; then
-            pnpm install --frozen-lockfile
-          elif [ -f "package-lock.json" ]; then
-            npm ci
-          else
-            echo "Error: No lockfile found (pnpm-lock.yaml or package-lock.json)"
-            echo "Please commit a lockfile to ensure reproducible builds"
-            exit 1
-          fi
+          # Use pnpm for consistency with root project
+          pnpm install --frozen-lockfile
       
       - name: Sync documentation
         run: |
@@ -334,7 +327,7 @@ jobs:
         working-directory: ./website
         run: |
           echo "Building minified Docusaurus site..."
-          NODE_ENV=production npm run build
+          NODE_ENV=production pnpm run build
         env:
           NODE_ENV: production
           GA_TRACKING_ID: ${{ secrets.GA_TRACKING_ID }}
