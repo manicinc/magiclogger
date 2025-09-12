@@ -465,13 +465,14 @@ export class ConsoleTransport extends Transport {
    * @private
    */
   private writeToConsole(level: string, output: string | Buffer): void {
-    let outputStr = output instanceof Buffer ? output.toString() : output;
+    const outputStr = output instanceof Buffer ? output.toString() : (output as string);
 
     // In browser environments, strip ANSI codes as they don't work in browser console
     // Browser console uses CSS styling with %c prefix instead
+    let finalOutput = outputStr;
     if (isBrowserEnvironment() && this.useColors) {
       // Strip ANSI codes but keep the text
-      outputStr = this.stripAnsiCodes(outputStr);
+      finalOutput = this.stripAnsiCodes(outputStr);
       // Note: For proper browser console colors, use BrowserLogger or a browser-specific transport
     }
 
@@ -482,20 +483,20 @@ export class ConsoleTransport extends Transport {
     try {
       switch (methodKey) {
         case 'debug':
-          console.debug?.(outputStr);
+          console.debug?.(finalOutput);
           break;
         case 'info':
-          console.info?.(outputStr);
+          console.info?.(finalOutput);
           break;
         case 'warn':
-          console.warn?.(outputStr);
+          console.warn?.(finalOutput);
           break;
         case 'error':
-          console.error?.(outputStr);
+          console.error?.(finalOutput);
           break;
         case 'log':
         default:
-          console.log?.(outputStr);
+          console.log?.(finalOutput);
           break;
       }
     } catch {
