@@ -217,10 +217,9 @@ class WorkerState {
         // Process styles in worker thread (if needed)
         const processedEntry = { ...entry };
 
-        // Check if we need to process styles from rawMessage
-        const entryWithRaw = entry as LogEntry & { rawMessage?: string; useColors?: boolean };
-        const messageToProcess = entryWithRaw.rawMessage || entry.message;
-        const useColors = entryWithRaw.useColors !== false;
+        // Check if we need to process styles from context
+        const messageToProcess = entry.context?._rawMessage as string || entry.message;
+        const useColors = entry.context?._useColors !== false;
         
         if (
           messageToProcess &&
@@ -237,10 +236,11 @@ class WorkerState {
           }
         }
         
-        // Remove rawMessage from final entry
-        const cleanEntry = processedEntry as LogEntry & { rawMessage?: string; useColors?: boolean };
-        delete cleanEntry.rawMessage;
-        delete cleanEntry.useColors;
+        // Remove worker-specific data from context
+        if (processedEntry.context) {
+          delete processedEntry.context._rawMessage;
+          delete processedEntry.context._useColors;
+        }
 
         // Full JSON serialization like production loggers do
         const json = JSON.stringify({

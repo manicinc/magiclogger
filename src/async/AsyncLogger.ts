@@ -891,12 +891,15 @@ export class AsyncLogger extends EventEmitter {
       styles = result.styles;
     }
     
-    const entry: Record<string, unknown> = {
+    // Create a proper LogEntry object
+    const entry: LogEntry = {
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      timestamp: new Date(now).toISOString(),
+      timestampMs: now,
       level: level,
       message: processedMessage,
-      timestamp: now,
       time: now, // Keep for backward compatibility
-    };
+    } as LogEntry;
     
     // Add styles if extracted
     if (styles && styles.length > 0) {
@@ -905,13 +908,18 @@ export class AsyncLogger extends EventEmitter {
     
     // When using workers, tell them to process styles
     if (this.useWorkers) {
-      entry.rawMessage = message; // Send original for worker processing
-      entry.useColors = this.useColors;
+      // Use context to pass worker-specific data
+      if (!entry.context) {
+        entry.context = {};
+      }
+      entry.context._rawMessage = message; // Send original for worker processing
+      entry.context._useColors = this.useColors;
     }
 
     // Only add fields if needed to reduce object size
     if (meta && Object.keys(meta).length > 0) {
-      entry.context = meta;
+      // Merge with existing context if it exists (from worker data)
+      entry.context = { ...entry.context, ...meta };
     }
 
     // Only add logger ID if not default
