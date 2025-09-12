@@ -715,17 +715,18 @@
   flex: 1;
   padding: 1rem 2rem;
   border: none;
-  background: transparent;
+  background: rgba(0, 0, 0, 0.05);
   border-radius: 8px;
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  color: #666;
+  color: #333;
 }
 
 .tabButton:hover {
-  background: #f8f9fa;
+  background: rgba(0, 0, 0, 0.08);
+  color: #000;
 }
 
 .activeTab {
