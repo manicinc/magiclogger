@@ -67,13 +67,9 @@ const sidebars = {
     },
   ],
   // Add TypeDoc API sidebar if it exists and has valid items
-  ...(typedocSidebar && typedocSidebar.items 
+  ...(typedocSidebar && typedocSidebar.items && typedocSidebar.items.length > 0
     ? { apiSidebar: typedocSidebar.items } 
-    : { apiSidebar: [{
-        type: 'link',
-        label: 'API Documentation',
-        href: '/api',
-      }] }),
+    : {}), // Don't create apiSidebar if TypeDoc hasn't been generated yet
 };
 
 module.exports = sidebars;

@@ -88,8 +88,7 @@ const config: Config = {
           label: 'Documentation',
         },
         {
-          type: 'docSidebar',
-          sidebarId: 'apiSidebar',
+          to: '/api',
           label: 'API Reference',
           position: 'left',
         },
