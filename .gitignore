@@ -172,3 +172,6 @@ scripts/performance/tmp-bench/
 scripts/performance/test-*.log# Ignore npm lockfile (using pnpm)
 package-lock.json
 website/package-lock.json
+
+# Auto-generated API documentation
+website/static/api/

@@ -97,9 +97,10 @@
 }
 
 .ctaPrimary {
-  background: white !important;
-  color: #667eea !important;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%) !important;
+  color: #1f2937 !important;  /* Dark text on yellow for contrast */
+  box-shadow: 0 10px 30px rgba(251, 191, 36, 0.3);
+  font-weight: 700 !important;
 }
 
 .ctaPrimary::before {
@@ -108,7 +109,7 @@
   inset: 0;
   background: linear-gradient(45deg, 
     transparent 30%, 
-    rgba(102, 126, 234, 0.1) 50%, 
+    rgba(76, 29, 149, 0.05) 50%, 
     transparent 70%
   );
   transform: translateX(-100%);
@@ -117,8 +118,9 @@
 
 .ctaPrimary:hover {
   transform: translateY(-3px);
-  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
-  color: #667eea !important;
+  box-shadow: 0 15px 40px rgba(251, 191, 36, 0.4);
+  color: #1f2937 !important;
+  background: linear-gradient(135deg, #fcd34d 0%, #fbbf24 100%) !important;
 }
 
 .ctaPrimary:hover::before {
@@ -134,18 +136,21 @@
 }
 
 .ctaSecondary {
-  background: rgba(255, 255, 255, 0.1) !important;
+  background: rgba(255, 255, 255, 0.15) !important;
   backdrop-filter: blur(10px);
-  border: 2px solid rgba(255, 255, 255, 0.3) !important;
+  border: 2px solid rgba(255, 255, 255, 0.4) !important;
   color: white !important;
+  font-weight: 700 !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);  /* Add text shadow for better readability */
 }
 
 .ctaSecondary:hover {
-  background: rgba(255, 255, 255, 0.2) !important;
-  border-color: rgba(255, 255, 255, 0.5) !important;
+  background: rgba(255, 255, 255, 0.25) !important;
+  border-color: rgba(255, 255, 255, 0.6) !important;
   transform: translateY(-3px);
   color: white !important;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
 .starCount {
@@ -408,6 +413,33 @@
   .ctaStats {
     grid-template-columns: repeat(2, 1fr);
   }
+}
+
+/* Dark mode adjustments */
+[data-theme='dark'] .ctaSection {
+  background: linear-gradient(135deg, #4c1d95 0%, #6b21a8 100%);
+}
+
+[data-theme='dark'] .ctaPrimary {
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%) !important;
+  color: #1f2937 !important;
+}
+
+[data-theme='dark'] .ctaPrimary:hover {
+  background: linear-gradient(135deg, #fcd34d 0%, #fbbf24 100%) !important;
+  color: #1f2937 !important;
+}
+
+[data-theme='dark'] .ctaSecondary {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border: 2px solid rgba(255, 255, 255, 0.3) !important;
+  color: white !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme='dark'] .ctaSecondary:hover {
+  background: rgba(255, 255, 255, 0.2) !important;
+  border-color: rgba(255, 255, 255, 0.5) !important;
 }
 
 @media (max-width: 768px) {

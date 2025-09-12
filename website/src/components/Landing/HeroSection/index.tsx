@@ -52,8 +52,8 @@ export default function HeroSection() {
 
             <p className={styles.heroSubDescription}>
               We built MagicLogger because we believe logs should be as <span className={styles.highlight}>visually informative and beautiful</span> in production as they are during development.{' '}
-              The <span className={styles.highlight}>MAGIC Schema</span> preserves your styled logs across any transport or platform.{' '}
-              <span className={styles.highlight}>238,199 ops/sec</span> for async styled logging - 2x faster than Winston!
+              The <a href="https://github.com/manicinc/magiclogger/blob/master/docs/magic-schema.md" target="_blank" rel="noopener noreferrer" className={styles.schemaLink}><span className={styles.highlight}>MAGIC Schema</span></a> preserves your styled logs across any transport or platform.{' '}
+              Focused on <span className={styles.highlight}>visual clarity</span> and developer experience, not just raw performance.
             </p>
 
             {/* CTA Buttons */}
@@ -67,7 +67,7 @@ export default function HeroSection() {
               
               <a
                 className={clsx('button button--secondary', styles.secondaryButton)}
-                href="/docs/api/"
+                href="/api/"
                 target="_self">
                 <ApiIcon />
                 <span>API Documentation</span>
@@ -86,8 +86,10 @@ export default function HeroSection() {
                 to="/dashboard"
                 className={clsx('button', styles.dashboardButton)}
                 title="Magic Dashboard - Coming Soon">
-                <DashboardIcon />
-                <span>Magic Dashboard</span>
+                <span className={styles.dashboardButtonInner}>
+                  <DashboardIcon />
+                  <span>Magic Dashboard</span>
+                </span>
                 <span className={styles.comingSoonBadge}>Coming Soon</span>
               </Link>
             </div>
@@ -117,21 +119,21 @@ export default function HeroSection() {
             {/* Updated Stats with correct performance numbers */}
             <div className={styles.heroStats}>
               <StatCard 
-                value={39.4} 
+                value={43.3} 
                 unit="KB" 
                 label="Core (gzip)" 
                 icon={<PackageIcon />}
                 color="purple" 
               />
               <StatCard 
-                value={238.2} 
+                value={163.9} 
                 unit="K ops/s" 
                 label="Async Styled" 
                 icon={<SpeedIcon />}
                 color="cyan" 
               />
               <StatCard 
-                value={57.7} 
+                value={115.3} 
                 unit="K ops/s" 
                 label="Sync Plain" 
                 icon={<SyncIcon />}

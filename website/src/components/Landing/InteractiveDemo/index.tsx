@@ -28,7 +28,7 @@ interface LoggerInstance {
 }
 
 export default function InteractiveDemo() {
-  const [activeTab, setActiveTab] = useState<'video' | 'live'>('live');
+  const [activeTab, setActiveTab] = useState<'video' | 'live'>('video');
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const [demoStep, setDemoStep] = useState(0);
@@ -324,10 +324,11 @@ export default function InteractiveDemo() {
 
       {activeTab === 'video' && (
         <div className={styles.videoContainer}>
-          <div className={styles.placeholder}>
-            <h3>🎬 Video Demo Coming Soon</h3>
-            <p>Watch MagicLogger in action with real-world examples</p>
-          </div>
+          <img 
+            src="/img/magiclogger-terminal-demo.gif" 
+            alt="MagicLogger Terminal Demo" 
+            className={styles.demoGif}
+          />
         </div>
       )}
 
@@ -384,6 +385,7 @@ export default function InteractiveDemo() {
               {logs.length === 0 ? (
                 <div className={styles.emptyState}>
                   <p>🎯 Click "Run Full Demo" or try individual scenarios to see MagicLogger in action!</p>
+                  <p style={{ fontSize: '0.9em', color: '#888', marginTop: '10px' }}>💡 Also check your browser's developer console to see the styled output!</p>
                 </div>
               ) : (
                 logs.map((log) => {

@@ -2,6 +2,9 @@
 
 <p align="center">
   <img src="website/static/img/magiclog-primary-no-subtitle-transparent-4x.png" alt="MagicLog" width="520"/>
+ <img src="https://img.shields.io/badge/core_gzip-42kb-brightgreen.svg" alt="core_gzip">
+ <img src="https://img.shields.io/badge/core_console_gzip-42kb-brightgreen.svg" alt="core_console_gzip">
+ <img src="https://img.shields.io/badge/core_transports_gzip-46kb-brightgreen.svg" alt="core_transports_gzip">
 </p>
 
 <p align="center">
@@ -28,9 +31,15 @@
   <img src="https://img.shields.io/badge/license-MIT-blue" alt="License">
 </p>
 
+## 🎬 See MagicLogger in Action
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/manicinc/magiclogger/master/website/static/img/magiclogger-terminal-demo.gif" alt="MagicLogger Terminal Demo" width="100%" style="max-width: 800px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+</p>
+
 ## 🚀 Universal Color Logging Standard
 
-**MagicLogger** is a TypeScript logger built on a [universal color logging standard](./docs/magic-schema.md) that preserves styled text across any language, transport, or platform.
+**MagicLogger** is a TypeScript logger built on a [universal color logging standard](https://github.com/manicinc/magiclogger/blob/master/docs/magic-schema.md) that preserves styled text across any language, transport, or platform.
 
 Traditional prod environments suppress / strip styling / pretty print in logs, dropping presumed unnecessary bundling and load.
 
@@ -1436,6 +1445,24 @@ MIT © [Manic.agency](https://manic.agency)
 </p>
 
 ## 📦 Build Output Sizes
+
+| File | Format | Raw Size | Gzip |
+|------|--------|----------|------|
+| `index.cjs` | CJS | 10.7 kB | 2.34 kB |
+| `index.js` | ESM | 6.46 kB | 1.93 kB |
+| `index.d.ts` | Types | 178 kB | 37.8 kB |
+
+### Core Bundle Sizes (gzipped)
+
+| Scenario | Size |
+|----------|------|
+| Core (bare minimum) | 43.3 kB |
+| Core + Console Transport | 43.3 kB |
+| Core + File Transport | 43.3 kB |
+| Core + HTTP Transport | 45.9 kB |
+| Core + All Basic Transports | 47.4 kB |
+
+*Generated via `scripts/analyze-build.js`.*
 
 | File | Format | Raw Size | Gzip |
 |------|--------|----------|------|

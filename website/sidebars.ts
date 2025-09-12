@@ -21,7 +21,7 @@ const sidebars: SidebarsConfig = {
         {
           type: 'link',
           label: 'Full API Documentation',
-          href: '/api/index.html',
+          href: '/api/',
         },
       ],
     },

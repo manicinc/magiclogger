@@ -11,14 +11,14 @@
     "**/*.spec.ts"
   ],
   "tsconfig": "./tsconfig.json",
-  "readme": "none",
+  "readme": "README.md",
   "githubPages": false,
   "disableSources": false,
   "excludePrivate": true,
   "excludeProtected": false,
-  "excludeInternal": true,
+  "excludeInternal": false,
   "excludeExternals": false,
-  "includeVersion": false,
+  "includeVersion": true,
   "categorizeByGroup": true,
   "defaultCategory": "Other",
   "categoryOrder": [
@@ -36,5 +36,13 @@
   "sidebarLinks": {
     "Documentation": "/docs/intro",
     "API Reference": "/api"
+  },
+  "theme": "default",
+  "hideGenerator": false,
+  "skipErrorChecking": false,
+  "validation": {
+    "notExported": false,
+    "invalidLink": true,
+    "notDocumented": false
   }
 }

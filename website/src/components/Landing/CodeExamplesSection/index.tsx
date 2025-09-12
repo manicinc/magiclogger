@@ -25,11 +25,15 @@ logger.error('Connection failed', new Error('ECONNREFUSED'));
 logger.success('<green>✅ All tests passed!</>');
 logger.header('Application Metrics', ['cyan', 'bold']);
 
-// Rich formatting
+// Rich formatting with real data
 logger.table([
-  { name: 'Alice', role: 'Developer', status: 'Active' },
-  { name: 'Bob', role: 'Designer', status: 'Away' }
-]);`
+  { endpoint: '/api/users', requests: 12847, avg_ms: 45, p99_ms: 142 },
+  { endpoint: '/api/posts', requests: 8432, avg_ms: 23, p99_ms: 87 },
+  { endpoint: '/api/auth', requests: 3251, avg_ms: 112, p99_ms: 428 }
+]);
+
+// Progress tracking
+logger.progress(0.75, 'Processing: 75% complete');`
   },
   {
     id: 'production',
@@ -187,6 +191,74 @@ async function shutdown() {
 
 process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);`
+  },
+  {
+    id: 'microservices',
+    title: 'Microservices & Tracing',
+    icon: '🔗',
+    description: 'Distributed tracing and correlation across services.',
+    code: `// Service A - API Gateway
+const gatewayLogger = new Logger({
+  id: 'api-gateway',
+  context: { service: 'gateway', region: 'us-east-1' }
+});
+
+app.use((req, res, next) => {
+  // Generate or extract trace ID
+  const traceId = req.headers['x-trace-id'] || crypto.randomUUID();
+  const spanId = crypto.randomUUID();
+  
+  // Create child logger with trace context
+  req.logger = gatewayLogger.child({
+    context: {
+      traceId,
+      spanId,
+      parentSpanId: req.headers['x-span-id'],
+      method: req.method,
+      path: req.path
+    }
+  });
+  
+  // Pass trace context downstream
+  req.traceHeaders = {
+    'x-trace-id': traceId,
+    'x-span-id': spanId
+  };
+  
+  next();
+});
+
+// Service B - User Service
+const userLogger = new Logger({
+  id: 'user-service',
+  context: { service: 'users', version: '2.1.0' }
+});
+
+// Receive trace context from upstream
+app.post('/users', (req, res) => {
+  const logger = userLogger.child({
+    context: {
+      traceId: req.headers['x-trace-id'],
+      spanId: crypto.randomUUID(),
+      parentSpanId: req.headers['x-span-id']
+    }
+  });
+  
+  logger.info('Creating user', { email: req.body.email });
+  
+  // Log database query with timing
+  const start = performance.now();
+  const user = await db.users.create(req.body);
+  logger.info('Database query', {
+    query: 'INSERT INTO users',
+    duration: performance.now() - start,
+    rows: 1
+  });
+  
+  res.json(user);
+});
+
+// Aggregate logs by traceId to see full request flow`
   },
   {
     id: 'browser',
@@ -389,8 +461,19 @@ expect(logSpy).toHaveBeenCalledWith('Operation completed');`
 
 export default function CodeExamplesSection() {
   const [activeExample, setActiveExample] = useState('basic');
+  const [copied, setCopied] = useState(false);
   
   const currentExample = examples.find(e => e.id === activeExample) || examples[0];
+  
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(currentExample.code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
   
   return (
     <section className={styles.examplesSection}>
@@ -435,13 +518,9 @@ export default function CodeExamplesSection() {
               <div className={styles.exampleActions}>
                 <button 
                   className={styles.copyButton}
-                  onClick={() => navigator.clipboard.writeText(currentExample.code)}>
-                  <CopyIcon />
-                  Copy
-                </button>
-                <button className={styles.playButton}>
-                  <PlayIcon />
-                  Run
+                  onClick={handleCopy}>
+                  {copied ? <CheckIcon /> : <CopyIcon />}
+                  {copied ? 'Copied!' : 'Copy'}
                 </button>
               </div>
             </div>
@@ -468,10 +547,10 @@ function CopyIcon() {
   );
 }
 
-function PlayIcon() {
+function CheckIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M8 5v14l11-7z"/>
+      <path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/>
     </svg>
   );
 }

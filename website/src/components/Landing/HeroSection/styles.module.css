@@ -150,6 +150,31 @@
   font-weight: 600;
 }
 
+.schemaLink {
+  text-decoration: none;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.schemaLink:hover .highlight {
+  color: var(--magic-cyan);
+}
+
+.schemaLink::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: var(--magic-cyan);
+  transition: width 0.3s ease;
+}
+
+.schemaLink:hover::after {
+  width: 100%;
+}
+
 /* CTA Buttons - Clean and Professional */
 .heroActions {
   display: flex;
@@ -584,14 +609,23 @@
     0 10px 25px -5px rgba(236, 72, 153, 0.5),
     0 8px 10px -6px rgba(236, 72, 153, 0.5);
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   transition: all 0.3s ease;
   text-decoration: none !important;
   font-weight: 600 !important;
   letter-spacing: 0.025em;
 }
 
-.dashboardButton::before {
+.dashboardButtonInner {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.dashboardButtonInner::before {
   content: '';
   position: absolute;
   top: 0;
@@ -603,6 +637,7 @@
     rgba(255, 255, 255, 0.3),
     transparent);
   transition: left 0.5s ease;
+  z-index: -1;
 }
 
 .dashboardButton:hover {
@@ -614,7 +649,7 @@
   color: white !important;
 }
 
-.dashboardButton:hover::before {
+.dashboardButton:hover .dashboardButtonInner::before {
   left: 100%;
 }
 

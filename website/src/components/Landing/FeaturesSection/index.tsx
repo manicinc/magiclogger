@@ -17,8 +17,8 @@ logger.progress(0.75);`,
   },
   {
     title: 'Async by Default',
-    description: 'Async by default for maximum performance. 328K ops/s logging that never blocks your app. Sync mode available for auditing.',
-    stats: ['328K ops/s async', '263K ops/s sync', 'Minimal dependencies', 'Tree-shakeable'],
+    description: 'Non-blocking async logging for responsive applications. Optimized for visual clarity, not just speed. Sync mode available when needed.',
+    stats: ['163.9K ops/s styled', '115.3K ops/s plain', 'Minimal dependencies', 'Tree-shakeable'],
     gradient: 'lightning'
   },
   {
@@ -35,7 +35,7 @@ logger.progress(0.75);`,
   },
   {
     title: 'Production Ready',
-    description: 'Battle-tested with built-in extensions for rate limiting, sampling, redaction, and queue management.',
+    description: 'Built-in extensions for rate limiting, sampling, redaction, and queue management. Focus on reliability and maintainability.',
     features: ['Rate Limiter', 'Sampler', 'Redactor', 'Queue Manager'],
     gradient: 'shield'
   },
@@ -59,8 +59,8 @@ logger.progress(0.75);`,
   },
   {
     title: 'TypeScript First',
-    description: '100% TypeScript with full type safety, autocomplete, and IntelliSense support.',
-    features: ['Full Type Safety', 'Autocomplete', 'IntelliSense', 'Type Guards'],
+    description: '100% TypeScript with full type safety and enforced 70%+ unit test coverage in CI/CD.',
+    features: ['Full Type Safety', '70%+ Test Coverage', 'Strict CI/CD Guards', 'Type Definitions'],
     gradient: 'typescript'
   }
 ];

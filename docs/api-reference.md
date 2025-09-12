@@ -1,5 +1,9 @@
 # API Reference
 
+> **📚 Full API Documentation**: For complete, auto-generated API documentation with all classes, interfaces, and types, visit [magiclog.io/api/](https://magiclog.io/api/)
+
+This page provides a quick reference for the most commonly used APIs. For detailed documentation of all exports, please refer to the full API documentation linked above.
+
 ## Core Logger Classes
 
 ### Logger (Default Export)

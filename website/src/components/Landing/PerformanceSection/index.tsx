@@ -12,9 +12,9 @@ const benchmarks = {
     data: [
       { name: 'Winston (Styled)', value: 287066, percentage: 100, color: '#fee140' },
       { name: 'Winston (Plain)', value: 212986, percentage: 74, color: '#ffd700' },
-      { name: 'MagicLogger (Sync)', value: 135311, percentage: 47, color: '#667eea' },
+      { name: 'MagicLogger (Sync)', value: 115250, percentage: 40, color: '#667eea' },
       { name: 'Pino (Manual ANSI)', value: 85714, percentage: 30, color: '#4facfe' },
-      { name: 'MagicLogger (Sync + Styles)', value: 51415, percentage: 18, color: '#9945ff' }
+      { name: 'MagicLogger (Sync + Styles)', value: 17087, percentage: 6, color: '#9945ff' }
     ]
   },
   async: {
@@ -24,20 +24,20 @@ const benchmarks = {
       { name: 'Pino', value: 443133, percentage: 100, color: '#4facfe' },
       { name: 'Pino (Manual ANSI Async)', value: 316090, percentage: 71, color: '#00d4ff' },
       { name: 'Pino (Pretty)', value: 231927, percentage: 52, color: '#40a9ff' },
-      { name: 'MagicLogger (Async)', value: 196760, percentage: 44, color: '#667eea' },
-      { name: 'MagicLogger (Async + Styles)', value: 169096, percentage: 38, color: '#9945ff' }
+      { name: 'MagicLogger (Async)', value: 184196, percentage: 42, color: '#667eea' },
+      { name: 'MagicLogger (Async + Styles)', value: 163853, percentage: 37, color: '#9945ff' }
     ]
   },
   bundle: {
     title: 'Bundle Size',
     description: 'Minified + Gzipped - what your users download',
     data: [
-      { name: 'MagicLogger Core', value: 39.4, percentage: 100, color: '#667eea', unit: 'KB' },
-      { name: 'MagicLogger + Console', value: 39.4, percentage: 100, color: '#9945ff', unit: 'KB' },
-      { name: 'MagicLogger + Transports', value: 51.4, percentage: 77, color: '#00d4ff', unit: 'KB' },
-      { name: 'Pino', value: 25, percentage: 158, color: '#4facfe', unit: 'KB' },
-      { name: 'Bunyan', value: 65, percentage: 61, color: '#fa709a', unit: 'KB' },
-      { name: 'Winston', value: 180, percentage: 22, color: '#fee140', unit: 'KB' }
+      { name: 'MagicLogger Core', value: 43.3, percentage: 100, color: '#667eea', unit: 'KB' },
+      { name: 'MagicLogger + Console', value: 43.3, percentage: 100, color: '#9945ff', unit: 'KB' },
+      { name: 'MagicLogger + Transports', value: 47.4, percentage: 91, color: '#00d4ff', unit: 'KB' },
+      { name: 'Pino', value: 25, percentage: 173, color: '#4facfe', unit: 'KB' },
+      { name: 'Bunyan', value: 65, percentage: 67, color: '#fa709a', unit: 'KB' },
+      { name: 'Winston', value: 180, percentage: 24, color: '#fee140', unit: 'KB' }
     ]
   }
 };
@@ -111,7 +111,7 @@ export default function PerformanceSection() {
             <h4>Performance Note</h4>
             <p>
               MagicLogger prioritizes developer experience with beautiful, styled logs preserved end-to-end through production.
-              While Pino leads in raw throughput (443k ops/sec), MagicLogger achieves respectable performance (169k ops/sec styled)
+              While Pino leads in raw throughput (443k ops/sec), MagicLogger achieves respectable performance (164k ops/sec styled)
               with the MAGIC Schema ensuring your colored logs display perfectly in dashboards.
               {' '}
               <a href="/docs/performance-design#styling-optimizations" className={styles.performanceLink}>
@@ -130,10 +130,6 @@ export default function PerformanceSection() {
           <div className={styles.perfFeature}>
             <h4>Lock-Free Design</h4>
             <p>Non-blocking operations ensure your app never waits for logging</p>
-          </div>
-          <div className={styles.perfFeature}>
-            <h4>Smart Batching</h4>
-            <p>Intelligent batching reduces I/O operations by up to 90%</p>
           </div>
           <div className={styles.perfFeature}>
             <h4>JIT Optimized</h4>
