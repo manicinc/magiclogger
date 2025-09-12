@@ -216,7 +216,6 @@ export class SyncFileTransport extends Transport {
    */
   private buffer: LogEntry[] = [];
 
-
   /**
    * Timer for periodic flushes.
    * @private

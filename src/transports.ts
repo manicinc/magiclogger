@@ -108,7 +108,7 @@ export function createHTTP(url: string, options?: Record<string, unknown>) {
 // Export TransportRegistry from the main transports module
 export { TransportRegistry } from './transports/index';
 
-// Types  
+// Types
 export type {
   TransportOptions,
   TransportEvents,

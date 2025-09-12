@@ -351,7 +351,7 @@ describe('NetworkTransport', () => {
       await transport.init();
 
       expect(transport.getFallbackTransport()).toBeDefined();
-      expect((transport.getFallbackTransport()?.init as jest.Mock)).toHaveBeenCalled();
+      expect(transport.getFallbackTransport()?.init as jest.Mock).toHaveBeenCalled();
     });
 
     it('should initialize console fallback', async () => {

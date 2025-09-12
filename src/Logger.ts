@@ -367,7 +367,7 @@ export class Logger {
       if (this.options.useConsole !== false) {
         this.createDefaultConsoleTransport();
       }
-      
+
       // Add file transport if writeToDisk or file option is set
       if (this.options.writeToDisk || this.options.file) {
         this.createDefaultFileTransport();
@@ -409,10 +409,11 @@ export class Logger {
    */
   private createDefaultFileTransport(): void {
     // Determine filepath from options
-    const filepath = typeof this.options.file === 'string' 
-      ? this.options.file
-      : `${this.options.logDir || 'logs'}/app.log`;
-    
+    const filepath =
+      typeof this.options.file === 'string'
+        ? this.options.file
+        : `${this.options.logDir || 'logs'}/app.log`;
+
     // Create high-performance file transport with sonic-boom
     const fileTransport = new AsyncFileTransport({
       name: 'file',

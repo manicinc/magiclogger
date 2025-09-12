@@ -74,7 +74,7 @@ describe('FileTransport', () => {
       });
 
       await transport.init();
-      
+
       // Set the sonic property to our mock
       (transport as any).sonic = mockSonicBoom;
 
@@ -89,13 +89,11 @@ describe('FileTransport', () => {
 
       // Call the synchronous log method directly
       (transport as any).logSync(entry);
-      
+
       // Flush the batch to trigger write
       (transport as any).flushBatch();
 
-      expect(mockSonicBoom.write).toHaveBeenCalledWith(
-        JSON.stringify(entry) + '\n'
-      );
+      expect(mockSonicBoom.write).toHaveBeenCalledWith(JSON.stringify(entry) + '\n');
     });
 
     it('should write plain text when format is plain', async () => {
@@ -106,7 +104,7 @@ describe('FileTransport', () => {
       });
 
       await transport.init();
-      
+
       // Set the sonic property to our mock
       (transport as any).sonic = mockSonicBoom;
 
@@ -121,13 +119,11 @@ describe('FileTransport', () => {
 
       // Call the synchronous log method directly
       (transport as any).logSync(entry);
-      
+
       // Flush the batch to trigger write
       (transport as any).flushBatch();
 
-      expect(mockSonicBoom.write).toHaveBeenCalledWith(
-        expect.stringContaining('Test message\n')
-      );
+      expect(mockSonicBoom.write).toHaveBeenCalledWith(expect.stringContaining('Test message\n'));
     });
 
     it('should flush on close', async () => {
@@ -137,10 +133,10 @@ describe('FileTransport', () => {
       });
 
       await transport.init();
-      
+
       // Set the sonic property to our mock
       (transport as any).sonic = mockSonicBoom;
-      
+
       await transport.close();
 
       // Check that destroy was called (as per AsyncFileTransport implementation)

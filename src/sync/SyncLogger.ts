@@ -131,7 +131,7 @@ export class SyncLogger {
     if (options.file && typeof options.file === 'string') {
       const fileOption = options.file;
       this.filePath = fileOption;
-      
+
       try {
         // Create SyncFileTransport with intelligent batching
         const fileTransport = new SyncFileTransport({
@@ -150,7 +150,9 @@ export class SyncLogger {
         this.transportManager.registerTransportSync(fileTransport);
       } catch (error) {
         Printer.print(
-          this.formatter.colorize(`[SyncLogger] Failed to setup file transport: ${fileOption}`, ['red'])
+          this.formatter.colorize(`[SyncLogger] Failed to setup file transport: ${fileOption}`, [
+            'red',
+          ])
         );
       }
     }
@@ -234,7 +236,9 @@ export class SyncLogger {
         this._writeCount++;
       } catch (error) {
         Printer.print(
-          this.formatter.colorize(`[SyncLogger] Failed to write through transport: ${error}`, ['red'])
+          this.formatter.colorize(`[SyncLogger] Failed to write through transport: ${error}`, [
+            'red',
+          ])
         );
         // Re-throw in tests to make failures visible
         if (process.env.NODE_ENV === 'test') {
