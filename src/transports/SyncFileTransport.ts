@@ -114,6 +114,14 @@ export interface SyncFileTransportOptions {
   maxFiles?: number;
 
   /**
+   * Output format for log entries.
+   * - 'json': NDJSON format (one JSON object per line)
+   * - 'plain': Human-readable plain text format
+   * @default 'json'
+   */
+  format?: 'json' | 'plain';
+
+  /**
    * Whether to append timestamp to filename.
    * @default false
    */
@@ -208,13 +216,6 @@ export class SyncFileTransport extends Transport {
    */
   private buffer: LogEntry[] = [];
 
-  /**
-   * Reserved for future use: write buffer for advanced coalescing.
-   * @private
-   * @internal
-   */
-  // Reserved for future optimization
-  private readonly _writeBuffer = '';
 
   /**
    * Timer for periodic flushes.
@@ -275,6 +276,7 @@ export class SyncFileTransport extends Transport {
       highWaterMark: options.highWaterMark || 65536,
       maxFileSize: options.maxFileSize || 0,
       maxFiles: options.maxFiles || 5,
+      format: options.format || 'json',
       timestamp: options.timestamp || false,
       formatter: options.formatter || this.defaultFormatter,
       forceSync: options.forceSync || false,
@@ -342,9 +344,19 @@ export class SyncFileTransport extends Transport {
    * @param {LogEntry} entry - Log entry to format
    * @returns {string} Formatted log line
    */
-  private defaultFormatter(entry: LogEntry): string {
-    return JSON.stringify(entry) + '\n';
-  }
+  private defaultFormatter = (entry: LogEntry): string => {
+    if (this.options.format === 'plain') {
+      // Human-readable plain text format
+      const timestamp = new Date(entry.timestampMs || Date.now()).toISOString();
+      const level = String(entry.level).toUpperCase().padEnd(5);
+      const message = entry.message || '';
+      const context = entry.context ? ` ${JSON.stringify(entry.context)}` : '';
+      return `[${timestamp}] ${level} ${message}${context}\n`;
+    } else {
+      // Default JSON format - NDJSON for structured logging
+      return JSON.stringify(entry) + '\n';
+    }
+  };
 
   /**
    * Checks if file rotation is needed based on size.

@@ -44,14 +44,13 @@ interface Transport {
 ```
 
 #### Built-in Transports
-- **SyncConsoleTransport**: Direct synchronous console output with colors
 - **ConsoleTransport**: Outputs to stdout/stderr with colors
-- **SyncFileTransport**: Direct synchronous file writes
-- **AsyncFileTransport**: High-performance async file writes using sonic-boom (no worker threads)
-- **FileTransport**: Standard file transport with rotation support  
-- **HTTPTransport**: Sends logs to HTTP endpoints
+- **FileTransport**: High-performance async file writes using sonic-boom (default, alias for AsyncFileTransport)
+- **AsyncFileTransport**: Explicit async file writes using sonic-boom
+- **SyncFileTransport**: Synchronous file writes with intelligent batching
+- **WorkerFileTransport**: Worker thread-based file transport for CPU-intensive processing
+- **HTTPTransport**: Sends logs to HTTP endpoints with batching
 - **NullTransport**: Discards logs (for benchmarking)
-- **WorkerTransport**: Offloads processing to worker threads (optional)
 
 #### Transport Manager
 - Coordinates multiple transports
@@ -61,7 +60,7 @@ interface Transport {
 
 ### 3. Async I/O Architecture
 
-#### Default: AsyncFileTransport with sonic-boom
+#### Default: FileTransport with sonic-boom
 ```
 Main Thread                    Async I/O
     │                               │
@@ -69,14 +68,14 @@ Main Thread                    Async I/O
     │   ├─ Format Entry           │   ├─ Internal Buffer
     │   └─ Call Transport         │   ├─ Auto-flush at minLength
     │                             │   └─ fs.write() (non-blocking)
-    └─ AsyncFileTransport         │
+    └─ FileTransport              │
         ├─ logSync()              └─ File System
         └─ Direct to sonic-boom       └─ Disk
 ```
 
-**Default behavior**: Uses sonic-boom for async I/O without worker threads - efficient for most use cases
+**Default behavior**: Logger uses FileTransport (AsyncFileTransport) with sonic-boom for async I/O - provides the best performance for production applications
 
-#### Optional: WorkerTransport for CPU-intensive workloads
+#### Optional: WorkerFileTransport for CPU-intensive workloads
 ```
 Main Thread                    Worker Thread Pool
     │                               │

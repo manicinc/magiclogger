@@ -97,11 +97,11 @@ const logger = new Logger({
 const logger = new Logger();  // Console transport created automatically
 
 // Sync logger - blocking I/O for guaranteed delivery
-// Note: You likely won't need SyncLogger as AsyncLogger has excellent performance
-// and reliability. Only use for audit logs or when absolute write guarantees are required.
+// Uses SyncFileTransport with intelligent batching for performance
+// Only use for audit logs or when absolute write guarantees are required
 const auditLogger = new SyncLogger({ 
-  file: './audit.log',
-  forceFlush: true  // fsync after each write
+  file: './audit.log',     // Uses SyncFileTransport automatically
+  forceFlush: true         // Immediate flush for critical logs
 });
 ```
 
@@ -183,26 +183,25 @@ logger.info('Request received', { tags: ['api'] });  // Auto-styled
 MagicLogger uses transport-specific optimization for maximum performance:
 
 #### Each Transport Manages Its Own Strategy
-Transports decide their own threading and buffering approach:
+Transports use the optimal I/O pattern for their use case:
 
 ```typescript
 const logger = new Logger({
   transports: [
     // Console: synchronous for immediate feedback
-    new SyncConsoleTransport(),
+    new ConsoleTransport(),
     
-    // File: worker thread with internal buffering
-    new FileWorkerTransport({
+    // File: sonic-boom for non-blocking high-performance I/O
+    new FileTransport({
       filepath: './app.log',
-      bufferSize: 16384,      // Buffer in worker thread
-      flushInterval: 50       // Flush in worker thread
+      minLength: 4096,        // Buffer before auto-flush
+      maxWrite: 16384         // Max bytes per write
     }),
     
-    // HTTP: worker thread with batching
-    new HTTPWorkerTransport({
+    // HTTP: batching with async requests
+    new HTTPTransport({
       endpoint: 'https://logs.example.com',
-      batchSize: 100,         // Batch in worker thread
-      flushInterval: 5000     // Send every 5s
+      batch: { size: 100, timeout: 5000 }  // Batch 100 logs or flush every 5s
     })
   ]
 });
@@ -399,22 +398,29 @@ For a logger to be MAGIC-compliant, it must:
 ```typescript
 import { 
   ConsoleTransport,
-  FileTransport, 
+  FileTransport,       // High-performance sonic-boom (default)
+  WorkerFileTransport, // Worker thread isolation
+  SyncFileTransport,   // Synchronous with buffering
   HTTPTransport,
   WebSocketTransport
 } from 'magiclogger/transports';
 
-// Note: Console transport is added automatically by default unless disabled
+// Logger automatically uses high-performance file transport
+const logger = new Logger({
+  file: './logs/app.log'  // Uses FileTransport (sonic-boom) automatically
+});
+
+// Or explicitly configure transports
 const logger = new Logger({
   transports: [
     // Console with colors (optional - added by default if no transports specified)
-    new ConsoleTransport({ useColors: true }),  // This overrides the default console transport
+    new ConsoleTransport({ useColors: true }),
     
-    // File with rotation
+    // FileTransport - recommended default (sonic-boom)
     new FileTransport({ 
       filepath: './logs/app.log',
-      maxFiles: 7,
-      maxSize: '10MB'
+      minLength: 4096,  // Buffer size before auto-flush
+      maxWrite: 16384   // Max bytes per write
     }),
     
     // HTTP with batching

@@ -143,6 +143,14 @@ export interface AsyncFileTransportOptions {
    */
   fsync?: boolean;
 
+  /**
+   * Output format for log entries.
+   * - 'json': NDJSON format (one JSON object per line)
+   * - 'plain': Human-readable plain text format
+   * @default 'json'
+   */
+  format?: 'json' | 'plain';
+
   /** @deprecated Use minLength instead */
   bufferSize?: number;
 
@@ -272,6 +280,7 @@ export class AsyncFileTransport extends Transport {
       mode: options.mode || 0o666,
       append: options.append !== false,
       fsync: options.fsync || options.forceSync || false,
+      format: options.format || 'json', // Default to JSON format
       // Keep deprecated options for backward compatibility
       bufferSize: options.bufferSize || 4096,
       flushInterval: options.flushInterval || 100,
@@ -595,9 +604,19 @@ export class AsyncFileTransport extends Transport {
    */
   protected formatEntry(entry: LogEntry | MinimalLogEntry): string {
     try {
-      // Direct JSON serialization for performance
-      // No pretty-printing to minimize size and overhead
-      return JSON.stringify(entry);
+      // Format based on configured format option
+      if (this.options.format === 'plain') {
+        // Human-readable plain text format
+        const timestamp = new Date(entry.timestampMs || Date.now()).toISOString();
+        const level = String(entry.level).toUpperCase().padEnd(5);
+        const message = entry.message || '';
+        const context = entry.context ? ` ${JSON.stringify(entry.context)}` : '';
+        return `[${timestamp}] ${level} ${message}${context}`;
+      } else {
+        // Default JSON format - NDJSON for structured logging
+        // No pretty-printing to minimize size and overhead
+        return JSON.stringify(entry);
+      }
     } catch (error) {
       // Handle circular references or serialization errors
       // Fallback to safe serialization

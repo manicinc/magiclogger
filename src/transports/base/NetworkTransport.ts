@@ -356,7 +356,7 @@ export abstract class NetworkTransport extends BatchingTransport {
     if (typeof this.fallbackConfig === 'string') {
       switch (this.fallbackConfig) {
         case 'file': {
-          const { FileTransport } = await import('../FileTransport');
+          const { FileTransport } = await import('../file');
           this.fallbackTransport = new FileTransport({
             name: `${this.name}-fallback`,
             filepath: './logs/fallback.log',

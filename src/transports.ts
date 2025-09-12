@@ -7,7 +7,9 @@
 
 // Re-export all transport classes
 export { ConsoleTransport } from './transports/console';
-export { FileTransport } from './transports/file';
+export { FileTransport, WorkerFileTransport } from './transports/file';
+export { AsyncFileTransport } from './transports/AsyncFileTransport';
+export { SyncFileTransport } from './transports/SyncFileTransport';
 export { StreamTransport } from './transports/stream';
 export { HTTPTransport } from './transports/http';
 export { NullTransport } from './transports/null';
@@ -106,14 +108,15 @@ export function createHTTP(url: string, options?: Record<string, unknown>) {
 // Export TransportRegistry from the main transports module
 export { TransportRegistry } from './transports/index';
 
-// Types
+// Types  
 export type {
   TransportOptions,
   TransportEvents,
   LogEntry,
   ConsoleTransportOptions,
-  FileTransportOptions,
   HTTPTransportOptions,
   StreamTransportOptions,
 } from './types/transport';
+export type { AsyncFileTransportOptions as FileTransportOptions } from './transports/AsyncFileTransport';
+export type { WorkerFileTransportOptions } from './transports/WorkerFileTransport';
 export type { OTLPTransportOptions } from './transports/otlp';

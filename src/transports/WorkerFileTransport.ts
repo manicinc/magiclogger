@@ -1,8 +1,8 @@
 /**
- * @fileoverview File Transport with Worker Threads
+ * @fileoverview Worker-based File Transport
  *
- * Production-ready file transport that uses a dedicated worker thread
- * for all I/O operations, ensuring zero blocking of the main thread.
+ * File transport that uses a dedicated worker thread for I/O isolation.
+ * Useful when log processing requires CPU-intensive transformations.
  *
  * Key features:
  * - All I/O in worker thread
@@ -11,7 +11,7 @@
  * - Buffering in worker
  * - Structured cloning for efficient data transfer
  *
- * @module transports/FileTransport
+ * @module transports/WorkerFileTransport
  */
 
 import { Worker } from 'worker_threads';
@@ -19,11 +19,11 @@ import { Transport } from './base/Transport';
 import type { LogEntry } from '../types/transport';
 
 /**
- * Configuration options for FileWorkerTransport.
+ * Configuration options for WorkerFileTransport.
  *
- * @interface FileWorkerTransportOptions
+ * @interface WorkerFileTransportOptions
  */
-export interface FileTransportOptions {
+export interface WorkerFileTransportOptions {
   /**
    * Transport name.
    */
@@ -77,12 +77,12 @@ export interface FileTransportOptions {
  * (buffering, serialization, file I/O) to a worker thread, keeping
  * the main thread free for application logic.
  *
- * @class FileWorkerTransport
+ * @class WorkerFileTransport
  * @extends {Transport}
  *
  * @example
  * ```typescript
- * const fileTransport = new FileWorkerTransport({
+ * const fileTransport = new WorkerFileTransport({
  *   filepath: './logs/app.log',
  *   bufferSize: 10000,    // Buffer in worker
  *   flushInterval: 100    // Flush every 100ms
@@ -92,7 +92,7 @@ export interface FileTransportOptions {
  * fileTransport.log(entry);  // Non-blocking
  * ```
  */
-export class FileTransport extends Transport {
+export class WorkerFileTransport extends Transport {
   /**
    * Worker thread instance.
    * @private
@@ -103,7 +103,7 @@ export class FileTransport extends Transport {
    * Transport configuration.
    * @private
    */
-  private readonly config: FileTransportOptions;
+  private readonly config: WorkerFileTransportOptions;
 
   /**
    * Whether the worker is ready.
@@ -118,11 +118,11 @@ export class FileTransport extends Transport {
   private initQueue: LogEntry[] = [];
 
   /**
-   * Creates a new FileWorkerTransport instance.
+   * Creates a new WorkerFileTransport instance.
    *
-   * @param {FileWorkerTransportOptions} options - Transport configuration.
+   * @param {WorkerFileTransportOptions} options - Transport configuration.
    */
-  constructor(options: FileTransportOptions) {
+  constructor(options: WorkerFileTransportOptions) {
     super({
       name: options.name || 'file-worker',
       enabled: options.enabled !== undefined ? options.enabled : true,
@@ -320,18 +320,18 @@ export class FileTransport extends Transport {
         }
         this.initQueue = [];
       } else if (msg.type === 'error') {
-        console.error('[FileWorkerTransport] Worker error:', msg.error);
+        console.error('[WorkerFileTransport] Worker error:', msg.error);
       }
     });
 
     this.worker.on('error', error => {
-      console.error('[FileWorkerTransport] Worker thread error:', error);
+      console.error('[WorkerFileTransport] Worker thread error:', error);
     });
 
     this.worker.on('exit', code => {
       // Exit code 1 is expected when we call terminate()
       if (code !== 0 && code !== 1) {
-        console.error(`[FileWorkerTransport] Worker stopped with exit code ${code}`);
+        console.error(`[WorkerFileTransport] Worker stopped with exit code ${code}`);
       }
       this.worker = null;
       this.ready = false;

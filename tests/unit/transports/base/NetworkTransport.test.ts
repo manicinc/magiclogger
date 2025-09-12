@@ -8,9 +8,9 @@ import type { LogEntry, Transport } from '../../../../src/types/transport';
 jest.mock('../../../../src/core/FileManager');
 
 // Mock dynamic imports - use the correct path
-jest.mock('../../../../src/transports/FileTransport', () => ({
-  FileTransport: jest.fn().mockImplementation(() => ({
-    name: 'test-fallback',
+jest.mock('../../../../src/transports/file', () => ({
+  FileTransport: jest.fn().mockImplementation((options: any) => ({
+    name: options?.name || 'test-fallback',
     enabled: true,
     init: jest.fn(),
     log: jest.fn(),
@@ -351,7 +351,7 @@ describe('NetworkTransport', () => {
       await transport.init();
 
       expect(transport.getFallbackTransport()).toBeDefined();
-      expect(transport.getFallbackTransport()?.init).toHaveBeenCalled();
+      expect((transport.getFallbackTransport()?.init as jest.Mock)).toHaveBeenCalled();
     });
 
     it('should initialize console fallback', async () => {
@@ -707,7 +707,7 @@ describe('NetworkTransport', () => {
 
       expect(fallbackSpy).toHaveBeenCalledWith({
         transport: 'fallback-test',
-        fallback: 'test-fallback',
+        fallback: 'fallback-test-fallback',
         count: 1,
       });
     });

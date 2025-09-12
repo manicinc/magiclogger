@@ -38,13 +38,21 @@ export { AsyncLogger } from './async/AsyncLogger';
 export type { AsyncLoggerOptions } from './async/AsyncLogger';
 
 /**
- * Production-ready transports using correct architecture.
- * File and HTTP use worker threads, Console is synchronous.
+ * Production-ready transports with optimized I/O patterns.
+ * FileTransport uses sonic-boom for non-blocking I/O (alias for AsyncFileTransport).
+ * WorkerFileTransport provides worker thread isolation for CPU-intensive processing.
+ * SyncFileTransport provides guaranteed synchronous writes.
  */
 export { SyncConsoleTransport } from './transports/SyncConsoleTransport';
-export { FileTransport } from './transports/FileTransport';
+export { AsyncFileTransport as FileTransport } from './transports/AsyncFileTransport';
+export { AsyncFileTransport } from './transports/AsyncFileTransport';
+export { WorkerFileTransport } from './transports/WorkerFileTransport';
+export { SyncFileTransport } from './transports/SyncFileTransport';
 export { HTTPTransport } from './transports/HTTPTransport';
-export type { FileTransportOptions } from './transports/FileTransport';
+export type { AsyncFileTransportOptions as FileTransportOptions } from './transports/AsyncFileTransport';
+export type { AsyncFileTransportOptions } from './transports/AsyncFileTransport';
+export type { WorkerFileTransportOptions } from './transports/WorkerFileTransport';
+export type { SyncFileTransportOptions } from './transports/SyncFileTransport';
 export type { HTTPTransportOptions } from './transports/HTTPTransport';
 
 /**

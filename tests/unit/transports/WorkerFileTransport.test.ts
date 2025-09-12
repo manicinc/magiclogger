@@ -1,4 +1,4 @@
-import { FileTransport } from '../../../src/transports/FileTransport';
+import { WorkerFileTransport } from '../../../src/transports/WorkerFileTransport';
 import { Worker } from 'worker_threads';
 import type { LogEntry } from '../../../src/types/transport';
 
@@ -12,7 +12,7 @@ jest.mock('worker_threads', () => ({
   })),
 }));
 
-describe('FileTransport', () => {
+describe('WorkerFileTransport', () => {
   let mockWorker: any;
   let eventHandlers: Record<string, (...args: any[]) => void> = {};
 
@@ -53,7 +53,7 @@ describe('FileTransport', () => {
 
   describe('Constructor', () => {
     it('should create transport with required filepath', () => {
-      const transport = new FileTransport({
+      const transport = new WorkerFileTransport({
         filepath: '/tmp/test.log',
       });
       expect(transport.name).toBe('file-worker');
@@ -61,7 +61,7 @@ describe('FileTransport', () => {
     });
 
     it('should accept custom name', () => {
-      const transport = new FileTransport({
+      const transport = new WorkerFileTransport({
         name: 'custom-file',
         filepath: '/tmp/test.log',
       });
@@ -69,7 +69,7 @@ describe('FileTransport', () => {
     });
 
     it('should respect enabled option', () => {
-      const transport = new FileTransport({
+      const transport = new WorkerFileTransport({
         filepath: '/tmp/test.log',
         enabled: false,
       });
@@ -77,7 +77,7 @@ describe('FileTransport', () => {
     });
 
     it('should accept buffer configuration', () => {
-      const transport = new FileTransport({
+      const transport = new WorkerFileTransport({
         filepath: '/tmp/test.log',
         bufferSize: 5000,
         flushInterval: 200,
@@ -86,7 +86,7 @@ describe('FileTransport', () => {
     });
 
     it('should accept format option', () => {
-      const transport = new FileTransport({
+      const transport = new WorkerFileTransport({
         filepath: '/tmp/test.log',
         format: 'json',
       });
@@ -94,7 +94,7 @@ describe('FileTransport', () => {
     });
 
     it('should accept rotation options', () => {
-      const transport = new FileTransport({
+      const transport = new WorkerFileTransport({
         filepath: '/tmp/test.log',
         maxFileSize: 1024 * 1024 * 10, // 10MB
         compress: true,
@@ -105,7 +105,7 @@ describe('FileTransport', () => {
 
   describe('Worker initialization', () => {
     it('should lazily initialize worker on first log', async () => {
-      const transport = new FileTransport({
+      const transport = new WorkerFileTransport({
         filepath: '/tmp/test.log',
       });
 
@@ -132,7 +132,7 @@ describe('FileTransport', () => {
     });
 
     it('should queue entries while worker is initializing', async () => {
-      const transport = new FileTransport({
+      const transport = new WorkerFileTransport({
         filepath: '/tmp/test.log',
       });
 
@@ -185,7 +185,7 @@ describe('FileTransport', () => {
 
   describe('Logging operations', () => {
     it('should send log entries to worker', async () => {
-      const transport = new FileTransport({
+      const transport = new WorkerFileTransport({
         filepath: '/tmp/test.log',
       });
 
@@ -222,7 +222,7 @@ describe('FileTransport', () => {
     });
 
     it('should handle different log levels', async () => {
-      const transport = new FileTransport({
+      const transport = new WorkerFileTransport({
         filepath: '/tmp/test.log',
       });
       // Override the level to allow debug
@@ -260,7 +260,7 @@ describe('FileTransport', () => {
     });
 
     it('should handle entries with metadata', async () => {
-      const transport = new FileTransport({
+      const transport = new WorkerFileTransport({
         filepath: '/tmp/test.log',
       });
 
@@ -295,7 +295,7 @@ describe('FileTransport', () => {
     });
 
     it('should not log when transport is disabled', async () => {
-      const transport = new FileTransport({
+      const transport = new WorkerFileTransport({
         filepath: '/tmp/test.log',
         enabled: false,
       });
@@ -318,7 +318,7 @@ describe('FileTransport', () => {
 
   describe('Flush operation', () => {
     it('should flush buffered entries', async () => {
-      const transport = new FileTransport({
+      const transport = new WorkerFileTransport({
         filepath: '/tmp/test.log',
       });
 
@@ -362,7 +362,7 @@ describe('FileTransport', () => {
     it('should handle flush timeout', async () => {
       jest.useFakeTimers();
 
-      const transport = new FileTransport({
+      const transport = new WorkerFileTransport({
         filepath: '/tmp/test.log',
       });
 
@@ -403,7 +403,7 @@ describe('FileTransport', () => {
 
   describe('Close operation', () => {
     it('should close worker and clean up', async () => {
-      const transport = new FileTransport({
+      const transport = new WorkerFileTransport({
         filepath: '/tmp/test.log',
       });
 
@@ -430,7 +430,7 @@ describe('FileTransport', () => {
     });
 
     it('should terminate worker after close', async () => {
-      const transport = new FileTransport({
+      const transport = new WorkerFileTransport({
         filepath: '/tmp/test.log',
       });
 
@@ -455,7 +455,7 @@ describe('FileTransport', () => {
     it.skip('should force terminate after timeout', async () => {
       jest.useFakeTimers();
 
-      const transport = new FileTransport({
+      const transport = new WorkerFileTransport({
         filepath: '/tmp/test.log',
       });
 
@@ -488,7 +488,7 @@ describe('FileTransport', () => {
     it('should handle worker errors', async () => {
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
 
-      const transport = new FileTransport({
+      const transport = new WorkerFileTransport({
         filepath: '/tmp/test.log',
       });
 
@@ -519,7 +519,7 @@ describe('FileTransport', () => {
     it('should handle worker exit with error code', async () => {
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
 
-      const transport = new FileTransport({
+      const transport = new WorkerFileTransport({
         filepath: '/tmp/test.log',
       });
 
@@ -549,7 +549,7 @@ describe('FileTransport', () => {
     it('should handle worker error messages', async () => {
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
 
-      const transport = new FileTransport({
+      const transport = new WorkerFileTransport({
         filepath: '/tmp/test.log',
       });
 
@@ -586,7 +586,7 @@ describe('FileTransport', () => {
 
   describe('Configuration options', () => {
     it('should configure JSON format', () => {
-      const transport = new FileTransport({
+      const transport = new WorkerFileTransport({
         filepath: '/tmp/test.log',
         format: 'json',
       });
@@ -594,7 +594,7 @@ describe('FileTransport', () => {
     });
 
     it('should configure plain format', () => {
-      const transport = new FileTransport({
+      const transport = new WorkerFileTransport({
         filepath: '/tmp/test.log',
         format: 'plain',
       });
@@ -602,7 +602,7 @@ describe('FileTransport', () => {
     });
 
     it('should configure buffer size', () => {
-      const transport = new FileTransport({
+      const transport = new WorkerFileTransport({
         filepath: '/tmp/test.log',
         bufferSize: 20000,
       });
@@ -610,7 +610,7 @@ describe('FileTransport', () => {
     });
 
     it('should configure flush interval', () => {
-      const transport = new FileTransport({
+      const transport = new WorkerFileTransport({
         filepath: '/tmp/test.log',
         flushInterval: 500,
       });
@@ -618,7 +618,7 @@ describe('FileTransport', () => {
     });
 
     it('should configure file rotation', () => {
-      const transport = new FileTransport({
+      const transport = new WorkerFileTransport({
         filepath: '/tmp/test.log',
         maxFileSize: 1024 * 1024 * 5, // 5MB
         compress: true,

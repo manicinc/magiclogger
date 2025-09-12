@@ -1,8 +1,9 @@
 /**
  * @fileoverview File Transport Module
  *
- * Production-ready file transport using worker threads for all I/O operations.
- * This ensures zero blocking of the main thread event loop.
+ * High-performance file transport using sonic-boom for non-blocking I/O.
+ * FileTransport is an alias for AsyncFileTransport, providing the best
+ * performance for production applications.
  *
  * @module transports/file
  *
@@ -12,40 +13,42 @@
  *
  * const fileTransport = new FileTransport({
  *   filepath: './logs/app.log',
- *   maxFileSize: 100_000_000,  // 100MB rotation
- *   compress: true,             // Gzip rotated files
- *   bufferSize: 10000,          // Buffer in worker
- *   flushInterval: 100          // Flush every 100ms
+ *   minLength: 4096,           // Buffer before auto-flush
+ *   maxWrite: 16384            // Max bytes per write
  * });
  *
- * // Main thread just passes entries - no blocking
+ * // Non-blocking high-performance logging
  * fileTransport.log(entry);
  * ```
  */
 
-// Export the file transport
-export { FileTransport } from './FileTransport';
-export type { FileTransportOptions } from './FileTransport';
+// FileTransport is an alias for AsyncFileTransport (the best default)
+export { AsyncFileTransport as FileTransport } from './AsyncFileTransport';
+export type { AsyncFileTransportOptions as FileTransportOptions } from './AsyncFileTransport';
+
+// Also export the worker-based transport for explicit use
+export { WorkerFileTransport } from './WorkerFileTransport';
+export type { WorkerFileTransportOptions } from './WorkerFileTransport';
 
 // Import for internal use
-import { FileTransport } from './FileTransport';
+import { AsyncFileTransport as FileTransport } from './AsyncFileTransport';
 
 /**
- * Creates a file transport using worker threads.
+ * Creates a high-performance file transport using sonic-boom.
  *
- * All file I/O operations happen in a dedicated worker thread,
- * ensuring the main thread remains responsive.
+ * Uses non-blocking I/O with intelligent batching for optimal performance.
+ * This is the recommended file transport for production applications.
  *
  * @param {string} filepath - Path to the log file
  * @param {Record<string, unknown>} [options] - Transport options
- * @returns {FileTransport} Worker-based file transport
+ * @returns {FileTransport} High-performance file transport
  *
  * @example
  * ```typescript
  * const transport = createFileTransport('./logs/app.log', {
- *   maxFileSize: 50_000_000,  // 50MB
- *   compress: true,
- *   format: 'json'
+ *   minLength: 4096,  // Buffer before auto-flush
+ *   maxWrite: 16384,  // Max bytes per write
+ *   format: 'json'    // NDJSON format
  * });
  * ```
  */

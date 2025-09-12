@@ -42,10 +42,10 @@ describe('transports.ts module', () => {
       expect(ConsoleTransport.name).toBe('ConsoleTransport');
     });
 
-    it('should export FileTransport class', () => {
+    it('should export FileTransport class (alias for AsyncFileTransport)', () => {
       expect(FileTransport).toBeDefined();
       expect(typeof FileTransport).toBe('function');
-      expect(FileTransport.name).toBe('FileTransport');
+      expect(FileTransport.name).toBe('AsyncFileTransport');
     });
 
     it('should export StreamTransport class', () => {

@@ -3,6 +3,7 @@
 import { TransportManager } from './transports/base/TransportManager';
 import type { Transport } from './types/transport';
 import { ConsoleTransport } from './transports/base/implementations/ConsoleTransport';
+import { AsyncFileTransport } from './transports/AsyncFileTransport';
 import { Colorizer } from './core/Colorizer';
 import { Formatter } from './core/Formatter';
 import { StyleBuilder } from './core/StyleBuilder';
@@ -361,9 +362,16 @@ export class Logger {
         this.transportManager.registerTransportSync(transport);
         this.cachedTransportCount = -1; // Invalidate cache
       });
-    } else if (this.options.useConsole !== false) {
-      // Create default console transport
-      this.createDefaultConsoleTransport();
+    } else {
+      // Add default transports based on options
+      if (this.options.useConsole !== false) {
+        this.createDefaultConsoleTransport();
+      }
+      
+      // Add file transport if writeToDisk or file option is set
+      if (this.options.writeToDisk || this.options.file) {
+        this.createDefaultFileTransport();
+      }
     }
   }
 
@@ -392,6 +400,36 @@ export class Logger {
     } catch (error) {
       console.warn('[Logger] Failed to register console transport:', error);
     }
+  }
+
+  /**
+   * Creates default file transport using high-performance sonic-boom.
+   * Uses AsyncFileTransport (which FileTransport is an alias for).
+   * @private
+   */
+  private createDefaultFileTransport(): void {
+    // Determine filepath from options
+    const filepath = typeof this.options.file === 'string' 
+      ? this.options.file
+      : `${this.options.logDir || 'logs'}/app.log`;
+    
+    // Create high-performance file transport with sonic-boom
+    const fileTransport = new AsyncFileTransport({
+      name: 'file',
+      enabled: true,
+      filepath,
+      level: this.options.verbose ? 'debug' : 'info',
+      format: 'json', // NDJSON format for structured logging
+      minLength: 4096, // Buffer size before auto-flush (4KB)
+      maxWrite: 16384, // Max bytes per write operation (16KB)
+    });
+
+    // Initialize the transport asynchronously
+    fileTransport.init().catch(err => {
+      console.error('[Logger] Failed to initialize file transport:', err);
+    });
+
+    this.transportManager.registerTransportSync(fileTransport);
   }
 
   // ============================================================

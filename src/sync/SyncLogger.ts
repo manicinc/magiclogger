@@ -22,24 +22,20 @@ import type { StylePreset } from '../types/preset';
 import { ThemeManager } from '../theme/ThemeManager';
 import { PRESETS } from '../constants/preset';
 import { generateId } from '../utils/idGenerator';
+import { SyncFileTransport } from '../transports/SyncFileTransport';
+import { TransportManager } from '../transports/base/TransportManager';
 
 // Node.js imports for synchronous file operations
 // Import modules at the top for TypeScript
-import * as fsModule from 'fs';
 import * as osModule from 'os';
-import * as pathModule from 'path';
 
 // Assign to variables that can be undefined for browser compatibility
-let fs: typeof import('fs') | undefined = fsModule;
 let os: typeof import('os') | undefined = osModule;
-let path: typeof import('path') | undefined = pathModule;
 
 // In browser environments, these imports might fail, so wrap in try-catch
 if (typeof window !== 'undefined' && typeof process === 'undefined') {
   // Browser environment - set to undefined
-  fs = undefined;
   os = undefined;
-  path = undefined;
 }
 
 type LogEntryMeta = Record<string, unknown>;
@@ -78,6 +74,7 @@ export class SyncLogger {
   private readonly styleBuilder: StyleBuilder;
   private readonly templateParser: TemplateParser;
   private readonly themeManager: ThemeManager;
+  private readonly transportManager: TransportManager;
   private readonly filePath?: string;
   private currentTheme?: Record<string, unknown>;
   private _writeCount = 0;
@@ -122,6 +119,7 @@ export class SyncLogger {
     this.styleBuilder = new StyleBuilder();
     this.templateParser = new TemplateParser();
     this.themeManager = new ThemeManager();
+    this.transportManager = new TransportManager();
 
     // Configure Printer with our options
     Printer.configure({
@@ -129,25 +127,30 @@ export class SyncLogger {
       timestamps: false, // We'll handle timestamps in formatting
     });
 
-    // Setup file output if requested
-    // Check for file option in the options object
-    if (options.file && typeof options.file === 'string' && fs) {
+    // Setup file output using SyncFileTransport for proper buffering and rotation
+    if (options.file && typeof options.file === 'string') {
       const fileOption = options.file;
       this.filePath = fileOption;
+      
       try {
-        // Ensure directory exists
-        if (path) {
-          const dir = path.dirname(fileOption);
-          if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir, { recursive: true });
-          }
-        }
-        // Don't open file descriptor - we'll use appendFileSync instead
-        // This avoids potential conflicts between file descriptor and appendFileSync
-        // this.fileDescriptor = fs.openSync(fileOption, 'a');
+        // Create SyncFileTransport with intelligent batching
+        const fileTransport = new SyncFileTransport({
+          name: 'file',
+          enabled: true,
+          filepath: fileOption,
+          bufferSize: 64 * 1024, // 64KB buffer for performance
+          flushInterval: options.forceFlush ? 0 : 100, // Immediate flush if forceFlush
+          maxFileSize: 100 * 1024 * 1024, // 100MB rotation
+          maxFiles: 7, // Keep 7 days of logs
+          format: 'json', // NDJSON format
+        });
+
+        // Initialize synchronously (init is inherited from base Transport)
+        fileTransport.init();
+        this.transportManager.registerTransportSync(fileTransport);
       } catch (error) {
         Printer.print(
-          this.formatter.colorize(`[SyncLogger] Failed to setup log file: ${fileOption}`, ['red'])
+          this.formatter.colorize(`[SyncLogger] Failed to setup file transport: ${fileOption}`, ['red'])
         );
       }
     }
@@ -222,22 +225,16 @@ export class SyncLogger {
     // Build a normalized entry once so file and handler are consistent
     const entry = this.createEntry(level, message, meta, timestamp, timestampMs);
 
-    // Write to file synchronously using appendFileSync for better reliability
-    if (this.filePath && fs) {
-      const line = JSON.stringify(entry) + '\n';
-
+    // Use transport manager to handle file output with proper buffering
+    // The SyncFileTransport provides intelligent batching and rotation
+    if (this.transportManager.getTransports().length > 0) {
       try {
-        // Use appendFileSync for more reliable appending
-        // This handles the file operations atomically
-        fs.appendFileSync(this.filePath, line, 'utf8');
-
+        // Log synchronously through transport manager
+        this.transportManager.logSync(entry);
         this._writeCount++;
-
-        // Note: forceFlush with appendFileSync is implicit -
-        // appendFileSync already ensures data is written to disk
       } catch (error) {
         Printer.print(
-          this.formatter.colorize(`[SyncLogger] Failed to write to log file: ${error}`, ['red'])
+          this.formatter.colorize(`[SyncLogger] Failed to write through transport: ${error}`, ['red'])
         );
         // Re-throw in tests to make failures visible
         if (process.env.NODE_ENV === 'test') {
@@ -524,8 +521,8 @@ export class SyncLogger {
    * ```
    */
   public async close(): Promise<void> {
-    // With appendFileSync, there's no file descriptor to close
-    // This method is kept for API compatibility
+    // Close all transports properly
+    await this.transportManager.close();
   }
 
   /**
@@ -574,9 +571,18 @@ export class SyncLogger {
    * ```
    */
   public flush(): void {
-    // With appendFileSync, flush is implicit
-    // Each write is already flushed to disk
-    // This method is kept for API compatibility
+    // Flush all transports synchronously
+    // Call flush on each transport that supports it
+    const transports = this.transportManager.getTransports();
+    for (const transport of transports) {
+      if ('flushSync' in transport && typeof transport.flushSync === 'function') {
+        (transport as any).flushSync();
+      } else if ('flush' in transport && typeof transport.flush === 'function') {
+        // For transports that only have async flush, we can't wait for the promise
+        // but we can at least trigger it
+        transport.flush?.();
+      }
+    }
   }
 
   // ==========================================
