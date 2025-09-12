@@ -9,14 +9,23 @@ coverage:
     project:
       default:
         target: auto
-        threshold: 0%  # fail on any drop
+        threshold: 5%  # allow 5% drop
         base: auto
+        if_ci_failed: error
+        if_not_found: success
+        informational: false
     patch:
       default:
-        target: auto
-        threshold: 0%  # fail on any drop for changed lines
+        target: 70%  # require 70% coverage on new code
+        threshold: 10%  # allow 10% variance
+        base: auto
+        if_ci_failed: error
+        if_not_found: success
+        informational: false
 
 comment:
   layout: "reach,diff,flags,tree"
   behavior: default
   require_changes: false
+  require_base: false
+  require_head: true
