@@ -172,8 +172,8 @@ describe('transports.ts module', () => {
         const filepath = '/var/log/app.log';
         const options: Partial<FileTransportOptions> = {
           name: 'app-logs',
-          maxFileSize: 1024 * 1024,
-          maxFiles: 5,
+          minLength: 4096,
+          maxWrite: 16384,
           enabled: false,
         };
 
