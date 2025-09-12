@@ -38,11 +38,14 @@ jobs:
       - name: Build library
         run: pnpm run build
 
+      - name: Generate API documentation
+        run: pnpm run docs:api
+
       - name: Install website dependencies
-        run: cd website && npm ci
+        run: cd website && pnpm install --frozen-lockfile
 
       - name: Build website
-        run: cd website && npm run build
+        run: cd website && pnpm run build
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
