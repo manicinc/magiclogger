@@ -12,10 +12,10 @@ const config: Config = {
   favicon: 'img/icon/favicon-32x32.png',
 
   // Set the production url of your site here
-  url: 'https://manicinc.github.io',
+  url: 'https://magiclog.io',
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
-  baseUrl: '/magiclogger/',
+  baseUrl: '/',
 
   // GitHub pages deployment config.
   organizationName: 'manicinc', // Usually your GitHub org/user name.
@@ -25,7 +25,7 @@ const config: Config = {
 
   onBrokenLinks: 'warn',
   onBrokenMarkdownLinks: 'warn',
-  
+
   // Add static directories for API docs
   staticDirectories: ['static'],
 
@@ -118,8 +118,8 @@ const config: Config = {
               to: '/docs/api_usage',
             },
             {
-                label: 'architecture',
-                to: '/docs/architecture',
+              label: 'architecture',
+              to: '/docs/architecture',
             },
           ],
         },
@@ -207,7 +207,9 @@ const config: Config = {
           const targetCandidate = isServer ? distCjs : distEsmBrowser;
           const target = fs.existsSync(targetCandidate)
             ? targetCandidate
-            : (fs.existsSync(shimPath) ? shimPath : undefined);
+            : fs.existsSync(shimPath)
+            ? shimPath
+            : undefined;
           return {
             resolve: {
               fallback: isServer
