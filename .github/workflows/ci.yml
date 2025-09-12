@@ -304,6 +304,11 @@ jobs:
         env:
           NODE_ENV: production
       
+      - name: Generate API documentation
+        run: |
+          echo "Generating TypeDoc API documentation..."
+          pnpm run docs:api
+      
       - name: Install website dependencies
         working-directory: ./website
         run: |

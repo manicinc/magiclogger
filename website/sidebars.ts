@@ -15,7 +15,15 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: '📖 API & Usage',
-      items: ['api-reference', 'advanced-usage'],
+      items: [
+        'api-reference',
+        'advanced-usage',
+        {
+          type: 'link',
+          label: 'Full API Documentation',
+          href: '/api/index.html',
+        },
+      ],
     },
     {
       type: 'category',

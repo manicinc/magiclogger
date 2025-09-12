@@ -147,6 +147,12 @@ importers:
       tsx:
         specifier: ^4.7.0
         version: 4.19.3
+      typedoc:
+        specifier: ^0.28.12
+        version: 0.28.12(typescript@5.8.2)
+      typedoc-plugin-markdown:
+        specifier: ^4.8.1
+        version: 4.8.1(typedoc@0.28.12(typescript@5.8.2))
       typescript:
         specifier: ^5.0.4
         version: 5.8.2
@@ -20297,6 +20303,10 @@ snapshots:
     dependencies:
       typedoc: 0.28.12(typescript@5.2.2)
 
+  typedoc-plugin-markdown@4.8.1(typedoc@0.28.12(typescript@5.8.2)):
+    dependencies:
+      typedoc: 0.28.12(typescript@5.8.2)
+
   typedoc@0.28.12(typescript@5.2.2):
     dependencies:
       '@gerrit0/mini-shiki': 3.12.0
@@ -20304,6 +20314,15 @@ snapshots:
       markdown-it: 14.1.0
       minimatch: 9.0.5
       typescript: 5.2.2
+      yaml: 2.8.1
+
+  typedoc@0.28.12(typescript@5.8.2):
+    dependencies:
+      '@gerrit0/mini-shiki': 3.12.0
+      lunr: 2.3.9
+      markdown-it: 14.1.0
+      minimatch: 9.0.5
+      typescript: 5.8.2
       yaml: 2.8.1
 
   typescript@5.2.2: {}
