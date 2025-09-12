@@ -229,7 +229,7 @@ class WorkerThread extends EventEmitter {
    * @param {any} message - Message to send
    * @returns {boolean} Success status
    */
-  send(message: any): boolean {
+  send(message: unknown): boolean {
     if (!this.ready || !this.worker) return false;
     this.processing++;
     this.worker.postMessage(message);
@@ -567,7 +567,7 @@ export class AsyncLogger extends EventEmitter {
 
         // Try each path - first one wins
         // We can't check if file exists in ESM without fs, so we'll just try the most likely path
-        workerPath = possiblePaths[0]!;
+        workerPath = possiblePaths[0] || '';
 
         // For scripts/performance directory specifically - prefer .cjs
         if (cwd.includes('scripts') && cwd.includes('performance')) {
@@ -606,8 +606,8 @@ export class AsyncLogger extends EventEmitter {
        * If no worker file found, use the first candidate.
        * The error will be caught and handled gracefully.
        */
-      if (!workerPath!) {
-        workerPath = possiblePaths[0]!;
+      if (!workerPath) {
+        workerPath = possiblePaths[0] || '';
       }
     }
 
@@ -709,7 +709,8 @@ export class AsyncLogger extends EventEmitter {
     // Try to find an available worker
     for (let i = 0; i < this.workers.length; i++) {
       const idx = (this.currentWorker + i) % this.workers.length;
-      const worker = this.workers[idx]!;
+      const worker = this.workers[idx];
+      if (!worker) continue;
 
       if (worker.isAvailable()) {
         this.currentWorker = (idx + 1) % this.workers.length;
@@ -719,7 +720,8 @@ export class AsyncLogger extends EventEmitter {
 
     // All workers busy, use least loaded
     let minLoad = Infinity;
-    let selected = this.workers[0]!;
+    let selected = this.workers[0];
+    if (!selected) return null;
 
     for (const worker of this.workers) {
       const load = worker.getLoad();
@@ -850,7 +852,7 @@ export class AsyncLogger extends EventEmitter {
     // Always flush transports regardless of whether we had entries
     const flushPromises = this.transports
       .filter(t => typeof t.flush === 'function')
-      .map(t => t.flush!());
+      .map(t => (t.flush as () => Promise<void>)());
 
     if (flushPromises.length > 0) {
       await Promise.all(flushPromises);
@@ -881,14 +883,15 @@ export class AsyncLogger extends EventEmitter {
     let styles: Array<[number, number, string]> | undefined;
     
     if (!this.useWorkers && this.useColors && message.includes('<')) {
-      // Import TextStyler lazily to avoid circular dependencies
-      const { TextStyler } = require('../utils/TextStyler');
+      // Lazy import to avoid circular dependencies
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { TextStyler } = require('../utils/TextStyler') as typeof import('../utils/TextStyler');
       const result = TextStyler.parseBracketsWithExtraction(message, this.useColors);
       processedMessage = result.plainText;
       styles = result.styles;
     }
     
-    const entry: any = {
+    const entry: Record<string, unknown> = {
       level: level,
       message: processedMessage,
       timestamp: now,

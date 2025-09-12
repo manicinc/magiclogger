@@ -218,8 +218,9 @@ class WorkerState {
         const processedEntry = { ...entry };
 
         // Check if we need to process styles from rawMessage
-        const messageToProcess = (entry as any).rawMessage || entry.message;
-        const useColors = (entry as any).useColors !== false;
+        const entryWithRaw = entry as LogEntry & { rawMessage?: string; useColors?: boolean };
+        const messageToProcess = entryWithRaw.rawMessage || entry.message;
+        const useColors = entryWithRaw.useColors !== false;
         
         if (
           messageToProcess &&
@@ -237,8 +238,9 @@ class WorkerState {
         }
         
         // Remove rawMessage from final entry
-        delete (processedEntry as any).rawMessage;
-        delete (processedEntry as any).useColors;
+        const cleanEntry = processedEntry as LogEntry & { rawMessage?: string; useColors?: boolean };
+        delete cleanEntry.rawMessage;
+        delete cleanEntry.useColors;
 
         // Full JSON serialization like production loggers do
         const json = JSON.stringify({
@@ -326,7 +328,7 @@ class WorkerState {
    * @param {any} [payload] - Message payload
    * @returns {void}
    */
-  private sendMessage(type: string, payload?: any): void {
+  private sendMessage(type: string, payload?: unknown): void {
     if (parentPort) {
       parentPort.postMessage({ type, payload });
     }
