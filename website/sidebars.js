@@ -1,11 +1,15 @@
-import type { SidebarsConfig } from '@docusaurus/plugin-content-docs';
+const fs = require('fs');
+const path = require('path');
 
-// Import the generated TypeDoc sidebar
-let typedocSidebar;
-try {
-  typedocSidebar = require('./api/typedoc-sidebar.cjs');
-} catch {
-  typedocSidebar = null;
+// Import the generated TypeDoc sidebar if it exists
+let typedocSidebar = null;
+const sidebarPath = path.join(__dirname, 'api', 'typedoc-sidebar.cjs');
+if (fs.existsSync(sidebarPath)) {
+  try {
+    typedocSidebar = require(sidebarPath);
+  } catch (e) {
+    console.warn('Failed to load TypeDoc sidebar:', e);
+  }
 }
 
 /**
@@ -16,7 +20,7 @@ try {
 
  The sidebars can be generated from the filesystem, or explicitly defined here.
  */
-const sidebars: SidebarsConfig = {
+const sidebars = {
   // Main documentation sidebar
   tutorialSidebar: [
     'intro',
@@ -62,8 +66,14 @@ const sidebars: SidebarsConfig = {
       ],
     },
   ],
-  // Add TypeDoc API sidebar if it exists
-  ...(typedocSidebar ? { apiSidebar: typedocSidebar.items } : {}),
+  // Add TypeDoc API sidebar if it exists and has valid items
+  ...(typedocSidebar && typedocSidebar.items 
+    ? { apiSidebar: typedocSidebar.items } 
+    : { apiSidebar: [{
+        type: 'link',
+        label: 'API Documentation',
+        href: '/api',
+      }] }),
 };
 
-export default sidebars;
+module.exports = sidebars;
