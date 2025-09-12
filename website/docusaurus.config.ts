@@ -42,7 +42,7 @@ const config: Config = {
       'classic',
       {
         docs: {
-          sidebarPath: './sidebars.ts',
+          sidebarPath: './sidebars.js',
           // Configure to use docs from parent directory
           path: '../docs',
           // Edit links point to GitHub
