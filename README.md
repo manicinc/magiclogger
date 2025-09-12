@@ -1319,6 +1319,8 @@ const logger = new Logger({
 
 MagicLogger achieves high performance through efficient batching, optional worker threads, and optimized I/O patterns.
 
+> **Note**: MagicLogger is currently in pre-1.0 development. Performance optimizations are on the roadmap for future releases, with significant improvements expected as we approach v1.0. The current focus is on API stability and feature completeness.
+
 #### Performance Comparison (20K iterations, real file I/O)
 | Logger | Ops/sec | Avg (ms) | P95 (ms) | Mode |
 |--------|--------:|---------:|---------:|------|

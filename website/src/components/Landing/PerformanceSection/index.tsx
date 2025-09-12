@@ -12,9 +12,9 @@ const benchmarks = {
     data: [
       { name: 'Winston (Styled)', value: 287066, percentage: 100, color: '#fee140' },
       { name: 'Winston (Plain)', value: 212986, percentage: 74, color: '#ffd700' },
-      { name: 'MagicLogger (Sync)', value: 115250, percentage: 40, color: '#667eea' },
+      { name: 'MagicLogger (Sync)', value: 135311, percentage: 47, color: '#667eea' },
       { name: 'Pino (Manual ANSI)', value: 85714, percentage: 30, color: '#4facfe' },
-      { name: 'MagicLogger (Sync + Styles)', value: 17087, percentage: 6, color: '#9945ff' }
+      { name: 'MagicLogger (Sync + Styles)', value: 51415, percentage: 18, color: '#9945ff' }
     ]
   },
   async: {
@@ -22,10 +22,9 @@ const benchmarks = {
     description: 'Production performance with real file I/O',
     data: [
       { name: 'Pino', value: 443133, percentage: 100, color: '#4facfe' },
-      { name: 'Pino (Manual ANSI Async)', value: 316090, percentage: 71, color: '#00d4ff' },
       { name: 'Pino (Pretty)', value: 231927, percentage: 52, color: '#40a9ff' },
-      { name: 'MagicLogger (Async)', value: 184196, percentage: 42, color: '#667eea' },
-      { name: 'MagicLogger (Async + Styles)', value: 163853, percentage: 37, color: '#9945ff' }
+      { name: 'MagicLogger (Async)', value: 196760, percentage: 44, color: '#667eea' },
+      { name: 'MagicLogger (Async + Styles)', value: 169096, percentage: 38, color: '#9945ff' }
     ]
   },
   bundle: {
@@ -74,6 +73,11 @@ export default function PerformanceSection() {
               <span>{benchmark.title}</span>
             </button>
           ))}
+        </div>
+
+        {/* Performance Note */}
+        <div className={styles.performanceNote}>
+          <strong>📊 Note:</strong> MagicLogger is currently in pre-1.0 development. Performance optimizations are on the roadmap for future releases, with significant improvements expected as we approach v1.0. The current focus is on API stability and feature completeness.
         </div>
 
         {/* Benchmark chart */}

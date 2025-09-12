@@ -26,6 +26,25 @@
   color: var(--ifm-color-content-secondary);
 }
 
+/* Performance Note */
+.performanceNote {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+  border: 2px solid rgba(102, 126, 234, 0.2);
+  border-radius: 12px;
+  padding: 1rem 1.5rem;
+  margin: 2rem auto 3rem;
+  max-width: 800px;
+  text-align: center;
+  color: var(--ifm-color-content);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.performanceNote strong {
+  color: var(--ifm-color-primary);
+  font-weight: 600;
+}
+
 /* Metric selector */
 .metricSelector {
   display: flex;
