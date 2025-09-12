@@ -2,20 +2,27 @@
 
 ## Supported Versions
 
-Use this section to tell people about which versions of your project are
-currently being supported with security updates.
+MagicLogger is currently in pre-1.0 release. We are actively maintaining the latest version with security updates.
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 5.1.x   | :white_check_mark: |
-| 5.0.x   | :x:                |
-| 4.0.x   | :white_check_mark: |
-| < 4.0   | :x:                |
+| 0.1.x   | :white_check_mark: |
+| < 0.1.0 | :x:                |
 
 ## Reporting a Vulnerability
 
-Use this section to tell people how to report a vulnerability.
+If you discover a security vulnerability in MagicLogger, please report it responsibly:
 
-Tell them where to go, how often they can expect to get an update on a
-reported vulnerability, what to expect if the vulnerability is accepted or
-declined, etc.
+1. **Contact**: Send details to team@magiclog.io (or team@manic.agency if unreachable)
+2. **Response Time**: We aim to acknowledge reports within 48 hours
+3. **Updates**: We'll provide updates on the reported vulnerability within 5 business days
+4. **Disclosure**: Please allow us time to patch the vulnerability before public disclosure
+
+### What to Include
+
+- Description of the vulnerability
+- Steps to reproduce
+- Potential impact
+- Suggested fix (if any)
+
+We appreciate your help in keeping MagicLogger secure for everyone.
