@@ -99,14 +99,12 @@ describe('AsyncLoggerWorker core behavior', () => {
       expect(stats.bufferSize).toBe(0);
     });
 
-    it('periodic flush runs on interval', () => {
+    it('processes immediately without buffering', () => {
       jest.useFakeTimers();
       const { WorkerState } = exported;
       const state = new WorkerState({ workerId: 3, batchSize: 50, flushInterval: 10 });
       state.processBatch(buildEntries(5));
-      // Not yet flushed
-      expect(state.getStats().processed).toBe(0);
-      jest.advanceTimersByTime(15);
+      // Now processes immediately - no buffering
       expect(state.getStats().processed).toBe(5);
     });
 
@@ -130,17 +128,16 @@ describe('AsyncLoggerWorker core behavior', () => {
       // flushInterval 0 so no periodic timer triggers after test end
       const state = new WorkerState({ workerId: 5, batchSize: 10, flushInterval: 0 });
       consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
-      (state as unknown as { buffer: LogEntry[] }).buffer = [
-        {
-          id: 'x',
-          timestamp: new Date().toISOString(),
-          timestampMs: Date.now(),
-          level: 'info',
-          message: 'c',
-          context: { circular },
-        },
-      ];
-      state.flush();
+      // Process batch with circular reference directly
+      const circularEntry: LogEntry = {
+        id: 'x',
+        timestamp: new Date().toISOString(),
+        timestampMs: Date.now(),
+        level: 'info',
+        message: 'c',
+        context: { circular },
+      };
+      state.processBatch([circularEntry]);
       expect(state.getStats().errors).toBeGreaterThanOrEqual(1);
     });
 

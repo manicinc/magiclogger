@@ -21,7 +21,7 @@ const config: Config = {
   organizationName: 'manicinc', // Usually your GitHub org/user name.
   projectName: 'magiclogger', // Usually your repo name.
   deploymentBranch: 'gh-pages',
-  trailingSlash: false,
+  trailingSlash: undefined, // Let Docusaurus decide based on hosting provider
 
   onBrokenLinks: 'warn',
   onBrokenMarkdownLinks: 'warn',
@@ -88,7 +88,7 @@ const config: Config = {
           label: 'Documentation',
         },
         {
-          to: '/api/',
+          href: '/api/',
           label: 'API Reference',
           position: 'left',
         },

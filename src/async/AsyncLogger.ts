@@ -367,7 +367,7 @@ export class AsyncLogger extends EventEmitter {
   /** @private {number} Flush interval configuration */
   private readonly flushInterval: number;
 
-  /** @private {boolean} Worker threads enabled */
+  /** @private {boolean} Worker threads enabled - default false for better performance */
   private readonly useWorkers: boolean;
 
   /** @private {number} Worker pool size */
@@ -449,14 +449,16 @@ export class AsyncLogger extends EventEmitter {
     this.templateParser = new TemplateParser(this.useColors);
     this.templateFormatter = this.templateParser.createFormatter();
 
-    // Worker configuration optimized for balanced performance
+    // Worker configuration - OFF by default for better performance
+    // Workers add IPC overhead and are only beneficial for CPU-intensive workloads
     const workerConfig = options.worker || {};
-    this.poolSize = workerConfig.poolSize || 2; // Balanced worker count - reduces memory while maintaining parallelism
-    // Optimized batch size - matching Pino's 4KB buffer approach for consistency
-    this.batchSize = workerConfig.batchSize || options.buffer?.size || 1000;
-    this.batchTimeout = workerConfig.batchTimeout || 10; // Slightly longer timeout to allow better batching like Pino
-    this.flushInterval = workerConfig.flushInterval || options.buffer?.flushInterval || 100; // Less aggressive flushing for better batching
-    this.useWorkers = workerConfig.enabled !== false && typeof Worker !== 'undefined';
+    this.poolSize = workerConfig.poolSize || 2;
+    // Optimized batch size for IPC efficiency when workers are used
+    this.batchSize = workerConfig.batchSize || options.buffer?.size || 100; // Smaller batches when no workers
+    this.batchTimeout = workerConfig.batchTimeout || 10;
+    this.flushInterval = workerConfig.flushInterval || options.buffer?.flushInterval || 100;
+    // Workers are now OFF by default - must explicitly enable with worker.enabled: true
+    this.useWorkers = workerConfig.enabled === true && typeof Worker !== 'undefined';
 
     // Initialize based on worker availability
     this.initPromise = this.initialize();
@@ -857,6 +859,8 @@ export class AsyncLogger extends EventEmitter {
 
   /**
    * Internal log method optimized for minimal allocations.
+   * When workers are disabled, processes styles in main thread.
+   * When workers are enabled, defers style processing to worker.
    *
    * @private
    * @param {string} message - Log message
@@ -869,20 +873,38 @@ export class AsyncLogger extends EventEmitter {
     level: LogLevel,
     meta?: Record<string, unknown>
   ): { success: boolean } {
-    // CRITICAL OPTIMIZATION: Don't process styles in main thread for async logger!
-    // Style processing should happen in the worker thread to avoid blocking.
-    // This is the key difference between sync and async performance.
-
-    // Optimized entry creation with single timestamp call
     const now = Date.now();
+    
+    // When workers are disabled, process styles in main thread
+    // This is actually fast enough for most use cases (< 0.05ms per log)
+    let processedMessage = message;
+    let styles: Array<[number, number, string]> | undefined;
+    
+    if (!this.useWorkers && this.useColors && message.includes('<')) {
+      // Import TextStyler lazily to avoid circular dependencies
+      const { TextStyler } = require('../utils/TextStyler');
+      const result = TextStyler.parseBracketsWithExtraction(message, this.useColors);
+      processedMessage = result.plainText;
+      styles = result.styles;
+    }
+    
     const entry: any = {
       level: level,
-      message: message, // Send RAW message to worker
+      message: processedMessage,
       timestamp: now,
       time: now, // Keep for backward compatibility
-      // Tell worker whether to apply styles
-      useColors: this.useColors,
     };
+    
+    // Add styles if extracted
+    if (styles && styles.length > 0) {
+      entry.styles = styles;
+    }
+    
+    // When using workers, tell them to process styles
+    if (this.useWorkers) {
+      entry.rawMessage = message; // Send original for worker processing
+      entry.useColors = this.useColors;
+    }
 
     // Only add fields if needed to reduce object size
     if (meta && Object.keys(meta).length > 0) {
@@ -1034,8 +1056,8 @@ export class AsyncLogger extends EventEmitter {
     };
     metrics: AsyncLoggerMetrics;
   } {
-    const capacity =
-      this.batchSize === 100 ? 16384 : this.batchSize === 32768 ? 32768 : this.batchSize; // Match configured size
+    // Use the actual configured batch size
+    const capacity = this.batchSize;
     const current = this.batch.length;
     const utilization = capacity > 0 ? (current / capacity) * 100 : 0;
 

@@ -30,12 +30,13 @@
     "*"
   ],
   "navigationLinks": {
-    "GitHub": "https://github.com/manicinc/magiclogger",
-    "Documentation": "/docs/intro"
+    "🏠 Home": "https://magiclog.io",
+    "📖 Documentation": "https://magiclog.io/docs/intro",
+    "GitHub": "https://github.com/manicinc/magiclogger"
   },
   "sidebarLinks": {
-    "Documentation": "/docs/intro",
-    "API Reference": "/api"
+    "🏠 Home": "https://magiclog.io",
+    "📖 Documentation": "https://magiclog.io/docs/intro"
   },
   "theme": "default",
   "hideGenerator": false,

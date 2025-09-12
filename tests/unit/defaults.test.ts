@@ -113,7 +113,7 @@ describe('Default Console Transport', () => {
 
       // Should have fast defaults
       const stats = logger.getStats();
-      expect(stats.buffer.capacity).toBe(1000); // Optimized buffer size for less IPC overhead
+      expect(stats.buffer.capacity).toBe(100); // Optimized buffer size (workers off by default)
 
       const result = logger.info('Fast message');
       expect(result.success).toBe(true);

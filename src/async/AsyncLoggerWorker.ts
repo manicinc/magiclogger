@@ -99,8 +99,8 @@ class WorkerState {
   /** @private {number} Worker identifier */
   private readonly workerId: number;
 
-  /** @private {LogEntry[]} Log entry buffer */
-  private buffer: LogEntry[] = [];
+  /** @private {LogEntry[]} NO LONGER USED - removing redundant batching */
+  // private buffer: LogEntry[] = [];
 
   /** @private {TransportConfig[]} Configured transports */
   private transports: TransportConfig[] = [];
@@ -115,14 +115,14 @@ class WorkerState {
     errors: 0,
   };
 
-  /** @private {number} Batch size configuration */
-  private readonly batchSize: number;
+  /** @private {number} NO LONGER USED - removing redundant batching */
+  // private readonly batchSize: number;
 
-  /** @private {number} Flush interval configuration */
-  private readonly flushInterval: number;
+  /** @private {number} NO LONGER USED - removing redundant batching */
+  // private readonly flushInterval: number;
 
-  /** @private {NodeJS.Timeout | null} Flush timer handle */
-  private flushTimer: NodeJS.Timeout | null = null;
+  /** @private {NodeJS.Timeout | null} NO LONGER USED - removing redundant batching */
+  // private flushTimer: NodeJS.Timeout | null = null;
 
   /** @private {boolean} Compression enabled flag */
   private readonly enableCompression: boolean;
@@ -140,15 +140,15 @@ class WorkerState {
    */
   constructor(config: WorkerConfig) {
     this.workerId = config.workerId;
-    this.batchSize = config.batchSize || 1000;
-    // Preserve explicit 0 to allow disabling periodic flush in tests or configs
-    this.flushInterval = config.flushInterval ?? 50;
+    // NO LONGER BATCHING IN WORKER - remove redundant buffering
+    // this.batchSize = config.batchSize || 1000;
+    // this.flushInterval = config.flushInterval ?? 50;
     this.enableCompression = config.enableCompression || false;
 
-    // Start periodic flush timer only if enabled (>0)
-    if (this.flushInterval > 0) {
-      this.startFlushTimer();
-    }
+    // NO LONGER USING FLUSH TIMER - process immediately
+    // if (this.flushInterval > 0) {
+    //   this.startFlushTimer();
+    // }
 
     // Send ready signal
     this.sendMessage(MessageType.READY, { workerId: this.workerId });
@@ -166,7 +166,8 @@ class WorkerState {
   }
 
   /**
-   * Processes a batch of log entries.
+   * Processes a batch of log entries IMMEDIATELY.
+   * NO LONGER BUFFERS - processes and serializes immediately to avoid double batching.
    *
    * @param {LogEntry[]} entries - Log entries to process
    * @returns {void}
@@ -175,14 +176,9 @@ class WorkerState {
     const startTime = performance.now();
 
     try {
-      // Add to buffer
-      this.buffer.push(...entries);
-      this.metrics.bufferSize = this.buffer.length;
-
-      // Auto-flush if buffer is full
-      if (this.buffer.length >= this.batchSize) {
-        this.flush();
-      }
+      // PROCESS IMMEDIATELY - no more buffering!
+      // This removes the redundant batching that was happening
+      this.processEntries(entries);
 
       // Track processing time
       const processingTime = performance.now() - startTime;
@@ -191,7 +187,7 @@ class WorkerState {
       // Send acknowledgment
       this.sendMessage(MessageType.ACK, {
         processed: entries.length,
-        bufferSize: this.buffer.length,
+        bufferSize: 0, // No buffer anymore
       });
     } catch (error) {
       this.metrics.errors++;
@@ -203,43 +199,46 @@ class WorkerState {
   }
 
   /**
-   * Flushes buffered logs with serialization.
+   * Process entries immediately without buffering.
+   * This is the new method that replaces flush() to avoid double batching.
    *
+   * @param {LogEntry[]} entries - Entries to process
    * @returns {void}
    */
-  public flush(): void {
-    if (this.buffer.length === 0) return;
-
+  private processEntries(entries: LogEntry[]): void {
     const startTime = performance.now();
-    const count = this.buffer.length;
+    const count = entries.length;
 
     try {
       // Serialize all entries (this is the CPU-intensive part)
       const serialized: string[] = [];
 
-      for (const entry of this.buffer) {
+      for (const entry of entries) {
         // Process styles in worker thread (if needed)
         const processedEntry = { ...entry };
 
-        // Check if we need to process styles
-        // Note: useColors would be passed at the worker level, not per entry
-        // For now, we always process styles if present
+        // Check if we need to process styles from rawMessage
+        const messageToProcess = (entry as any).rawMessage || entry.message;
+        const useColors = (entry as any).useColors !== false;
+        
         if (
-          entry.message &&
-          typeof entry.message === 'string' &&
-          entry.message.includes('<') &&
-          entry.message.includes('>') &&
-          entry.message.includes('</>')
+          messageToProcess &&
+          typeof messageToProcess === 'string' &&
+          messageToProcess.includes('<') &&
+          messageToProcess.includes('>') &&
+          messageToProcess.includes('</>')
         ) {
-          // Process styles in worker thread - this is the key optimization!
-          const extracted = TextStyler.parseBracketsWithExtraction(entry.message, true);
-          processedEntry.message = extracted.styledText;
-          // Store plain text in a separate field for reference
-          (processedEntry as any).plainText = extracted.plainText;
+          // Process styles in worker thread
+          const extracted = TextStyler.parseBracketsWithExtraction(messageToProcess, useColors);
+          processedEntry.message = extracted.plainText;
           if (extracted.styles && extracted.styles.length > 0) {
             processedEntry.styles = extracted.styles;
           }
         }
+        
+        // Remove rawMessage from final entry
+        delete (processedEntry as any).rawMessage;
+        delete (processedEntry as any).useColors;
 
         // Full JSON serialization like production loggers do
         const json = JSON.stringify({
@@ -258,10 +257,7 @@ class WorkerState {
       this.metrics.processed += count;
       this.metrics.batches++;
       this.metrics.memoryUsage = process.memoryUsage().heapUsed;
-
-      // Clear buffer
-      this.buffer = [];
-      this.metrics.bufferSize = 0;
+      this.metrics.bufferSize = 0; // No buffer anymore
 
       // Track processing time
       const processingTime = performance.now() - startTime;
@@ -273,8 +269,19 @@ class WorkerState {
       }
     } catch (error) {
       this.metrics.errors++;
-      console.error(`[Worker ${this.workerId}] Flush error:`, error);
+      console.error(`[Worker ${this.workerId}] Processing error:`, error);
     }
+  }
+  
+  /**
+   * Legacy flush method - now just a no-op since we don't buffer.
+   * Kept for backward compatibility.
+   *
+   * @returns {void}
+   */
+  public flush(): void {
+    // No-op: we no longer buffer in the worker
+    // Processing happens immediately in processBatch
   }
 
   /**
@@ -297,36 +304,9 @@ class WorkerState {
     this.metrics.avgProcessingTime = sum / this.processingTimes.length;
   }
 
-  /**
-   * Starts the periodic flush timer.
-   *
-   * @private
-   * @returns {void}
-   */
-  private startFlushTimer(): void {
-    if (this.flushTimer) {
-      clearInterval(this.flushTimer);
-    }
-    if (this.flushInterval <= 0) return; // disabled
-    this.flushTimer = setInterval(() => {
-      this.flush();
-    }, this.flushInterval);
-    // Allow process exit in tests
-    (this.flushTimer as any).unref?.();
-  }
-
-  /**
-   * Stops the flush timer.
-   *
-   * @private
-   * @returns {void}
-   */
-  private stopFlushTimer(): void {
-    if (this.flushTimer) {
-      clearInterval(this.flushTimer);
-      this.flushTimer = null;
-    }
-  }
+  // NO LONGER NEEDED - removed flush timer methods
+  // private startFlushTimer(): void { ... }
+  // private stopFlushTimer(): void { ... }
 
   /**
    * Sends metrics to the main thread.
@@ -358,12 +338,9 @@ class WorkerState {
    * @returns {void}
    */
   public shutdown(): void {
-    // Stop timer
-    this.stopFlushTimer();
-
-    // Final flush
-    this.flush();
-
+    // No timer to stop anymore
+    // No buffer to flush anymore
+    
     // Send final metrics
     this.sendMetrics();
   }

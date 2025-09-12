@@ -36,9 +36,9 @@ describe('createAsyncLogger factory', () => {
     it('should use fast default buffer configuration', async () => {
       const logger = createAsyncLogger();
 
-      // Fast defaults: buffer size 1000 (optimized for less IPC overhead)
+      // Fast defaults: buffer size 100 (workers off by default)
       const stats = logger.getStats();
-      expect(stats.buffer.capacity).toBe(1000);
+      expect(stats.buffer.capacity).toBe(100);
 
       await logger.close();
     });
