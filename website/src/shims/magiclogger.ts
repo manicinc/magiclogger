@@ -26,9 +26,11 @@ export class Logger {
   // No constructor needed as LoggerOptions are not used
 
   private emit(level: LogLevel, message: string, ...rest: unknown[]) {
+    // Strip angle bracket syntax from message for the shim
+    const cleanMessage = message.replace(/<[^>]+>/g, '').replace(/<\/>/g, '');
     const c = console as unknown as Record<LogLevel, (...args: unknown[]) => void>;
     const fn = c[level] || console.log;
-    fn(`${formatPrefix(level)} ${message}`, ...rest);
+    fn(`${formatPrefix(level)} ${cleanMessage}`, ...rest);
   }
 
   info(message: string) { this.emit('info', message); }

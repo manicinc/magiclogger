@@ -208,7 +208,7 @@ const config: Config = {
         // Docusaurus will merge this with its own webpack config.
         configureWebpack(_config: unknown, isServer: boolean) {
           const repoRoot = path.resolve(__dirname, '..');
-          const distEsmBrowser = path.join(repoRoot, 'dist', 'browser', 'index.js');
+          const distEsmBrowser = path.join(repoRoot, 'dist', 'browser', 'src.cjs');
           const distCjs = path.join(repoRoot, 'dist', 'index.cjs');
           const shimPath = path.join(__dirname, 'src', 'shims', 'magiclogger.ts');
           const targetCandidate = isServer ? distCjs : distEsmBrowser;

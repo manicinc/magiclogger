@@ -175,3 +175,4 @@ website/package-lock.json
 
 # Auto-generated API documentation
 website/static/api/
+website/api/
