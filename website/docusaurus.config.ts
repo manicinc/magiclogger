@@ -95,6 +95,12 @@ const config: Config = {
         },
         { to: '/blog', label: 'Blog', position: 'left' },
         {
+          href: 'https://manic.agency/contact',
+          label: 'Contact',
+          position: 'right',
+          target: '_blank',
+        },
+        {
           to: '/dashboard',
           label: '✨ Magic Dashboard',
           position: 'right',

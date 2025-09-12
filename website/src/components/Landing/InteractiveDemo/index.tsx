@@ -33,6 +33,7 @@ export default function InteractiveDemo() {
   const [isRunning, setIsRunning] = useState(false);
   const [demoStep, setDemoStep] = useState(0);
   const [logger, setLoggerInstance] = useState<LoggerInstance | null>(null);
+  const [showConsoleNotification, setShowConsoleNotification] = useState(false);
   
   const consoleRef = useRef<HTMLDivElement>(null);
   const originalConsole = useRef<Record<string, (...args: unknown[]) => void>>({});
@@ -263,6 +264,13 @@ export default function InteractiveDemo() {
   const runDemo = () => {
     if (isRunning || !logger) return;
     
+    // Show notification to open console
+    setShowConsoleNotification(true);
+    setTimeout(() => setShowConsoleNotification(false), 5000);
+    
+    // Also log to actual browser console
+    console.info('%c🎨 MagicLogger Demo - Check your browser console for colorful logs!', 'color: #0dcaf0; font-weight: bold; font-size: 14px;');
+    
     setIsRunning(true);
     setDemoStep(0);
     
@@ -334,6 +342,11 @@ export default function InteractiveDemo() {
 
       {activeTab === 'live' && (
         <div className={styles.liveDemo}>
+          {showConsoleNotification && (
+            <div className={styles.consoleNotification}>
+              💡 Open your browser's Developer Console (F12) to see the colorful logs in action!
+            </div>
+          )}
           <div className={styles.controls}>
             <button
               className={`${styles.button} ${styles.primary}`}

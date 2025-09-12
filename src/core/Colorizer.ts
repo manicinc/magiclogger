@@ -264,9 +264,9 @@ export class Colorizer {
 
     // Check various environment conditions
     if (typeof process === 'undefined') {
-      // Browser environment
-      this._supportsColor = false;
-      return false;
+      // Browser environment - browsers support colors via CSS console styling
+      this._supportsColor = true;
+      return true;
     }
 
     // Check for explicit disable

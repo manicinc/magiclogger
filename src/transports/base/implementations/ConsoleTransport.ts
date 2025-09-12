@@ -4,6 +4,7 @@ import { Transport } from '../Transport';
 import type { LogEntry } from '../../../types/transport';
 import { Colorizer } from '../../../core/Colorizer';
 import type { ColorName } from '../../../types/colors';
+import { isBrowserEnvironment } from '../../../utils/environment';
 
 // Align options with shared transport types and allow a few extras for console formatting.
 import type { ConsoleTransportOptions as ConsoleTransportOptionsBase } from '../../../types/transport';
@@ -445,6 +446,18 @@ export class ConsoleTransport extends Transport {
   }
 
   /**
+   * Strip ANSI color codes from a string.
+   *
+   * @param {string} str - String containing ANSI codes
+   * @returns {string} String without ANSI codes
+   * @private
+   */
+  private stripAnsiCodes(str: string): string {
+    // eslint-disable-next-line no-control-regex
+    return str.replace(/\x1b\[[0-9;]*m/g, '');
+  }
+
+  /**
    * Write output to console.
    *
    * @param {string} level - Log level
@@ -452,7 +465,15 @@ export class ConsoleTransport extends Transport {
    * @private
    */
   private writeToConsole(level: string, output: string | Buffer): void {
-    const outputStr = output instanceof Buffer ? output.toString() : output;
+    let outputStr = output instanceof Buffer ? output.toString() : output;
+
+    // In browser environments, strip ANSI codes as they don't work in browser console
+    // Browser console uses CSS styling with %c prefix instead
+    if (isBrowserEnvironment() && this.useColors) {
+      // Strip ANSI codes but keep the text
+      outputStr = this.stripAnsiCodes(outputStr);
+      // Note: For proper browser console colors, use BrowserLogger or a browser-specific transport
+    }
 
     // Determine which console method to use
     const methodKey = this.consoleMethods[level] ?? this.consoleMethods['default'] ?? 'log';

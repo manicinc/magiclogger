@@ -12,7 +12,7 @@
   "exports": {
     ".": {
       "browser": {
-        "types": "./dist/browser/src.d.ts",
+        "types": "./dist/browser/index.d.ts",
         "default": "./dist/browser/src.js"
       },
       "import": {

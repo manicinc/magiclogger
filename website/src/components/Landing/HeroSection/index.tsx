@@ -140,7 +140,7 @@ export default function HeroSection() {
                 color="green" 
               />
               <StatCard 
-                value={0} 
+                value="Minimal" 
                 label="Dependencies" 
                 icon={<ZeroIcon />}
                 color="yellow" 
