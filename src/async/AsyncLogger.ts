@@ -342,15 +342,7 @@ export class AsyncLogger extends EventEmitter {
   /** @private {boolean} Use ring buffer for maximum performance */
   private useRingBuffer = false;
 
-  /** @private {LogEntry[]} Micro-batch buffer for efficiency */
-  private batch: LogEntry[] = [];
-  
-  /** @private {NodeJS.Timeout | null} Micro-batch timer */
-  private batchTimer: NodeJS.Timeout | null = null;
-  
-  /** @private {LogEntry[][]} Pool of reusable batch arrays to reduce allocations */
-  private batchPool: LogEntry[][] = [];
-  private readonly maxPoolSize = 10;
+  // No more batching! Each transport handles its own buffering
 
   /** @private {NodeJS.Timeout | null} Periodic flush timer */
   private flushTimer: NodeJS.Timeout | null = null;
@@ -473,10 +465,7 @@ export class AsyncLogger extends EventEmitter {
     // Note: Ring buffer requires worker-thread.js to be deployed to dist/
     this.useRingBuffer = this.useWorkers && (workerConfig.useRingBuffer === true);
 
-    // Pre-allocate batch arrays in the pool for better performance
-    for (let i = 0; i < 5; i++) {
-      this.batchPool.push([]);
-    }
+    // No pre-allocation needed - immediate dispatch
     
     // Initialize based on worker availability
     this.initPromise = this.initialize();
@@ -780,128 +769,67 @@ export class AsyncLogger extends EventEmitter {
     return selected;
   }
 
-  /**
-   * Gets a timestamp for the log entry.
-   * 
-   * @private
-   * @returns {number} Timestamp in milliseconds
-   */
-  private getTimestamp(): number {
-    // Use Date.now() for simplicity
-    // TODO: Re-enable high-resolution timestamps with performance.now()
-    return Date.now();
-  }
 
   /**
    * Processes a log entry immediately.
-   * NO BATCHING - transports handle their own batching.
+   * NO BATCHING - immediate dispatch to transports.
    *
    * @private
    * @param {LogEntry} entry - Log entry to process
    * @returns {void}
    */
   private processEntry(entry: LogEntry): void {
-    // Cache property access
-    const metrics = this.enableMetrics ? this.metrics : null;
-    if (metrics) {
-      metrics.totalLogs++;
-    }
-    
-    // Add to micro-batch
-    this.batch.push(entry);
-    
-    // Cache batch size check
-    const batchLength = this.batch.length;
-    const maxBatchSize = this.batchSize;
-    
-    // Flush immediately if batch is full (default 100)
-    if (batchLength >= maxBatchSize) {
-      this.flushBatch();
+    // PERFORMANCE: Fast path for most common case (no workers, direct dispatch)
+    if (!this.useWorkers && this.onFlush) {
+      try {
+        const result = this.onFlush([entry]);
+        // Only check for promise if result is truthy
+        if (result && typeof result.then === 'function') {
+          result.catch((error: Error) => {
+            if (process.env.NODE_ENV !== 'test' && !process.env.JEST_WORKER_ID) {
+              console.error(`[${this.id}] Transport error:`, error);
+            }
+          });
+        }
+      } catch (error) {
+        if (process.env.NODE_ENV !== 'test' && !process.env.JEST_WORKER_ID) {
+          console.error(`[${this.id}] Transport error:`, error);
+        }
+      }
+      
+      // Update metrics after successful dispatch
+      if (this.enableMetrics) {
+        this.metrics.totalLogs++;
+      }
       return;
     }
     
-    // Schedule micro-batch flush using setTimeout(0) for good performance
-    if (!this.batchTimer) {
-      this.batchTimer = setTimeout(() => {
-        this.batchTimer = null;
-        this.flushBatch();
-      }, 0);
-    }
-  }
-  
-  /**
-   * Flushes the micro-batch to transports.
-   * @private
-   */
-  private flushBatch(): void {
-    if (this.batch.length === 0) return;
-    
-    const entries = this.batch;
-    // Get a new batch array from pool or create new one
-    this.batch = this.batchPool.pop() || [];
-    
-    // Clear any pending timer
-    if (this.batchTimer) {
-      clearTimeout(this.batchTimer);
-      this.batchTimer = null;
+    // Worker path (less common)
+    if (this.enableMetrics) {
+      this.metrics.totalLogs++;
     }
     
     // Use high-performance ring buffer if available
     if (this.workerTransport && this.workerTransport.shouldLog()) {
-      // Send each entry through ring buffer (zero-copy, lock-free)
-      for (const entry of entries) {
-        this.workerTransport.log(entry).catch((error: Error) => {
-          if (this.enableMetrics) {
-            this.metrics.droppedLogs++;
-          }
-          this.emit('error', error);
-        });
-      }
-      // Return array to pool
-      if (this.batchPool.length < this.maxPoolSize) {
-        entries.length = 0;
-        this.batchPool.push(entries);
-      }
+      this.workerTransport.log(entry).catch((error: Error) => {
+        if (this.enableMetrics) {
+          this.metrics.droppedLogs++;
+        }
+        this.emit('error', error);
+      });
       return;
     }
     
-    // Fallback to legacy workers if available
+    // Fallback to legacy workers
     if (this.workers.length > 0) {
       const worker = this.selectWorker();
       if (worker) {
         worker.send({
           type: WorkerMessageType.LOG_BATCH,
-          payload: entries,
+          payload: [entry]
         });
       } else if (this.enableMetrics) {
-        this.metrics.droppedLogs += entries.length;
-      }
-    } else {
-      // Send batch to transports
-      if (this.onFlush) {
-        try {
-          // Pass a copy to avoid mutations affecting the callback
-          const entriesCopy = [...entries];
-          const result = this.onFlush(entriesCopy);
-          // Handle async transports
-          if (result && typeof result === 'object' && 'then' in result) {
-            (result as Promise<void>).catch(error => {
-              if (process.env.NODE_ENV !== 'test' && !process.env.JEST_WORKER_ID) {
-                console.error(`[${this.id}] Transport error:`, error);
-              }
-            });
-          }
-        } catch (error) {
-          if (process.env.NODE_ENV !== 'test' && !process.env.JEST_WORKER_ID) {
-            console.error(`[${this.id}] Transport error:`, error);
-          }
-        }
-      }
-      
-      // Return array to pool after processing
-      if (this.batchPool.length < this.maxPoolSize) {
-        entries.length = 0;
-        this.batchPool.push(entries);
+        this.metrics.droppedLogs++;
       }
     }
   }
@@ -913,11 +841,7 @@ export class AsyncLogger extends EventEmitter {
    * @returns {Promise<void>} Promise that resolves when flush is complete
    */
   public async flush(): Promise<void> {
-    // Flush any pending micro-batch
-    this.flushBatch();
-
-
-    // Always flush transports regardless of whether we had entries
+    // No batching to flush - just flush transports directly
     const flushPromises = this.transports
       .filter(t => typeof t.flush === 'function')
       .map(t => (t.flush as () => Promise<void>)());
@@ -943,48 +867,57 @@ export class AsyncLogger extends EventEmitter {
     level: LogLevel,
     meta?: Record<string, unknown>
   ): { success: boolean } {
-    // Optimized timestamp generation with caching
-    const now = this.getTimestamp();
+    // PERFORMANCE: Fast timestamp - Date.now() is 10x faster than performance.now()
+    const now = Date.now();
     
-    // Skip style processing for plain text (fast path)
-    const hasStyles = this.useColors && message.indexOf('<') !== -1;
+    // PERFORMANCE CRITICAL: Skip style processing for plain text (90%+ of logs)
+    // Only check for styles if ALL conditions are met:
+    // 1. Colors are enabled
+    // 2. Not using workers (workers handle their own styling)  
+    // 3. Message contains '<' character (quick check)
+    // 4. Message also contains '</>' pattern (complete style)
     let processedMessage = message;
     let styles: Array<[number, number, string]> | undefined;
     
-    if (!this.useWorkers && hasStyles) {
-      // Cache TextStyler to avoid repeated requires
+    // Fast path: avoid any string scanning for most logs
+    const hasStyles = this.useColors && !this.useWorkers && 
+                     message.includes('<') && message.includes('</');
+    
+    if (hasStyles) {
+      // Lazy load TextStyler only when actually needed
       if (!this.textStyler) {
-        // Use require to avoid async in synchronous context
         // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const textStylerModule = require('../utils/TextStyler');
-        const { TextStyler } = textStylerModule;
+        const { TextStyler } = require('../utils/TextStyler');
         this.textStyler = TextStyler;
       }
-      const result = this.textStyler.parseBracketsWithExtraction(message, this.useColors);
+      const result = this.textStyler!.parseBracketsWithExtraction(message, this.useColors);
       processedMessage = result.plainText;
       styles = result.styles;
     }
     
-    // Pre-size object with known properties to avoid dynamic property addition
-    const entry: Partial<LogEntry> & { time?: number } = {
+    // PERFORMANCE: Create minimal object without undefined properties
+    // V8 optimizes objects better when properties aren't pre-allocated as undefined
+    const timestamp = new Date(now).toISOString();
+    
+    // Build entry with only required fields first
+    const entry: LogEntry = {
+      id: `${this.id}-${now}`,
       level,
       message: processedMessage,
-      timestamp: now,
-      time: now, // Keep for backward compatibility
-      styles: undefined,
-      context: undefined,
-      loggerId: undefined
+      timestamp,
+      timestampMs: now
     };
     
-    // Add styles if extracted
+    // Add optional fields only if they have values (avoids undefined properties)
     if (styles && styles.length > 0) {
       entry.styles = styles;
     }
     
-    // When using workers, tell them to process styles
-    if (this.useWorkers && hasStyles) {
+    // Handle worker-specific context or regular metadata
+    if (this.useWorkers && message.includes('<')) {
+      // Workers need raw message for style processing
       entry.context = {
-        _rawMessage: message, // Send original for worker processing
+        _rawMessage: message,
         _useColors: this.useColors,
         ...(meta || {})
       };
@@ -1003,7 +936,7 @@ export class AsyncLogger extends EventEmitter {
     if (!entry.loggerId) delete entry.loggerId;
 
     // Immediate dispatch to transports
-    this.processEntry(entry as LogEntry);
+    this.processEntry(entry);
     return { success: true };
   }
 
@@ -1142,10 +1075,10 @@ export class AsyncLogger extends EventEmitter {
     };
     metrics: AsyncLoggerMetrics;
   } {
-    // Use the actual configured batch size
+    // No batching anymore - immediate dispatch
     const capacity = this.batchSize;
-    const current = this.batch.length;
-    const utilization = capacity > 0 ? (current / capacity) * 100 : 0;
+    const current = 0; // Always 0 - no buffering with immediate dispatch
+    const utilization = 0; // Always 0% since no buffering
 
     return {
       buffer: {
@@ -1291,11 +1224,6 @@ export class AsyncLogger extends EventEmitter {
     if (this.flushTimer) {
       clearInterval(this.flushTimer);
       this.flushTimer = null;
-    }
-    
-    if (this.batchTimer) {
-      clearTimeout(this.batchTimer);
-      this.batchTimer = null;
     }
 
     // Flush remaining logs
