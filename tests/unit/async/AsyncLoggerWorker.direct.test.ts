@@ -15,7 +15,7 @@ const buildEntries = (n: number): LogEntry[] =>
 
 describe('AsyncLoggerWorker Direct Processing', () => {
   let postMessage: jest.Mock;
-  let exported: any;
+  let exported: { handleMessage: (data: unknown) => void; WorkerState?: unknown };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -162,7 +162,7 @@ describe('AsyncLoggerWorker Direct Processing', () => {
         workerId: 1,
       });
 
-      const circular: any = { a: 1 };
+      const circular: Record<string, unknown> = { a: 1 };
       circular.self = circular;
 
       const entry: LogEntry = {
@@ -184,13 +184,13 @@ describe('AsyncLoggerWorker Direct Processing', () => {
       consoleSpy.mockRestore();
     });
 
-    it.skip('continues processing after errors', () => {
+    it('continues processing after errors', () => {
       const { WorkerState } = exported;
       const worker = new WorkerState({
         workerId: 1,
       });
 
-      const circular: any = { a: 1 };
+      const circular: Record<string, unknown> = { a: 1 };
       circular.self = circular;
 
       const entries: LogEntry[] = [
