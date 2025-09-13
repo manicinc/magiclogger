@@ -396,8 +396,8 @@ export class AsyncLogger extends EventEmitter {
   /** @private {Set<Transport>} Transports that have been closed */
   private closedTransports = new Set<Transport>();
 
-  /** @private {any} Cached TextStyler module */
-  private textStyler?: any;
+  /** @private {typeof import('../utils/TextStyler').TextStyler | undefined} Cached TextStyler module */
+  private textStyler?: typeof import('../utils/TextStyler').TextStyler;
   
 
   /**
@@ -954,8 +954,10 @@ export class AsyncLogger extends EventEmitter {
     if (!this.useWorkers && hasStyles) {
       // Cache TextStyler to avoid repeated requires
       if (!this.textStyler) {
+        // Use require to avoid async in synchronous context
         // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const { TextStyler } = require('../utils/TextStyler') as typeof import('../utils/TextStyler');
+        const textStylerModule = require('../utils/TextStyler');
+        const { TextStyler } = textStylerModule;
         this.textStyler = TextStyler;
       }
       const result = this.textStyler.parseBracketsWithExtraction(message, this.useColors);
@@ -964,7 +966,7 @@ export class AsyncLogger extends EventEmitter {
     }
     
     // Pre-size object with known properties to avoid dynamic property addition
-    const entry: any = {
+    const entry: Partial<LogEntry> & { time?: number } = {
       level,
       message: processedMessage,
       timestamp: now,

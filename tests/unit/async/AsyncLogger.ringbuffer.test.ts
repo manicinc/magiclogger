@@ -33,9 +33,10 @@ describe('AsyncLogger with RingBuffer', () => {
     });
 
     it('should fall back to regular workers if ring buffer fails', async () => {
+      expect.assertions(1);
       // Mock SharedArrayBuffer not available
       const originalSharedArrayBuffer = global.SharedArrayBuffer;
-      // @ts-ignore
+      // @ts-expect-error Testing fallback when SharedArrayBuffer is not available
       delete global.SharedArrayBuffer;
 
       const logger = new AsyncLogger({
@@ -90,7 +91,7 @@ describe('AsyncLogger with RingBuffer', () => {
     });
 
     it('should maintain unique timestamps with performance.now()', async () => {
-      const timestamps: number[] = [];
+      const timestamps: string[] = [];
       
       const logger = new AsyncLogger({
         worker: {
@@ -141,6 +142,7 @@ describe('AsyncLogger with RingBuffer', () => {
     });
 
     it('should handle worker thread errors gracefully', async () => {
+      expect.assertions(1);
       const errorHandler = jest.fn();
       
       const logger = new AsyncLogger({

@@ -320,7 +320,7 @@ describe('AsyncLogger', () => {
       });
       
       const batchWithMessages = calls.find(call => 
-        call[0] && call[0].some((entry: any) => entry.message === 'Message 1')
+        call[0] && call[0].some((entry: LogEntry) => entry.message === 'Message 1')
       );
       
       expect(batchWithMessages).toBeDefined();
@@ -372,9 +372,12 @@ describe('AsyncLogger', () => {
 
       // AsyncLogger should not expose buffer-related properties publicly
       // These are internal implementation details
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       expect((logger as any).buffer).toBeUndefined();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       expect((logger as any).ringBuffer).toBeUndefined();
       // flushInterval is private and internal, so it exists but shouldn't be accessed
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       expect(typeof (logger as any).flushInterval).toBe('number');
     });
 
