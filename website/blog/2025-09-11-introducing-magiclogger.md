@@ -28,7 +28,7 @@ With clear visual hierarchies and stunning colors, tables, progress bars, and st
 
 We didn't stop at making things pretty. MagicLogger is built for production:
 
-- **Performant and fast**: 163,900 operations per second with full styling
+- **Performant and fast**: 203K ops/sec plain text, 31K ops/sec with full styling
 - **Async by default**: Non blocking operations that won't slow your app
 - **Universal compatibility**: Works everywhere JavaScript runs, in browser, Node
 - **Production ready**: Built in rate limiting, sampling, and error handling

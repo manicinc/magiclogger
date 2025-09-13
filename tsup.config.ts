@@ -42,6 +42,7 @@ export default defineConfig(options => {
     // Worker transports
     'transports/worker/FileWorkerTransport': 'src/transports/worker/FileWorkerTransport.ts',
     'transports/worker/FileWorker': 'src/transports/worker/FileWorker.ts',
+    'transports/worker/worker-thread': 'src/transports/worker/worker-thread.js',
     
     // Sync utilities
     'sync/logger': 'src/sync/SyncLogger.ts',

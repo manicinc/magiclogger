@@ -120,16 +120,16 @@ export default function HeroSection() {
                 color="purple" 
               />
               <StatCard 
-                value={163.9} 
+                value={203.4} 
                 unit="K ops/s" 
-                label="Async Styled" 
+                label="Async Plain" 
                 icon={<SpeedIcon />}
                 color="cyan" 
               />
               <StatCard 
-                value={115.3} 
+                value={31.1} 
                 unit="K ops/s" 
-                label="Sync Plain" 
+                label="Async Styled" 
                 icon={<SyncIcon />}
                 color="green" 
               />
