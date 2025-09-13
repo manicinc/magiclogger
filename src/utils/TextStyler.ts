@@ -84,7 +84,7 @@ export class TextStyler {
     ['warning', ['yellow', 'bold']],
     ['info', ['blue']],
     ['debug', ['gray']],
-  ])
+  ]);
 
   // Hoisted valid styles set for parseStyleString checks
   private static readonly VALID_STYLES: Set<string> = new Set<string>([
@@ -703,7 +703,7 @@ export class TextStyler {
     // Limit cache size to prevent memory issues - increased limit for better performance
     if (TextStyler.styleParseCache.size > TextStyler.MAX_CACHE_SIZE) {
       // Clear half of cache (simple strategy)
-      const toDelete = TextStyler.MAX_CACHE_SIZE / 2;
+      const toDelete = Math.floor(TextStyler.MAX_CACHE_SIZE / 2);
       let deleted = 0;
       for (const [key] of TextStyler.styleParseCache) {
         TextStyler.styleParseCache.delete(key);

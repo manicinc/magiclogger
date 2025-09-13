@@ -217,6 +217,11 @@ export abstract class Transport extends EventEmitter implements ITransport {
    * @returns {Promise<void>} Resolves when all logs have been processed
    */
   public async logBatch(entries: LogEntry[]): Promise<void> {
+    // Check if transport is enabled and not closing
+    if (!this.enabled || this.closing) {
+      return;
+    }
+
     // Check if transport has a batch implementation
     if ('doLogBatch' in this && typeof this.doLogBatch === 'function') {
       // Filter entries that should be logged
@@ -278,7 +283,6 @@ export abstract class Transport extends EventEmitter implements ITransport {
       // Swallow for simple transports so tests expecting non-throwing failures pass
     }
   }
-
 
   /**
    * Check if this transport should handle a given log entry.

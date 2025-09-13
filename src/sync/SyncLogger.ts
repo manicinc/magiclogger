@@ -273,8 +273,15 @@ export class SyncLogger {
 
   /**
    * Get optimized timestamp with caching.
-   * Only calls Date.now() once per 10ms window.
+   * Only calls Date.now() once per 10ms window, then increments by 0.001ms.
+   * This provides unique timestamps while avoiding syscall overhead.
+   *
+   * **Limitation:** Under high concurrency, timestamp caching may cause out-of-order timestamps.
+   * If strict timestamp ordering is required in concurrent environments, consider disabling caching
+   * or using a thread-safe solution.
+   *
    * @private
+   * @returns {number} Timestamp in milliseconds (with microsecond precision)
    */
   private getOptimizedTimestamp(): number {
     // For audit logs or when caching disabled, always use real timestamp

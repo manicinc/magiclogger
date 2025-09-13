@@ -647,8 +647,11 @@ export class AsyncLogger extends EventEmitter {
     if (this.useRingBuffer) {
       const capacity = ringBufferConfig.capacity || 8192;
       this.ringBuffer = new RingBuffer(capacity);
-      // Only log in non-test environments
-      if (process.env.NODE_ENV !== 'test' && !process.env.JEST_WORKER_ID) {
+      // Only log in debug environments to avoid leaking info in production
+      if (
+        (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'debug') &&
+        !process.env.JEST_WORKER_ID
+      ) {
         console.log(`[${this.id}] Using ring buffer with capacity ${capacity}`);
       }
     }
@@ -1076,7 +1079,6 @@ export class AsyncLogger extends EventEmitter {
     }
 
     if (entries && entries.length > 0) {
-
       if (this.enableMetrics) {
         this.metrics.batchesSent++;
         this.metrics.avgBatchSize =
@@ -1171,7 +1173,8 @@ export class AsyncLogger extends EventEmitter {
       // Parse styles only when batching
       if (!this.textStyler) {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const { TextStyler } = require('../utils/TextStyler') as typeof import('../utils/TextStyler');
+        const { TextStyler } =
+          require('../utils/TextStyler') as typeof import('../utils/TextStyler');
         this.textStyler = TextStyler;
       }
       const result = this.textStyler!.parseBracketsWithExtraction(message, this.useColors);
@@ -1186,7 +1189,7 @@ export class AsyncLogger extends EventEmitter {
       id: this.generateId(timestampMs),
       timestampMs,
       level,
-      message: processedMessage
+      message: processedMessage,
     } as LogEntry;
 
     // Set optional fields - maintains same hidden class
@@ -1200,7 +1203,7 @@ export class AsyncLogger extends EventEmitter {
       entry.context = {
         _rawMessage: message,
         _useColors: this.useColors,
-        ...(meta || {})
+        ...(meta || {}),
       };
     } else if (meta && Object.keys(meta).length > 0) {
       entry.context = meta;
@@ -1233,7 +1236,9 @@ export class AsyncLogger extends EventEmitter {
             const promise = transport.log(entry);
             // Don't await - let it run in background
             if (promise && typeof promise.catch === 'function') {
-              promise.catch(() => {}); // Silently ignore errors
+              promise.catch(() => {
+                // Silently ignore errors for background operations
+              });
             }
           }
         } catch (error) {
@@ -1259,6 +1264,10 @@ export class AsyncLogger extends EventEmitter {
    * Get optimized timestamp with caching.
    * Only calls Date.now() once per 10ms window, then increments by 0.001ms.
    * This provides unique timestamps while avoiding syscall overhead.
+   *
+   * **Limitation:** Under high concurrency, timestamp caching may cause out-of-order timestamps.
+   * If strict timestamp ordering is required in concurrent environments, consider disabling caching
+   * or using a thread-safe solution.
    *
    * @private
    * @returns {number} Timestamp in milliseconds (with microsecond precision)
@@ -1288,8 +1297,8 @@ export class AsyncLogger extends EventEmitter {
 
   private generateId(timestampMs: number): string {
     // Reset counter on new timestamp to prevent overflow
-    // Use Math.floor to handle fractional timestamps from cache
-    if (Math.floor(timestampMs) !== Math.floor(this.lastTimestamp)) {
+    // Compare full timestamp (including fractional milliseconds) for uniqueness
+    if (timestampMs !== this.lastTimestamp) {
       this.lastTimestamp = timestampMs;
       this.idCounter = 0;
       return `${timestampMs}-0`;
@@ -1297,7 +1306,6 @@ export class AsyncLogger extends EventEmitter {
     // Use incrementing counter for same millisecond
     return `${timestampMs}-${++this.idCounter}`;
   }
-
 
   /**
    * Logs an info-level message.
