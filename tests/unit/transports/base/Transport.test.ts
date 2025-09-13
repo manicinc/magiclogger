@@ -358,11 +358,21 @@ describe('Transport', () => {
 
     it('should fall back to individual logging if no batch method', async () => {
       // Create a transport without batch method
-      const noBatchTransport = new TestTransport({ name: 'no-batch' });
-      noBatchTransport.testDoLogBatchOverride = jest
-        .fn()
-        .mockRejectedValue(new Error('Batch not supported'));
+      class NoBatchTransport extends Transport {
+        public logCalls: LogEntry[] = [];
 
+        protected async doInit(): Promise<void> {
+          // No-op
+        }
+
+        protected async doLog(entry: LogEntry): Promise<void> {
+          this.logCalls.push(entry);
+        }
+
+        // No doLogBatch method defined
+      }
+
+      const noBatchTransport = new NoBatchTransport({ name: 'no-batch' });
       await noBatchTransport.init();
 
       const entries = [mockEntry, { ...mockEntry, id: 'test-124' }];
@@ -373,36 +383,42 @@ describe('Transport', () => {
 
     it('should handle partial failures in individual mode', async () => {
       // Create a transport without batch method
-      const noBatchTransport = new TestTransport({ name: 'no-batch-fail' });
+      class NoBatchFailTransport extends Transport {
+        public logCalls: LogEntry[] = [];
+        private callCount = 0;
+
+        protected async doInit(): Promise<void> {
+          // No-op
+        }
+
+        protected async doLog(entry: LogEntry): Promise<void> {
+          this.callCount++;
+          if (this.callCount === 2) {
+            throw new Error('Second failed');
+          }
+          this.logCalls.push(entry);
+        }
+
+        // No doLogBatch method defined
+      }
+
+      const noBatchTransport = new NoBatchFailTransport({ name: 'no-batch-fail' });
 
       // Add error event handler to prevent unhandled error warnings
       noBatchTransport.on('error', () => {
         // Ignore errors in tests - they're expected
       });
 
-      noBatchTransport.testDoLogBatchOverride = jest
-        .fn()
-        .mockRejectedValue(new Error('Batch not supported'));
-
       await noBatchTransport.init();
-
-      let callCount = 0;
-      noBatchTransport.testDoLogOverride = jest.fn().mockImplementation(() => {
-        callCount++;
-        if (callCount === 2) {
-          return Promise.reject(new Error('Second failed'));
-        }
-        return Promise.resolve();
-      });
 
       const entries = [mockEntry, { ...mockEntry, id: 'fail' }, { ...mockEntry, id: 'test-125' }];
 
       await noBatchTransport.logBatch(entries);
 
       const stats = noBatchTransport.getStats();
-      expect(stats.processed).toBe(3);
-      expect(stats.succeeded).toBe(2);
-      expect(stats.failed).toBe(1);
+      expect(stats.processed).toBe(3); // All 3 were processed (attempted)
+      expect(stats.succeeded).toBe(2); // 2 succeeded
+      expect(stats.failed).toBe(1); // 1 failed
     });
 
     it('should emit batch event', async () => {

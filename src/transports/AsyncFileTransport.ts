@@ -220,32 +220,10 @@ export class AsyncFileTransport extends Transport {
   protected readonly options: Required<AsyncFileTransportOptions>;
   protected closing = false;
 
-  /**
-   * Application-level batch buffer for improved performance.
-   * Collects log entries before sending to sonic-boom.
-   * @private
-   */
+  // Batch-related fields for efficient writes
   private batchBuffer: string[] = [];
-
-  /**
-   * Maximum batch size before automatic flush.
-   * Tuned for optimal performance vs latency tradeoff.
-   * @private
-   */
   private readonly batchSize = 100;
-
-  /**
-   * Timer for periodic batch flushing.
-   * Ensures logs are written even during low activity.
-   * @private
-   */
   private batchTimer: NodeJS.Timeout | null = null;
-
-  /**
-   * Batch flush interval in milliseconds.
-   * Low value ensures minimal latency for real-time logs.
-   * @private
-   */
   private readonly batchInterval = 10;
 
   /**
@@ -387,6 +365,45 @@ export class AsyncFileTransport extends Transport {
   }
 
   /**
+   * Batch log method for maximum performance.
+   * Processes multiple entries at once to minimize overhead.
+   *
+   * @param {LogEntry[]} entries - Array of log entries to process
+   * @returns {Promise<void>}
+   * @public
+   * @since 3.0.0
+   */
+  public async logBatch(entries: LogEntry[]): Promise<void> {
+    if (!this.enabled || this.closing || !this.sonic) {
+      return;
+    }
+
+    const lines: string[] = [];
+    for (const entry of entries) {
+      // Fast path for minimal entries
+      if ('time' in entry && typeof entry.time === 'number') {
+        lines.push(JSON.stringify({
+          level: entry.level,
+          time: entry.time,
+          msg: (entry as any).plainMsg || (entry as any).msg,
+        }) + '\n');
+      } else if (this.shouldLog(entry as LogEntry)) {
+        try {
+          lines.push(this.formatEntry(entry as LogEntry) + '\n');
+        } catch (error) {
+          this.stats.failed++;
+          this.handleError(error as Error);
+        }
+      }
+    }
+
+    if (lines.length > 0) {
+      this.addToBatch(lines.join(''));
+      this.stats.processed += lines.length;
+    }
+  }
+
+  /**
    * Synchronous log method with application-level batching for maximum performance.
    *
    * This method implements a two-level batching strategy:
@@ -431,6 +448,7 @@ export class AsyncFileTransport extends Transport {
           msg: (entry as any).plainMsg || (entry as any).msg,
         }) + '\n';
 
+      // Add to batch for efficient writing
       this.addToBatch(line);
       this.stats.processed++;
       return;
@@ -447,7 +465,7 @@ export class AsyncFileTransport extends Transport {
       // Format the log entry to string
       const line = this.formatEntry(entry as LogEntry) + '\n';
 
-      // Add to batch buffer instead of writing directly
+      // Add to batch for efficient writing
       this.addToBatch(line);
     } catch (error) {
       // Handle formatting errors
@@ -457,87 +475,49 @@ export class AsyncFileTransport extends Transport {
   }
 
   /**
-   * Adds a formatted log line to the batch buffer.
-   * Automatically flushes when batch is full.
-   *
-   * This method manages the batch buffer and ensures:
-   * - Logs are batched for efficiency
-   * - Automatic flush on batch size limit
-   * - Timer-based flush for low-volume scenarios
-   *
-   * @param {string} line - Formatted log line to add
-   * @private
+   * Add line to batch buffer for efficient writing.
+   * Batches multiple log entries before writing to reduce syscalls.
    */
   private addToBatch(line: string): void {
-    // Add to batch buffer
     this.batchBuffer.push(line);
-
-    // Start batch timer if not already running
     if (!this.batchTimer && this.batchInterval > 0) {
       this.batchTimer = setTimeout(() => {
         this.flushBatch();
       }, this.batchInterval);
     }
-
-    // Flush if batch is full
     if (this.batchBuffer.length >= this.batchSize) {
       this.flushBatch();
     }
   }
 
   /**
-   * Flushes the batch buffer to sonic-boom.
-   *
-   * This method:
-   * 1. Concatenates all buffered lines
-   * 2. Writes them to sonic-boom in a single operation
-   * 3. Clears the batch buffer
-   * 4. Resets the batch timer
-   *
-   * Performance note: Writing a single large string is more
-   * efficient than multiple small writes due to:
-   * - Reduced function call overhead
-   * - Better memory locality
-   * - Fewer buffer management operations
-   *
-   * @private
+   * Flush batch buffer to sonic-boom.
+   * Writes all accumulated log entries in a single operation.
    */
   private flushBatch(): void {
     if (this.batchBuffer.length === 0 || !this.sonic) {
       return;
     }
-
-    // Clear timer
     if (this.batchTimer) {
       clearTimeout(this.batchTimer);
       this.batchTimer = null;
     }
-
     try {
-      // Concatenate all lines in batch
       const batchData = this.batchBuffer.join('');
-
-      // Clear buffer immediately to allow new logs during write
       this.batchBuffer = [];
 
-      // Write entire batch to sonic-boom
       const written = this.sonic.write(batchData);
-
       if (!written) {
-        // Backpressure detected
         this.stats.queued = (this.stats.queued || 0) + 1;
-
         if (!this.stats.custom) {
           this.stats.custom = {};
         }
         this.stats.custom.backpressureEvents =
           ((this.stats.custom.backpressureEvents as number) || 0) + 1;
       } else {
-        // Successfully queued for write
         this.stats.succeeded += batchData.split('\n').length - 1;
       }
     } catch (error) {
-      // Handle write errors
       this.stats.failed++;
       this.handleError(error as Error);
     }
@@ -653,7 +633,7 @@ export class AsyncFileTransport extends Transport {
    * ```
    */
   public async flush(): Promise<void> {
-    // First flush application-level batch
+    // Flush any pending batch data first
     this.flushBatch();
 
     // Skip if not initialized or closing
@@ -696,13 +676,13 @@ export class AsyncFileTransport extends Transport {
     // Set closing flag to prevent new logs
     this.closing = true;
 
-    // Clear batch timer to prevent new flushes
+    // Clear batch timer if running
     if (this.batchTimer) {
       clearTimeout(this.batchTimer);
       this.batchTimer = null;
     }
 
-    // Flush any remaining batched data
+    // Flush any pending batch data
     this.flushBatch();
 
     // Skip if not initialized

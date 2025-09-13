@@ -79,6 +79,15 @@ export class SyncLogger {
   private currentTheme?: Record<string, unknown>;
   private _writeCount = 0;
 
+  /** @private Cached timestamp for performance */
+  private cachedTimestamp = 0;
+  /** @private When the cached timestamp expires */
+  private cacheExpiry = 0;
+  /** @private Microsecond offset within cache window */
+  private microOffset = 0;
+  /** @private Whether to use timestamp caching */
+  private readonly timestampCaching: boolean;
+
   /**
    * Creates a new synchronous logger instance.
    *
@@ -113,6 +122,9 @@ export class SyncLogger {
       verbose: options.verbose ?? false,
       ...options,
     };
+
+    // Timestamp caching enabled by default, can be disabled for audit logs
+    this.timestampCaching = options.timestampCaching ?? true;
 
     // Initialize styling components
     this.formatter = new Formatter();
@@ -196,9 +208,9 @@ export class SyncLogger {
       message = this.templateParser.parseString(message);
     }
 
-    // Create timestamp
-    const timestamp = new Date().toISOString();
-    const timestampMs = Date.now();
+    // Create timestamp using optimized caching
+    const timestampMs = this.getOptimizedTimestamp();
+    const timestamp = new Date(Math.floor(timestampMs)).toISOString();
 
     // Format the log entry properly using Formatter
     const levelColor = this.getLevelColor(level);
@@ -257,6 +269,30 @@ export class SyncLogger {
         Printer.print(this.formatter.colorize('[SyncLogger] Custom handler error', ['red']));
       }
     }
+  }
+
+  /**
+   * Get optimized timestamp with caching.
+   * Only calls Date.now() once per 10ms window.
+   * @private
+   */
+  private getOptimizedTimestamp(): number {
+    // For audit logs or when caching disabled, always use real timestamp
+    if (!this.timestampCaching) {
+      return Date.now();
+    }
+
+    const now = Date.now();
+
+    if (now < this.cacheExpiry) {
+      this.microOffset += 0.001;
+      return this.cachedTimestamp + this.microOffset;
+    }
+
+    this.cachedTimestamp = now;
+    this.cacheExpiry = now + 10;
+    this.microOffset = 0;
+    return now;
   }
 
   /**
@@ -911,7 +947,7 @@ export class SyncLogger {
    * @public
    */
   public time(label: string): void {
-    this.timers.set(label, Date.now());
+    this.timers.set(label, this.getOptimizedTimestamp());
   }
 
   /**
@@ -923,7 +959,7 @@ export class SyncLogger {
   public timeEnd(label: string): void {
     const start = this.timers.get(label);
     if (start) {
-      const duration = Date.now() - start;
+      const duration = this.getOptimizedTimestamp() - start;
       this.timers.delete(label);
       this.log(`${label}: ${duration}ms`, 'info', { type: 'timer', duration });
     }

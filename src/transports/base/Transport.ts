@@ -209,6 +209,37 @@ export abstract class Transport extends EventEmitter implements ITransport {
   }
 
   /**
+   * Log multiple entries in batch for better performance.
+   * Default implementation delegates to individual log() calls.
+   * Override in subclasses for optimized batch processing.
+   *
+   * @param {LogEntry[]} entries - Array of log entries to process
+   * @returns {Promise<void>} Resolves when all logs have been processed
+   */
+  public async logBatch(entries: LogEntry[]): Promise<void> {
+    // Check if transport has a batch implementation
+    if ('doLogBatch' in this && typeof this.doLogBatch === 'function') {
+      // Filter entries that should be logged
+      const filtered = entries.filter(entry => this.shouldLog(entry));
+      if (filtered.length > 0) {
+        try {
+          await this.doLogBatch(filtered);
+          this.stats.processed += filtered.length;
+          this.emit('batch', filtered, filtered.length);
+        } catch (error) {
+          this.stats.failed += filtered.length;
+          this.handleError(error as Error);
+        }
+      }
+    } else {
+      // Default implementation: process individually
+      for (const entry of entries) {
+        await this.log(entry);
+      }
+    }
+  }
+
+  /**
    * Log a single entry.
    *
    * @param {LogEntry} entry - The log entry to process
@@ -248,77 +279,6 @@ export abstract class Transport extends EventEmitter implements ITransport {
     }
   }
 
-  /**
-   * Log multiple entries at once.
-   *
-   * @param {LogEntry[]} entries - Array of log entries to process
-   * @returns {Promise<void>} Resolves when all logs have been processed
-   */
-  public async logBatch(entries: LogEntry[]): Promise<void> {
-    if (!this.enabled || this.closing) {
-      return;
-    }
-
-    // Filter entries that this transport should handle
-    const validEntries = entries.filter(entry => this.shouldLog(entry));
-
-    if (validEntries.length === 0) {
-      return;
-    }
-
-    this.stats.processed += validEntries.length;
-
-    try {
-      // Check if subclass implements batch logging
-      if (this.doLogBatch) {
-        try {
-          await this.withTimeout(this.doLogBatch(validEntries), this.timeout);
-          // For non-batching transports that implement doLogBatch, treat as immediate success.
-          // Batching transports will update succeeded when the batch is actually delivered.
-          if (!this.supportsBatching()) {
-            this.stats.succeeded += validEntries.length;
-          }
-        } catch (batchError) {
-          // Fall back to individual logging on batch failure
-          const results = await Promise.allSettled(validEntries.map(entry => this.doLog(entry)));
-
-          results.forEach((result, index) => {
-            if (result.status === 'fulfilled') {
-              this.stats.succeeded++;
-            } else {
-              this.stats.failed++;
-              this.handleError(result.reason as Error, validEntries[index]);
-            }
-          });
-        }
-      } else {
-        // Fall back to individual logging
-        const results = await Promise.allSettled(validEntries.map(entry => this.doLog(entry)));
-
-        // Count successes and failures
-        results.forEach((result, index) => {
-          if (result.status === 'fulfilled') {
-            this.stats.succeeded++;
-          } else {
-            this.stats.failed++;
-            this.handleError(result.reason as Error, validEntries[index]);
-          }
-        });
-      }
-
-      // Only set lastSuccess for immediate-success paths
-      if (!this.supportsBatching()) {
-        this.stats.lastSuccess = new Date();
-      }
-      this.emit('batch', validEntries, validEntries.length);
-    } catch (error) {
-      // Unexpected batch-level error
-      this.handleError(error as Error);
-      if (this.shouldPropagateErrors()) {
-        throw error;
-      }
-    }
-  }
 
   /**
    * Check if this transport should handle a given log entry.

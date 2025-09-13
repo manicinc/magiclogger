@@ -58,9 +58,33 @@ export class TextStyler {
   private static readonly WORD_SPLIT_REGEX = /(\s+)/;
   private static readonly AT_TEMPLATE_REGEX = /@(\w+(?:\.\w+)*?)\{([^}]+)\}/g;
   private static readonly STYLE_DOT_REGEX = /\./;
+  private static readonly FAST_CHECK = /[<>]/;
 
   // Cache for parsed style strings to avoid repeated parsing
   private static readonly styleParseCache = new Map<string, ColorName[]>();
+  private static readonly MAX_CACHE_SIZE = 10000;
+
+  // Pre-parsed common styles for ultra-fast lookup
+  private static readonly COMMON_STYLES = new Map<string, ColorName[]>([
+    ['red', ['red']],
+    ['green', ['green']],
+    ['yellow', ['yellow']],
+    ['blue', ['blue']],
+    ['cyan', ['cyan']],
+    ['magenta', ['magenta']],
+    ['bold', ['bold']],
+    ['dim', ['dim']],
+    ['red.bold', ['red', 'bold']],
+    ['green.bold', ['green', 'bold']],
+    ['yellow.bold', ['yellow', 'bold']],
+    ['blue.bold', ['blue', 'bold']],
+    ['cyan.bold', ['cyan', 'bold']],
+    ['error', ['red', 'bold']],
+    ['success', ['green', 'bold']],
+    ['warning', ['yellow', 'bold']],
+    ['info', ['blue']],
+    ['debug', ['gray']],
+  ])
 
   // Hoisted valid styles set for parseStyleString checks
   private static readonly VALID_STYLES: Set<string> = new Set<string>([
@@ -463,8 +487,11 @@ export class TextStyler {
       plainText += beforeText;
       styledText += beforeText;
 
-      // Parse styles
-      const parsedStyles = TextStyler.parseStyleString(styleString);
+      // Fast style lookup with COMMON_STYLES first
+      let parsedStyles = TextStyler.COMMON_STYLES.get(styleString);
+      if (!parsedStyles) {
+        parsedStyles = TextStyler.parseStyleString(styleString);
+      }
 
       if (parsedStyles.length > 0) {
         // Even empty content should be handled
@@ -537,7 +564,13 @@ export class TextStyler {
       return [];
     }
 
-    // Check cache first
+    // Check common styles first for ultra-fast lookup
+    const common = TextStyler.COMMON_STYLES.get(styleString);
+    if (common) {
+      return common;
+    }
+
+    // Check cache
     const cached = TextStyler.styleParseCache.get(styleString);
     if (cached) {
       return cached;
@@ -667,12 +700,15 @@ export class TextStyler {
     // Cache the result
     TextStyler.styleParseCache.set(styleString, result);
 
-    // Limit cache size to prevent memory issues
-    if (TextStyler.styleParseCache.size > 1000) {
-      // Clear the oldest half of entries
-      const entries = Array.from(TextStyler.styleParseCache.entries());
-      const toDelete = entries.slice(0, 500);
-      toDelete.forEach(([key]) => TextStyler.styleParseCache.delete(key));
+    // Limit cache size to prevent memory issues - increased limit for better performance
+    if (TextStyler.styleParseCache.size > TextStyler.MAX_CACHE_SIZE) {
+      // Clear half of cache (simple strategy)
+      const toDelete = TextStyler.MAX_CACHE_SIZE / 2;
+      let deleted = 0;
+      for (const [key] of TextStyler.styleParseCache) {
+        TextStyler.styleParseCache.delete(key);
+        if (++deleted >= toDelete) break;
+      }
     }
 
     return result;

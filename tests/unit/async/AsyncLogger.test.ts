@@ -288,6 +288,7 @@ describe('AsyncLogger', () => {
       const logger = new AsyncLogger({
         transports: [mockTransport],
         onFlush,
+        buffer: { size: 10 }, // Use batching to trigger onFlush
       });
 
       // Log some entries
@@ -344,10 +345,11 @@ describe('AsyncLogger', () => {
         transports: [mockTransport],
       });
 
-      // AsyncLogger should not expose buffer-related properties publicly
-      // These are internal implementation details
+      // AsyncLogger ring buffer is OFF by default for performance
+      // buffer property should not exist (we use batch array internally)
       expect((logger as any).buffer).toBeUndefined();
-      expect((logger as any).ringBuffer).toBeUndefined();
+      // ringBuffer is OFF by default (was adding ~40% overhead)
+      expect((logger as any).ringBuffer).toBeNull();
       // flushInterval is private and internal, so it exists but shouldn't be accessed
       expect(typeof (logger as any).flushInterval).toBe('number');
     });

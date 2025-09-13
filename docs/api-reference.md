@@ -27,14 +27,15 @@ interface LoggerOptions {
   verbose?: boolean;               // Enable verbose output
   useColors?: boolean;             // Enable colored output (default: true)
   useConsole?: boolean;            // Add console transport (default: true)
-  
+
   // Styling & themes
   theme?: string | ThemeDefinition;
-  
+
   // Performance features
   buffer?: BufferOptions;         // Buffer configuration for batching
   sampling?: SamplingOptions;      // Sample logs to reduce volume
   rateLimit?: RateLimitOptions;    // Rate limiting to prevent log flooding
+  timestampCaching?: boolean;     // Cache timestamps for performance (default: true)
   
   // Security
   redaction?: RedactionOptions;
@@ -133,7 +134,8 @@ interface AsyncLoggerOptions extends LoggerOptions {
   transports?: Transport[];  // Array of transports to use
   enableMetrics?: boolean;   // Enable performance metrics
   id?: string;              // Logger identifier
-  
+  timestampCaching?: boolean; // Cache timestamps for performance (default: true)
+
   // Operational utilities (optional)
   rateLimiter?: RateLimiter | RateLimiterOptions;
   redactor?: Redactor | RedactorOptions;
@@ -178,6 +180,7 @@ interface SyncLoggerOptions extends LoggerOptions {
   file?: string;           // Log file path
   forceFlush?: boolean;    // fsync after each write
   encoding?: BufferEncoding; // File encoding (default: 'utf8')
+  timestampCaching?: boolean; // Cache timestamps (default: true, disable for audit logs)
 }
 ```
 

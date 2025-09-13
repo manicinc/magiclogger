@@ -36,9 +36,9 @@ describe('createAsyncLogger factory', () => {
     it('should use fast default buffer configuration', async () => {
       const logger = createAsyncLogger();
 
-      // Fast defaults: buffer size 100 (workers off by default)
+      // Fast defaults: batch size 1 for direct passthrough to sonic-boom
       const stats = logger.getStats();
-      expect(stats.buffer.capacity).toBe(100);
+      expect(stats.buffer.capacity).toBe(1);
 
       await logger.close();
     });
@@ -74,7 +74,7 @@ describe('createAsyncLogger factory', () => {
 
     it('should process entries through onFlush', async () => {
       const logger = createAsyncLogger({
-        buffer: { flushInterval: 10 }, // Quick flush for testing
+        buffer: { size: 10, flushInterval: 10 }, // Use batching to trigger onFlush
         onFlush: flushHandler,
       });
 
@@ -144,6 +144,7 @@ describe('createAsyncLogger factory', () => {
     it('should accept sampler configuration', async () => {
       const logger = createAsyncLogger({
         onFlush: flushHandler,
+        buffer: { size: 50 }, // Use batching to trigger onFlush
         // sampler: { rate: 0.5, strategy: 'random' }, // Not implemented yet
       });
 
@@ -273,6 +274,7 @@ describe('createAsyncLogger factory', () => {
     it('should support critical logging', async () => {
       const logger = createAsyncLogger({
         onFlush: flushHandler,
+        buffer: { size: 10 }, // Use batching to trigger onFlush
       });
 
       // Critical logging should retry on failure
@@ -291,7 +293,7 @@ describe('createAsyncLogger factory', () => {
   describe('Graceful shutdown', () => {
     it('should flush pending logs on close', async () => {
       const logger = createAsyncLogger({
-        buffer: { flushInterval: 10000 }, // Long interval
+        buffer: { size: 10, flushInterval: 10000 }, // Use batching with long interval
         onFlush: flushHandler,
       });
 
@@ -310,6 +312,7 @@ describe('createAsyncLogger factory', () => {
     it('should support flushAndWait', async () => {
       const logger = createAsyncLogger({
         onFlush: flushHandler,
+        buffer: { size: 10 }, // Use batching to trigger onFlush
       });
 
       logger.info('Test message');
@@ -327,6 +330,7 @@ describe('createAsyncLogger factory', () => {
     it('should provide buffer statistics', async () => {
       const logger = createAsyncLogger({
         onFlush: flushHandler,
+        buffer: { size: 10 }, // Use batching to trigger onFlush
       });
 
       logger.info('Test');

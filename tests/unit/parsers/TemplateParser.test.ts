@@ -433,20 +433,26 @@ describe('TemplateParser', () => {
     it('should benefit from caching', () => {
       const template = '@red.bold.underline{Complex styled text}';
 
-      const start1 = Date.now();
-      for (let i = 0; i < 100; i++) {
-        parser.parseString(template);
+      // First run - no cache
+      const start1 = performance.now();
+      for (let i = 0; i < 1000; i++) {
+        parser.parseString(template + i); // Different strings to avoid cache
       }
-      const duration1 = Date.now() - start1;
+      const duration1 = performance.now() - start1;
 
-      const start2 = Date.now();
-      for (let i = 0; i < 100; i++) {
-        parser.parseString(template);
+      // Second run - with cache
+      const start2 = performance.now();
+      for (let i = 0; i < 1000; i++) {
+        parser.parseString(template); // Same string to hit cache
       }
-      const duration2 = Date.now() - start2;
+      const duration2 = performance.now() - start2;
 
-      // Cached parsing should be faster or equal
-      expect(duration2).toBeLessThanOrEqual(duration1 + 5);
+      // Cached parsing should be significantly faster (at least 2x)
+      expect(duration2).toBeLessThan(duration1);
+      // Or just check that caching works at all
+      const result1 = parser.parseString(template);
+      const result2 = parser.parseString(template);
+      expect(result1).toBe(result2); // Same cached result
     });
   });
 

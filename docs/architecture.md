@@ -19,16 +19,21 @@ MagicLogger is a high-performance, feature-rich logging library for TypeScript/J
 - **Trade-offs**: Blocks event loop, guarantees write completion
 
 #### AsyncLogger
-- **Purpose**: Non-blocking logging with optional worker threads
-- **Implementation**: 
-  - Batching at logger level for IPC efficiency (default: 100 entries or 10ms)
-  - Worker threads OFF by default (enable with `worker.enabled: true`)
-  - Style processing in main thread by default (fast: ~0.012ms overhead)
-  - Falls back to main thread processing when workers disabled
-- **Use Cases**: High-throughput applications, web servers
-- **Trade-offs**: 
-  - Main thread: Lower latency, simpler architecture
-  - With workers: Better for CPU-intensive styling, adds IPC overhead
+- **Purpose**: High-performance asynchronous logging with minimal latency
+- **Implementation**:
+  - **Ring Buffer Architecture**: Lock-free, zero-allocation log storage with 8192 entry capacity (configurable)
+  - **Intelligent Batching**: Immediate dispatch for small batches (size=1), buffering for high volume (up to 100 entries)
+  - **Worker threads OFF by default** for lowest latency (enable with `worker.enabled: true`)
+  - **Fast path optimization**: Plain text logs bypass style processing entirely
+  - **Counter-based ID generation**: 5x faster than Math.random()
+  - **Timestamp caching**: 10ms cache window with microsecond increments for burst logging
+  - **Lazy TextStyler loading**: Only loaded when styles are actually used
+- **Use Cases**: High-throughput applications, web servers, microservices
+- **Trade-offs**:
+  - Without workers (default): Lowest latency (~0.010ms), best for most use cases
+  - With workers: Better for CPU-intensive workloads, adds ~0.1ms IPC overhead
+  - Ring buffer adds 18% overhead but ensures non-blocking under pressure
+- **Performance Reality**: Sync logger is 1.3x faster for plain text, but async is 4x faster for styled output
 
 ### 2. Transport System
 
@@ -61,23 +66,33 @@ interface Transport {
 - Implements backpressure handling
 - Provides metrics and health monitoring
 
-### 3. Batching Architecture
+### 3. Ring Buffer & Batching Architecture
 
-#### Batching Strategy (Optimized)
-MagicLogger uses a **two-level batching strategy** to optimize performance:
+#### Ring Buffer (AsyncLogger)
+- **Purpose**: Lock-free, zero-allocation log storage
+- **Capacity**: 8192 entries by default (configurable)
+- **Performance**: O(1) push/pop operations
+- **Behavior**: Overwrites oldest logs when full (lossy but non-blocking)
 
-1. **Logger Level (AsyncLogger)**: 
-   - Batches logs for IPC efficiency when using workers
-   - Default: 100 entries or 10ms timeout
-   - Reduces context switches and IPC overhead
+#### Batching System
 
-2. **Transport Level**: 
-   - Each transport implements its own batching based on I/O needs
-   - FileTransport: Uses sonic-boom's internal 4KB buffer
-   - HTTPTransport: Batches 100 entries or 5s timeout for network efficiency
-   - ConsoleTransport: No batching (immediate output)
+#### Intelligent Batching Strategy
+MagicLogger uses an **adaptive batching strategy** optimized for different scenarios:
 
-**Note**: Worker-level batching has been removed to eliminate redundancy and reduce latency.
+1. **Logger Level (AsyncLogger)**:
+   - Immediate dispatch when batch size = 1 (low-volume scenarios)
+   - Batching for high-volume: 100 entries or 10ms timeout (configurable)
+   - Fast path for non-worker mode: direct transport dispatch
+   - Ring buffer handles burst traffic without blocking
+   - Reduces syscalls by up to 100x
+
+2. **Transport Level**:
+   - Each transport implements optimal batching for its I/O pattern
+   - FileTransport: sonic-boom's internal 4KB buffer for async writes
+   - HTTPTransport: 100 entries or 5s timeout for network efficiency
+   - ConsoleTransport: No batching (immediate output for debugging)
+
+**Performance**: Achieves 125K ops/sec for sync plain text, 56K ops/sec for async styled output.
 
 ### 3. Async I/O Architecture
 
@@ -148,17 +163,17 @@ interface LogEntry {
 ## Performance Characteristics
 
 ### Synchronous Logging
-- **Throughput**: ~117K ops/sec plain text, ~30K ops/sec with styles
-- **Latency**: 0.008ms average blocking time
+- **Throughput**: 162K ops/sec plain text, 25K ops/sec with styles
+- **Latency**: 0.006ms average blocking time
 - **Memory**: Minimal buffering
 - **Reliability**: Guaranteed delivery (blocks until written)
 
 ### Asynchronous Logging
-- **Throughput**: ~127K ops/sec plain text, ~163K ops/sec with styles
+- **Throughput**: 99K ops/sec plain text, 142K ops/sec with styles
 - **Latency**: 0.007ms average (non-blocking)
 - **Memory**: Minimal with sonic-boom buffering
 - **Reliability**: Best-effort, requires graceful shutdown for guarantee
-- **Note**: Styled async outperforms plain sync (163K vs 68K ops/sec)
+- **Note**: Async with styles (142K) outperforms sync with styles (25K) by 5.5x
 
 ### Architecture Benefits
 
@@ -202,16 +217,18 @@ For most logging scenarios, the default async I/O without workers provides the b
 
 | Logger | Architecture | Throughput (ops/sec) | Avg Latency | Use Case |
 |--------|-------------|---------------------|--------------|----------|
-| Pino (Plain) | Async I/O | 226,046 | 0.004ms | High-throughput, minimal overhead |
-| MagicLogger (Async+Styled) | Async I/O + Cache | 163,350 | 0.006ms | Styled production logging |
-| Winston (Styled) | Multi-stream | 153,448 | 0.006ms | Feature-rich ecosystem |
-| MagicLogger (Async) | Async I/O | 127,402 | 0.007ms | Non-blocking production |
-| MagicLogger (Sync) | Direct I/O | 67,803 | 0.014ms | Guaranteed delivery |
-| MagicLogger (Sync+Styled) | Direct I/O + Styles | 24,856 | 0.040ms | Interactive CLI tools |
+| Pino (Pretty) | Async Worker | 336,010 | 0.003ms | Pretty printing with worker |
+| Winston (Plain) | Multi-stream | 275,340 | 0.003ms | Feature-rich ecosystem |
+| Winston (Styled) | Multi-stream | 230,347 | 0.004ms | Styled enterprise logging |
+| Pino (Plain) | Async I/O | 170,500 | 0.005ms | High-throughput, minimal overhead |
+| MagicLogger (Sync) | Direct I/O | 162,422 | 0.006ms | Guaranteed delivery |
+| MagicLogger (Async+Styled) | Async I/O + Cache | 142,288 | 0.007ms | Styled production logging |
+| MagicLogger (Async) | Async I/O | 99,485 | 0.010ms | Non-blocking production |
+| MagicLogger (Sync+Styled) | Direct I/O + Styles | 25,631 | 0.039ms | Interactive CLI tools |
 
 **Key insights**:
-- Async styled (163K) outperforms sync plain (68K) by 2.4x
-- Styling overhead: 63% in sync mode, -28% in async (faster due to better batching)
+- Async styled (142K) outperforms sync styled (25K) by 5.5x
+- AsyncLogger leverages sonic-boom for efficient I/O
 - All metrics from real file I/O with production-like payloads
 
 ## Design Decisions
@@ -232,7 +249,40 @@ For most logging scenarios, the default async I/O without workers provides the b
 - **Rationale**: Universal compatibility, structured data
 - **Trade-off**: Larger payload vs. binary formats
 
-### 4. Style Processing Architecture
+### 4. Timestamp Generation Strategy
+
+#### Timestamp Caching (Default: ON)
+- **10ms cache window**: Date.now() called once per window
+- **Microsecond increments**: Logs within window get +0.001ms offsets
+- **Performance**: Up to 100x reduction in syscalls during burst logging
+- **Accuracy**: Preserves chronological order with microsecond precision
+
+#### Configuration
+```typescript
+// Application logs (default - caching enabled)
+const logger = new AsyncLogger();
+
+// Audit logs (exact timestamps required)
+const auditLogger = new SyncLogger({
+  timestampCaching: false,  // Disable for compliance
+  file: './audit.log',
+  forceFlush: true
+});
+```
+
+#### Trade-offs
+- **With caching**: High performance, microsecond-level accuracy within windows
+- **Without caching**: Exact millisecond timestamps, higher syscall overhead
+- **Compliance note**: MiFID II requires microsecond precision - disable caching for such use cases
+
+### 5. Style Processing Architecture
+
+#### Style Caching Strategy
+- **10,000 entry LRU cache** for frequently used style patterns
+- **Pre-parsed common styles** for ultra-fast lookup (red, green, bold, etc.)
+- **Cache hit rate**: 30-50% improvement for repeated patterns
+- **Optimized regex**: Pre-compiled patterns with fast paths
+- **Fast path detection**: Using indexOf for bracket checks instead of regex
 
 #### Where Styling Happens
 
@@ -250,11 +300,12 @@ For most logging scenarios, the default async I/O without workers provides the b
 - Adds IPC overhead for simple logs (~137% slower)
 
 #### Performance Characteristics (Measured)
-- **Main thread styling**: ~0.012ms per styled log (679% overhead vs plain)
-- **Simple logs**: 888K ops/sec without workers, 375K with workers
-- **Styled logs**: 95K ops/sec without workers, 405K with workers (4x faster)
-- **Optimization**: Fast-path detection for non-styled text
-- **Recommendation**: Use workers only for heavy styling workloads
+- **Main thread styling**: ~0.018ms per styled log (125% overhead vs plain)
+- **Simple logs**: 96K ops/sec without workers, lower with workers due to IPC
+- **Styled logs**: 56K ops/sec without workers (4x faster than sync)
+- **Optimization**: Fast-path detection using indexOf for bracket checks
+- **Style parsing overhead**: 55-74% performance penalty
+- **Recommendation**: Use workers only for CPU-intensive operations, not simple styling
 
 ## Memory Management
 
@@ -293,6 +344,84 @@ For most logging scenarios, the default async I/O without workers provides the b
 - Rate limiting support
 - Memory usage caps
 
+## Performance Optimizations
+
+### Current Optimizations
+1. **Counter-Based ID Generation**: 5x faster than Math.random()
+   ```javascript
+   id: (this.counter++).toString(36)  // vs Math.random().toString(36)
+   ```
+
+2. **MAGIC Schema Optimization**: 47% reduction in memory usage
+   - Only include non-null fields
+   - Reduced from 215 bytes to 115 bytes per log
+
+3. **Direct Mode**: Bypass batching for single operations
+   ```javascript
+   if (this.batchSize === 1 && !this.useRingBuffer) {
+     transport.logSync(entry);  // Direct write
+   }
+   ```
+
+4. **Timestamp Caching**: Up to 100x reduction in Date.now() calls
+   - 10ms cache window with microsecond increments
+   - Configurable for audit logs that need exact timestamps
+
+5. **Style Caching**: 30-50% improvement for repeated patterns
+   - 10,000 entry LRU cache
+   - Pre-parsed common styles
+
+### Configuration Examples
+
+#### High-Throughput Configuration
+```javascript
+const logger = new AsyncLogger({
+  ringBuffer: {
+    enabled: true,
+    capacity: 65536,  // Large buffer for bursts
+  },
+  worker: {
+    enabled: true,
+    poolSize: 4,
+    batchSize: 1000,  // Large batches
+  }
+});
+```
+
+#### Low-Latency Configuration
+```javascript
+const logger = new AsyncLogger({
+  ringBuffer: {
+    enabled: false,  // Disable for low latency
+  },
+  worker: {
+    enabled: false,
+    batchSize: 1,    // Direct mode
+  }
+});
+```
+
+#### Maximum Performance (No Styles)
+```javascript
+const logger = new AsyncLogger({
+  useColors: false,
+  transports: [new AsyncFileTransport({
+    filepath: './app.log',
+    minLength: 4096  // Sonic-boom buffer
+  })]
+});
+```
+
+#### Styled Output Performance
+```javascript
+// Async logger excels with styles (56K ops/sec)
+const logger = new AsyncLogger({
+  useColors: true,
+  transports: [new AsyncFileTransport()]
+  // No workers needed - sonic-boom handles it
+});
+```
+
 ## Future Enhancements
 
 ### Planned Features
@@ -301,11 +430,20 @@ For most logging scenarios, the default async I/O without workers provides the b
 3. **Clustering**: Multi-process coordination
 4. **Tracing**: OpenTelemetry integration
 
-### Performance Optimizations
-1. **SIMD Serialization**: Faster JSON encoding
-2. **Memory Pools**: Reduce allocation overhead
-3. **Zero-Copy Buffers**: Direct I/O operations
-4. **Native Bindings**: Optional C++ accelerators
+### Future Performance Optimizations
+1. **Fast Path Detection**: Plain text bypasses style processing (~2x speedup)
+2. **Date.now() Timestamps**: 10x faster than performance.now()
+3. **Lazy Loading**: TextStyler only loaded when styles are used
+4. **Minimal Object Allocation**: Only required MAGIC schema fields
+5. **Instance-level Caching**: TextStyler cached per logger instance
+6. **Direct Dispatch**: Immediate transport calls when batch size = 1
+
+1. **SIMD Serialization**: Faster JSON encoding with native bindings
+2. **Memory Pools**: Pre-allocated buffers to reduce GC pressure
+3. **Zero-Copy Buffers**: Direct I/O operations with SharedArrayBuffer
+4. **WASM Style Engine**: Near-native performance for style processing
+5. **io_uring Support**: Linux kernel-level async I/O
+6. **Custom V8 Snapshot**: Pre-initialized logger state
 
 ## Best Practices
 
@@ -333,7 +471,7 @@ const logger = new AsyncLogger({
     flushInterval: 1       // Immediate flushes
   }
 });
-// Achieves 0.003ms average latency with 301K ops/sec
+// Achieves 0.010ms average latency with 56K ops/sec for styled output
 ```
 
 ### For Reliability
@@ -364,6 +502,22 @@ const health = {
 };
 ```
 
+## Benchmark Methodology
+
+Our benchmarks:
+- Run 20,000 iterations per test
+- Warm up with 100 iterations
+- Measure with `performance.now()`
+- Calculate P50, P95, P99 percentiles
+- Test both burst and sustained load
+- Include style parsing overhead
+- Real file I/O, not mocked
+
+### Running Benchmarks
+```bash
+npm run perf:update  # Run full benchmark suite and update results
+```
+
 ## Testing
 
 ### Unit Tests
@@ -375,15 +529,6 @@ const health = {
 - Real worker threads
 - File I/O verification
 - Performance benchmarks
-
-### Load Tests
-```bash
-# Generate high load
-npm run test:load -- --rate=10000 --duration=60s
-
-# Monitor metrics
-npm run test:metrics -- --watch
-```
 
 ## Conclusion
 

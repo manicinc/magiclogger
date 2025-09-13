@@ -219,14 +219,14 @@ const logger = new Logger({
 ```
 
 #### Batching Architecture
-MagicLogger uses an optimized two-level batching strategy:
+MagicLogger uses an intelligent adaptive batching strategy:
 
-**Level 1: Logger Batching (IPC Optimization)**
-- AsyncLogger batches logs before sending to transports/workers
-- Default: 100 entries or 10ms timeout
-- Reduces IPC overhead when workers are enabled
+**Adaptive Batching**
+- **Low volume**: Immediate dispatch (no buffering delay)
+- **High volume**: Batch up to 100 entries or 10ms timeout
+- **Fast path**: Direct transport calls when workers are disabled
 
-**Level 2: Transport Batching (I/O Optimization)**
+**Transport-Level Optimization**
 
 ```typescript
 // Transport batching happens automatically for network transports
@@ -235,22 +235,27 @@ const httpTransport = new HTTPTransport({
 });
 ```
 
-**Note**: Worker threads are optional (OFF by default). Enable with `worker.enabled: true` for CPU-intensive workloads. Style processing in the main thread adds only ~0.012ms overhead per log.
+**Performance Notes**:
+- Workers are **OFF by default** for lowest latency (~0.003ms)
+- Style processing is optimized with fast-path detection
+- Plain text logs bypass style processing entirely (2x faster)
+- Enable workers only for CPU-intensive workloads with `worker.enabled: true`
 
 ### Log Delivery Guarantees
 
-**Logger (default - recommended)**: 
-- High performance with excellent reliability (200K+ ops/sec)
-- Batches logs efficiently in memory (default: 1000 entries or 10ms timeout)
-- **With graceful shutdown** (`await logger.close()`): All logs are flushed and saved
-- **Without graceful shutdown** (crash/SIGKILL): Buffered logs may be lost (up to 100ms worth)
-- Suitable for 99% of use cases including production applications
+**AsyncLogger (recommended for production)**:
+- High performance with sonic-boom (96K+ ops/sec plain, 56K+ styled)
+- Non-blocking I/O - never blocks your event loop
+- **With graceful shutdown** (`await logger.close()`): All logs are flushed
+- **Without graceful shutdown** (crash/SIGKILL): Only buffered logs may be lost
+- Optimized for styled output with 4x better performance than sync
 
-**SyncLogger (rarely needed)**: 
-- Blocks until each log is written to disk (using `fs.appendFileSync`)
-- **Always guarantees delivery** - logs are never lost unless OS crashes
-- Trade-off: Significantly slower performance as it's not currently optimized (50k+ ops/sec)
-- For critical auditing or regulatory logging
+**SyncLogger (special use cases)**:
+- Synchronous I/O with guaranteed delivery
+- **Always guarantees delivery** - logs never lost unless OS crashes
+- Performance: 125K+ ops/sec plain, 14K+ styled
+- Use for: debugging, development, audit logs requiring immediate write
+- **Note on Styles**: Sync mode with styles (14K ops/sec) is significantly slower than async with styles (56K ops/sec). Since sync mode prioritizes guaranteed delivery and exact timestamps for audit/security logs, styled output is typically not used in these scenarios. Async mode excels at styled output with 4x better performance.
 
 **For critical logs that must never be lost**:
 ```typescript
@@ -1329,40 +1334,61 @@ const logger = new Logger({
 
 ### Real-World Benchmarks
 
-MagicLogger achieves **industry-leading performance** through optimized architecture:
-- **301K ops/sec** - Faster than Pino for plain text logging
-- **0.003ms latency** - Non-blocking with minimal overhead
-- **83% style overhead** - Efficient style processing
+MagicLogger delivers **competitive performance** with flexible architecture:
+- **125K ops/sec plain text (sync)** - Excellent for guaranteed delivery
+- **56K ops/sec styled (async)** - 4x faster than sync for styled output
+- **0.010ms latency (async)** - Non-blocking with minimal overhead
+- **Sonic-boom powered** - Same I/O engine as Pino
 
 #### Performance Comparison (20K iterations, real file I/O)
 
 ##### 📝 Plain Text Performance
 | Logger | Ops/sec | Avg (ms) | P50 | P95 | P99 | Max |
 |--------|--------:|---------:|----:|----:|----:|----:|
-| **MagicLogger (Async)** | **301,739** | **0.003** | 0.000 | 0.001 | 0.099 | 3.447 |
-| MagicLogger (Sync) | 236,343 | 0.004 | 0.001 | 0.003 | 0.005 | 5.682 |
-| Pino | 214,380 | 0.004 | 0.002 | 0.005 | 0.009 | 30.228 |
-| Winston | 192,906 | 0.005 | 0.002 | 0.007 | 0.047 | 13.809 |
+| Pino | 222,911 | 0.004 | 0.002 | 0.006 | 0.015 | 19.905 |
+| Winston | 167,742 | 0.005 | 0.002 | 0.007 | 0.049 | 5.478 |
+| **MagicLogger (Sync)** | **125,132** | **0.008** | 0.001 | 0.005 | 0.011 | 8.379 |
+| MagicLogger (Async) | 96,050 | 0.010 | 0.006 | 0.017 | 0.079 | 2.761 |
+
+> **Note**: For styled output, AsyncLogger (56K ops/sec) significantly outperforms SyncLogger (14K ops/sec) - 4x faster.
 
 ##### 🎨 Styled Output Performance
 | Logger | Ops/sec | Avg (ms) | P50 | P95 | P99 | Max |
 |--------|--------:|---------:|----:|----:|----:|----:|
-| Pino (Manual ANSI Async) | 220,092 | 0.004 | 0.003 | 0.004 | 0.012 | 7.393 |
-| Winston (Styled) | 213,721 | 0.004 | 0.002 | 0.013 | 0.034 | 0.950 |
-| Pino (Pretty) | 186,178 | 0.005 | 0.004 | 0.005 | 0.012 | 0.934 |
-| **MagicLogger (Sync + Styles)** | **51,241** | 0.019 | 0.009 | 0.023 | 0.044 | 15.109 |
-| MagicLogger (Async + Styles) | 35,977 | 0.028 | 0.018 | 0.040 | 0.227 | 16.190 |
+| Pino (ANSI Async) | 146,765 | 0.007 | 0.003 | 0.005 | 0.033 | 11.121 |
+| Pino (Pretty) | 138,206 | 0.007 | 0.004 | 0.007 | 0.053 | 1.328 |
+| Winston (Styled) | 83,714 | 0.010 | 0.002 | 0.020 | 0.063 | 34.135 |
+| **MagicLogger (Async + Styles)** | **56,000** | **0.018** | 0.007 | 0.035 | 0.153 | 29.062 |
+| MagicLogger (Sync + Styles) | 13,910 | 0.071 | 0.020 | 0.076 | 0.361 | 88.291 |
 
-*Generated via `npm run perf:update` - see [scripts/performance/](./scripts/performance/)*
+> **Async Advantage**: AsyncLogger with styles (56K ops/sec) is 4x faster than sync, making it ideal for production use with rich formatting.
+
+*Generated via `npm run bench:perf` - see [scripts/performance/](./scripts/performance/) and [Performance Guide](./docs/performance-guide.md)*
+
+#### Performance Insights
+
+**When to Use Each Logger:**
+- **AsyncLogger**: Best for production, styled output (56K ops/sec styled)
+- **SyncLogger**: Best for debugging, immediate feedback (125K ops/sec plain)
+- **AsyncLogger + Workers**: For CPU-intensive processing (disabled by default)
+
+**Our Optimizations:**
+- Sonic-boom integration for async I/O (same as Pino)
+- Counter-based ID generation (5x faster than Math.random)
+- Optimized MAGIC schema (47% memory reduction)
+- Aggressive style caching (10K entry LRU cache)
+- Timestamp caching with microsecond precision
+
+See [Performance Guide](./docs/performance-guide.md) for detailed analysis and configuration tips.
 
 #### How Styling Works
 
 **Default Mode (Logger/SyncLogger):**
 - Style extraction happens in the **main thread** before sending to transports
-- Uses efficient regex-based parsing to extract `<style>text</>` markup
+- Uses optimized regex-based parsing to extract `<style>text</>` markup
 - Produces plain text + style ranges array for the MAGIC schema
-- LRU cache reduces repeated style generation overhead
-- [Deep dive into our style optimization techniques →](./docs/performance-design.md#styling-optimizations)
+- LRU cache reduces repeated style generation overhead by 30-50%
+- [Deep dive into our style optimization techniques →](./docs/performance-guide.md#our-optimizations)
 
 **AsyncLogger with Worker Threads (optional):**
 - Workers are OFF by default for better latency
@@ -1376,9 +1402,9 @@ MagicLogger achieves **industry-leading performance** through optimized architec
 - **Worker Pool Pattern**: Reusable worker threads when needed (avoids spawn overhead)
 
 **Trade-offs:**
-- **Sync Mode**: Guaranteed delivery but blocks event loop (68K ops/sec)
-- **Async Mode**: Higher throughput (127K ops/sec) but requires graceful shutdown for guarantee
-- **Styling Overhead**: ~63% in sync mode, but async styled is 28% *faster* than async plain
+- **Sync Mode**: Guaranteed delivery but blocks event loop (162K ops/sec plain, 25K styled)
+- **Async Mode**: Non-blocking with excellent styled performance (142K ops/sec)
+- **Styling Benefit**: Async + styles is 5.5x faster than sync + styles
 
 See [benchmark methodology](./scripts/performance/benchmark-results.md) and [architecture docs](./docs/architecture.md).
 

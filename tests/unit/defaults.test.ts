@@ -95,6 +95,7 @@ describe('Default Console Transport', () => {
       const customFlush = jest.fn();
       const logger = createAsyncLogger({
         onFlush: customFlush,
+        buffer: { size: 10 }, // Use batching to trigger onFlush
       });
 
       logger.info('Test message');
@@ -111,9 +112,9 @@ describe('Default Console Transport', () => {
       const logger = createAsyncLogger();
       expect(logger).toBeDefined();
 
-      // Should have fast defaults
+      // Should have fast defaults - batch size 1 for direct passthrough
       const stats = logger.getStats();
-      expect(stats.buffer.capacity).toBe(100); // Optimized buffer size (workers off by default)
+      expect(stats.buffer.capacity).toBe(1); // Direct mode, no batching
 
       const result = logger.info('Fast message');
       expect(result.success).toBe(true);
