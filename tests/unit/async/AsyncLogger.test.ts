@@ -288,6 +288,10 @@ describe('AsyncLogger', () => {
       const logger = new AsyncLogger({
         transports: [mockTransport],
         onFlush,
+        buffer: {
+          size: 100,           // Don't auto-flush on 2 messages
+          flushInterval: 1000  // Don't auto-flush from timer
+        }
       });
 
       // Log some entries
@@ -296,12 +300,34 @@ describe('AsyncLogger', () => {
 
       // Flush transports
       await logger.flush();
+      
+      // Wait for async processing - multiple rounds to ensure completion
+      await new Promise(resolve => setImmediate(resolve));
+      await new Promise(resolve => setImmediate(resolve));
 
-      // onFlush should be called with the entries
-      expect(onFlush).toHaveBeenCalledWith(
+      // With micro-batching, onFlush is called once with all entries
+      expect(onFlush).toHaveBeenCalled();
+      
+      // Find the call with our messages
+      const calls = onFlush.mock.calls;
+      console.log('onFlush calls:', calls.length);
+      console.log('All calls:', JSON.stringify(calls, null, 2));
+      calls.forEach((call, i) => {
+        console.log(`Call ${i}:`, call[0]?.length, 'entries');
+        if (call[0]?.length > 0) {
+          console.log('First entry:', call[0][0]);
+        }
+      });
+      
+      const batchWithMessages = calls.find(call => 
+        call[0] && call[0].some((entry: any) => entry.message === 'Message 1')
+      );
+      
+      expect(batchWithMessages).toBeDefined();
+      expect(batchWithMessages[0]).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ message: 'Message 1' }),
-          expect.objectContaining({ message: 'Message 2' }),
+          expect.objectContaining({ message: 'Message 2' })
         ])
       );
     });

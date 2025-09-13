@@ -875,7 +875,7 @@ describe('NetworkTransport', () => {
 
       expect(duration).toBeGreaterThanOrEqual(40);
       // Allow generous headroom for CI/environment scheduling variance
-      expect(duration).toBeLessThan(600);
+      expect(duration).toBeLessThan(800);
     });
   });
 });

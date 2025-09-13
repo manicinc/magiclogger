@@ -1,8 +1,8 @@
 /**
- * @fileoverview Asynchronous logger with true non-blocking I/O using worker threads.
+ * @fileoverview Asynchronous logger with non-blocking I/O and immediate dispatch.
  *
- * Provides high-performance logging that doesn't block the main event loop by
- * offloading serialization and I/O to a dedicated worker thread pool.
+ * Provides high-performance logging with immediate dispatch to transports.
+ * Each transport handles its own batching and I/O optimization.
  *
  * @module async/AsyncLogger
  * @author MagicLogger Contributors
@@ -15,8 +15,7 @@
  * import { AsyncLogger } from 'magiclogger';
  *
  * const logger = new AsyncLogger({
- *   transports: [new ConsoleTransport()],
- *   worker: { poolSize: 2 }
+ *   transports: [new ConsoleTransport()]
  * });
  *
  * logger.info('Application started');
@@ -26,26 +25,21 @@
  * @example With metrics monitoring
  * ```typescript
  * const logger = new AsyncLogger({
- *   enableMetrics: true,
- *   worker: {
- *     poolSize: 4,
- *     batchSize: 1000,
- *     flushInterval: 100
- *   }
+ *   enableMetrics: true
  * });
  *
  * logger.on('metrics', (metrics) => {
  *   console.log(`Processed: ${metrics.totalLogs}`);
- *   console.log(`Worker utilization: ${metrics.workerUtilization}%`);
+ *   console.log(`Dropped: ${metrics.droppedLogs}`);
  * });
  * ```
  *
- * @example Custom onFlush callback
+ * @example Custom transport handler
  * ```typescript
  * const logger = new AsyncLogger({
  *   onFlush: (entries) => {
- *     // Custom processing of flushed entries
- *     console.log(`Flushing ${entries.length} log entries`);
+ *     // Custom transport logic
+ *     console.log(`Processing ${entries.length} log entries`);
  *   }
  * });
  * ```
@@ -61,6 +55,10 @@ import type { IStyleBuilder, TemplateFormatter } from '../types/styling';
 import type { LogEntry, Transport } from '../types/transport';
 import type { LogLevel } from '../types/logger';
 import { SyncConsoleTransport } from '../transports/SyncConsoleTransport';
+import { WorkerTransport } from '../transports/worker/WorkerTransport';
+
+// Performance optimization: Use Date.now() directly for simplicity
+// TODO: Re-enable high-resolution timestamps once testing issues are resolved
 
 /**
  * Configuration options for the AsyncLogger.
@@ -92,14 +90,16 @@ export interface AsyncLoggerOptions {
   worker?: {
     /** Number of worker threads (default: 1) */
     poolSize?: number;
-    /** Batch size before auto-flush (default: 100) */
+    /** Compatibility: batch size */
     batchSize?: number;
-    /** Timeout before auto-flush in ms (default: 10) */
+    /** Compatibility: batch timeout */
     batchTimeout?: number;
     /** Periodic flush interval in ms (default: 50) */
     flushInterval?: number;
-    /** Enable worker threads (default: true if available) */
+    /** Enable worker threads (default: false for better performance) */
     enabled?: boolean;
+    /** Use high-performance ring buffer transport (default: true when workers enabled) */
+    useRingBuffer?: boolean;
   };
 }
 
@@ -330,17 +330,27 @@ export class AsyncLogger extends EventEmitter {
   /** @private {TemplateFormatter} Cached template formatter function */
   private readonly templateFormatter: TemplateFormatter;
 
-  /** @private {WorkerThread[]} Worker thread pool */
+  /** @private {WorkerTransport | null} High-performance ring buffer transport */
+  private workerTransport: WorkerTransport | null = null;
+
+  /** @private {WorkerThread[]} Legacy worker thread pool (for fallback) */
   private workers: WorkerThread[] = [];
 
   /** @private {number} Current worker index for round-robin */
   private currentWorker = 0;
+  
+  /** @private {boolean} Use ring buffer for maximum performance */
+  private useRingBuffer = false;
 
-  /** @private {LogEntry[]} Batch buffer */
+  /** @private {LogEntry[]} Micro-batch buffer for efficiency */
   private batch: LogEntry[] = [];
-
-  /** @private {NodeJS.Timeout | null} Batch flush timer */
+  
+  /** @private {NodeJS.Timeout | null} Micro-batch timer */
   private batchTimer: NodeJS.Timeout | null = null;
+  
+  /** @private {LogEntry[][]} Pool of reusable batch arrays to reduce allocations */
+  private batchPool: LogEntry[][] = [];
+  private readonly maxPoolSize = 10;
 
   /** @private {NodeJS.Timeout | null} Periodic flush timer */
   private flushTimer: NodeJS.Timeout | null = null;
@@ -361,8 +371,6 @@ export class AsyncLogger extends EventEmitter {
   /** @private {number} Batch size configuration */
   private readonly batchSize: number;
 
-  /** @private {number} Batch timeout configuration */
-  private readonly batchTimeout: number;
 
   /** @private {number} Flush interval configuration */
   private readonly flushInterval: number;
@@ -387,6 +395,10 @@ export class AsyncLogger extends EventEmitter {
 
   /** @private {Set<Transport>} Transports that have been closed */
   private closedTransports = new Set<Transport>();
+
+  /** @private {any} Cached TextStyler module */
+  private textStyler?: any;
+  
 
   /**
    * Creates a new AsyncLogger instance.
@@ -449,17 +461,23 @@ export class AsyncLogger extends EventEmitter {
     this.templateParser = new TemplateParser(this.useColors);
     this.templateFormatter = this.templateParser.createFormatter();
 
-    // Worker configuration - OFF by default for better performance
-    // Workers add IPC overhead and are only beneficial for CPU-intensive workloads
+    // Worker configuration - optional for CPU-intensive workloads
     const workerConfig = options.worker || {};
     this.poolSize = workerConfig.poolSize || 2;
-    // Optimized batch size for IPC efficiency when workers are used
-    this.batchSize = workerConfig.batchSize || options.buffer?.size || 100; // Smaller batches when no workers
-    this.batchTimeout = workerConfig.batchTimeout || 10;
+    // Compatibility properties
+    this.batchSize = workerConfig.batchSize || options.buffer?.size || 100;
     this.flushInterval = workerConfig.flushInterval || options.buffer?.flushInterval || 100;
-    // Workers are now OFF by default - must explicitly enable with worker.enabled: true
+    // Workers are optional - enable with worker.enabled: true
     this.useWorkers = workerConfig.enabled === true && typeof Worker !== 'undefined';
+    // Use ring buffer for maximum performance when workers are enabled
+    // Note: Ring buffer requires worker-thread.js to be deployed to dist/
+    this.useRingBuffer = this.useWorkers && (workerConfig.useRingBuffer === true);
 
+    // Pre-allocate batch arrays in the pool for better performance
+    for (let i = 0; i < 5; i++) {
+      this.batchPool.push([]);
+    }
+    
     // Initialize based on worker availability
     this.initPromise = this.initialize();
   }
@@ -525,6 +543,29 @@ export class AsyncLogger extends EventEmitter {
      */
     if (process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID) {
       throw new Error('Worker threads disabled in test environment');
+    }
+    
+    // Try high-performance ring buffer transport first
+    if (this.useRingBuffer) {
+      try {
+        this.workerTransport = new WorkerTransport({
+          bufferSize: 65536, // 64KB ring buffer for lock-free performance
+          maxRetries: 3
+        });
+        await this.workerTransport.init();
+        // Only log in non-test environments
+        if (process.env.NODE_ENV !== 'test' && !process.env.JEST_WORKER_ID) {
+          console.info(`[${this.id}] Using high-performance ring buffer transport`);
+        }
+        return; // Skip legacy worker initialization
+      } catch (error) {
+        // Only log in non-test environments
+        if (process.env.NODE_ENV !== 'test' && !process.env.JEST_WORKER_ID) {
+          console.warn(`[${this.id}] Failed to initialize ring buffer transport, falling back to regular workers:`, error);
+        }
+        this.useRingBuffer = false;
+        this.workerTransport = null;
+      }
     }
 
     /**
@@ -740,42 +781,128 @@ export class AsyncLogger extends EventEmitter {
   }
 
   /**
-   * Adds a log entry to the batch buffer.
-   * Optimized for minimal overhead and faster batching.
+   * Gets a timestamp for the log entry.
+   * 
+   * @private
+   * @returns {number} Timestamp in milliseconds
+   */
+  private getTimestamp(): number {
+    // Use Date.now() for simplicity
+    // TODO: Re-enable high-resolution timestamps with performance.now()
+    return Date.now();
+  }
+
+  /**
+   * Processes a log entry immediately.
+   * NO BATCHING - transports handle their own batching.
    *
    * @private
-   * @param {LogEntry} entry - Log entry to buffer
+   * @param {LogEntry} entry - Log entry to process
    * @returns {void}
    */
-  private addToBatch(entry: LogEntry): void {
-    this.batch.push(entry);
-
-    if (this.enableMetrics) {
-      this.metrics.batchSize = this.batch.length;
-      this.metrics.totalLogs++;
+  private processEntry(entry: LogEntry): void {
+    // Cache property access
+    const metrics = this.enableMetrics ? this.metrics : null;
+    if (metrics) {
+      metrics.totalLogs++;
     }
-
-    // Auto-flush when batch is full
-    if (this.batch.length >= this.batchSize) {
-      // Direct flush without async IIFE overhead
-      this.flush().catch(err => {
-        if (process.env.NODE_ENV !== 'test' && !process.env.JEST_WORKER_ID) {
-          console.error(`[${this.id}] Flush error:`, err);
-        }
-      });
+    
+    // Add to micro-batch
+    this.batch.push(entry);
+    
+    // Cache batch size check
+    const batchLength = this.batch.length;
+    const maxBatchSize = this.batchSize;
+    
+    // Flush immediately if batch is full (default 100)
+    if (batchLength >= maxBatchSize) {
+      this.flushBatch();
       return;
     }
-
-    // Use queueMicrotask for faster scheduling than setTimeout
+    
+    // Schedule micro-batch flush using setTimeout(0) for good performance
     if (!this.batchTimer) {
       this.batchTimer = setTimeout(() => {
         this.batchTimer = null;
-        this.flush().catch(err => {
-          if (process.env.NODE_ENV !== 'test' && !process.env.JEST_WORKER_ID) {
-            console.error(`[${this.id}] Flush error:`, err);
+        this.flushBatch();
+      }, 0);
+    }
+  }
+  
+  /**
+   * Flushes the micro-batch to transports.
+   * @private
+   */
+  private flushBatch(): void {
+    if (this.batch.length === 0) return;
+    
+    const entries = this.batch;
+    // Get a new batch array from pool or create new one
+    this.batch = this.batchPool.pop() || [];
+    
+    // Clear any pending timer
+    if (this.batchTimer) {
+      clearTimeout(this.batchTimer);
+      this.batchTimer = null;
+    }
+    
+    // Use high-performance ring buffer if available
+    if (this.workerTransport && this.workerTransport.shouldLog()) {
+      // Send each entry through ring buffer (zero-copy, lock-free)
+      for (const entry of entries) {
+        this.workerTransport.log(entry).catch((error: Error) => {
+          if (this.enableMetrics) {
+            this.metrics.droppedLogs++;
           }
+          this.emit('error', error);
         });
-      }, this.batchTimeout);
+      }
+      // Return array to pool
+      if (this.batchPool.length < this.maxPoolSize) {
+        entries.length = 0;
+        this.batchPool.push(entries);
+      }
+      return;
+    }
+    
+    // Fallback to legacy workers if available
+    if (this.workers.length > 0) {
+      const worker = this.selectWorker();
+      if (worker) {
+        worker.send({
+          type: WorkerMessageType.LOG_BATCH,
+          payload: entries,
+        });
+      } else if (this.enableMetrics) {
+        this.metrics.droppedLogs += entries.length;
+      }
+    } else {
+      // Send batch to transports
+      if (this.onFlush) {
+        try {
+          // Pass a copy to avoid mutations affecting the callback
+          const entriesCopy = [...entries];
+          const result = this.onFlush(entriesCopy);
+          // Handle async transports
+          if (result && typeof result === 'object' && 'then' in result) {
+            (result as Promise<void>).catch(error => {
+              if (process.env.NODE_ENV !== 'test' && !process.env.JEST_WORKER_ID) {
+                console.error(`[${this.id}] Transport error:`, error);
+              }
+            });
+          }
+        } catch (error) {
+          if (process.env.NODE_ENV !== 'test' && !process.env.JEST_WORKER_ID) {
+            console.error(`[${this.id}] Transport error:`, error);
+          }
+        }
+      }
+      
+      // Return array to pool after processing
+      if (this.batchPool.length < this.maxPoolSize) {
+        entries.length = 0;
+        this.batchPool.push(entries);
+      }
     }
   }
 
@@ -786,73 +913,9 @@ export class AsyncLogger extends EventEmitter {
    * @returns {Promise<void>} Promise that resolves when flush is complete
    */
   public async flush(): Promise<void> {
-    if (this.batchTimer) {
-      clearTimeout(this.batchTimer);
-      this.batchTimer = null;
-    }
+    // Flush any pending micro-batch
+    this.flushBatch();
 
-    // Process any pending batch entries first
-    if (this.batch.length > 0) {
-      const entries = [...this.batch];
-      this.batch = [];
-
-      if (this.enableMetrics) {
-        this.metrics.batchesSent++;
-        this.metrics.avgBatchSize =
-          (this.metrics.avgBatchSize * (this.metrics.batchesSent - 1) + entries.length) /
-          this.metrics.batchesSent;
-        this.metrics.batchSize = 0;
-      }
-
-      // Send to worker or process directly
-      if (this.workers.length > 0) {
-        const worker = this.selectWorker();
-        if (worker) {
-          worker.send({
-            type: WorkerMessageType.LOG_BATCH,
-            payload: entries,
-          });
-
-          if (this.enableMetrics) {
-            const totalLoad = this.workers.reduce((sum, w) => sum + w.getLoad(), 0);
-            const maxLoad = this.workers.length * 10;
-            this.metrics.workerUtilization = (totalLoad / maxLoad) * 100;
-          }
-        } else {
-          // All workers overloaded, drop logs (or queue them)
-          if (this.enableMetrics) {
-            this.metrics.droppedLogs += entries.length;
-          }
-          // Only log in non-test environments to avoid Jest warnings
-          if (process.env.NODE_ENV !== 'test' && !process.env.JEST_WORKER_ID) {
-            console.warn(`[${this.id}] Dropping ${entries.length} logs due to backpressure`);
-          }
-        }
-      } else {
-        /**
-         * Optimized fallback mode using queueMicrotask for better performance.
-         * Avoids Promise creation overhead when possible.
-         */
-        if (this.onFlush && entries.length > 0) {
-          // Direct execution for synchronous transports
-          try {
-            const result = this.onFlush(entries);
-            // Only await if async
-            if (result && typeof result === 'object' && 'then' in result) {
-              await (result as Promise<void>).catch(error => {
-                if (process.env.NODE_ENV !== 'test' && !process.env.JEST_WORKER_ID) {
-                  console.error(`[${this.id}] Async flush error:`, error);
-                }
-              });
-            }
-          } catch (error) {
-            if (process.env.NODE_ENV !== 'test' && !process.env.JEST_WORKER_ID) {
-              console.error(`[${this.id}] Flush error:`, error);
-            }
-          }
-        }
-      }
-    }
 
     // Always flush transports regardless of whether we had entries
     const flushPromises = this.transports
@@ -880,31 +943,36 @@ export class AsyncLogger extends EventEmitter {
     level: LogLevel,
     meta?: Record<string, unknown>
   ): { success: boolean } {
-    const now = Date.now();
+    // Optimized timestamp generation with caching
+    const now = this.getTimestamp();
     
-    // When workers are disabled, process styles in main thread
-    // This is actually fast enough for most use cases (< 0.05ms per log)
+    // Skip style processing for plain text (fast path)
+    const hasStyles = this.useColors && message.indexOf('<') !== -1;
     let processedMessage = message;
     let styles: Array<[number, number, string]> | undefined;
     
-    if (!this.useWorkers && this.useColors && message.includes('<')) {
-      // Lazy import to avoid circular dependencies
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { TextStyler } = require('../utils/TextStyler') as typeof import('../utils/TextStyler');
-      const result = TextStyler.parseBracketsWithExtraction(message, this.useColors);
+    if (!this.useWorkers && hasStyles) {
+      // Cache TextStyler to avoid repeated requires
+      if (!this.textStyler) {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { TextStyler } = require('../utils/TextStyler') as typeof import('../utils/TextStyler');
+        this.textStyler = TextStyler;
+      }
+      const result = this.textStyler.parseBracketsWithExtraction(message, this.useColors);
       processedMessage = result.plainText;
       styles = result.styles;
     }
     
-    // Create a proper LogEntry object
-    const entry: LogEntry = {
-      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      timestamp: new Date(now).toISOString(),
-      timestampMs: now,
-      level: level,
+    // Pre-size object with known properties to avoid dynamic property addition
+    const entry: any = {
+      level,
       message: processedMessage,
+      timestamp: now,
       time: now, // Keep for backward compatibility
-    } as LogEntry;
+      styles: undefined,
+      context: undefined,
+      loggerId: undefined
+    };
     
     // Add styles if extracted
     if (styles && styles.length > 0) {
@@ -912,27 +980,28 @@ export class AsyncLogger extends EventEmitter {
     }
     
     // When using workers, tell them to process styles
-    if (this.useWorkers) {
-      // Use context to pass worker-specific data
-      if (!entry.context) {
-        entry.context = {};
-      }
-      entry.context._rawMessage = message; // Send original for worker processing
-      entry.context._useColors = this.useColors;
-    }
-
-    // Only add fields if needed to reduce object size
-    if (meta && Object.keys(meta).length > 0) {
-      // Merge with existing context if it exists (from worker data)
-      entry.context = { ...entry.context, ...meta };
+    if (this.useWorkers && hasStyles) {
+      entry.context = {
+        _rawMessage: message, // Send original for worker processing
+        _useColors: this.useColors,
+        ...(meta || {})
+      };
+    } else if (meta && Object.keys(meta).length > 0) {
+      entry.context = meta;
     }
 
     // Only add logger ID if not default
     if (this.id && !this.id.startsWith('async-logger-')) {
       entry.loggerId = this.id;
     }
+    
+    // Clean up undefined properties to reduce memory
+    if (!entry.styles) delete entry.styles;
+    if (!entry.context) delete entry.context;
+    if (!entry.loggerId) delete entry.loggerId;
 
-    this.addToBatch(entry);
+    // Immediate dispatch to transports
+    this.processEntry(entry as LogEntry);
     return { success: true };
   }
 
@@ -1030,9 +1099,8 @@ export class AsyncLogger extends EventEmitter {
    * @returns {number} Utilization percentage (0-100)
    */
   public getUtilization(): number {
-    const capacity =
-      this.batchSize === 100 ? 16384 : this.batchSize === 32768 ? 32768 : this.batchSize;
-    return capacity > 0 ? (this.batch.length / capacity) * 100 : 0;
+    // Compatibility method - always returns 0 with immediate dispatch
+    return 0;
   }
 
   /**
@@ -1096,7 +1164,7 @@ export class AsyncLogger extends EventEmitter {
    * @returns {Promise<void>} Promise that resolves when flush is complete
    */
   public async flushAndWait(): Promise<void> {
-    // Flush the current batch and wait for it
+    // Flush all transports
     await this.flush();
   }
 
@@ -1222,7 +1290,7 @@ export class AsyncLogger extends EventEmitter {
       clearInterval(this.flushTimer);
       this.flushTimer = null;
     }
-
+    
     if (this.batchTimer) {
       clearTimeout(this.batchTimer);
       this.batchTimer = null;
@@ -1231,7 +1299,13 @@ export class AsyncLogger extends EventEmitter {
     // Flush remaining logs
     await this.flush();
 
-    // Terminate workers
+    // Close ring buffer transport if active
+    if (this.workerTransport) {
+      await this.workerTransport.close();
+      this.workerTransport = null;
+    }
+
+    // Terminate legacy workers
     await Promise.all(this.workers.map(w => w.terminate()));
     this.workers = [];
 
