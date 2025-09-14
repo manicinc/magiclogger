@@ -6,7 +6,7 @@
 /* Import Inter font */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-/* Import navbar dashboard styles */
+/* Import navbar dashboard styles (includes mobile menu fixes) */
 @import url('./navbar-dashboard.css');
 
 /* Root Variables - Light Mode */
@@ -230,10 +230,19 @@ nav.navbar {
   display: none; /* Hide text title since logo has text */
 }
 
-/* Mobile menu toggle button - minimal overrides */
+/* Mobile menu toggle button - fixed positioning */
 .navbar__toggle {
   cursor: pointer;
   z-index: 10;
+  position: absolute !important;
+  right: 1rem !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 40px !important;
+  height: 40px !important;
 }
 
 .navbar__link {
@@ -569,51 +578,98 @@ code {
 
 /* Mobile Responsive */
 @media (max-width: 996px) {
-  /* Keep navbar organized on tablet/mobile */
+  /* Fix navbar layout on mobile */
   .navbar__inner {
     position: relative;
     display: flex;
     align-items: center;
     justify-content: space-between;
+    padding: 0 1rem;
+    min-height: 60px;
   }
-  
+
+  /* Fix navbar items positioning */
   .navbar__items {
     flex: 1;
+    display: flex;
+    align-items: center;
   }
-  
+
   .navbar__items--right {
-    margin-right: 3rem; /* Space for hamburger */
+    margin-right: 60px !important; /* Space for hamburger button */
+    display: flex;
+    align-items: center;
   }
-  
+
   /* Keep logo size consistent */
   .navbar__logo img {
     height: 45px !important;
     min-height: 45px !important;
   }
-  
-  /* Ensure dashboard button stays visible and styled */
+
+  /* Fix dashboard button on mobile - prevent overflow */
   .navbar-dashboard-link {
-    margin: 0.25rem 0.5rem !important;
-    padding: 0.4rem 0.8rem !important;
-    font-size: 0.85rem;
+    margin: 0 !important;
+    padding: 0.35rem 0.7rem !important;
+    font-size: 0.8rem !important;
+    max-height: 36px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
   }
-  
+
   .navbar-dashboard-link::after {
-    font-size: 8px;
-    padding: 1px 4px;
+    font-size: 7px !important;
+    padding: 1px 3px !important;
+    top: -4px !important;
+    right: -4px !important;
   }
-  
-  /* Mobile menu sidebar - let Docusaurus handle most of it */
+
+  /* Fix mobile menu sidebar */
   .navbar-sidebar {
-    top: 60px; /* Account for fixed navbar */
+    position: fixed !important;
+    top: 60px !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: calc(100vh - 60px) !important;
+    background: var(--ifm-navbar-background-color) !important;
+    z-index: 999 !important;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease-in-out;
   }
-  
+
+  .navbar-sidebar--show {
+    transform: translateX(0) !important;
+  }
+
+  /* Style mobile menu items */
+  .navbar-sidebar .menu__list {
+    padding: 1rem;
+  }
+
+  .navbar-sidebar .menu__link {
+    padding: 0.75rem 1rem;
+    display: block;
+    color: var(--ifm-color-content);
+    border-radius: 8px;
+    transition: background 0.2s;
+  }
+
+  .navbar-sidebar .menu__link:hover {
+    background: rgba(153, 69, 255, 0.1);
+    color: var(--ifm-color-primary);
+  }
+
   /* Dark mode mobile sidebar */
-  [data-theme='dark'] .navbar-sidebar .navbar__item {
+  [data-theme='dark'] .navbar-sidebar {
+    background: var(--neo-bg-alt) !important;
+  }
+
+  [data-theme='dark'] .navbar-sidebar .menu__link {
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   }
-  
-  
+
   .hero {
     padding: 3rem 0 2rem;
   }
@@ -624,7 +680,19 @@ code {
     --ifm-spacing-horizontal: 1rem;
     --ifm-spacing-vertical: 1rem;
   }
-  
+
+  /* Further reduce dashboard button on small mobile */
+  .navbar-dashboard-link {
+    padding: 0.3rem 0.6rem !important;
+    font-size: 0.75rem !important;
+    max-height: 32px !important;
+  }
+
+  .navbar-dashboard-link::after {
+    font-size: 6px !important;
+    padding: 0px 2px !important;
+  }
+
   .button {
     padding: 0.6rem 1.2rem;
     font-size: 0.9rem;
