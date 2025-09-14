@@ -21,9 +21,9 @@ describe('AsyncLoggerWorker Direct Processing', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.resetModules();
-    
+
     postMessage = jest.fn();
-    
+
     // Mock worker environment
     jest.doMock('node:worker_threads', () => ({
       parentPort: {
@@ -33,7 +33,7 @@ describe('AsyncLoggerWorker Direct Processing', () => {
       workerData: { workerId: 1 },
       isMainThread: false,
     }));
-    
+
     // Import after mocking
     exported = require('../../../src/async/AsyncLoggerWorker');
   });
@@ -176,12 +176,12 @@ describe('AsyncLoggerWorker Direct Processing', () => {
       };
 
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-      
+
       worker.processBatch([entry]);
 
       const stats = worker.getStats();
       expect(stats.errors).toBeGreaterThanOrEqual(1);
-      
+
       consoleSpy.mockRestore();
     });
 
@@ -208,7 +208,7 @@ describe('AsyncLoggerWorker Direct Processing', () => {
       ];
 
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-      
+
       worker.processBatch(entries);
 
       const stats = worker.getStats();
@@ -216,13 +216,13 @@ describe('AsyncLoggerWorker Direct Processing', () => {
       // Some implementations may count all as processed, others may separate
       const totalHandled = (stats.processed || 0) + (stats.errors || 0);
       expect(totalHandled).toBeGreaterThanOrEqual(1); // At least something was handled
-      
+
       // If errors are tracked separately, we should have at least 1
       if (stats.errors !== undefined) {
         // eslint-disable-next-line jest/no-conditional-expect
         expect(stats.errors).toBeGreaterThanOrEqual(0); // May or may not track errors
       }
-      
+
       consoleSpy.mockRestore();
     });
   });
@@ -242,9 +242,7 @@ describe('AsyncLoggerWorker Direct Processing', () => {
       }
 
       // Should have sent METRICS message
-      const metricsCalls = postMessage.mock.calls.filter(
-        (call) => call[0].type === 'METRICS'
-      );
+      const metricsCalls = postMessage.mock.calls.filter(call => call[0].type === 'METRICS');
       expect(metricsCalls.length).toBeGreaterThanOrEqual(1);
     });
 

@@ -1027,7 +1027,7 @@ export class AsyncLogger extends EventEmitter {
             timestampMs,
             level: item.l || 'info',
             message: item.m,
-            context: item.x
+            context: item.x,
           } as LogEntry;
         }
         // Already a full entry
@@ -1113,7 +1113,7 @@ export class AsyncLogger extends EventEmitter {
             timestampMs,
             level: item.l || 'info',
             message: item.m,
-            context: item.x
+            context: item.x,
           } as LogEntry;
         }
         // Already a full entry
@@ -1205,10 +1205,10 @@ export class AsyncLogger extends EventEmitter {
       // Minimal entry for batching - defer all processing to flush time
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const minimalEntry: any = {
-        m: message,  // Short key for message
-        l: level,    // Short key for level
+        m: message, // Short key for message
+        l: level, // Short key for level
         t: Date.now(), // Timestamp
-        x: meta      // Short key for context/meta
+        x: meta, // Short key for context/meta
       };
 
       this.batch.push(minimalEntry);
