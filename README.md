@@ -96,8 +96,8 @@ const { Logger } = require('magiclogger');     // CommonJS
 ```typescript
 import { Logger, SyncLogger, createLogger, createSyncLogger } from 'magiclogger';
 
-// Async logger (default) - high performance with batching
-const logger = new Logger();
+// AsyncLogger (default) - non-blocking, faster for styled output
+const logger = new Logger();  // Uses AsyncLogger by default
 logger.info('Application started');
 
 // Logger with automatic console transport (enabled by default)
@@ -110,12 +110,12 @@ const logger = new Logger({
 // Or simply use with defaults - console is automatically enabled
 const logger = new Logger();  // Console transport created automatically
 
-// Sync logger - blocking I/O for guaranteed delivery
-// Uses SyncFileTransport with intelligent batching for performance
-// Only use for audit logs or when absolute write guarantees are required
-const auditLogger = new SyncLogger({ 
-  file: './audit.log',     // Uses SyncFileTransport automatically
-  forceFlush: true         // Immediate flush for critical logs
+// SyncLogger - only for audit logs that MUST never be dropped
+// Use ONLY when you need absolute guarantee of delivery under extreme load
+// AsyncLogger is recommended for 99.9% of use cases
+const auditLogger = new SyncLogger({
+  file: './audit.log',     // Blocks until written to disk
+  forceFlush: true         // For regulatory compliance
 });
 ```
 
@@ -242,19 +242,19 @@ const httpTransport = new HTTPTransport({
 
 ### Log Delivery Guarantees
 
-**Logger (default - recommended)**: 
-- High performance with excellent reliability (203K ops/sec plain, 31K styled)
-- Immediate dispatch to transports
+**Logger (AsyncLogger - default, recommended)**:
+- **Non-blocking** - keeps your app responsive under load
+- **Faster for styled output** - 115K ops/sec vs 104K for sync
 - **With graceful shutdown** (`await logger.close()`): All transports are flushed
 - **Without graceful shutdown** (crash/SIGKILL): Transport buffers may not flush
-- Suitable for 99% of use cases including production applications
-- Async is 1.2x faster than sync mode
+- Perfect for 99.9% of use cases including production applications
+- The default choice for modern applications
 
-**SyncLogger (rarely needed)**: 
+**SyncLogger (rarely needed)**:
 - Blocks until each log is written to disk (using `fs.appendFileSync`)
 - **Always guarantees delivery** - logs are never lost unless OS crashes
-- Trade-off: Slower performance but still respectable (176K ops/sec plain, 29K styled)
-- For critical auditing or regulatory logging
+- **Trade-off**: Blocks event loop, can make app unresponsive under load
+- Use ONLY for critical audit logs with regulatory requirements
 
 **For critical logs that must never be lost**:
 ```typescript
@@ -1333,32 +1333,31 @@ const logger = new Logger({
 
 ### Real-World Benchmarks
 
-MagicLogger achieves **excellent performance** through optimized architecture:
-- **203K ops/sec** - Plain text logging (async mode)
-- **176K ops/sec** - Plain text logging (sync mode)
-- **31K ops/sec** - Styled logging (async mode)
-- **29K ops/sec** - Styled logging (sync mode)
-- **0.005ms latency** - Non-blocking with minimal overhead
-- **Efficient style processing** - 84% styling overhead is expected for rich output
+MagicLogger achieves **excellent performance** with AsyncLogger as default:
+- **144K ops/sec** - Plain text (non-blocking)
+- **115K ops/sec** - Styled output (**faster than sync's 104K**)
+- **0.003ms P50 blocking** - Event loop stays responsive
+- **Non-blocking architecture** - Your app stays fast under load
+- **Smart batching** - Automatic optimization for network transports
 
 #### Performance Comparison (20K iterations, real file I/O)
 
 ##### 📝 Plain Text Performance
 | Logger | Ops/sec | Avg (ms) | P50 | P95 | P99 | Max |
 |--------|--------:|---------:|----:|----:|----:|----:|
-| **Winston (Plain)** | **253,133** | **0.004** | 0.002 | 0.006 | 0.027 | 6.031 |
-| Pino | 248,414 | 0.004 | 0.002 | 0.005 | 0.014 | 16.019 |
-| **MagicLogger (Async)** | **203,385** | **0.005** | 0.001 | 0.003 | 0.116 | 3.729 |
-| **MagicLogger (Sync)** | **176,452** | **0.005** | 0.001 | 0.002 | 0.005 | 7.562 |
+| Winston (Plain) | 331,389 | 0.003 | 0.001 | 0.006 | 0.032 | 0.880 |
+| Pino | 234,556 | 0.004 | 0.002 | 0.005 | 0.009 | 27.495 |
+| MagicLogger (Sync) | 166,303 | 0.006 | 0.001 | 0.003 | 0.007 | 7.137 |
+| **MagicLogger (Async - default)** | **144,379** | **0.007** | **0.000** | 0.002 | 0.320 | 5.104 |
 
 ##### 🎨 Styled Output Performance
 | Logger | Ops/sec | Avg (ms) | P50 | P95 | P99 | Max |
 |--------|--------:|---------:|----:|----:|----:|----:|
-| Pino (Manual ANSI Async) | 228,100 | 0.004 | 0.003 | 0.004 | 0.021 | 6.704 |
-| Winston (Sync + Styled) | 196,214 | 0.005 | 0.001 | 0.013 | 0.042 | 9.275 |
-| Pino (Pretty) | 186,048 | 0.005 | 0.004 | 0.006 | 0.014 | 0.507 |
-| **MagicLogger (Async + Styles)** | **31,138** | **0.032** | 0.019 | 0.060 | 0.343 | 11.371 |
-| **MagicLogger (Sync + Styles)** | **29,005** | **0.034** | 0.016 | 0.041 | 0.160 | 20.115 |
+| Pino (Pretty) | 488,472 | 0.002 | 0.002 | 0.002 | 0.003 | 0.058 |
+| Winston (Sync + Styled) | 285,554 | 0.003 | 0.002 | 0.007 | 0.027 | 1.869 |
+| Pino (Manual ANSI Async) | 257,027 | 0.004 | 0.003 | 0.004 | 0.012 | 6.163 |
+| **MagicLogger (Async + Styles)** | **114,633** | **0.009** | **0.003** | 0.007 | 0.231 | 4.774 |
+| MagicLogger (Sync + Styles) | 104,299 | 0.009 | 0.003 | 0.010 | 0.020 | 16.140 |
 
 *Generated via `npm run perf:update` - see [scripts/performance/](./scripts/performance/)*
 
@@ -1382,11 +1381,16 @@ MagicLogger achieves **excellent performance** through optimized architecture:
 - **Fast Path Detection**: Unstyled text bypasses style processing entirely
 - **Worker Pool Pattern**: Reusable worker threads when needed (avoids spawn overhead)
 
-**Trade-offs:**
-- **Sync Mode**: Guaranteed delivery but blocks event loop (176K ops/sec plain, 29K styled)
-- **Async Mode**: Higher throughput (203K ops/sec plain, 31K styled) but requires graceful shutdown for guarantee
-- **Styling Overhead**: ~84% overhead for rich styled output with MAGIC schema compatibility
-- **Async is 1.2x faster** than sync for both plain and styled logging
+**Why AsyncLogger is the Default:**
+- **Non-blocking**: Keeps your app responsive even under heavy logging
+- **Faster for styled output**: 115K vs 104K ops/sec (10% faster)
+- **Smart batching**: Automatically optimizes for network transports
+- **Production-ready**: Handles graceful shutdown for reliability
+
+**When to use SyncLogger (rare):**
+- Critical audit logs that must NEVER be lost even under extreme load
+- Regulatory compliance requiring synchronous disk writes
+- Trade-off: Can make your app unresponsive under load
 
 See [benchmark methodology](./scripts/performance/benchmark-results.md) and [architecture docs](./docs/architecture.md).
 

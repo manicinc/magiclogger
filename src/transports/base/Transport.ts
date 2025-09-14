@@ -471,7 +471,7 @@ export abstract class Transport extends EventEmitter implements ITransport {
    * @protected
    */
   protected formatPlain(entry: LogEntry): string {
-    const parts: string[] = [entry.timestamp, `[${entry.level.toUpperCase()}]`];
+    const parts: string[] = [String(entry.timestamp), `[${entry.level.toUpperCase()}]`];
 
     if (entry.loggerId) {
       parts.push(`[${entry.loggerId}]`);

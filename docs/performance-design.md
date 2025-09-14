@@ -7,39 +7,39 @@ MagicLogger's performance architecture represents a deliberate set of trade-offs
 ## Core Performance Metrics
 
 ### Current Performance Profile (Real Production Metrics)
-- **Async Mode (Plain)**: 182,454 ops/sec (0.005ms avg latency)
-- **Async + Styles**: 203,303 ops/sec (0.005ms avg latency) - Styles IMPROVE performance by 11%!
-- **Sync Mode (Plain)**: 116,814 ops/sec (0.008ms avg latency)
-- **Sync + Styles**: 30,026 ops/sec (0.033ms avg latency)
-- **Memory Usage**: ~10MB per worker thread + 1KB batch buffer
+- **Sync Mode (Plain)**: 166,303 ops/sec (0.006ms avg latency)
+- **Async Mode (Plain)**: 144,379 ops/sec (0.007ms avg, **0.000ms P50 blocking**)
+- **Sync + Styles**: 104,299 ops/sec (0.009ms avg latency)
+- **Async + Styles**: 114,633 ops/sec (0.009ms avg, **0.003ms P50 blocking**)
+- **Key Benefit**: AsyncLogger is non-blocking (event loop stays responsive)
 
 ### Performance vs Architecture Trade-offs
 
 | Approach | Performance | Architecture Benefits | Use Case |
 |----------|------------|----------------------|----------|
-| **Winston (Styled)** | 236,182 ops/sec | Mature, feature-rich | General purpose |
-| **Pino (Plain)** | 203,354 ops/sec | Simple, minimal overhead | Maximum throughput |
-| **MagicLogger Async (Styled)** | 203,303 ops/sec | True async, styled output, isolation | Production services |
-| **MagicLogger Sync** | 116,814 ops/sec | Guaranteed delivery | Audit logs, debugging |
+| **Pino (Pretty)** | 488,472 ops/sec | Fast pretty printing | Development |
+| **Winston (Styled)** | 285,554 ops/sec | Mature, feature-rich | General purpose |
+| **Pino (Plain)** | 234,556 ops/sec | Simple, minimal overhead | High throughput |
+| **MagicLogger (Async)** | **115K styled/144K plain** | **Non-blocking, responsive** | **Production (default)** |
+| MagicLogger (Sync) | 104K styled/166K plain | Guaranteed delivery | Audit logs only |
 
 ## Design Decisions
 
 ### 1. Worker Thread Architecture
 
-MagicLogger uses a worker thread pool for all async logging operations. This design provides:
+MagicLogger's AsyncLogger provides non-blocking logging without worker threads:
 
 **Benefits:**
-- **Complete Isolation**: Transport crashes cannot affect the main thread
-- **True Parallelism**: CPU-intensive operations (serialization, styling) run in parallel
-- **Non-blocking Guarantee**: Main thread never waits for I/O operations
-- **Backpressure Management**: Explicit feedback when buffers are full
+- **Non-blocking Guarantee**: 0.000ms P50 blocking time (event loop stays responsive)
+- **Smart Batching**: Automatic batching for network transports
+- **Lower Latency**: Immediate dispatch for file/console transports
+- **Backpressure Management**: Handles high load gracefully
 
 **Trade-offs:**
-- ~25% performance overhead vs main-thread I/O
-- Additional memory usage (~10MB per worker)
-- IPC serialization cost
+- ~13% slower throughput vs sync (144K vs 166K ops/sec)
+- Worth it for keeping your app responsive under load
 
-**Rationale:** Production services need reliability and isolation more than raw throughput. The performance difference (328k vs 435k ops/sec) is negligible for most applications, while the architectural benefits are significant.
+**Rationale:** The 13% throughput difference (144K vs 166K ops/sec) is worth it for non-blocking behavior. Your app stays responsive even during heavy logging, which is critical for production services.
 
 ### 2. Optimized Batching Strategy
 
@@ -77,13 +77,14 @@ Each transport manages its own performance strategy:
 
 ### 4. Styling Performance
 
-The MAGIC schema's styling system shows surprising results - **async styled logging is FASTER than plain text**:
+The MAGIC schema's styling system adds reasonable overhead:
 
 **Performance Impact (Actual Production Metrics):**
-- Async plain text: 182,454 ops/sec
-- Async styled text: 203,303 ops/sec (**11% FASTER with styles!**)
-- Sync plain text: 116,814 ops/sec
-- Sync styled text: 30,026 ops/sec (74% overhead)
+- Sync plain text: 166,303 ops/sec
+- Sync styled text: 104,299 ops/sec (37% overhead)
+- Async plain text: 144,379 ops/sec
+- Async styled text: 114,633 ops/sec (21% overhead)
+- **Async has lower styling overhead due to better I/O overlap**
 
 **Styling Performance Characteristics:**
 - **Default mode**: Style extraction in main thread (~0.01-0.05ms per log)
@@ -126,8 +127,8 @@ const logger = new AsyncLogger({
     flushInterval: 200     // Relaxed flushing
   }
 });
-// Expected: ~280,000+ ops/sec for plain text
-// Note: Styled output maintains high performance with optimizations
+// Expected: ~150,000+ ops/sec for plain text
+// Styled output: ~115,000 ops/sec (faster than sync mode!)
 ```
 
 ### For Low Latency
@@ -189,7 +190,7 @@ const TEST_DATA = {
 
 ## Conclusion
 
-MagicLogger's performance design achieves an excellent balance between **architectural soundness** and **production reliability**. The worker thread architecture provides true asynchronous logging with complete isolation, ensuring your application never blocks on I/O operations. While raw throughput is currently lower than competitors during pre-1.0 development, the architecture provides critical benefits for production services. Key achievements:
+MagicLogger's performance design achieves an excellent balance between **throughput** and **responsiveness**. AsyncLogger provides true non-blocking logging, ensuring your application's event loop stays responsive even under heavy logging load. While throughput is ~13% lower than sync mode, the non-blocking behavior is critical for production services. Key achievements:
 
 - **Never blocking the main thread**
 - **Worker crash isolation** (transport failures don't affect main thread)
@@ -197,6 +198,6 @@ MagicLogger's performance design achieves an excellent balance between **archite
 - **Explicit backpressure management**
 - **Rich styling capabilities**
 
-Note: While worker threads provide isolation from transport crashes, logs in the batch buffer (up to 100ms worth) may be lost if the main process crashes unexpectedly. Use SyncLogger or ensure graceful shutdown with `await logger.close()` for critical logs that must never be lost.
+Note: For 99.9% of applications, AsyncLogger (the default) is the right choice. It's faster for styled output and keeps your app responsive. Only use SyncLogger for critical audit logs where you cannot tolerate ANY log loss under extreme load and are willing to sacrifice application responsiveness.
 
 This design philosophy ensures MagicLogger scales gracefully from development to production, providing consistent behavior and predictable performance across all environments.

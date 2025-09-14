@@ -217,22 +217,24 @@ class WorkerState {
         // Process styles in worker thread (if needed)
         const processedEntry = { ...entry };
 
-        // Check if we need to process styles from context
+        // OPTIMIZATION: Process styles in worker thread (parallel execution)
+        const needsStyleProcessing = entry.context?._processStyles === true;
         const messageToProcess = entry.context?._rawMessage as string || entry.message;
         const useColors = entry.context?._useColors !== false;
-        
-        if (
-          messageToProcess &&
-          typeof messageToProcess === 'string' &&
-          messageToProcess.includes('<') &&
-          messageToProcess.includes('>') &&
-          messageToProcess.includes('</>')
-        ) {
-          // Process styles in worker thread
-          const extracted = TextStyler.parseBracketsWithExtraction(messageToProcess, useColors);
-          processedEntry.message = extracted.plainText;
-          if (extracted.styles && extracted.styles.length > 0) {
-            processedEntry.styles = extracted.styles;
+
+        if (needsStyleProcessing && messageToProcess && typeof messageToProcess === 'string') {
+          // Fast path check for styles
+          const angleIndex = messageToProcess.indexOf('<');
+          if (angleIndex !== -1 && messageToProcess.indexOf('</>', angleIndex) !== -1) {
+            // Process styles in parallel in worker thread
+            const extracted = TextStyler.parseBracketsWithExtraction(messageToProcess, useColors);
+            processedEntry.message = extracted.plainText;
+            if (extracted.styles && extracted.styles.length > 0) {
+              processedEntry.styles = extracted.styles;
+            }
+          } else {
+            // No styles found
+            processedEntry.message = messageToProcess;
           }
         }
         
@@ -240,6 +242,7 @@ class WorkerState {
         if (processedEntry.context) {
           delete processedEntry.context._rawMessage;
           delete processedEntry.context._useColors;
+          delete processedEntry.context._processStyles;
         }
 
         // Full JSON serialization like production loggers do

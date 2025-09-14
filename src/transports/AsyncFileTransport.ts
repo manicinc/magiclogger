@@ -566,6 +566,62 @@ export class AsyncFileTransport extends Transport {
   }
 
   /**
+   * Logs an entry truly asynchronously with backpressure handling.
+   *
+   * @param {LogEntry} entry - The log entry
+   * @returns {Promise<void>} Resolves when written
+   * @public
+   */
+  public async logAsync(entry: LogEntry): Promise<void> {
+    if (!this.sonic || this.closing) {
+      return;
+    }
+
+    const formatted = this.formatEntry(entry) + '\n';
+
+    // Write and handle backpressure properly
+    return new Promise((resolve) => {
+      const written = this.sonic!.write(formatted);
+      if (written) {
+        // Data was written to buffer immediately
+        setImmediate(() => resolve());
+      } else {
+        // Buffer is full, wait for drain
+        this.sonic!.once('drain', () => resolve());
+      }
+    });
+  }
+
+  /**
+   * Logs a batch of entries efficiently.
+   * This is the most performant way to write multiple entries.
+   *
+   * @param {LogEntry[]} entries - Batch of log entries
+   * @returns {Promise<void>} Resolves when all written
+   * @public
+   */
+  public async logBatch(entries: LogEntry[]): Promise<void> {
+    if (!this.sonic || this.closing || entries.length === 0) {
+      return;
+    }
+
+    // Format all entries at once
+    const formatted = entries.map(entry => this.formatEntry(entry) + '\n').join('');
+
+    // Write entire batch at once for maximum efficiency
+    return new Promise((resolve) => {
+      const written = this.sonic!.write(formatted);
+      if (written) {
+        // Batch written to buffer
+        setImmediate(() => resolve());
+      } else {
+        // Handle backpressure
+        this.sonic!.once('drain', () => resolve());
+      }
+    });
+  }
+
+  /**
    * Legacy async doLog for compatibility with Transport base class.
    *
    * This method is not used when log() and logSync() are overridden,
