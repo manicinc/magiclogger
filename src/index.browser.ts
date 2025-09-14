@@ -34,19 +34,19 @@ export class Logger {
     this.impl.log(msg, level);
   }
   public info(msg: string): void {
-    this.impl.log(msg, 'info');
+    this.impl.info(msg);
   }
   public success(msg: string): void {
-    this.impl.log(msg, 'success');
+    this.impl.success(msg);
   }
   public warn(msg: string): void {
-    this.impl.log(msg, 'warn');
+    this.impl.warn(msg);
   }
   public error(msg: string): void {
-    this.impl.log(msg, 'error');
+    this.impl.error(msg);
   }
   public debug(msg: string): void {
-    this.impl.log(msg, 'debug');
+    this.impl.debug(msg);
   }
 
   // Visual helpers used by demos

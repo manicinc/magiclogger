@@ -85,7 +85,7 @@ MagicLogger uses an **optimized batching strategy** with deferred processing:
 1. **Logger Level (AsyncLogger)**:
    - **Deferred Processing**: Minimal object creation in hot path
    - **Default**: 100 entries or 10ms timeout for optimal throughput
-   - **Fast Path**: When batching, only stores { m, l, t, x } minimal entries
+   - **Fast Path**: When batching, only stores `{ m, l, t, x }` minimal entries
    - **Flush Time**: Converts to full LogEntry objects during batch flush
    - **Performance**: 784k ops/sec capability with batching enabled
 
