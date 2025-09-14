@@ -382,11 +382,13 @@ export class AsyncFileTransport extends Transport {
     for (const entry of entries) {
       // Fast path for minimal entries
       if ('time' in entry && typeof entry.time === 'number') {
-        lines.push(JSON.stringify({
-          level: entry.level,
-          time: entry.time,
-          msg: (entry as any).plainMsg || (entry as any).msg,
-        }) + '\n');
+        lines.push(
+          JSON.stringify({
+            level: entry.level,
+            time: entry.time,
+            msg: (entry as any).plainMsg || (entry as any).msg,
+          }) + '\n'
+        );
       } else if (this.shouldLog(entry as LogEntry)) {
         try {
           lines.push(this.formatEntry(entry as LogEntry) + '\n');
