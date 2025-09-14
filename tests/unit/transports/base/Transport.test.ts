@@ -369,6 +369,10 @@ describe('Transport', () => {
           this.logCalls.push(entry);
         }
 
+        protected async doClose(): Promise<void> {
+          // No-op
+        }
+
         // No doLogBatch method defined
       }
 
@@ -397,6 +401,10 @@ describe('Transport', () => {
             throw new Error('Second failed');
           }
           this.logCalls.push(entry);
+        }
+
+        protected async doClose(): Promise<void> {
+          // No-op
         }
 
         // No doLogBatch method defined

@@ -221,6 +221,8 @@ export interface AsyncLoggerOptions {
     flushInterval?: number;
     /** Enable worker threads (default: true if available) */
     enabled?: boolean;
+    /** Use ring buffer for high-performance (default: false) */
+    useRingBuffer?: boolean;
   };
   /** Ring buffer configuration */
   ringBuffer?: {
@@ -1172,7 +1174,7 @@ export class AsyncLogger extends EventEmitter {
     if (!this.useWorkers && hasStyles && this.batchSize > 1) {
       // Parse styles only when batching
       if (!this.textStyler) {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
         const { TextStyler } =
           require('../utils/TextStyler') as typeof import('../utils/TextStyler');
         this.textStyler = TextStyler;

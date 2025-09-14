@@ -91,7 +91,7 @@ describe('AsyncLogger with RingBuffer', () => {
     });
 
     it('should maintain unique timestamps with performance.now()', async () => {
-      const timestamps: string[] = [];
+      const timestamps: number[] = [];
 
       const logger = new AsyncLogger({
         worker: {
