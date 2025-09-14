@@ -1374,7 +1374,7 @@ MagicLogger delivers **competitive performance** with flexible architecture:
 
 > **Async Advantage**: AsyncLogger handles styles efficiently at 142K ops/sec, competitive with Winston!
 >
-> *Sync styled logging is an unoptimized path (pre v1.0) for a niche use case.
+> *Sync styled logging (29K ops/sec) is rarely needed - audit logs requiring synchronous writes typically don't use styling. We've optimized sync plain text (147K ops/sec) which is the common use case. Sync styling optimization planned for future releases.
 
 *Generated via `npm run bench:perf` - see [scripts/performance/](./scripts/performance/) and [Performance Guide](./docs/performance-guide.md)*
 

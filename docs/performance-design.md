@@ -7,11 +7,13 @@ MagicLogger's performance architecture represents a deliberate set of trade-offs
 ## Core Performance Metrics
 
 ### Current Performance Profile (Real Production Metrics)
-- **Sync Mode (Plain)**: 147,906 ops/sec (0.006ms avg latency)
+- **Sync Mode (Plain)**: 147,906 ops/sec (0.006ms avg latency) - Optimized for audit logs
 - **Async Mode (Plain)**: 118,849 ops/sec (0.008ms avg latency)
 - **Async + Styles**: 142,323 ops/sec (0.007ms avg latency) - Styles actually faster than plain!
-- **Sync + Styles**: 29,741 ops/sec (0.033ms avg latency)
+- **Sync + Styles**: 29,741 ops/sec (0.033ms avg latency) - Rare use case, not optimized*
 - **Memory Usage**: Minimal with deferred processing (< 1KB per batch)
+
+*Synchronous logging is primarily used for audit/compliance logs which don't require styling. We've focused optimization efforts on sync plain text (147K ops/sec) which is the common use case.
 
 ### Performance vs Architecture Trade-offs
 

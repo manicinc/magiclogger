@@ -78,7 +78,7 @@ export default function PerformanceSection() {
 
         {/* Performance Note */}
         <div className={styles.performanceNote}>
-          <strong>📊 Note:</strong> MagicLogger is currently in pre-1.0 development. Performance optimizations are on the roadmap for future releases, with significant improvements expected as we approach v1.0. The current focus is on API stability and feature completeness.
+          <strong>📊 Note:</strong> Sync styled logging (29K ops/sec) is a rare use case - audit logs requiring synchronous writes typically don't need styling. We've optimized sync plain text (147K ops/sec) which is the primary use case. Async excels with styled output at 142K ops/sec.
         </div>
 
         {/* Benchmark chart */}

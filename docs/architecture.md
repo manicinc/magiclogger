@@ -163,10 +163,12 @@ interface LogEntry {
 ## Performance Characteristics
 
 ### Synchronous Logging
-- **Throughput**: 147K ops/sec plain text, 29K ops/sec with styles
+- **Throughput**: 147K ops/sec plain text, 29K ops/sec with styles*
 - **Latency**: 0.006ms average blocking time
 - **Memory**: Minimal buffering
 - **Reliability**: Guaranteed delivery (blocks until written)
+
+*Sync styled is rarely used - audit logs requiring synchronous writes typically don't need styling. We've optimized for the common case (plain text).
 
 ### Asynchronous Logging
 - **Throughput**: 118K ops/sec plain text, 142K ops/sec with styles
@@ -225,12 +227,14 @@ For most logging scenarios, the default async I/O without workers provides the b
 | MagicLogger (Async+Styled) | Async I/O | 142,323 | 0.007ms | Styled production logging |
 | Winston (Styled) | Multi-stream | 136,527 | 0.007ms | Styled enterprise logging |
 | MagicLogger (Async) | Async I/O | 118,849 | 0.008ms | Non-blocking production |
-| MagicLogger (Sync+Styled) | Direct I/O + Styles | 29,741 | 0.033ms | Interactive CLI tools |
+| MagicLogger (Sync+Styled)* | Direct I/O + Styles | 29,741 | 0.033ms | Interactive CLI tools |
 
 **Key insights**:
 - Async styled (142K) outperforms sync styled (29K) by 4.8x
 - SyncLogger excels at plain text (147K) while AsyncLogger shines with styles (142K)
 - All metrics from real file I/O with production-like payloads
+
+*Note: Sync+Styled is an uncommon use case. Synchronous logging is typically used for audit logs which don't require styling. We've prioritized optimizing sync plain text performance.
 
 ## Design Decisions
 
