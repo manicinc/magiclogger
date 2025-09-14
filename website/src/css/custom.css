@@ -230,10 +230,9 @@ nav.navbar {
   display: none; /* Hide text title since logo has text */
 }
 
-/* Mobile menu toggle button - minimal overrides */
+/* Mobile menu toggle button - let Docusaurus handle most of it */
 .navbar__toggle {
-  cursor: pointer;
-  z-index: 10;
+  margin-left: auto;
 }
 
 .navbar__link {
@@ -572,17 +571,39 @@ code {
   /* Keep navbar organized on tablet/mobile */
   .navbar__inner {
     position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
   }
-  
-  .navbar__items {
-    flex: 1;
-  }
-  
+
+  /* Ensure theme toggle is visible on mobile */
   .navbar__items--right {
-    margin-right: 3rem; /* Space for hamburger */
+    display: flex !important;
+    align-items: center;
+  }
+
+  /* Keep theme toggle visible on mobile */
+  .navbar__items--right {
+    display: flex !important;
+    visibility: visible !important;
+  }
+
+  /* Ensure color mode toggle stays visible */
+  .navbar__items--right > :last-child,
+  .navbar__items--right .clean-btn,
+  [class*="colorModeToggle"] {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  /* Position theme toggle properly */
+  .navbar__items--right .clean-btn {
+    margin-right: 0.5rem;
+  }
+
+  /* Style the hamburger icon */
+  .navbar__toggle svg {
+    width: 24px !important;
+    height: 24px !important;
+    fill: var(--ifm-color-content) !important;
   }
   
   /* Keep logo size consistent */
@@ -603,11 +624,28 @@ code {
     padding: 1px 4px;
   }
   
-  /* Mobile menu sidebar - let Docusaurus handle most of it */
+  /* Mobile menu sidebar - minimal overrides */
   .navbar-sidebar {
-    top: 60px; /* Account for fixed navbar */
+    background: var(--ifm-background-color);
   }
-  
+
+  .navbar-sidebar__brand {
+    padding: 1rem;
+    border-bottom: 1px solid var(--ifm-toc-border-color);
+  }
+
+  .navbar-sidebar__item {
+    padding: 0.75rem 1.5rem;
+  }
+
+  .navbar-sidebar__item:hover {
+    background: rgba(0, 0, 0, 0.05);
+  }
+
+  [data-theme='dark'] .navbar-sidebar__item:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
   /* Dark mode mobile sidebar */
   [data-theme='dark'] .navbar-sidebar .navbar__item {
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);

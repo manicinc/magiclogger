@@ -17,3 +17,23 @@ hola:
   label: Hola
   permalink: /hola
   description: Hola tag description
+
+magiclogger:
+  label: MagicLogger
+  permalink: /magiclogger
+  description: Posts about MagicLogger features and updates
+
+logging:
+  label: Logging
+  permalink: /logging
+  description: Logging best practices and techniques
+
+developer-tools:
+  label: Developer Tools
+  permalink: /developer-tools
+  description: Tools and utilities for developers
+
+open-source:
+  label: Open Source
+  permalink: /open-source
+  description: Open source projects and contributions

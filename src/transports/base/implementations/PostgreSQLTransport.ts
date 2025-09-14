@@ -222,7 +222,7 @@ export class PostgreSQLTransport extends BatchingTransport {
 
       for (const entry of entries) {
         const rowPlaceholders: string[] = [];
-        values.push(entry.timestampMs);
+        values.push(entry.timestamp);
         rowPlaceholders.push(`$${paramIndex++}`);
         values.push(entry.level);
         rowPlaceholders.push(`$${paramIndex++}`);

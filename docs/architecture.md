@@ -408,10 +408,10 @@ npm run test:metrics -- --watch
 
 | Logger Type | Throughput | Latency | Memory | Best For |
 |------------|------------|---------|---------|----------|
-| Logger | ~120K/s | <1ms | Low | General use |
+| Logger | ~120K/s | &lt;1ms | Low | General use |
 | SyncLogger | ~53K/s | Immediate | Lowest | Guaranteed delivery |
-| AsyncLogger (no workers) | ~148K/s | <7ms | Low | High throughput |
-| AsyncLogger (workers) | ~100K/s | <10ms | Moderate | CPU-intensive styling |
+| AsyncLogger (no workers) | ~148K/s | &lt;7ms | Low | High throughput |
+| AsyncLogger (workers) | ~100K/s | &lt;10ms | Moderate | CPU-intensive styling |
 
 ### Performance Optimizations
 
@@ -420,7 +420,7 @@ npm run test:metrics -- --watch
 - **Impact**: Reduces syscall overhead
 
 #### Fast Path Optimization
-- **Optimization**: Check for '<' character before style parsing
+- **Optimization**: Check for '&lt;' character before style parsing
 - **Impact**: ~0.01ms saved per plain text log
 
 #### Object Pre-sizing

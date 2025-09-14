@@ -72,8 +72,7 @@ export class LogEntryPool {
     this.created++;
     return {
       id: '',
-      timestamp: '',
-      timestampMs: 0,
+      timestamp: 0,
       level: 'info',
       message: '',
       styles: undefined,
@@ -87,8 +86,7 @@ export class LogEntryPool {
 
   private resetEntry(entry: LogEntry): void {
     entry.id = '';
-    entry.timestamp = '';
-    entry.timestampMs = 0;
+    entry.timestamp = 0;
     entry.level = 'info';
     entry.message = '';
     entry.styles = undefined;

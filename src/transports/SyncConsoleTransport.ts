@@ -219,7 +219,7 @@ export class SyncConsoleTransport extends Transport {
 
     // Add timestamp if configured
     if (this.consoleOptions.showTimestamp) {
-      const timestamp = entry.timestamp || new Date().toISOString();
+      const timestamp = new Date(entry.timestamp || Date.now()).toISOString();
       if (this.consoleOptions.useColors) {
         parts.push(`\x1b[90m${timestamp}\x1b[0m`);
       } else {

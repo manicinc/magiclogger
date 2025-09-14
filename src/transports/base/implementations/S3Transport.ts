@@ -626,7 +626,6 @@ export class S3Transport extends NetworkTransport {
     const columns: string[] = [
       'id',
       'timestamp',
-      'timestampMs',
       'level',
       'message',
       'styles',

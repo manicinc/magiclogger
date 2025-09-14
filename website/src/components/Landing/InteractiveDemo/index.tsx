@@ -186,8 +186,8 @@ export default function InteractiveDemo() {
       title: '🎨 Styled Logging',
       action: () => {
         if (!logger) return;
-        // Use logger's custom method for styled output
-        logger.custom('Custom styled message', ['cyan', 'bold'], 'CUSTOM');
+        // Use logger's custom method for styled output - using darker blue instead of cyan
+        logger.custom('Custom styled message', ['blue', 'bold'], 'CUSTOM');
         // Use angle bracket syntax if supported
         logger.info('<green.bold>══════ SECTION HEADER ══════</>');
         logger.info('<dim>' + '═'.repeat(30) + '</>');
@@ -269,7 +269,7 @@ export default function InteractiveDemo() {
     setTimeout(() => setShowConsoleNotification(false), 5000);
     
     // Also log to actual browser console
-    console.info('%c🎨 MagicLogger Demo - Check your browser console for colorful logs!', 'color: #0dcaf0; font-weight: bold; font-size: 14px;');
+    console.info('%c🎨 MagicLogger Demo - Check your browser console for colorful logs!', 'color: #0369a1; font-weight: bold; font-size: 14px;');
     
     setIsRunning(true);
     setDemoStep(0);
@@ -305,10 +305,10 @@ export default function InteractiveDemo() {
   const formatLogLevel = (level: string) => {
     const colors = {
       log: '#6c757d',
-      info: '#0dcaf0',
-      warn: '#ffc107',
-      error: '#dc3545',
-      debug: '#6f42c1'
+      info: '#0369a1',  // Darker blue - much more readable on white
+      warn: '#ea580c',  // Darker orange - better contrast
+      error: '#dc2626',  // Slightly darker red
+      debug: '#7c3aed'  // Darker purple
     };
     return colors[level] || '#6c757d';
   };
@@ -438,18 +438,18 @@ export default function InteractiveDemo() {
                       );
                     }
                     
-                    // Fallback to simple emoji-based coloring
+                    // Fallback to simple emoji-based coloring - darker colors for readability
                     const msg = log.message;
                     if (msg.includes('✅')) {
-                      return <span style={{ color: '#00ff88' }}>{msg}</span>;
+                      return <span style={{ color: '#059669' }}>{msg}</span>;  // Darker green
                     } else if (msg.includes('❌') || msg.includes('🚨')) {
-                      return <span style={{ color: '#ff4545' }}>{msg}</span>;
+                      return <span style={{ color: '#dc2626' }}>{msg}</span>;  // Darker red
                     } else if (msg.includes('⚠️')) {
-                      return <span style={{ color: '#ffc107' }}>{msg}</span>;
+                      return <span style={{ color: '#d97706' }}>{msg}</span>;  // Darker amber
                     } else if (msg.includes('🎨') || msg.includes('🌟')) {
-                      return <span style={{ color: '#b366ff' }}>{msg}</span>;
+                      return <span style={{ color: '#7c3aed' }}>{msg}</span>;  // Darker purple
                     } else if (msg.includes('📊') || msg.includes('📈')) {
-                      return <span style={{ color: '#00d4ff' }}>{msg}</span>;
+                      return <span style={{ color: '#0369a1' }}>{msg}</span>;  // Darker blue
                     }
                     return <span>{msg}</span>;
                   };

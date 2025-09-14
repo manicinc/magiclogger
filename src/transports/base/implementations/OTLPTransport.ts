@@ -413,7 +413,7 @@ export class OTLPTransport extends BatchingTransport {
    */
   private createLogRecord(entry: LogEntry): OTLPLogRecord {
     const record: OTLPLogRecord = {
-      timeUnixNano: this.toUnixNano(entry.timestampMs),
+      timeUnixNano: this.toUnixNano(entry.timestamp),
       severityNumber: this.getSeverityNumber(entry.level),
       severityText: entry.level.toUpperCase(),
       body: {
@@ -671,12 +671,12 @@ export class OTLPTransport extends BatchingTransport {
   /**
    * Converts timestamp to Unix nanoseconds.
    *
-   * @param {number} timestampMs - Timestamp in milliseconds
+   * @param {number} timestamp - Timestamp in milliseconds
    * @returns {string} Unix nanoseconds
    * @private
    */
-  private toUnixNano(timestampMs: number): string {
-    return (timestampMs * 1_000_000).toString();
+  private toUnixNano(timestamp: number): string {
+    return (timestamp * 1_000_000).toString();
   }
 
   /**

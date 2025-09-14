@@ -20,6 +20,8 @@ Have you ever stared at thousands of lines of monochrome logs trying to find tha
 
 Traditional logging libraries focus on performance and features but forget about the human on the other side of the screen. They dump data efficiently but leave you to figure out what it all means.
 
+<!-- truncate -->
+
 ## Our Vision: Logging That's Actually Readable
 
 MagicLog will maintain the open-source MAGIC schema and Magic dashboard. 

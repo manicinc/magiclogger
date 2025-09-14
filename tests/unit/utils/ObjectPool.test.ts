@@ -168,8 +168,7 @@ describe('ObjectPool', () => {
 
       // All fields should be reset
       expect(resetEntry.id).toBe('');
-      expect(resetEntry.timestamp).toBe('');
-      expect(resetEntry.timestampMs).toBe(0);
+      expect(resetEntry.timestamp).toBe(0);
       expect(resetEntry.level).toBe('info');
       expect(resetEntry.message).toBe('');
       expect(resetEntry.styles).toBeUndefined();

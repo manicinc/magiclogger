@@ -127,8 +127,7 @@ logger.info("Query executed", {
 interface MAGICLogEntry {
   // === IDENTITY & TIMING ===
   id: string                           // Unique identifier: "1733938475123-abc123xyz"
-  timestamp: string                    // ISO 8601: "2025-08-14T12:34:35.123Z"
-  timestampMs: number                  // Unix milliseconds: 1765769675123
+  timestamp: number                    // Unix milliseconds: 1765769675123
   schemaVersion: "v1"                  // Schema version for compatibility
 
   // === CORE CONTENT ===
@@ -175,8 +174,9 @@ interface MAGICLogEntry {
 ### Identity & Timing
 
 - **`id`**: Globally unique identifier combining timestamp and random component
-- **`timestamp`**: ISO 8601 formatted timestamp with millisecond precision
-- **`timestampMs`**: Unix timestamp in milliseconds for efficient sorting
+- **`timestamp`**: Unix timestamp in milliseconds for efficient sorting and storage
+  - Use `new Date(timestamp).toISOString()` for human-readable display
+  - Stored as number for compact size and fast comparisons
 - **`schemaVersion`**: Version identifier for schema evolution
 
 ### Core Content
@@ -385,8 +385,7 @@ Output the following JSON structure:
 ```json
 {
   "id": "unique-id",
-  "timestamp": "ISO-8601-timestamp",
-  "timestampMs": 1234567890,
+  "timestamp": 1234567890,
   "level": "info|warn|error|debug|trace|fatal",
   "message": "plain text without styles",
   "styles": [[0, 6, "red.bold"], [12, 20, "cyan"]],
@@ -431,8 +430,7 @@ def create_magic_log(level, styled_text, **context):
     
     return {
         "id": f"{int(time.time() * 1000)}-{random_id()}",
-        "timestamp": datetime.utcnow().isoformat() + "Z",
-        "timestampMs": int(time.time() * 1000),
+        "timestamp": int(time.time() * 1000),
         "level": level,
         "message": plain_text,
         "styles": styles if styles else None,
@@ -464,7 +462,7 @@ print(json.dumps(log))
 
 // Log line
 {
-  "timestamp": entry.timestampMs * 1000000, // Convert to nanoseconds
+  "timestamp": entry.timestamp * 1000000, // Convert to nanoseconds
   "line": JSON.stringify({
     id: entry.id,
     message: entry.plainMessage,
@@ -483,8 +481,7 @@ print(json.dumps(log))
   "mappings": {
     "properties": {
       "id": { "type": "keyword" },
-      "timestamp": { "type": "date" },
-      "timestampMs": { "type": "long" },
+      "timestamp": { "type": "long" },
       "level": { "type": "keyword" },
       "message": { "type": "text", "analyzer": "standard" },
       "plainMessage": { "type": "text", "analyzer": "standard" },
@@ -528,7 +525,7 @@ print(json.dumps(log))
 
 // Log record
 {
-  "timeUnixNano": entry.timestampMs * 1000000,
+  "timeUnixNano": entry.timestamp * 1000000,
   "severityNumber": levelToOTLP(entry.level),
   "severityText": entry.level.toUpperCase(),
   "body": { "stringValue": entry.plainMessage },

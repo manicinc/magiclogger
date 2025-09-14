@@ -122,6 +122,14 @@ interface AsyncLoggerMetrics {
   droppedLogs: number;
   /** Current worker pool utilization */
   workerUtilization: number;
+  /** Number of debug logs */
+  debugLogs?: number;
+  /** Number of info logs */
+  infoLogs?: number;
+  /** Number of warn logs */
+  warnLogs?: number;
+  /** Number of error logs */
+  errorLogs?: number;
 }
 
 /**
@@ -355,6 +363,10 @@ export class AsyncLogger extends EventEmitter {
     avgBatchSize: 0,
     droppedLogs: 0,
     workerUtilization: 0,
+    debugLogs: 0,
+    infoLogs: 0,
+    warnLogs: 0,
+    errorLogs: 0,
   };
 
   /** @private {boolean} Metrics collection enabled */
@@ -800,6 +812,21 @@ export class AsyncLogger extends EventEmitter {
       // Update metrics after successful dispatch
       if (this.enableMetrics) {
         this.metrics.totalLogs++;
+        // Update level-specific metrics
+        switch (entry.level) {
+          case 'debug':
+            this.metrics.debugLogs = (this.metrics.debugLogs ?? 0) + 1;
+            break;
+          case 'info':
+            this.metrics.infoLogs = (this.metrics.infoLogs ?? 0) + 1;
+            break;
+          case 'warn':
+            this.metrics.warnLogs = (this.metrics.warnLogs ?? 0) + 1;
+            break;
+          case 'error':
+            this.metrics.errorLogs = (this.metrics.errorLogs ?? 0) + 1;
+            break;
+        }
       }
       return;
     }
@@ -807,6 +834,21 @@ export class AsyncLogger extends EventEmitter {
     // Worker path (less common)
     if (this.enableMetrics) {
       this.metrics.totalLogs++;
+      // Update level-specific metrics
+      switch (entry.level) {
+        case 'debug':
+          this.metrics.debugLogs = (this.metrics.debugLogs ?? 0) + 1;
+          break;
+        case 'info':
+          this.metrics.infoLogs = (this.metrics.infoLogs ?? 0) + 1;
+          break;
+        case 'warn':
+          this.metrics.warnLogs = (this.metrics.warnLogs ?? 0) + 1;
+          break;
+        case 'error':
+          this.metrics.errorLogs = (this.metrics.errorLogs ?? 0) + 1;
+          break;
+      }
     }
     
     // Use high-performance ring buffer if available
@@ -897,15 +939,13 @@ export class AsyncLogger extends EventEmitter {
     
     // PERFORMANCE: Create minimal object without undefined properties
     // V8 optimizes objects better when properties aren't pre-allocated as undefined
-    const timestamp = new Date(now).toISOString();
-    
+
     // Build entry with only required fields first
     const entry: LogEntry = {
       id: `${this.id}-${now}`,
       level,
       message: processedMessage,
-      timestamp,
-      timestampMs: now
+      timestamp: now
     };
     
     // Add optional fields only if they have values (avoids undefined properties)

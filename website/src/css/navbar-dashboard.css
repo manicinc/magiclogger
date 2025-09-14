@@ -68,10 +68,31 @@
   box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
 }
 
-/* Mobile responsive */
+/* Mobile responsive - normal appearance in hamburger menu */
 @media (max-width: 996px) {
-  .navbar-dashboard-link {
-    margin: 0.5rem 1rem;
-    display: inline-block;
+  .navbar-sidebar .navbar-dashboard-link {
+    background: none !important;
+    box-shadow: none !important;
+    padding: 0.75rem 1.5rem !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    display: block !important;
+    width: 100% !important;
+    text-align: left !important;
+    position: relative !important;
+    transform: none !important;
+  }
+
+  .navbar-sidebar .navbar-dashboard-link::after {
+    display: none !important; /* Hide the "SOON" badge in mobile menu */
+  }
+
+  .navbar-sidebar .navbar-dashboard-link:hover {
+    background: rgba(0, 0, 0, 0.05) !important;
+    transform: none !important;
+  }
+
+  [data-theme='dark'] .navbar-sidebar .navbar-dashboard-link:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
   }
 }

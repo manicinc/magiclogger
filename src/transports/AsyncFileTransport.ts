@@ -607,7 +607,7 @@ export class AsyncFileTransport extends Transport {
       // Format based on configured format option
       if (this.options.format === 'plain') {
         // Human-readable plain text format
-        const timestamp = new Date(entry.timestampMs || Date.now()).toISOString();
+        const timestamp = new Date(entry.timestamp || Date.now()).toISOString();
         const level = String(entry.level).toUpperCase().padEnd(5);
         const message = entry.message || '';
         const context = entry.context ? ` ${JSON.stringify(entry.context)}` : '';

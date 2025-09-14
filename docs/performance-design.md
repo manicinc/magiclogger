@@ -189,7 +189,7 @@ const TEST_DATA = {
 
 ## Conclusion
 
-MagicLogger's performance design achieves an excellent balance between **architectural soundness** and **high performance**. The worker thread architecture provides true asynchronous logging with complete isolation while maintaining competitive throughput. With our optimizations, MagicLogger achieves 364,754 ops/sec for plain text and an impressive 317,262 ops/sec with full styling (only 13% overhead in async mode!), making it ideal for production services that want both beautiful logs and high performance. Key achievements:
+MagicLogger's performance design achieves an excellent balance between **architectural soundness** and **production reliability**. The worker thread architecture provides true asynchronous logging with complete isolation, ensuring your application never blocks on I/O operations. While raw throughput is currently lower than competitors during pre-1.0 development, the architecture provides critical benefits for production services. Key achievements:
 
 - **Never blocking the main thread**
 - **Worker crash isolation** (transport failures don't affect main thread)

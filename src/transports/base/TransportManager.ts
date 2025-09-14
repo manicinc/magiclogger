@@ -309,8 +309,7 @@ export class TransportManager extends EventEmitter {
     // Create aggregation report entry for target transports
     const aggregationEntry = {
       id: this.generateId(),
-      timestamp: new Date().toISOString(),
-      timestampMs: Date.now(),
+      timestamp: Date.now(),
       level: 'info' as const,
       message: 'Aggregation report',
       loggerId: 'transport-manager',
@@ -685,8 +684,7 @@ export class TransportManager extends EventEmitter {
 
     const logEntry: LogEntry = {
       id: generateId(),
-      timestamp: new Date(time).toISOString(),
-      timestampMs: time,
+      timestamp: time,
       level: levelMap[minimal.level] || 'info',
       message: minimal.plainMsg || minimal.msg || '', // Use plain text if available
       context: minimal,

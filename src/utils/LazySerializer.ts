@@ -76,7 +76,6 @@ export class SchemaSerializer {
     this.schema = [
       'id',
       'timestamp',
-      'timestampMs',
       'level',
       'message',
       'styles',

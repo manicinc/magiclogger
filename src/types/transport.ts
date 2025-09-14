@@ -54,15 +54,10 @@ export interface LogEntry {
   id: string;
 
   /**
-   * ISO 8601 timestamp when the log was created.
-   * @example "2025-08-14T12:34:35.123Z"
-   */
-  timestamp: string;
-
-  /**
    * Unix timestamp in milliseconds for efficient sorting/filtering.
+   * Use toISOString() for human-readable display.
    */
-  timestampMs: number;
+  timestamp: number;
 
   /**
    * MAGIC schema version for compatibility.
@@ -1393,4 +1388,22 @@ export interface AggregationStats {
    * Custom aggregated metrics.
    */
   custom?: Record<string, unknown>;
+}
+
+/**
+ * Helper function to convert a LogEntry timestamp to ISO string format.
+ * @param entry The log entry with a timestamp field
+ * @returns ISO 8601 formatted timestamp string
+ */
+export function toISOString(entry: LogEntry): string {
+  return new Date(entry.timestamp).toISOString();
+}
+
+/**
+ * Helper function to convert a timestamp to ISO string format.
+ * @param timestamp Unix timestamp in milliseconds
+ * @returns ISO 8601 formatted timestamp string
+ */
+export function timestampToISO(timestamp: number): string {
+  return new Date(timestamp).toISOString();
 }

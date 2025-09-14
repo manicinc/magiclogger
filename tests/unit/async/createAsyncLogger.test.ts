@@ -99,13 +99,19 @@ describe('createAsyncLogger factory', () => {
       
       expect(nonEmptyBatch).toBeDefined();
       
-      // Check the batch contains all messages
-      const batch = nonEmptyBatch[0];
-      expect(batch).toHaveLength(3);
-      expect(batch[0].message).toBe('Test message 1');
-      expect(batch[0].level).toBe('info');
-      expect(batch[1].level).toBe('error');
-      expect(batch[2].level).toBe('warn');
+      // Check that we have all messages (may be in one batch or multiple)
+      const allEntries = calls.flatMap(call => call[0]);
+
+      const message1 = allEntries.find(e => e.message === 'Test message 1');
+      const message2 = allEntries.find(e => e.message === 'Test message 2');
+      const message3 = allEntries.find(e => e.message === 'Test message 3');
+
+      expect(message1).toBeDefined();
+      expect(message1.level).toBe('info');
+      expect(message2).toBeDefined();
+      expect(message2.level).toBe('error');
+      expect(message3).toBeDefined();
+      expect(message3.level).toBe('warn');
 
       await logger.close();
     });

@@ -197,8 +197,7 @@ export class SyncLogger {
     }
 
     // Create timestamp
-    const timestamp = new Date().toISOString();
-    const timestampMs = Date.now();
+    const timestamp = Date.now();
 
     // Format the log entry properly using Formatter
     const levelColor = this.getLevelColor(level);
@@ -225,7 +224,7 @@ export class SyncLogger {
     }
 
     // Build a normalized entry once so file and handler are consistent
-    const entry = this.createEntry(level, message, meta, timestamp, timestampMs);
+    const entry = this.createEntry(level, message, meta, timestamp);
 
     // Use transport manager to handle file output with proper buffering
     // The SyncFileTransport provides intelligent batching and rotation
@@ -267,12 +266,10 @@ export class SyncLogger {
     level: LogLevel,
     message: string,
     meta: LogEntryMeta | undefined,
-    isoTimestamp: string,
-    epochMs: number
+    timestamp: number
   ): {
     id: string;
-    timestamp: string;
-    timestampMs: number;
+    timestamp: number;
     level: string;
     message: string;
     styles?: Array<[number, number, string]>;
@@ -285,8 +282,7 @@ export class SyncLogger {
     // Keep both context and meta keys for compatibility with transports/tests
     const entry = {
       id: generateId(),
-      timestamp: isoTimestamp,
-      timestampMs: epochMs,
+      timestamp: timestamp,
       level: String(level),
       message: msg,
       // Note: styles extraction could be added here in the future

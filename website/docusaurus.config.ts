@@ -102,7 +102,7 @@ const config: Config = {
         {
           to: '/dashboard',
           label: '✨ Magic Dashboard',
-          position: 'right',
+          position: 'left',
           className: 'navbar-dashboard-link',
           'aria-label': 'Magic Dashboard - Coming Soon',
         },

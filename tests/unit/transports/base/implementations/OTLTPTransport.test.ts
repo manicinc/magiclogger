@@ -926,8 +926,7 @@ describe('OTLPTransport', () => {
         id: 'test-' + Date.now(),
         level: 'info',
         message: 'Timestamp test',
-        timestamp: new Date(timestampMs).toISOString(),
-        timestampMs,
+        timestamp: timestampMs,
       };
 
       await transport.log(entry);
