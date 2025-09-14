@@ -33,7 +33,6 @@ describe('AsyncLogger with RingBuffer', () => {
     });
 
     it('should fall back to regular workers if ring buffer fails', async () => {
-      expect.assertions(1);
       // Mock SharedArrayBuffer not available
       const originalSharedArrayBuffer = global.SharedArrayBuffer;
       // @ts-expect-error Testing fallback when SharedArrayBuffer is not available
@@ -50,7 +49,8 @@ describe('AsyncLogger with RingBuffer', () => {
       await logger.waitForReady();
 
       // Should still work even without SharedArrayBuffer
-      logger.info('Test message');
+      const result = logger.info('Test message');
+      expect(result.success).toBe(true);
       await logger.flush();
 
       await logger.close();
@@ -92,7 +92,7 @@ describe('AsyncLogger with RingBuffer', () => {
 
     it('should maintain unique timestamps with performance.now()', async () => {
       const timestamps: string[] = [];
-      
+
       const logger = new AsyncLogger({
         worker: {
           enabled: true,
@@ -101,7 +101,7 @@ describe('AsyncLogger with RingBuffer', () => {
         useConsole: false,
         onFlush: (entries: LogEntry[]) => {
           entries.forEach(entry => {
-            timestamps.push(entry.timestamp);
+            timestamps.push(entry.timestampMs);
           });
         },
       });
@@ -114,7 +114,7 @@ describe('AsyncLogger with RingBuffer', () => {
       }
 
       await logger.flush();
-      
+
       // Check that timestamps are unique (or at least increasing)
       for (let i = 1; i < timestamps.length; i++) {
         expect(timestamps[i]).toBeGreaterThanOrEqual(timestamps[i - 1]);
@@ -142,9 +142,6 @@ describe('AsyncLogger with RingBuffer', () => {
     });
 
     it('should handle worker thread errors gracefully', async () => {
-      expect.assertions(1);
-      const errorHandler = jest.fn();
-      
       const logger = new AsyncLogger({
         worker: {
           enabled: true,
@@ -153,17 +150,16 @@ describe('AsyncLogger with RingBuffer', () => {
         useConsole: false,
       });
 
-      logger.on('error', errorHandler);
-
       await logger.waitForReady();
 
       // Simulate a large message that might exceed buffer
       const largeMessage = 'x'.repeat(100000);
-      logger.info(largeMessage);
-
-      await logger.flush();
+      const result = logger.info(largeMessage);
 
       // Should handle gracefully without crashing
+      expect(result.success).toBe(true);
+
+      await logger.flush();
       await logger.close();
     });
   });
