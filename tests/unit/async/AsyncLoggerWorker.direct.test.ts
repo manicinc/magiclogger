@@ -218,8 +218,8 @@ describe('AsyncLoggerWorker Direct Processing', () => {
       expect(totalHandled).toBeGreaterThanOrEqual(1); // At least something was handled
       
       // If errors are tracked separately, we should have at least 1
-      // eslint-disable-next-line jest/no-conditional-expect
       if (stats.errors !== undefined) {
+        // eslint-disable-next-line jest/no-conditional-expect
         expect(stats.errors).toBeGreaterThanOrEqual(0); // May or may not track errors
       }
       
