@@ -112,9 +112,9 @@ describe('Default Console Transport', () => {
       const logger = createAsyncLogger();
       expect(logger).toBeDefined();
 
-      // Should have fast defaults - batch size 1 for direct passthrough
+      // Should have optimized defaults - batch size 100 for better throughput
       const stats = logger.getStats();
-      expect(stats.buffer.capacity).toBe(1); // Direct mode, no batching
+      expect(stats.buffer.capacity).toBe(100); // Batching for performance
 
       const result = logger.info('Fast message');
       expect(result.success).toBe(true);

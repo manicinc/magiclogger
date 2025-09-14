@@ -36,9 +36,9 @@ describe('createAsyncLogger factory', () => {
     it('should use fast default buffer configuration', async () => {
       const logger = createAsyncLogger();
 
-      // Fast defaults: batch size 1 for direct passthrough to sonic-boom
+      // Optimized defaults: batch size 100 for better throughput
       const stats = logger.getStats();
-      expect(stats.buffer.capacity).toBe(1);
+      expect(stats.buffer.capacity).toBe(100);
 
       await logger.close();
     });
