@@ -234,13 +234,13 @@ async function runBenchmarks() {
       await transport.init();
       activeTransports.add(transport);
       
-      // Use the REAL AsyncLogger with optimized batching for plain text
+      // Use the REAL AsyncLogger with same batching config as styled
       const logger = new AsyncLogger({
         useColors: false,
         transports: [transport],
         useConsole: false,
-        batchSize: 50,      // Smaller batch for plain text
-        batchTimeout: 5     // Shorter timeout (5ms) for faster flushing
+        batchSize: 100,     // Same as styled
+        batchTimeout: 10    // Same as styled - fair comparison
       });
       
       await logger.waitForReady();

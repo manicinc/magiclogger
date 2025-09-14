@@ -7,21 +7,22 @@ MagicLogger's performance architecture represents a deliberate set of trade-offs
 ## Core Performance Metrics
 
 ### Current Performance Profile (Real Production Metrics)
-- **Async Mode (Plain)**: 207,322 ops/sec (0.005ms avg latency)
-- **Async + Styles**: 260,273 ops/sec (0.004ms avg latency) - Styles IMPROVE performance by 25%!
-- **Sync Mode (Plain)**: 206,362 ops/sec (0.005ms avg latency)
-- **Sync + Styles**: 55,419 ops/sec (0.018ms avg latency)
+- **Sync Mode (Plain)**: 147,906 ops/sec (0.006ms avg latency)
+- **Async Mode (Plain)**: 118,849 ops/sec (0.008ms avg latency)
+- **Async + Styles**: 142,323 ops/sec (0.007ms avg latency) - Styles actually faster than plain!
+- **Sync + Styles**: 29,741 ops/sec (0.033ms avg latency)
 - **Memory Usage**: Minimal with deferred processing (< 1KB per batch)
 
 ### Performance vs Architecture Trade-offs
 
 | Approach | Performance | Architecture Benefits | Use Case |
 |----------|------------|----------------------|----------|
-| **Pino (Plain)** | 401,031 ops/sec | Simple, minimal overhead | Maximum throughput |
-| **Winston (Plain)** | 333,449 ops/sec | Mature, feature-rich | General purpose |
-| **MagicLogger Async (Styled)** | 260,273 ops/sec | True async, styled output, deferred processing | Production services |
-| **MagicLogger Async (Plain)** | 207,322 ops/sec | Non-blocking I/O | High-throughput logging |
-| **MagicLogger Sync** | 206,362 ops/sec | Guaranteed delivery | Audit logs, debugging |
+| **Pino (Plain)** | 238,365 ops/sec | Simple, minimal overhead | Maximum throughput |
+| **Pino (ANSI Async)** | 216,022 ops/sec | Async styled output | Styled production |
+| **Winston (Plain)** | 153,741 ops/sec | Mature, feature-rich | General purpose |
+| **MagicLogger Sync (Plain)** | 147,906 ops/sec | Guaranteed delivery | Audit logs, debugging |
+| **MagicLogger Async (Styled)** | 142,323 ops/sec | Non-blocking styled output | Production services |
+| **MagicLogger Async (Plain)** | 118,849 ops/sec | Non-blocking I/O | High-throughput logging |
 
 ## Design Decisions
 
@@ -91,10 +92,10 @@ Each transport manages its own performance strategy:
 The MAGIC schema's styling system shows surprising results - **async styled logging is FASTER than plain text**:
 
 **Performance Impact (Actual Production Metrics):**
-- Async plain text: 207,322 ops/sec
-- Async styled text: 260,273 ops/sec (**25% FASTER with styles!**)
-- Sync plain text: 206,362 ops/sec
-- Sync styled text: 55,419 ops/sec (73% overhead)
+- Sync plain text: 147,906 ops/sec
+- Sync styled text: 29,741 ops/sec (80% overhead)
+- Async plain text: 118,849 ops/sec
+- Async styled text: 142,323 ops/sec (**20% FASTER with styles!**)
 
 **Why Styled is Faster (Async):**
 The counter-intuitive result occurs because styled logs take ~4x longer to process, allowing better batch accumulation before the timeout triggers. This results in fewer, larger writes to the file system.

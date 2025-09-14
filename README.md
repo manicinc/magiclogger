@@ -262,7 +262,6 @@ const httpTransport = new HTTPTransport({
 
 **Other Performance Architectural Decisions**:
 - **Ring buffer**: Lock-free circular buffer prevents memory allocation in hot path
-- **Timestamp caching**: 10ms cache window with microsecond increments (avoids Date.now() syscalls)
 - **Style fast-path**: Plain text skips regex parsing entirely
 
 ## MAGIC Schema - Universal Styled Logging Standard
@@ -1362,18 +1361,18 @@ MagicLogger delivers **competitive performance** with flexible architecture:
 | **MagicLogger (Sync)** | **169,258** | **0.006** | 0.001 | 0.004 | 0.007 | 7.326 |
 | **MagicLogger (Async)** | **165,327** | **0.006** | 0.000 | 0.001 | 0.313 | 3.093 |
 
-> **Note**: AsyncLogger now matches SyncLogger performance through optimized batching with deferred processing.
+> **Note**: SyncLogger excels at plain text (147K ops/sec) while AsyncLogger shines with styled output (142K ops/sec).
 
 ##### 🎨 Styled Output Performance
 | Logger | Ops/sec | Avg (ms) | P50 | P95 | P99 | Max |
 |--------|--------:|---------:|----:|----:|----:|----:|
-| Pino (Pretty) | 340,501 | 0.003 | 0.002 | 0.003 | 0.008 | 0.121 |
-| Pino (ANSI Async) | 276,912 | 0.003 | 0.003 | 0.004 | 0.008 | 5.122 |
-| **MagicLogger (Async + Styles)** | **263,268** | **0.004** | 0.000 | 0.001 | 0.185 | 2.160 |
-| Winston (Styled) | 241,623 | 0.004 | 0.001 | 0.010 | 0.039 | 6.222 |
-| MagicLogger (Sync + Styles)* | 31,243 | 0.032 | 0.010 | 0.027 | 0.082 | 48.944 |
+| Pino (Manual ANSI Async) | 216,022 | 0.004 | 0.004 | 0.005 | 0.013 | 1.963 |
+| Pino (Pretty) | 189,861 | 0.005 | 0.003 | 0.005 | 0.017 | 0.978 |
+| **MagicLogger (Async + Styles)** | **142,323** | **0.007** | 0.001 | 0.001 | 0.346 | 5.988 |
+| Winston (Sync + Styled) | 136,527 | 0.007 | 0.002 | 0.013 | 0.045 | 10.013 |
+| MagicLogger (Sync + Styles)* | 29,741 | 0.033 | 0.015 | 0.040 | 0.153 | 26.758 |
 
-> **Async Excellence**: AsyncLogger with styles (263K ops/sec) outperforms Winston and nearly matches Pino!
+> **Async Advantage**: AsyncLogger handles styles efficiently at 142K ops/sec, competitive with Winston!
 >
 > *Sync styled logging is an unoptimized path (pre v1.0) for a niche use case.
 
@@ -1397,7 +1396,6 @@ MagicLogger delivers **competitive performance** with flexible architecture:
 - **For lowest latency**, disable batching entirely (batchSize: 1, batchTimeout: 0)
 - **Counter-based IDs**: 5x faster than Math.random()
 - **Optimized MAGIC Schema**: 47% memory reduction
-- **Timestamp Caching**: 10ms windows with microsecond increments
 
 See [Performance Guide](./docs/performance-guide.md) for detailed analysis and configuration tips.
 

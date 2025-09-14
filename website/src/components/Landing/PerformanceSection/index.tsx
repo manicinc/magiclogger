@@ -10,22 +10,22 @@ const benchmarks = {
     title: 'Synchronous Performance',
     description: 'Direct logging throughput - immediate output for development',
     data: [
-      { name: 'Winston (Plain)', value: 253133, percentage: 100, color: '#fee140' },
-      { name: 'Winston (Sync + Styled)', value: 196214, percentage: 77, color: '#ffd700' },
-      { name: 'MagicLogger (Sync)', value: 176452, percentage: 70, color: '#667eea' },
-      { name: 'Pino (Manual ANSI)', value: 71232, percentage: 28, color: '#4facfe' },
-      { name: 'MagicLogger (Sync + Styles)', value: 29005, percentage: 11, color: '#9945ff' }
+      { name: 'Pino', value: 238365, percentage: 100, color: '#4facfe' },
+      { name: 'Winston (Plain)', value: 153741, percentage: 65, color: '#fee140' },
+      { name: 'MagicLogger (Sync)', value: 147906, percentage: 62, color: '#667eea' },
+      { name: 'Winston (Sync + Styled)', value: 136527, percentage: 57, color: '#ffd700' },
+      { name: 'MagicLogger (Sync + Styles)', value: 29741, percentage: 12, color: '#9945ff' }
     ]
   },
   async: {
     title: 'Async Performance',
     description: 'Production performance with real file I/O',
     data: [
-      { name: 'Pino', value: 248414, percentage: 100, color: '#4facfe' },
-      { name: 'Pino (Manual ANSI Async)', value: 228100, percentage: 92, color: '#40a9ff' },
-      { name: 'MagicLogger (Async)', value: 203385, percentage: 82, color: '#667eea' },
-      { name: 'Pino (Pretty)', value: 186048, percentage: 75, color: '#1890ff' },
-      { name: 'MagicLogger (Async + Styles)', value: 31138, percentage: 13, color: '#9945ff' }
+      { name: 'Pino (Manual ANSI Async)', value: 216022, percentage: 100, color: '#40a9ff' },
+      { name: 'Pino (Pretty)', value: 189861, percentage: 88, color: '#1890ff' },
+      { name: 'MagicLogger (Async + Styles)', value: 142323, percentage: 66, color: '#9945ff' },
+      { name: 'MagicLogger (Async)', value: 118849, percentage: 55, color: '#667eea' },
+      { name: 'Pino (Manual ANSI)', value: 98601, percentage: 46, color: '#4facfe' }
     ]
   },
   bundle: {

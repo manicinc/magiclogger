@@ -26,10 +26,7 @@ MagicLogger is a high-performance, feature-rich logging library for TypeScript/J
   - **Worker threads OFF by default** for lowest latency (enable with `worker.enabled: true`)
   - **Fast path optimization**: Plain text logs bypass style processing entirely
   - **Counter-based ID generation**: 5x faster than Math.random()
-  - **Timestamp Management**: TimestampManager utility with ordering guarantees
-    - 10ms cache window with microsecond increments
-    - Queue-based tracking ensures proper ordering
-    - Automatic cleanup of old entries
+  - **Counter-based ID generation**: 5x faster than Math.random()
   - **Lazy TextStyler loading**: Only loaded when styles are actually used
 - **Use Cases**: High-throughput applications, web servers, microservices
 - **Trade-offs**:
@@ -95,7 +92,7 @@ MagicLogger uses an **optimized batching strategy** with deferred processing:
    - HTTPTransport: 100 entries or 5s timeout for network efficiency
    - ConsoleTransport: No batching (immediate output for debugging)
 
-**Performance**: Achieves 169K ops/sec for sync plain text, 263K ops/sec for async styled output.
+**Performance**: Achieves 147K ops/sec for sync plain text, 142K ops/sec for async styled output.
 
 ### 3. Async I/O Architecture
 
@@ -166,17 +163,17 @@ interface LogEntry {
 ## Performance Characteristics
 
 ### Synchronous Logging
-- **Throughput**: 162K ops/sec plain text, 25K ops/sec with styles
+- **Throughput**: 147K ops/sec plain text, 29K ops/sec with styles
 - **Latency**: 0.006ms average blocking time
 - **Memory**: Minimal buffering
 - **Reliability**: Guaranteed delivery (blocks until written)
 
 ### Asynchronous Logging
-- **Throughput**: 99K ops/sec plain text, 142K ops/sec with styles
-- **Latency**: 0.007ms average (non-blocking)
+- **Throughput**: 118K ops/sec plain text, 142K ops/sec with styles
+- **Latency**: 0.008ms average (non-blocking)
 - **Memory**: Minimal with sonic-boom buffering
 - **Reliability**: Best-effort, requires graceful shutdown for guarantee
-- **Note**: Async with styles (142K) outperforms sync with styles (25K) by 5.5x
+- **Note**: Async with styles (142K) outperforms sync with styles (29K) by 4.8x
 
 ### Architecture Benefits
 
@@ -220,18 +217,19 @@ For most logging scenarios, the default async I/O without workers provides the b
 
 | Logger | Architecture | Throughput (ops/sec) | Avg Latency | Use Case |
 |--------|-------------|---------------------|--------------|----------|
-| Pino (Pretty) | Async Worker | 336,010 | 0.003ms | Pretty printing with worker |
-| Winston (Plain) | Multi-stream | 275,340 | 0.003ms | Feature-rich ecosystem |
-| Winston (Styled) | Multi-stream | 230,347 | 0.004ms | Styled enterprise logging |
-| Pino (Plain) | Async I/O | 170,500 | 0.005ms | High-throughput, minimal overhead |
-| MagicLogger (Sync) | Direct I/O | 162,422 | 0.006ms | Guaranteed delivery |
-| MagicLogger (Async+Styled) | Async I/O + Cache | 142,288 | 0.007ms | Styled production logging |
-| MagicLogger (Async) | Async I/O | 99,485 | 0.010ms | Non-blocking production |
-| MagicLogger (Sync+Styled) | Direct I/O + Styles | 25,631 | 0.039ms | Interactive CLI tools |
+| Pino (Plain) | Async I/O | 238,365 | 0.004ms | High-throughput, minimal overhead |
+| Pino (ANSI Async) | Async Worker | 216,022 | 0.004ms | Async styled output |
+| Pino (Pretty) | Async Worker | 189,861 | 0.005ms | Pretty printing with worker |
+| Winston (Plain) | Multi-stream | 153,741 | 0.006ms | Feature-rich ecosystem |
+| MagicLogger (Sync) | Direct I/O | 147,906 | 0.006ms | Guaranteed delivery |
+| MagicLogger (Async+Styled) | Async I/O | 142,323 | 0.007ms | Styled production logging |
+| Winston (Styled) | Multi-stream | 136,527 | 0.007ms | Styled enterprise logging |
+| MagicLogger (Async) | Async I/O | 118,849 | 0.008ms | Non-blocking production |
+| MagicLogger (Sync+Styled) | Direct I/O + Styles | 29,741 | 0.033ms | Interactive CLI tools |
 
 **Key insights**:
-- Async styled (142K) outperforms sync styled (25K) by 5.5x
-- AsyncLogger leverages sonic-boom for efficient I/O
+- Async styled (142K) outperforms sync styled (29K) by 4.8x
+- SyncLogger excels at plain text (147K) while AsyncLogger shines with styles (142K)
 - All metrics from real file I/O with production-like payloads
 
 ## Design Decisions
@@ -253,35 +251,6 @@ For most logging scenarios, the default async I/O without workers provides the b
 - **Rationale**: Universal compatibility, structured data
 - **Trade-off**: Larger payload vs. binary formats
 
-### 4. Timestamp Generation Strategy
-
-#### TimestampManager Utility
-MagicLogger uses a dedicated `TimestampManager` utility class for high-performance timestamp generation with ordering guarantees:
-
-- **10ms cache window**: Date.now() called once per window
-- **Microsecond increments**: Logs within window get +0.001ms offsets
-- **Queue tracking**: Map-based queue ensures proper timestamp ordering
-- **Automatic cleanup**: Old entries removed after 1 second to prevent memory leaks
-- **Performance**: Up to 100x reduction in syscalls during burst logging
-- **Ordering guarantee**: Queue mechanism prevents out-of-order timestamps
-
-#### Configuration
-```typescript
-// Application logs (default - caching enabled)
-const logger = new AsyncLogger();
-
-// Audit logs (exact timestamps required)
-const auditLogger = new SyncLogger({
-  timestampCaching: false,  // Disable for compliance
-  file: './audit.log',
-  forceFlush: true
-});
-```
-
-#### Trade-offs
-- **With caching**: High performance, microsecond-level accuracy within windows
-- **Without caching**: Exact millisecond timestamps, higher syscall overhead
-- **Compliance note**: MiFID II requires microsecond precision - disable caching for such use cases
 
 ### 5. Style Processing Architecture
 
@@ -371,11 +340,6 @@ const auditLogger = new SyncLogger({
    }
    ```
 
-4. **Timestamp Management**: TimestampManager utility for optimal performance
-   - 10ms cache window with microsecond increments
-   - Queue-based ordering guarantees
-   - Up to 100x reduction in Date.now() calls
-   - Configurable for audit logs that need exact timestamps
 
 5. **Style Caching**: 30-50% improvement for repeated patterns
    - 10,000 entry LRU cache
