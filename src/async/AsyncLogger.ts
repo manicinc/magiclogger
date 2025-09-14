@@ -196,12 +196,6 @@ export interface AsyncLoggerOptions {
   useConsole?: boolean;
   /** Whether to enable color/style support (default: true) */
   useColors?: boolean;
-  /**
-   * Enable timestamp caching for performance (default: true).
-   * When enabled, timestamps are cached for 10ms windows with microsecond increments.
-   * Disable for audit logs that require exact timestamps.
-   */
-  timestampCaching?: boolean;
   /** Buffer configuration (for backward compatibility with tests) */
   buffer?: {
     /** Buffer size/capacity */
@@ -472,18 +466,6 @@ export class AsyncLogger extends EventEmitter {
   /** @private {number} Last timestamp used for ID generation */
   private lastTimestamp = 0;
 
-  /** @private {number} Cached timestamp for performance */
-  private cachedTimestamp = 0;
-
-  /** @private {number} When cached timestamp expires */
-  private cacheExpiry = 0;
-
-  /** @private {number} Microsecond offset within cache window */
-  private microOffset = 0;
-
-  /** @private {boolean} Whether to use timestamp caching for performance */
-  private readonly timestampCaching: boolean;
-
   /** @private {WorkerThread[]} Worker thread pool */
   private workers: WorkerThread[] = [];
 
@@ -624,7 +606,6 @@ export class AsyncLogger extends EventEmitter {
 
     // Timestamp caching enabled by default for performance
     // Can be disabled for audit logs requiring exact timestamps
-    this.timestampCaching = options.timestampCaching ?? true;
 
     // Worker configuration - OFF by default for better performance
     // Workers add IPC overhead and are only beneficial for CPU-intensive workloads
@@ -1027,7 +1008,7 @@ export class AsyncLogger extends EventEmitter {
             timestampMs,
             level: item.l || 'info',
             message: item.m,
-            context: item.x
+            context: item.x,
           } as LogEntry;
         }
         // Already a full entry
@@ -1113,7 +1094,7 @@ export class AsyncLogger extends EventEmitter {
             timestampMs,
             level: item.l || 'info',
             message: item.m,
-            context: item.x
+            context: item.x,
           } as LogEntry;
         }
         // Already a full entry
@@ -1205,10 +1186,10 @@ export class AsyncLogger extends EventEmitter {
       // Minimal entry for batching - defer all processing to flush time
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const minimalEntry: any = {
-        m: message,  // Short key for message
-        l: level,    // Short key for level
+        m: message, // Short key for message
+        l: level, // Short key for level
         t: Date.now(), // Timestamp
-        x: meta      // Short key for context/meta
+        x: meta, // Short key for context/meta
       };
 
       this.batch.push(minimalEntry);
@@ -1353,25 +1334,8 @@ export class AsyncLogger extends EventEmitter {
    * @returns {number} Timestamp in milliseconds (with microsecond precision)
    */
   private getOptimizedTimestamp(): number {
-    // For audit logs or when caching disabled, always use real timestamp
-    if (!this.timestampCaching) {
-      return Date.now();
-    }
-
-    const now = Date.now();
-
-    // Check if we're within the cache window (10ms)
-    if (now < this.cacheExpiry) {
-      // Return cached timestamp with microsecond offset
-      this.microOffset += 0.001;
-      return this.cachedTimestamp + this.microOffset;
-    }
-
-    // Cache expired, update it
-    this.cachedTimestamp = now;
-    this.cacheExpiry = now + 10; // 10ms cache window
-    this.microOffset = 0;
-    return now;
+    // Use Date.now() directly like industry standards (Pino/Winston)
+    return Date.now();
   }
 
   private generateId(timestampMs: number): string {

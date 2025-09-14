@@ -235,8 +235,6 @@ async function runBenchmarks() {
       activeTransports.add(transport);
       
       // Use the REAL AsyncLogger with optimized batching for plain text
-      // Plain text logs process faster, so we use a shorter timeout to prevent
-      // accumulation and achieve better throughput
       const logger = new AsyncLogger({
         useColors: false,
         transports: [transport],
@@ -357,7 +355,6 @@ async function runBenchmarks() {
       activeTransports.add(transport);
       
       // Use the REAL AsyncLogger with batching AND styling support
-      // Styled logs take longer to process, so larger batches work well
       const logger = new AsyncLogger({
         useColors: true,  // Enable styling
         transports: [transport],

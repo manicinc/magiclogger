@@ -79,15 +79,6 @@ export class SyncLogger {
   private currentTheme?: Record<string, unknown>;
   private _writeCount = 0;
 
-  /** @private Cached timestamp for performance */
-  private cachedTimestamp = 0;
-  /** @private When the cached timestamp expires */
-  private cacheExpiry = 0;
-  /** @private Microsecond offset within cache window */
-  private microOffset = 0;
-  /** @private Whether to use timestamp caching */
-  private readonly timestampCaching: boolean;
-
   /**
    * Creates a new synchronous logger instance.
    *
@@ -122,9 +113,6 @@ export class SyncLogger {
       verbose: options.verbose ?? false,
       ...options,
     };
-
-    // Timestamp caching enabled by default, can be disabled for audit logs
-    this.timestampCaching = options.timestampCaching ?? true;
 
     // Initialize styling components
     this.formatter = new Formatter();
@@ -284,22 +272,8 @@ export class SyncLogger {
    * @returns {number} Timestamp in milliseconds (with microsecond precision)
    */
   private getOptimizedTimestamp(): number {
-    // For audit logs or when caching disabled, always use real timestamp
-    if (!this.timestampCaching) {
-      return Date.now();
-    }
-
-    const now = Date.now();
-
-    if (now < this.cacheExpiry) {
-      this.microOffset += 0.001;
-      return this.cachedTimestamp + this.microOffset;
-    }
-
-    this.cachedTimestamp = now;
-    this.cacheExpiry = now + 10;
-    this.microOffset = 0;
-    return now;
+    // Use Date.now() directly like industry standards (Pino/Winston)
+    return Date.now();
   }
 
   /**

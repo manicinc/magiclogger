@@ -82,20 +82,6 @@ export interface LoggerOptions {
   performanceMode?: boolean;
 
   /**
-   * Enable timestamp caching for performance optimization.
-   * When enabled, timestamps are cached for 10ms windows with microsecond increments.
-   * This reduces Date.now() syscalls significantly but may not be suitable for audit logs
-   * that require exact millisecond-precision timestamps.
-   *
-   * @default true
-   * @remarks
-   * - Performance: Reduces Date.now() calls by up to 100x in high-frequency logging
-   * - Accuracy: Timestamps within 10ms window differ by microseconds (0.001ms increments)
-   * - Audit logs: Set to false for compliance requirements (e.g., MiFID II)
-   */
-  timestampCaching?: boolean;
-
-  /**
    * Writes logs to disk in timestamped `.log` files (Node only).
    * Ignored in browsers.
    *
