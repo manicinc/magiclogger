@@ -59,14 +59,13 @@ Those most interested in using this might be small teams without enterprise logg
 - [Quick Start](#quick-start)
 - [Styling APIs](#styling-apis)
 - [Key Features](#key-features)
-- [MAGIC Schema](#magic-schema)
+- [MAGIC Schema](#magic-schema---universal-styled-logging-standard)
 - [Transports](#transports)
 - [Advanced Features](#advanced-features)
 - [Theming & Custom Colors](#-theming--custom-colors)
 - [Context & Tags](#-context--tags)
 - [Validation & Schema Enforcement](#️-validation--schema-enforcement)
-- [Performance](#performance)
-- [Examples](#examples)
+- [Performance](#-performance)
 - [API Reference](#api-reference)
 - [Contributing](#contributing)
 
@@ -758,7 +757,7 @@ const sanitized = contextManager.sanitize(userContext);
 
 #### Audit-ready Logging
 
-MagicLogger's default logging is high-performance (~100k+ ops/second styled with full structured logs) due to a ring buffer architecture that drops older logs under excessive load, as well as a internal datetime mechanism that caches timestamps every 10ms and uses a queue to keep the logs in the correct order and with unique times.
+MagicLogger's async logging achieves high performance (~140k ops/second with styled output and full structured logs) through intelligent batching with deferred processing and a ring buffer architecture that maintains non-blocking operation under load.
 
 **For critical logs that must never be lost, or logs that must have completely accurate timestamps, use `SyncLogger`**:
 

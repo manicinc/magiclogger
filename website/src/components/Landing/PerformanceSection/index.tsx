@@ -116,8 +116,8 @@ export default function PerformanceSection() {
             <h4>Performance Note</h4>
             <p>
               MagicLogger prioritizes developer experience with beautiful, styled logs preserved end-to-end through production.
-              While Winston leads in plain text (253k ops/sec), MagicLogger achieves excellent performance (203k plain, 31k styled ops/sec)
-              with the MAGIC Schema ensuring your colored logs display perfectly in dashboards. Async mode is 1.2x faster than sync.
+              While Pino leads in plain text (238k ops/sec), MagicLogger achieves excellent performance (148k sync plain, 142k async styled ops/sec)
+              with the MAGIC Schema ensuring your colored logs display perfectly in dashboards.
               {' '}
               <a href="/docs/performance-design#styling-optimizations" className={styles.performanceLink}>
                 Learn about our style optimization techniques →
