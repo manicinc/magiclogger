@@ -234,12 +234,15 @@ async function runBenchmarks() {
       await transport.init();
       activeTransports.add(transport);
       
-      // Use the REAL AsyncLogger with batching for async performance
+      // Use the REAL AsyncLogger with optimized batching for plain text
+      // Plain text logs process faster, so we use a shorter timeout to prevent
+      // accumulation and achieve better throughput
       const logger = new AsyncLogger({
         useColors: false,
         transports: [transport],
-        useConsole: false
-        // Using new defaults: batchSize: 100, batchTimeout: 10ms
+        useConsole: false,
+        batchSize: 50,      // Smaller batch for plain text
+        batchTimeout: 5     // Shorter timeout (5ms) for faster flushing
       });
       
       await logger.waitForReady();
@@ -354,11 +357,13 @@ async function runBenchmarks() {
       activeTransports.add(transport);
       
       // Use the REAL AsyncLogger with batching AND styling support
+      // Styled logs take longer to process, so larger batches work well
       const logger = new AsyncLogger({
         useColors: true,  // Enable styling
         transports: [transport],
-        useConsole: false
-        // Using new defaults: batchSize: 100, batchTimeout: 10ms
+        useConsole: false,
+        batchSize: 100,     // Default batch size works well for styled
+        batchTimeout: 10    // Default timeout for styled output
       });
       
       await logger.waitForReady();

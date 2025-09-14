@@ -1,6 +1,6 @@
 # MagicLogger Performance Benchmark Results
 
-Last updated: 2025-09-14T12:18:11.641Z
+Last updated: 2025-09-14T14:14:48.112Z
 Node.js: v20.19.4
 Platform: win32
 Iterations: 20,000
@@ -13,16 +13,16 @@ Winston/Pino benchmarks don't include OTel plugins (would add ~20-30% overhead).
 
 | Logger | Ops/sec | Avg (ms) | P50 | P95 | P99 | Max |
 |--------|--------:|---------:|----:|----:|----:|----:|
-| Pino (Pretty)                       | 340,501 |    0.003 | 0.002 | 0.003 | 0.008 | 0.121 |
-| Pino                                | 333,417 |    0.003 | 0.001 | 0.006 | 0.012 | 2.559 |
-| Pino (Manual ANSI Async)            | 276,912 |    0.003 | 0.003 | 0.004 | 0.008 | 5.122 |
-| MagicLogger (Async + Styles)        | 263,268 |    0.004 | 0.000 | 0.001 | 0.185 | 2.160 |
-| Winston (Sync + Styled)             | 241,623 |    0.004 | 0.001 | 0.010 | 0.039 | 6.222 |
-| Winston (Plain)                     | 228,578 |    0.004 | 0.001 | 0.007 | 0.037 | 6.131 |
-| MagicLogger (Sync)                  | 169,258 |    0.006 | 0.001 | 0.004 | 0.007 | 7.326 |
-| MagicLogger (Async)                 | 165,327 |    0.006 | 0.000 | 0.001 | 0.313 | 3.093 |
-| Pino (Manual ANSI)                  |  76,765 |    0.013 | 0.011 | 0.020 | 0.040 | 4.330 |
-| MagicLogger (Sync + Styles)         |  31,243 |    0.032 | 0.010 | 0.027 | 0.082 | 48.944 |
+| Pino                                | 401,031 |    0.002 | 0.001 | 0.003 | 0.009 | 0.388 |
+| Winston (Plain)                     | 333,449 |    0.003 | 0.001 | 0.006 | 0.024 | 4.800 |
+| MagicLogger (Async + Styles)        | 260,273 |    0.004 | 0.000 | 0.001 | 0.183 | 2.562 |
+| Winston (Sync + Styled)             | 240,345 |    0.004 | 0.001 | 0.011 | 0.032 | 1.836 |
+| Pino (Pretty)                       | 235,988 |    0.004 | 0.003 | 0.006 | 0.014 | 0.562 |
+| Pino (Manual ANSI Async)            | 231,411 |    0.004 | 0.003 | 0.004 | 0.011 | 7.540 |
+| MagicLogger (Async)                 | 207,322 |    0.005 | 0.000 | 0.001 | 0.266 | 2.426 |
+| MagicLogger (Sync)                  | 206,362 |    0.005 | 0.001 | 0.003 | 0.014 | 4.784 |
+| Pino (Manual ANSI)                  |  72,586 |    0.014 | 0.012 | 0.019 | 0.033 | 4.450 |
+| MagicLogger (Sync + Styles)         |  55,419 |    0.018 | 0.008 | 0.023 | 0.054 | 7.947 |
 
 ## Configuration
 - Test iterations: 20,000

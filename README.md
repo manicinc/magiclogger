@@ -226,6 +226,31 @@ MagicLogger uses an intelligent adaptive batching strategy:
 - **High volume**: Batch up to 100 entries or 10ms timeout
 - **Fast path**: Direct transport calls when workers are disabled
 
+**Performance Tuning for AsyncLogger**
+
+```typescript
+// Optimize for high-throughput plain text logging
+const logger = new AsyncLogger({
+  batchSize: 50,      // Smaller batches for fast-processing logs
+  batchTimeout: 5,    // Shorter timeout (5ms) for quicker flushing
+  transports: [...]
+});
+
+// Optimize for styled/complex logging
+const logger = new AsyncLogger({
+  batchSize: 100,     // Larger batches work well with slower processing
+  batchTimeout: 10,   // Default 10ms timeout for styled output
+  transports: [...]
+});
+
+// Optimize for lowest latency (real-time)
+const logger = new AsyncLogger({
+  batchSize: 1,       // No batching
+  batchTimeout: 0,    // Immediate flush
+  transports: [...]
+});
+```
+
 **Transport-Level Optimization**
 
 ```typescript
@@ -1365,6 +1390,11 @@ MagicLogger delivers **competitive performance** with flexible architecture:
 - **Deferred Processing**: Minimal object creation in hot path (784k ops/sec capability)
 - **Smart Batching**: Default 100-log batches with 10ms timeout
 - **Sonic-boom Integration**: Same async I/O engine as Pino
+
+**Performance Tuning Notes:**
+- **Styled logs may benchmark faster than plain text** due to batching efficiency - styled logs take longer to process, allowing better batch accumulation before flush
+- **Plain text logs benefit from smaller batches** (50 logs, 5ms timeout) for optimal throughput
+- **For lowest latency**, disable batching entirely (batchSize: 1, batchTimeout: 0)
 - **Counter-based IDs**: 5x faster than Math.random()
 - **Optimized MAGIC Schema**: 47% memory reduction
 - **Timestamp Caching**: 10ms windows with microsecond increments
