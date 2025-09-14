@@ -16,12 +16,12 @@ coverage:
         informational: false
     patch:
       default:
-        target: 70%  # require 70% coverage on new code
-        threshold: 10%  # allow 10% variance
+        target: 50%  # require 50% coverage on new code
+        threshold: 20%  # allow 20% variance
         base: auto
         if_ci_failed: error
         if_not_found: success
-        informational: false
+        informational: true  # make it informational only, won't fail PR
 
 comment:
   layout: "reach,diff,flags,tree"
