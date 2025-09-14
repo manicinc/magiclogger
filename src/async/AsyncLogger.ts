@@ -1203,12 +1203,13 @@ export class AsyncLogger extends EventEmitter {
     // When batching, skip most processing and just queue the raw data
     if (this.batchSize > 1 && !this.useWorkers && !this.useRingBuffer) {
       // Minimal entry for batching - defer all processing to flush time
-      const minimalEntry = {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const minimalEntry: any = {
         m: message,  // Short key for message
         l: level,    // Short key for level
         t: Date.now(), // Timestamp
         x: meta      // Short key for context/meta
-      } as any;
+      };
 
       this.batch.push(minimalEntry);
 
@@ -1245,9 +1246,11 @@ export class AsyncLogger extends EventEmitter {
     if (!this.useWorkers && hasStyles && this.batchSize > 1) {
       if (!this.textStyler) {
         const { TextStyler } =
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
           require('../utils/TextStyler') as typeof import('../utils/TextStyler');
         this.textStyler = TextStyler;
       }
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       const result = this.textStyler!.parseBracketsWithExtraction(message, this.useColors);
       processedMessage = result.plainText;
       styles = result.styles;
