@@ -11,7 +11,7 @@ describe('TimestampManager', () => {
     jest.useFakeTimers();
     manager = new TimestampManager({
       cacheWindowMs: 10,
-      microIncrement: 0.001
+      microIncrement: 0.001,
     });
   });
 
@@ -30,7 +30,7 @@ describe('TimestampManager', () => {
       const customManager = new TimestampManager({
         cacheWindowMs: 20,
         microIncrement: 0.002,
-        maxQueueSize: 500
+        maxQueueSize: 500,
       });
       expect(customManager.getStats().cacheWindowMs).toBe(20);
       expect(customManager.getStats().microIncrement).toBe(0.002);
@@ -150,7 +150,7 @@ describe('TimestampManager', () => {
       // Force cleanup by exceeding max queue size
       const cleanupManager = new TimestampManager({
         maxQueueSize: 5,
-        cleanupThresholdMs: 1000
+        cleanupThresholdMs: 1000,
       });
 
       jest.setSystemTime(now);
@@ -279,7 +279,7 @@ describe('TimestampManager', () => {
     it('should create instance via factory', () => {
       const instance = createTimestampManager({
         cacheWindowMs: 15,
-        microIncrement: 0.005
+        microIncrement: 0.005,
       });
 
       expect(instance).toBeInstanceOf(TimestampManager);
@@ -326,7 +326,7 @@ describe('TimestampManager', () => {
 
     it('should handle zero cache window', () => {
       const zeroWindow = new TimestampManager({
-        cacheWindowMs: 0
+        cacheWindowMs: 0,
       });
 
       const now = 1000000;

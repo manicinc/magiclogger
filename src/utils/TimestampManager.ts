@@ -89,28 +89,28 @@ export class TimestampManager {
   private readonly cleanupThresholdMs: number;
 
   /** @private {number} Cached base timestamp */
-  private cachedTimestamp: number = 0;
+  private cachedTimestamp = 0;
 
   /** @private {number} When cache expires */
-  private cacheExpiry: number = 0;
+  private cacheExpiry = 0;
 
   /** @private {number} Current microsecond offset */
-  private microOffset: number = 0;
+  private microOffset = 0;
 
   /** @private {Map<number, number>} Queue tracking timestamp order */
   private timestampQueue: Map<number, number> = new Map();
 
   /** @private {number} Last cleanup time */
-  private lastCleanup: number = 0;
+  private lastCleanup = 0;
 
   /** @private {number} Total timestamps generated */
-  private totalGenerated: number = 0;
+  private totalGenerated = 0;
 
   /** @private {number} Cache hits */
-  private cacheHits: number = 0;
+  private cacheHits = 0;
 
   /** @private {number} Cache misses */
-  private cacheMisses: number = 0;
+  private cacheMisses = 0;
 
   /**
    * Creates a new TimestampManager instance
@@ -281,12 +281,10 @@ export class TimestampManager {
       totalGenerated: this.totalGenerated,
       cacheHits: this.cacheHits,
       cacheMisses: this.cacheMisses,
-      cacheHitRate: this.totalGenerated > 0
-        ? this.cacheHits / this.totalGenerated
-        : 0,
+      cacheHitRate: this.totalGenerated > 0 ? this.cacheHits / this.totalGenerated : 0,
       queueSize: this.timestampQueue.size,
       cacheWindowMs: this.cacheWindowMs,
-      microIncrement: this.microIncrement
+      microIncrement: this.microIncrement,
     };
   }
 
@@ -361,8 +359,6 @@ export const defaultTimestampManager = new TimestampManager();
  * });
  * ```
  */
-export function createTimestampManager(
-  options?: TimestampManagerOptions
-): TimestampManager {
+export function createTimestampManager(options?: TimestampManagerOptions): TimestampManager {
   return new TimestampManager(options);
 }

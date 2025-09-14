@@ -132,7 +132,7 @@ describe('AsyncLogger Style Processing', () => {
 
       const stats = logger.getStats();
       expect(stats.buffer.current).toBeGreaterThanOrEqual(0);
-      
+
       await logger.flush();
     });
 
@@ -177,7 +177,7 @@ describe('AsyncLogger Style Processing', () => {
       // Even with potential parsing issues, should not crash
       const result1 = logger.info('<<<broken>>>');
       const result2 = logger.info('Normal message');
-      
+
       expect(result1.success).toBe(true);
       expect(result2.success).toBe(true);
     });
@@ -202,14 +202,14 @@ describe('AsyncLogger Style Processing', () => {
       });
 
       const start = Date.now();
-      
+
       for (let i = 0; i < 1000; i++) {
         logger.info(`Plain message ${i}`);
       }
-      
+
       await logger.flush();
       const duration = Date.now() - start;
-      
+
       // Should process 1000 logs in under 200ms (increased for CI environments)
       expect(duration).toBeLessThan(200);
     });
@@ -223,14 +223,14 @@ describe('AsyncLogger Style Processing', () => {
       });
 
       const start = Date.now();
-      
+
       for (let i = 0; i < 100; i++) {
         logger.info(`<green>Success ${i}:</> Operation completed`);
       }
-      
+
       await logger.flush();
       const duration = Date.now() - start;
-      
+
       // Should process 100 styled logs in under 50ms
       expect(duration).toBeLessThan(50);
     });
