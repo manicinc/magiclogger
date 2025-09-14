@@ -211,15 +211,15 @@ export interface AsyncLoggerOptions {
   };
   /** Worker thread configuration */
   worker?: {
-    /** Number of worker threads (default: 1) */
+    /** Number of worker threads (default: 2) */
     poolSize?: number;
     /** Batch size before auto-flush (default: 100) */
     batchSize?: number;
     /** Timeout before auto-flush in ms (default: 10) */
     batchTimeout?: number;
-    /** Periodic flush interval in ms (default: 50) */
+    /** Periodic flush interval in ms (default: 0 - disabled) */
     flushInterval?: number;
-    /** Enable worker threads (default: true if available) */
+    /** Enable worker threads (default: false) */
     enabled?: boolean;
     /** Use ring buffer for high-performance (default: false) */
     useRingBuffer?: boolean;
@@ -472,13 +472,13 @@ export class AsyncLogger extends EventEmitter {
   /** @private {number} Last timestamp used for ID generation */
   private lastTimestamp = 0;
 
-  /** @private {number} Cached base timestamp for performance */
+  /** @private {number} Cached timestamp for performance */
   private cachedTimestamp = 0;
 
-  /** @private {number} When the cached timestamp expires (10ms window) */
+  /** @private {number} When cached timestamp expires */
   private cacheExpiry = 0;
 
-  /** @private {number} Microsecond offset within the cache window */
+  /** @private {number} Microsecond offset within cache window */
   private microOffset = 0;
 
   /** @private {boolean} Whether to use timestamp caching for performance */
@@ -630,10 +630,11 @@ export class AsyncLogger extends EventEmitter {
     // Workers add IPC overhead and are only beneficial for CPU-intensive workloads
     const workerConfig = options.worker || {};
     this.poolSize = workerConfig.poolSize || 2;
-    // Optimized batch size - default 1 for direct passthrough to sonic-boom
-    // Sonic-boom handles batching internally, we don't need double batching
-    this.batchSize = workerConfig.batchSize || options.buffer?.size || 1;
-    this.batchTimeout = workerConfig.batchTimeout || 0; // No timeout, immediate passthrough
+    // Batch configuration - defaults optimized for async performance
+    // batchSize: 100 - accumulate logs before flushing for better throughput
+    // batchTimeout: 10ms - flush after timeout even if batch not full for low latency
+    this.batchSize = workerConfig.batchSize ?? options.buffer?.size ?? 100;
+    this.batchTimeout = workerConfig.batchTimeout ?? 10; // 10ms default for time-based batching
     this.flushInterval = workerConfig.flushInterval || options.buffer?.flushInterval || 0; // No periodic flush needed
     // PERFORMANCE: Workers OFF by default to avoid IPC overhead
     // Only enable for CPU-intensive workloads with worker.enabled: true
@@ -983,10 +984,12 @@ export class AsyncLogger extends EventEmitter {
     }
 
     // Schedule batch flush with timeout (for both ring buffer and array)
-    if (!this.batchTimer) {
+    // Only schedule if we haven't already flushed above
+    if (this.batchTimeout > 0 && !this.batchTimer) {
+      // Use setTimeout only when there's an actual timeout
       this.batchTimer = setTimeout(() => {
         this.batchTimer = null;
-        this.flushSync(); // Use synchronous flush for better performance
+        this.flushSync();
       }, this.batchTimeout);
     }
   }
@@ -1009,8 +1012,27 @@ export class AsyncLogger extends EventEmitter {
     if (this.useRingBuffer && this.ringBuffer && this.ringBuffer.getSize() > 0) {
       entries = this.ringBuffer.drain(this.batchSize);
     } else if (this.batch.length > 0) {
-      entries = [...this.batch];
+      // Convert minimal entries to full LogEntry objects at flush time
+      const rawBatch = [...this.batch];
       this.batch = [];
+
+      // Process minimal entries into full entries
+      entries = rawBatch.map((item: any) => {
+        // Check if it's a minimal entry (has 'm' key) or already a full entry
+        if ('m' in item) {
+          // Convert minimal entry to full LogEntry
+          const timestampMs = item.t || Date.now();
+          return {
+            id: this.generateId(timestampMs),
+            timestampMs,
+            level: item.l || 'info',
+            message: item.m,
+            context: item.x
+          } as LogEntry;
+        }
+        // Already a full entry
+        return item as LogEntry;
+      });
     } else {
       return; // Nothing to flush
     }
@@ -1076,8 +1098,27 @@ export class AsyncLogger extends EventEmitter {
     if (this.useRingBuffer && this.ringBuffer && this.ringBuffer.getSize() > 0) {
       entries = this.ringBuffer.drain(this.batchSize);
     } else if (this.batch.length > 0) {
-      entries = [...this.batch];
+      // Convert minimal entries to full LogEntry objects at flush time
+      const rawBatch = [...this.batch];
       this.batch = [];
+
+      // Process minimal entries into full entries
+      entries = rawBatch.map((item: any) => {
+        // Check if it's a minimal entry (has 'm' key) or already a full entry
+        if ('m' in item) {
+          // Convert minimal entry to full LogEntry
+          const timestampMs = item.t || Date.now();
+          return {
+            id: this.generateId(timestampMs),
+            timestampMs,
+            level: item.l || 'info',
+            message: item.m,
+            context: item.x
+          } as LogEntry;
+        }
+        // Already a full entry
+        return item as LogEntry;
+      });
     }
 
     if (entries && entries.length > 0) {
@@ -1158,25 +1199,52 @@ export class AsyncLogger extends EventEmitter {
     level: LogLevel,
     meta?: Record<string, unknown>
   ): { success: boolean } {
-    // PERFORMANCE: Cached timestamp with microsecond increments
-    // Only call Date.now() once per 10ms window
+    // PERFORMANCE: Ultra-fast path for batching mode with minimal overhead
+    // When batching, skip most processing and just queue the raw data
+    if (this.batchSize > 1 && !this.useWorkers && !this.useRingBuffer) {
+      // Minimal entry for batching - defer all processing to flush time
+      const minimalEntry = {
+        m: message,  // Short key for message
+        l: level,    // Short key for level
+        t: Date.now(), // Timestamp
+        x: meta      // Short key for context/meta
+      } as any;
+
+      this.batch.push(minimalEntry);
+
+      if (this.enableMetrics) {
+        this.metrics.batchSize = this.batch.length;
+        this.metrics.totalLogs++;
+      }
+
+      // Auto-flush when batch is full
+      if (this.batch.length >= this.batchSize) {
+        this.flushSync();
+        return { success: true };
+      }
+
+      // Schedule batch flush with timeout
+      if (this.batchTimeout > 0 && !this.batchTimer) {
+        this.batchTimer = setTimeout(() => {
+          this.batchTimer = null;
+          this.flushSync();
+        }, this.batchTimeout);
+      }
+
+      return { success: true };
+    }
+
+    // Original full processing path for non-batching or special cases
     const timestampMs = this.getOptimizedTimestamp();
 
-    // PERFORMANCE: Ultra-fast path for plain text (99%+ of logs)
     let processedMessage = message;
     let styles: Array<[number, number, string]> | undefined;
 
-    // PERFORMANCE: Skip style parsing when batch size is 1 for maximum speed
-    // Let transports handle styling if they need it
     const hasStyles = this.useColors && message.indexOf('<') !== -1 && message.indexOf('</') !== -1;
 
-    // Only parse styles if absolutely necessary
     if (!this.useWorkers && hasStyles && this.batchSize > 1) {
-      // Parse styles only when batching
       if (!this.textStyler) {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
         const { TextStyler } =
-          // eslint-disable-next-line @typescript-eslint/no-var-requires
           require('../utils/TextStyler') as typeof import('../utils/TextStyler');
         this.textStyler = TextStyler;
       }
@@ -1185,9 +1253,6 @@ export class AsyncLogger extends EventEmitter {
       styles = result.styles;
     }
 
-    // PERFORMANCE: Create compact entry without null fields
-    // Only include fields that have values to reduce JSON size
-    // Skip ISO timestamp to save 39 bytes - can be reconstructed from timestampMs
     const entry: LogEntry = {
       id: this.generateId(timestampMs),
       timestampMs,
@@ -1195,14 +1260,11 @@ export class AsyncLogger extends EventEmitter {
       message: processedMessage,
     } as LogEntry;
 
-    // Set optional fields - maintains same hidden class
     if (styles?.length) {
       entry.styles = styles;
     }
 
-    // Handle worker-specific context
     if (this.useWorkers && message.includes('<')) {
-      // Workers need raw message for style processing
       entry.context = {
         _rawMessage: message,
         _useColors: this.useColors,
@@ -1212,42 +1274,58 @@ export class AsyncLogger extends EventEmitter {
       entry.context = meta;
     }
 
-    // Add service identifier if available
     if (this.service) {
       entry.service = this.service;
     }
 
-    // Add logger ID only if meaningful
     if (this.id && !this.id.startsWith('async-logger-')) {
       entry.loggerId = this.id;
     }
 
-    // PERFORMANCE: Ultra-direct mode - bypass ALL batching when batch size is 1
+    // Direct mode when batch size is 1
     if (this.batchSize === 1 && !this.useRingBuffer && !this.useWorkers) {
-      // Direct write to each transport - absolutely minimal overhead
-      // Process styles AFTER direct write to avoid blocking
-      if (styles?.length) {
-        entry.styles = styles;
-      }
-
-      for (const transport of this.transports) {
+      if (this.onFlush) {
         try {
-          if ('logSync' in transport && typeof (transport as any).logSync === 'function') {
-            (transport as any).logSync(entry);
-          } else {
-            // For async transports, fire and forget
-            const promise = transport.log(entry);
-            // Don't await - let it run in background
-            if (promise && typeof promise.catch === 'function') {
-              promise.catch(() => {
-                // Silently ignore errors for background operations
-              });
-            }
+          const result = this.onFlush([entry]);
+          if (result && typeof result === 'object' && 'then' in result) {
+            (result as Promise<void>).catch(() => {
+              if (this.enableMetrics) {
+                this.metrics.droppedLogs++;
+              }
+            });
           }
         } catch (error) {
-          // Ignore errors in direct mode for maximum speed
+          if (this.enableMetrics) {
+            this.metrics.droppedLogs++;
+          }
+        }
+      } else {
+        for (const transport of this.transports) {
+          try {
+            if ('logSync' in transport && typeof (transport as any).logSync === 'function') {
+              (transport as any).logSync(entry);
+            } else {
+              const promise = transport.log(entry);
+              if (promise && typeof promise.catch === 'function') {
+                promise.catch(() => {
+                  if (this.enableMetrics) {
+                    this.metrics.droppedLogs++;
+                  }
+                });
+              }
+            }
+          } catch (error) {
+            if (this.enableMetrics) {
+              this.metrics.droppedLogs++;
+            }
+          }
         }
       }
+
+      if (this.enableMetrics) {
+        this.metrics.totalLogs++;
+      }
+
       return { success: true };
     }
 
@@ -1266,11 +1344,7 @@ export class AsyncLogger extends EventEmitter {
   /**
    * Get optimized timestamp with caching.
    * Only calls Date.now() once per 10ms window, then increments by 0.001ms.
-   * This provides unique timestamps while avoiding syscall overhead.
-   *
-   * **Limitation:** Under high concurrency, timestamp caching may cause out-of-order timestamps.
-   * If strict timestamp ordering is required in concurrent environments, consider disabling caching
-   * or using a thread-safe solution.
+   * Simple and fast without Map overhead.
    *
    * @private
    * @returns {number} Timestamp in milliseconds (with microsecond precision)
@@ -1286,7 +1360,6 @@ export class AsyncLogger extends EventEmitter {
     // Check if we're within the cache window (10ms)
     if (now < this.cacheExpiry) {
       // Return cached timestamp with microsecond offset
-      // Increment by 0.001ms for each log within the window
       this.microOffset += 0.001;
       return this.cachedTimestamp + this.microOffset;
     }

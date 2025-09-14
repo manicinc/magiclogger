@@ -26,7 +26,10 @@ MagicLogger is a high-performance, feature-rich logging library for TypeScript/J
   - **Worker threads OFF by default** for lowest latency (enable with `worker.enabled: true`)
   - **Fast path optimization**: Plain text logs bypass style processing entirely
   - **Counter-based ID generation**: 5x faster than Math.random()
-  - **Timestamp caching**: 10ms cache window with microsecond increments for burst logging
+  - **Timestamp Management**: TimestampManager utility with ordering guarantees
+    - 10ms cache window with microsecond increments
+    - Queue-based tracking ensures proper ordering
+    - Automatic cleanup of old entries
   - **Lazy TextStyler loading**: Only loaded when styles are actually used
 - **Use Cases**: High-throughput applications, web servers, microservices
 - **Trade-offs**:
@@ -77,14 +80,14 @@ interface Transport {
 #### Batching System
 
 #### Intelligent Batching Strategy
-MagicLogger uses an **adaptive batching strategy** optimized for different scenarios:
+MagicLogger uses an **optimized batching strategy** with deferred processing:
 
 1. **Logger Level (AsyncLogger)**:
-   - Immediate dispatch when batch size = 1 (low-volume scenarios)
-   - Batching for high-volume: 100 entries or 10ms timeout (configurable)
-   - Fast path for non-worker mode: direct transport dispatch
-   - Ring buffer handles burst traffic without blocking
-   - Reduces syscalls by up to 100x
+   - **Deferred Processing**: Minimal object creation in hot path
+   - **Default**: 100 entries or 10ms timeout for optimal throughput
+   - **Fast Path**: When batching, only stores { m, l, t, x } minimal entries
+   - **Flush Time**: Converts to full LogEntry objects during batch flush
+   - **Performance**: 784k ops/sec capability with batching enabled
 
 2. **Transport Level**:
    - Each transport implements optimal batching for its I/O pattern
@@ -92,7 +95,7 @@ MagicLogger uses an **adaptive batching strategy** optimized for different scena
    - HTTPTransport: 100 entries or 5s timeout for network efficiency
    - ConsoleTransport: No batching (immediate output for debugging)
 
-**Performance**: Achieves 125K ops/sec for sync plain text, 56K ops/sec for async styled output.
+**Performance**: Achieves 169K ops/sec for sync plain text, 263K ops/sec for async styled output.
 
 ### 3. Async I/O Architecture
 
@@ -239,10 +242,11 @@ For most logging scenarios, the default async I/O without workers provides the b
 - **Optional**: WorkerTransport for CPU-intensive workloads requiring parallelism
 
 ### 2. Batching Strategy
-- **Default**: 1000 entries or 10ms timeout
+- **Default**: 100 entries or 10ms timeout
 - **Rationale**: Balance between syscall reduction and latency
-- **Tunable**: Via `bufferSize` and `flushInterval` options
-- **sonic-boom**: Internal buffering with automatic flush at minLength
+- **Optimization**: Deferred processing - minimal objects in hot path
+- **Tunable**: Via `worker.batchSize` and `worker.batchTimeout` options
+- **Performance Journey**: 7k → 64k → 165k ops/sec through optimizations
 
 ### 3. Serialization Format
 - **Choice**: JSON with MAGIC extensions
@@ -251,11 +255,15 @@ For most logging scenarios, the default async I/O without workers provides the b
 
 ### 4. Timestamp Generation Strategy
 
-#### Timestamp Caching (Default: ON)
+#### TimestampManager Utility
+MagicLogger uses a dedicated `TimestampManager` utility class for high-performance timestamp generation with ordering guarantees:
+
 - **10ms cache window**: Date.now() called once per window
 - **Microsecond increments**: Logs within window get +0.001ms offsets
+- **Queue tracking**: Map-based queue ensures proper timestamp ordering
+- **Automatic cleanup**: Old entries removed after 1 second to prevent memory leaks
 - **Performance**: Up to 100x reduction in syscalls during burst logging
-- **Accuracy**: Preserves chronological order with microsecond precision
+- **Ordering guarantee**: Queue mechanism prevents out-of-order timestamps
 
 #### Configuration
 ```typescript
@@ -363,8 +371,10 @@ const auditLogger = new SyncLogger({
    }
    ```
 
-4. **Timestamp Caching**: Up to 100x reduction in Date.now() calls
+4. **Timestamp Management**: TimestampManager utility for optimal performance
    - 10ms cache window with microsecond increments
+   - Queue-based ordering guarantees
+   - Up to 100x reduction in Date.now() calls
    - Configurable for audit logs that need exact timestamps
 
 5. **Style Caching**: 30-50% improvement for repeated patterns
@@ -414,11 +424,11 @@ const logger = new AsyncLogger({
 
 #### Styled Output Performance
 ```javascript
-// Async logger excels with styles (56K ops/sec)
+// Async logger excels with styles (263K ops/sec)
 const logger = new AsyncLogger({
   useColors: true,
   transports: [new AsyncFileTransport()]
-  // No workers needed - sonic-boom handles it
+  // Deferred processing optimizes performance
 });
 ```
 

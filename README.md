@@ -235,45 +235,10 @@ const httpTransport = new HTTPTransport({
 });
 ```
 
-**Performance Notes**:
-- Workers are **OFF by default** for lowest latency (~0.003ms)
-- Style processing is optimized with fast-path detection
-- Plain text logs bypass style processing entirely (2x faster)
-- Enable workers only for CPU-intensive workloads with `worker.enabled: true`
-
-### Log Delivery Guarantees
-
-**AsyncLogger (recommended for production)**:
-- High performance with sonic-boom (96K+ ops/sec plain, 56K+ styled)
-- Non-blocking I/O - never blocks your event loop
-- **With graceful shutdown** (`await logger.close()`): All logs are flushed
-- **Without graceful shutdown** (crash/SIGKILL): Only buffered logs may be lost
-- Optimized for styled output with 4x better performance than sync
-
-**SyncLogger (special use cases)**:
-- Synchronous I/O with guaranteed delivery
-- **Always guarantees delivery** - logs never lost unless OS crashes
-- Performance: 125K+ ops/sec plain, 14K+ styled
-- Use for: debugging, development, audit logs requiring immediate write
-- **Note on Styles**: Sync mode with styles (14K ops/sec) is significantly slower than async with styles (56K ops/sec). Since sync mode prioritizes guaranteed delivery and exact timestamps for audit/security logs, styled output is typically not used in these scenarios. Async mode excels at styled output with 4x better performance.
-
-**For critical logs that must never be lost**:
-```typescript
-// Option 1: Use SyncLogger for audit/security logs
-const auditLogger = new SyncLogger({ file: './audit.log' });
-
-// Option 2: Ensure graceful shutdown for AsyncLogger
-process.on('SIGTERM', async () => {
-  await logger.close();  // Flushes all pending logs
-  process.exit(0);
-});
-
-// Option 3: Use synchronous transports with AsyncLogger
-const logger = new AsyncLogger({
-  transports: [new SyncFileTransport({ filepath: './critical.log' })]
-});
-```
-
+**Other Performance Architectural Decisions**:
+- **Ring buffer**: Lock-free circular buffer prevents memory allocation in hot path
+- **Timestamp caching**: 10ms cache window with microsecond increments (avoids Date.now() syscalls)
+- **Style fast-path**: Plain text skips regex parsing entirely
 
 ## MAGIC Schema - Universal Styled Logging Standard
 
@@ -765,6 +730,28 @@ const sanitized = contextManager.sanitize(userContext);
 //   password: '***', 
 //   creditCard: '***' 
 // }
+```
+
+#### Audit-ready Logging
+
+MagicLogger's default logging is high-performance (~100k+ ops/second styled with full structured logs) due to a ring buffer architecture that drops older logs under excessive load, as well as a internal datetime mechanism that caches timestamps every 10ms and uses a queue to keep the logs in the correct order and with unique times.
+
+**For critical logs that must never be lost, or logs that must have completely accurate timestamps, use `SyncLogger`**:
+
+```typescript
+// Option 1: Use SyncLogger for audit/security logs
+const auditLogger = new SyncLogger({ file: './audit.log' });
+
+// Option 2: Ensure graceful shutdown for AsyncLogger
+process.on('SIGTERM', async () => {
+  await logger.close();  // Flushes all pending logs
+  process.exit(0);
+});
+
+// Option 3: Use synchronous transports with AsyncLogger
+const logger = new AsyncLogger({
+  transports: [new SyncFileTransport({ filepath: './critical.log' })]
+});
 ```
 
 ### Tags - Categorical Labels
@@ -1345,39 +1332,42 @@ MagicLogger delivers **competitive performance** with flexible architecture:
 ##### 📝 Plain Text Performance
 | Logger | Ops/sec | Avg (ms) | P50 | P95 | P99 | Max |
 |--------|--------:|---------:|----:|----:|----:|----:|
-| Pino | 222,911 | 0.004 | 0.002 | 0.006 | 0.015 | 19.905 |
-| Winston | 167,742 | 0.005 | 0.002 | 0.007 | 0.049 | 5.478 |
-| **MagicLogger (Sync)** | **125,132** | **0.008** | 0.001 | 0.005 | 0.011 | 8.379 |
-| MagicLogger (Async) | 96,050 | 0.010 | 0.006 | 0.017 | 0.079 | 2.761 |
+| Pino | 333,417 | 0.003 | 0.001 | 0.006 | 0.012 | 2.559 |
+| Winston | 228,578 | 0.004 | 0.001 | 0.007 | 0.037 | 6.131 |
+| **MagicLogger (Sync)** | **169,258** | **0.006** | 0.001 | 0.004 | 0.007 | 7.326 |
+| **MagicLogger (Async)** | **165,327** | **0.006** | 0.000 | 0.001 | 0.313 | 3.093 |
 
-> **Note**: For styled output, AsyncLogger (56K ops/sec) significantly outperforms SyncLogger (14K ops/sec) - 4x faster.
+> **Note**: AsyncLogger now matches SyncLogger performance through optimized batching with deferred processing.
 
 ##### 🎨 Styled Output Performance
 | Logger | Ops/sec | Avg (ms) | P50 | P95 | P99 | Max |
 |--------|--------:|---------:|----:|----:|----:|----:|
-| Pino (ANSI Async) | 146,765 | 0.007 | 0.003 | 0.005 | 0.033 | 11.121 |
-| Pino (Pretty) | 138,206 | 0.007 | 0.004 | 0.007 | 0.053 | 1.328 |
-| Winston (Styled) | 83,714 | 0.010 | 0.002 | 0.020 | 0.063 | 34.135 |
-| **MagicLogger (Async + Styles)** | **56,000** | **0.018** | 0.007 | 0.035 | 0.153 | 29.062 |
-| MagicLogger (Sync + Styles) | 13,910 | 0.071 | 0.020 | 0.076 | 0.361 | 88.291 |
+| Pino (Pretty) | 340,501 | 0.003 | 0.002 | 0.003 | 0.008 | 0.121 |
+| Pino (ANSI Async) | 276,912 | 0.003 | 0.003 | 0.004 | 0.008 | 5.122 |
+| **MagicLogger (Async + Styles)** | **263,268** | **0.004** | 0.000 | 0.001 | 0.185 | 2.160 |
+| Winston (Styled) | 241,623 | 0.004 | 0.001 | 0.010 | 0.039 | 6.222 |
+| MagicLogger (Sync + Styles)* | 31,243 | 0.032 | 0.010 | 0.027 | 0.082 | 48.944 |
 
-> **Async Advantage**: AsyncLogger with styles (56K ops/sec) is 4x faster than sync, making it ideal for production use with rich formatting.
+> **Async Excellence**: AsyncLogger with styles (263K ops/sec) outperforms Winston and nearly matches Pino!
+>
+> *Sync styled logging is an unoptimized path (pre v1.0) for a niche use case.
 
 *Generated via `npm run bench:perf` - see [scripts/performance/](./scripts/performance/) and [Performance Guide](./docs/performance-guide.md)*
 
 #### Performance Insights
 
 **When to Use Each Logger:**
-- **AsyncLogger**: Best for production, styled output (56K ops/sec styled)
-- **SyncLogger**: Best for debugging, immediate feedback (125K ops/sec plain)
-- **AsyncLogger + Workers**: For CPU-intensive processing (disabled by default)
+- **AsyncLogger**: Best for production, non-blocking I/O
+- **SyncLogger**: Best for audit logs requiring guaranteed delivery
+- **Workers**: Almost never needed (only for extreme edge cases with CPU-bound operations)
 
 **Our Optimizations:**
-- Sonic-boom integration for async I/O (same as Pino)
-- Counter-based ID generation (5x faster than Math.random)
-- Optimized MAGIC schema (47% memory reduction)
-- Aggressive style caching (10K entry LRU cache)
-- Timestamp caching with microsecond precision
+- **Deferred Processing**: Minimal object creation in hot path (784k ops/sec capability)
+- **Smart Batching**: Default 100-log batches with 10ms timeout
+- **Sonic-boom Integration**: Same async I/O engine as Pino
+- **Counter-based IDs**: 5x faster than Math.random()
+- **Optimized MAGIC Schema**: 47% memory reduction
+- **Timestamp Caching**: 10ms windows with microsecond increments
 
 See [Performance Guide](./docs/performance-guide.md) for detailed analysis and configuration tips.
 
@@ -1390,11 +1380,10 @@ See [Performance Guide](./docs/performance-guide.md) for detailed analysis and c
 - LRU cache reduces repeated style generation overhead by 30-50%
 - [Deep dive into our style optimization techniques →](./docs/performance-guide.md#our-optimizations)
 
-**AsyncLogger with Worker Threads (optional):**
-- Workers are OFF by default for better latency
-- Enable with `worker.enabled: true` for heavy styling workloads
-- 4x faster for complex styles but adds IPC overhead for simple logs
-- Recommended only for >10K styled logs/sec
+**Worker Threads (rarely needed):**
+- Workers are OFF by default - sonic-boom already provides async I/O
+- IPC overhead usually exceeds any benefit for logging
+- Only consider for extreme edge cases (e.g., ML-based log analysis)
 
 **Architecture Choices:**
 - **sonic-boom**: High-performance async file I/O with internal buffering

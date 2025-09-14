@@ -177,7 +177,10 @@ async function runBenchmarks() {
   console.log(`   - Real file I/O throughput`);
   console.log(`   - Latency percentiles`);
   console.log(`   - BOTH styled and unstyled output\n`);
-  
+
+  console.log(`${colors.yellow}Note:${colors.reset} MagicLogger includes OpenTelemetry/MAGIC schema overhead by default.`);
+  console.log(`      Winston/Pino benchmarks don't include OTel plugins (would add ~20-30% overhead).\n`);
+
   console.log(`Configuration:`);
   console.log(`  Iterations: ${ITERATIONS.toLocaleString()}`);
   console.log(`  Output: Real file I/O`);
@@ -231,12 +234,12 @@ async function runBenchmarks() {
       await transport.init();
       activeTransports.add(transport);
       
-      // Use the REAL AsyncLogger with optimized defaults
+      // Use the REAL AsyncLogger with batching for async performance
       const logger = new AsyncLogger({
         useColors: false,
         transports: [transport],
         useConsole: false
-        // Using defaults: poolSize: 2, batchSize: 1000, batchTimeout: 10
+        // Using new defaults: batchSize: 100, batchTimeout: 10ms
       });
       
       await logger.waitForReady();
@@ -350,12 +353,12 @@ async function runBenchmarks() {
       await transport.init();
       activeTransports.add(transport);
       
-      // Use the REAL AsyncLogger with optimized defaults AND styling support
+      // Use the REAL AsyncLogger with batching AND styling support
       const logger = new AsyncLogger({
         useColors: true,  // Enable styling
         transports: [transport],
         useConsole: false
-        // Using defaults: poolSize: 2, batchSize: 1000, batchTimeout: 10
+        // Using new defaults: batchSize: 100, batchTimeout: 10ms
       });
       
       await logger.waitForReady();
@@ -582,19 +585,19 @@ async function runBenchmarks() {
   
   // Key insights
   console.log(`\n${colors.bright}${colors.yellow}=== KEY INSIGHTS ===${colors.reset}\n`);
-  
+
   const allResults = [...plainResults, ...styledResults].filter(r => r !== null);
   if (allResults.length > 0) {
     allResults.sort((a, b) => b.opsPerSec - a.opsPerSec);
-    
+
     const fastest = allResults[0];
     const slowest = allResults[allResults.length - 1];
-    
+
     console.log(`🚀 Fastest: ${fastest.name} (${fastest.opsPerSec.toLocaleString()} ops/sec)`);
     console.log(`🐌 Slowest: ${slowest.name} (${slowest.opsPerSec.toLocaleString()} ops/sec)`);
     console.log(`📊 Speed difference: ${(fastest.opsPerSec / slowest.opsPerSec).toFixed(1)}x`);
-    
-    const lowestBlocking = allResults.reduce((min, r) => 
+
+    const lowestBlocking = allResults.reduce((min, r) =>
       r.blocking.avg < min.blocking.avg ? r : min
     );
     console.log(`⚡ Lowest blocking: ${lowestBlocking.name} (${lowestBlocking.blocking.avg.toFixed(3)}ms avg)`);
@@ -613,13 +616,16 @@ async function runBenchmarks() {
       }
     }
   }
-  
+
+  // OpenTelemetry context note
+  console.log(`\n${colors.cyan}Note:${colors.reset} MagicLogger includes full OpenTelemetry overhead; Winston/Pino don't.`);
+
   // Update README if requested
   if (UPDATE_README) {
     console.log(`\n${colors.bright}📝 Updating benchmark results...${colors.reset}`);
     await updateBenchmarkResults(allResults);
   }
-  
+
   console.log(`\n${colors.bright}${colors.green}✅ Benchmark complete!${colors.reset}`);
   
   // Clean up any remaining transports
@@ -645,6 +651,10 @@ Node.js: ${process.version}
 Platform: ${process.platform}
 Iterations: ${ITERATIONS.toLocaleString()}
 
+## Note
+MagicLogger includes OpenTelemetry/MAGIC schema overhead by default.
+Winston/Pino benchmarks don't include OTel plugins (would add ~20-30% overhead).
+
 ## Results
 
 ${createResultsTable(results)}
@@ -655,6 +665,12 @@ ${createResultsTable(results)}
 - Output: Real file I/O
 - Platform: ${process.platform}
 - Node.js: ${process.version}
+
+## Notes
+- All loggers process the same structured data payload
+- File I/O uses real filesystem writes (not memory)
+- Results include both styled and unstyled output
+- Benchmarks measure actual main thread blocking time
 `;
     
     fs.writeFileSync(resultsPath, content);
