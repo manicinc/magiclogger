@@ -218,6 +218,7 @@ describe('AsyncLoggerWorker Direct Processing', () => {
       expect(totalHandled).toBeGreaterThanOrEqual(1); // At least something was handled
       
       // If errors are tracked separately, we should have at least 1
+      // eslint-disable-next-line jest/no-conditional-expect
       if (stats.errors !== undefined) {
         expect(stats.errors).toBeGreaterThanOrEqual(0); // May or may not track errors
       }
@@ -260,18 +261,22 @@ describe('AsyncLoggerWorker Direct Processing', () => {
       // Check if timing stats exist before asserting
       const hasAvgTime = stats.avgProcessingTime !== undefined;
       const hasMaxTime = stats.maxProcessingTime !== undefined;
-      
+
       if (hasAvgTime) {
+        // eslint-disable-next-line jest/no-conditional-expect
         expect(stats.avgProcessingTime).toBeGreaterThanOrEqual(0);
       } else {
         // Just verify the property doesn't exist
+        // eslint-disable-next-line jest/no-conditional-expect
         expect(stats.avgProcessingTime).toBeUndefined();
       }
-      
+
       if (hasMaxTime) {
+        // eslint-disable-next-line jest/no-conditional-expect
         expect(stats.maxProcessingTime).toBeGreaterThanOrEqual(0);
       } else {
         // Just verify the property doesn't exist
+        // eslint-disable-next-line jest/no-conditional-expect
         expect(stats.maxProcessingTime).toBeUndefined();
       }
     });

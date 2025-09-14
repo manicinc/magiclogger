@@ -1176,6 +1176,7 @@ export class AsyncLogger extends EventEmitter {
       if (!this.textStyler) {
         // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
         const { TextStyler } =
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
           require('../utils/TextStyler') as typeof import('../utils/TextStyler');
         this.textStyler = TextStyler;
       }
