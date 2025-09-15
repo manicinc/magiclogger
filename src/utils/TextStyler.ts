@@ -69,14 +69,39 @@ export class TextStyler {
   private static readonly TRIPLE_STYLE =
     /^([^<]*)<([^<>]+)>([^<]*)<\/>([^<]*)<([^<>]+)>([^<]*)<\/>([^<]*)<([^<>]+)>([^<]*)<\/>([^<]*)$/;
 
+  // OPTIMIZATION: Pre-computed ANSI codes for common colors
+  private static readonly FAST_COLOR_MAP: Record<string, string> = {
+    red: '\x1b[31m',
+    green: '\x1b[32m',
+    yellow: '\x1b[33m',
+    blue: '\x1b[34m',
+    magenta: '\x1b[35m',
+    cyan: '\x1b[36m',
+    white: '\x1b[37m',
+    gray: '\x1b[90m',
+    grey: '\x1b[90m',
+    bold: '\x1b[1m',
+    dim: '\x1b[2m',
+    italic: '\x1b[3m',
+    underline: '\x1b[4m',
+    error: '\x1b[31m',
+    warn: '\x1b[33m',
+    info: '\x1b[36m',
+    success: '\x1b[32m',
+    debug: '\x1b[90m',
+  };
+  private static readonly RESET = '\x1b[0m';
+
   // Cache for parsed style strings to avoid repeated parsing
   private static readonly styleParseCache = new Map<string, ColorName[]>();
+  private static readonly MAX_STYLE_CACHE_SIZE = 1000;
 
   // Cache for extraction results (avoid JSON serialization)
   private static readonly extractionCache = new Map<
     string,
     { plainText: string; styledText: string; styles?: StyleRange[] }
   >();
+  private static readonly MAX_EXTRACTION_CACHE_SIZE = 500;
 
   // Hoisted valid styles set for parseStyleString checks
   private static readonly VALID_STYLES: Set<string> = new Set<string>([
@@ -428,6 +453,39 @@ export class TextStyler {
       return { plainText: text, styledText: text, styles: undefined };
     }
 
+    // OPTIMIZATION: Check cache FIRST before any regex or processing
+    const cacheKey = `${useColors ? 'c' : 'p'}:${text}`;
+    const cached = TextStyler.extractionCache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    // ULTRA-FAST PATH: Direct ANSI code application for single common styles
+    // This bypasses Colorizer entirely for the most common case
+    if (useColors) {
+      const simpleMatch = TextStyler.SIMPLE_STYLE.exec(text);
+      if (simpleMatch) {
+        const [, before = '', style = '', content = '', after = ''] = simpleMatch;
+        const ansiCode = TextStyler.FAST_COLOR_MAP[style];
+        if (ansiCode && content) {
+          const plainText = before + content + after;
+          const styledText = before + ansiCode + content + TextStyler.RESET + after;
+          const result = {
+            plainText,
+            styledText,
+            styles: [[before.length, before.length + content.length, style]] as StyleRange[],
+          };
+          // Cache and return - use LRU eviction
+          if (TextStyler.extractionCache.size >= TextStyler.MAX_EXTRACTION_CACHE_SIZE) {
+            const firstKey = TextStyler.extractionCache.keys().next().value;
+            if (firstKey) TextStyler.extractionCache.delete(firstKey);
+          }
+          TextStyler.extractionCache.set(cacheKey, result);
+          return result;
+        }
+      }
+    }
+
     // OPTIMIZATION: Fast path for common simple patterns
     // Try simple pattern first (80% of styled logs)
     const simpleMatch = TextStyler.SIMPLE_STYLE.exec(text);
@@ -493,17 +551,10 @@ export class TextStyler {
       return { plainText, styledText: plainText, styles };
     }
 
-    // OPTIMIZATION: Use direct object cache instead of JSON serialization
-    const cacheKey = `${useColors ? 'c' : 'p'}:${text}`;
-    const cached = TextStyler.extractionCache.get(cacheKey);
-    if (cached) {
-      return cached;
-    }
-
-    // OPTIMIZATION: Single-pass processing for both nested and regular tags
+    // OPTIMIZATION: Use arrays for string building (much faster than concatenation)
     const styles: StyleRange[] = [];
-    let plainText = '';
-    let styledText = '';
+    const plainParts: string[] = [];
+    const styledParts: string[] = [];
     let lastIndex = 0;
 
     // OPTIMIZATION: Use a single optimized regex that handles both nested and regular tags
@@ -528,37 +579,50 @@ export class TextStyler {
 
       // Add text before the match
       const beforeText = processedText.slice(lastIndex, matchStart);
-      plainText += beforeText;
-      styledText += beforeText;
+      plainParts.push(beforeText);
+      styledParts.push(beforeText);
 
-      // Parse styles
-      const parsedStyles = TextStyler.parseStyleString(styleString);
+      // OPTIMIZATION: Cache parsed styles to avoid re-parsing
+      let parsedStyles = TextStyler.styleParseCache.get(styleString);
+      if (!parsedStyles) {
+        parsedStyles = TextStyler.parseStyleString(styleString);
+
+        // Manage cache size
+        if (TextStyler.styleParseCache.size >= TextStyler.MAX_STYLE_CACHE_SIZE) {
+          // Remove oldest entry
+          const firstKey = TextStyler.styleParseCache.keys().next().value;
+          if (firstKey) TextStyler.styleParseCache.delete(firstKey);
+        }
+        TextStyler.styleParseCache.set(styleString, parsedStyles);
+      }
 
       if (parsedStyles.length > 0) {
-        // Even empty content should be handled
-        // Record style range for MAGIC Schema
-        const startIndex = plainText.length;
+        // OPTIMIZATION: Track position without joining strings
+        let currentLength = 0;
+        for (let i = 0; i < plainParts.length; i++) {
+          currentLength += plainParts[i].length;
+        }
+        const startIndex = currentLength;
         const endIndex = startIndex + content.length;
 
         // Only add style range if there's actual content
         if (content.length > 0) {
-          // Store the original style string for MAGIC schema compatibility
           styles.push([startIndex, endIndex, styleString]);
         }
 
-        // Add content
-        plainText += content;
+        // Add content to arrays
+        plainParts.push(content);
 
         // Add styled content if colors are enabled
         if (useColors) {
-          styledText += Colorizer.applyColors(content, parsedStyles, true);
+          styledParts.push(Colorizer.applyColors(content, parsedStyles, true));
         } else {
-          styledText += content;
+          styledParts.push(content);
         }
       } else {
         // No valid styles, just add the content
-        plainText += content;
-        styledText += content;
+        plainParts.push(content);
+        styledParts.push(content);
       }
 
       lastIndex = matchStart + fullMatch.length;
@@ -566,8 +630,12 @@ export class TextStyler {
 
     // Add remaining text
     const remainingText = processedText.slice(lastIndex);
-    plainText += remainingText;
-    styledText += remainingText;
+    plainParts.push(remainingText);
+    styledParts.push(remainingText);
+
+    // OPTIMIZATION: Build strings once with join
+    const plainText = plainParts.join('');
+    const styledText = styledParts.join('');
 
     // If no styles were found, return the original text with undefined styles
     if (styles.length === 0) {
@@ -580,14 +648,18 @@ export class TextStyler {
 
     const result = { plainText, styledText, styles };
 
-    // OPTIMIZATION: Cache the object directly (no JSON overhead)
-    TextStyler.extractionCache.set(cacheKey, result);
-
-    // Limit cache size
-    if (TextStyler.extractionCache.size > 1000) {
-      const firstKey = TextStyler.extractionCache.keys().next().value;
-      if (firstKey) TextStyler.extractionCache.delete(firstKey);
+    // OPTIMIZATION: Cache with size management
+    if (TextStyler.extractionCache.size >= TextStyler.MAX_EXTRACTION_CACHE_SIZE) {
+      // Clear oldest entries (first 20%)
+      const toDelete = Math.floor(TextStyler.MAX_EXTRACTION_CACHE_SIZE * 0.2);
+      let deleted = 0;
+      for (const key of TextStyler.extractionCache.keys()) {
+        if (deleted >= toDelete) break;
+        TextStyler.extractionCache.delete(key);
+        deleted++;
+      }
     }
+    TextStyler.extractionCache.set(cacheKey, result);
 
     return result;
   }
@@ -609,9 +681,6 @@ export class TextStyler {
     // OPTIMIZATION: Fast early returns for common cases
     if (!styleString || styleString.length === 0) return [];
     if (styleString === '/' || styleString === '</>') return [];
-    {
-      return [];
-    }
 
     // Check cache first
     const cached = TextStyler.styleParseCache.get(styleString);

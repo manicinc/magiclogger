@@ -660,6 +660,17 @@ export class TransportManager extends EventEmitter {
     this.emit('transportToggled', name, enabled);
   }
 
+  // OPTIMIZATION: Static level map to avoid recreating
+  private static readonly LEVEL_MAP: Record<number, string> = {
+    10: 'trace',
+    20: 'debug',
+    30: 'info',
+    35: 'success',
+    40: 'warn',
+    50: 'error',
+    60: 'fatal',
+  };
+
   /**
    * Convert minimal log entry to full LogEntry format if needed.
    * @private
@@ -672,30 +683,19 @@ export class TransportManager extends EventEmitter {
 
     // Convert MinimalLogEntry to LogEntry
     const minimal = entry as MinimalLogEntry;
-    const time = minimal.time || Date.now();
-    const levelMap: Record<number, string> = {
-      10: 'trace',
-      20: 'debug',
-      30: 'info',
-      35: 'success',
-      40: 'warn',
-      50: 'error',
-      60: 'fatal',
-    };
+    const minimalAny = minimal as any;
 
+    // OPTIMIZATION: Create object with all required and optional fields at once
     const logEntry: LogEntry = {
       id: generateId(),
-      timestamp: time,
-      level: levelMap[minimal.level] || 'info',
-      message: (minimal as any).plainMsg || minimal.msg || '', // Use plain text if available
+      timestamp: minimal.time || Date.now(),
+      level: TransportManager.LEVEL_MAP[minimal.level] || 'info',
+      message: minimalAny.plainMsg || minimal.msg || '',
       context: minimal,
-      loggerId: (minimal as any).loggerId as string | undefined,
+      // OPTIMIZATION: Add optional fields inline to avoid extra property assignments
+      ...(minimalAny.loggerId && { loggerId: minimalAny.loggerId }),
+      ...(minimalAny.styles && { styles: minimalAny.styles as StyleRange[] })
     };
-
-    // Preserve styles if present
-    if ((minimal as any).styles) {
-      logEntry.styles = (minimal as any).styles as StyleRange[];
-    }
 
     return logEntry;
   }

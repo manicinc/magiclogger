@@ -53,6 +53,10 @@ export class CSVFormatter extends CustomFormatter {
         } else {
           value = '';
         }
+      } else if (col === 'timestamp') {
+        // Handle timestamp - convert to ISO string if it's a number
+        const timestamp = (entry as any).timestamp;
+        value = typeof timestamp === 'number' ? new Date(timestamp).toISOString() : timestamp || '';
       } else {
         const rec = entry as unknown as Record<string, unknown>;
         value = Object.prototype.hasOwnProperty.call(rec, col) ? rec[col] : '';

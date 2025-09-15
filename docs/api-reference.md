@@ -1,17 +1,17 @@
 # API Reference
 
-> **📚 Full API Documentation**: For complete, auto-generated API documentation with all classes, interfaces, and types, visit [magiclog.io/api/](https://magiclog.io/api/)
+> **📚 Full API Documentation**: For complete, auto-generated API documentation with all classes, interfaces, and types, <a href="/api/" target="_blank">view the full API docs</a> or visit [magiclog.io/api/](https://magiclog.io/api/)
 
 This page provides a quick reference for the most commonly used APIs. For detailed documentation of all exports, please refer to the full API documentation linked above.
 
 ## Core Logger Classes
 
-### Logger (Default Export)
+### Logger (Main Class)
 
-The main logger class that provides both synchronous and asynchronous logging capabilities with automatic console transport.
+The main logger class that provides a unified logging interface with rich styling and transport management.
 
 ```typescript
-import Logger from 'magiclogger';
+import { Logger } from 'magiclogger';
 
 const logger = new Logger(options?: LoggerOptions);
 ```
@@ -24,512 +24,363 @@ interface LoggerOptions {
   id?: string;                    // Logger instance ID
   tags?: string[];                 // Global tags for all logs
   context?: Record<string, any>;  // Global context for all logs
-  verbose?: boolean;               // Enable verbose output
+  verbose?: boolean;               // Enable verbose output (show debug logs)
   useColors?: boolean;             // Enable colored output (default: true)
   useConsole?: boolean;            // Add console transport (default: true)
-  
+
+  // File logging
+  writeToDisk?: boolean;           // Enable file logging
+  file?: string;                   // Log file path
+  logDir?: string;                 // Log directory (default: 'logs')
+  logRetentionDays?: number;       // Days to retain logs (default: 30)
+
   // Styling & themes
-  theme?: string | ThemeDefinition;
-  
-  // Performance features
-  buffer?: BufferOptions;         // Buffer configuration for batching
-  sampling?: SamplingOptions;      // Sample logs to reduce volume
-  rateLimit?: RateLimitOptions;    // Rate limiting to prevent log flooding
-  
-  // Security
-  redaction?: RedactionOptions;
-  
+  theme?: string | ThemeDefinition;  // Built-in theme name or custom theme
+  performanceMode?: boolean;         // Disable styling for max performance
+
   // Transports
-  transports?: Transport[];
+  transports?: Transport[];        // Custom transports
 }
 ```
 
-#### Methods
-
-##### Logging Methods
+#### Core Logging Methods
 
 ```typescript
 // Standard log levels
-logger.debug(message: string, meta?: any): void;
 logger.info(message: string, meta?: any): void;
+logger.error(message: string, error?: Error | meta?: any): void;
 logger.warn(message: string, meta?: any): void;
-logger.error(message: string, meta?: any): void;
+logger.debug(message: string, meta?: any): void;
 logger.success(message: string, meta?: any): void;
-logger.fatal(message: string, meta?: any): void;
 
-// Visual elements
-logger.header(text: string, styles?: string[]): void;
-logger.progressBar(percent: number, width?: number, fillChar?: string, emptyChar?: string): void;
-logger.table(data: any[], headerColor?: ColorName[]): void;
-// Note: separator, diff, link, box methods don't exist - use manual implementations
+// Also supports variadic arguments
+logger.info('User', 'logged in', { userId: 123 });
+logger.error('Failed to connect', new Error('timeout'));
 ```
 
-##### Styling Methods
+#### Styling Methods
 
 ```typescript
-// Template literal styling
+// Template literal styling - clean interpolation
 logger.fmt`@red.bold{ERROR:} Failed to connect to @yellow{${database}}`;
 
-// Chainable style API
+// Chainable style API - programmatic styling
 logger.s.blue.bold('INFO:');
+logger.style.green('Success');
 
 // Direct color method
 logger.color('red', 'bold')('Error message');
+
+// Parse angle bracket syntax (auto-applied to all logs)
+logger.parseBrackets('<green.bold>SUCCESS:</> Operation complete');
+
+// Style specific parts of text
+logger.parts([
+  ['SUCCESS:', 'green', 'bold'],
+  [' All tests passed'],
+  [' (100%)', 'dim']
+]);
+
+// Style by word index
+logger.styleByIndex('GET /api/users 200 OK', {
+  0: ['blue', 'bold'],    // "GET"
+  1: ['cyan'],            // "/api/users"
+  2: ['green', 'bold']    // "200"
+});
 ```
 
-##### Management Methods
+#### Visual Elements
 
 ```typescript
-// Lifecycle
-logger.flush(): Promise<void>;          // Force flush buffers
-logger.close(): Promise<void>;          // Graceful shutdown
-logger.getStats(): LoggerStats;         // Performance metrics
+// Section headers
+logger.header('🚀 DEPLOYMENT PROCESS');
+logger.header('⚠️ WARNINGS', ['yellow', 'bgRed', 'bold']);
 
-// Transport management
-logger.addTransport(transport: Transport): void;
-logger.removeTransport(name: string): void;
-logger.getTransports(): Transport[];
+// Tables with formatting
+logger.table([
+  { name: 'API', status: 'healthy', cpu: '12%' },
+  { name: 'Database', status: 'healthy', cpu: '45%' }
+], {
+  border: 'double',          // 'single' | 'double' | 'rounded' | 'heavy' | 'none'
+  headerColor: ['cyan', 'bold'],
+  borderColor: ['blue']
+});
 
-// Context & tags management
-logger.setContext(context: Record<string, any>): void;    // Replace context
-logger.addContext(context: Record<string, any>): void;    // Merge with existing
-logger.getContext(): Record<string, any> | undefined;      // Get current context
+// Progress bars
+logger.progressBar(0.75, 20, '█', '░');  // 75% progress
 
-logger.setTags(tags: string[]): void;                      // Replace tags
-logger.addTags(tags: string[]): void;                      // Add to existing
-logger.getTags(): string[] | undefined;                    // Get current tags
+// Separators
+logger.separator('═', 60, ['cyan']);
 
-// Log level management  
-logger.setLevel(level: LogLevel): void;                    // Set minimum level
-logger.getLevel(): string | undefined;                     // Get current level
-logger.isLevelEnabled(level: LogLevel): boolean;           // Check if level is enabled
+// Boxes
+logger.box('Success!', {
+  border: 'double',
+  borderColor: ['green'],
+  color: ['green', 'bold']
+});
 
-// Logger identity
-logger.getId(): string | undefined;                        // Get logger ID
-logger.getBindings(): Record<string, any>;                 // Get all bindings (Pino-style)
+// Lists
+logger.list(['Item 1', 'Item 2', 'Item 3'], {
+  bullet: '•',
+  bulletColor: ['cyan']
+});
 
-// Child loggers
-logger.child(options: Partial<LoggerOptions>): Logger;     // Create child with merged config
+// Links
+logger.link('https://example.com', 'Example Site');
 ```
 
----
+#### Timer and Counter Methods
+
+```typescript
+// Timers
+logger.time('database-query');
+// ... perform operation
+logger.timeEnd('database-query'); // Logs: "database-query: 145ms"
+
+// Counters
+logger.count('api-calls'); // "api-calls: 1"
+logger.count('api-calls'); // "api-calls: 2"
+logger.countReset('api-calls');
+logger.count('api-calls'); // "api-calls: 1"
+
+// Groups
+logger.group('Processing batch');
+logger.info('Item 1 processed');
+logger.info('Item 2 processed');
+logger.groupEnd();
+```
+
+#### Transport Management
+
+```typescript
+// Add/remove transports
+await logger.addTransport(transport: Transport);
+await logger.removeTransport(name: string);
+
+// Get transport info
+logger.getTransport(name: string): Transport | undefined;
+logger.listTransports(): string[];
+logger.getTransports(): Transport[];
+logger.getTransportStats(): Record<string, unknown>;
+
+// Lifecycle
+await logger.close();  // Graceful shutdown
+```
+
+#### Context and Configuration
+
+```typescript
+// Context management
+logger.setContext(context: Record<string, any>);    // Replace context
+logger.addContext(context: Record<string, any>);    // Merge with existing
+logger.getContext(): Record<string, any> | undefined;
+
+// Tags management
+logger.setTags(tags: string[]);                      // Replace tags
+logger.addTags(tags: string[]);                      // Add to existing
+logger.getTags(): string[] | undefined;
+
+// Configuration
+logger.setVerbose(enabled: boolean);                 // Toggle debug output
+logger.setColorsEnabled(enabled: boolean);           // Toggle colors
+logger.setLevel(level: LogLevel);                    // Set minimum log level
+logger.isLevelEnabled(level: LogLevel): boolean;     // Check if level enabled
+
+// Theme management
+logger.setTheme(theme: Record<string, ColorName[]>);
+logger.getTheme(): Record<string, ColorName[]>;
+
+// Child loggers with inherited config
+const childLogger = logger.child({
+  id: 'child-1',
+  tags: ['service'],
+  context: { service: 'api' }
+});
+```
 
 ### AsyncLogger
 
-High-performance asynchronous logger that routes to transports for maximum throughput.
+High-performance asynchronous logger with non-blocking I/O. Used internally by Logger when in async mode.
 
 ```typescript
-import { AsyncLogger, createAsyncLogger } from 'magiclogger';
+import { AsyncLogger } from 'magiclogger';
 
 const logger = new AsyncLogger(options?: AsyncLoggerOptions);
-// or
-const logger = createAsyncLogger(options?: AsyncLoggerOptions);
 ```
 
 #### AsyncLogger Options
 
 ```typescript
-interface AsyncLoggerOptions extends LoggerOptions {
-  transports?: Transport[];  // Array of transports to use
-  enableMetrics?: boolean;   // Enable performance metrics
-  id?: string;              // Logger identifier
-  
-  // Operational utilities (optional)
-  rateLimiter?: RateLimiter | RateLimiterOptions;
-  redactor?: Redactor | RedactorOptions;
-  sampler?: Sampler | SamplerOptions;
+interface AsyncLoggerOptions {
+  transports?: Transport[];
+  id?: string;
+  enableMetrics?: boolean;
+  useConsole?: boolean;       // Add console transport (default: true)
+  useColors?: boolean;         // Enable colors (default: true)
+
+  // Worker configuration (optional - disabled by default for better performance)
+  worker?: {
+    enabled?: boolean;         // Enable worker threads (default: false)
+    poolSize?: number;         // Number of workers (default: 2)
+    batchSize?: number;        // Batch size (default: 100)
+    flushInterval?: number;    // Flush interval ms (default: 10)
+  };
 }
 ```
 
-#### Transport-Based Architecture
-
-The AsyncLogger routes logs to transports, each managing its own strategy:
-
-- **Console**: Synchronous for immediate feedback
-- **File**: Worker thread with internal buffering
-- **HTTP**: Worker thread with batching
-- **Each transport**: Manages its own threading and buffering
+#### AsyncLogger Methods
 
 ```typescript
-const result = logger.info('High volume log');
-if (!result.success) {
-  console.warn(`Log dropped: ${result.reason}`);
-}
-```
+// Logging methods (return { success: boolean })
+logger.info(message: string, meta?: Record<string, unknown>): { success: boolean };
+logger.error(message: string, error?: Error | meta?: Record<string, unknown>): { success: boolean };
+logger.warn(message: string, meta?: Record<string, unknown>): { success: boolean };
+logger.debug(message: string, meta?: Record<string, unknown>): { success: boolean };
 
----
+// Critical logging with immediate flush
+await logger.logCritical(level: LogLevel, message: string, meta?: Record<string, unknown>);
+
+// Styling (same as Logger)
+logger.s.red.bold('Error');
+logger.fmt`@green{Success}`;
+
+// Performance monitoring
+logger.getStats(): {
+  buffer: { size, capacity, utilization, dropped },
+  metrics: AsyncLoggerMetrics
+};
+logger.getMetrics(): AsyncLoggerMetrics;
+logger.getUtilization(): number;  // Buffer utilization %
+logger.isBackpressured(): boolean;
+
+// Transport management
+logger.addTransport(transport: Transport): void;
+logger.removeTransport(name: string): void;
+logger.listTransports(): string[];
+
+// Lifecycle
+await logger.flush();         // Flush pending logs
+await logger.flushAndWait();  // Flush and wait for completion
+await logger.close();         // Graceful shutdown
+```
 
 ### SyncLogger
 
-Synchronous logger for guaranteed delivery and immediate output.
+Synchronous logger with blocking I/O for guaranteed delivery. Use only when you need absolute guarantee of delivery.
 
 ```typescript
-import { SyncLogger, createSyncLogger } from 'magiclogger';
+import { SyncLogger } from 'magiclogger';
 
 const logger = new SyncLogger(options?: SyncLoggerOptions);
-// or
-const logger = createSyncLogger(options?: SyncLoggerOptions);
 ```
 
 #### SyncLogger Options
 
 ```typescript
-interface SyncLoggerOptions extends LoggerOptions {
-  file?: string;           // Log file path
-  forceFlush?: boolean;    // fsync after each write
-  encoding?: BufferEncoding; // File encoding (default: 'utf8')
+interface SyncLoggerOptions {
+  transports?: Transport[];
+  file?: string;              // Log file path for file transport
+  useColors?: boolean;        // Enable colors (default: true)
+  verbose?: boolean;          // Enable debug output
+  forceFlush?: boolean;       // Force immediate flush (for audit logs)
 }
 ```
-
-Use cases:
-- Security audits requiring guaranteed delivery
-- Development and debugging
-- CLI tools needing immediate feedback
-- Legacy applications
-
----
 
 ## Transports
 
-### ConsoleTransport
-
-Outputs logs to the console with color support.
+### Built-in Transports
 
 ```typescript
-import { ConsoleTransport } from 'magiclogger/transports';
+import {
+  ConsoleTransport,      // Alias for SyncConsoleTransport
+  SyncConsoleTransport,  // Synchronous console output
+  FileTransport,         // Alias for AsyncFileTransport (sonic-boom)
+  AsyncFileTransport,    // High-performance async file I/O
+  SyncFileTransport,     // Synchronous file writes
+  WorkerFileTransport,   // Worker thread-based file transport
+  HTTPTransport          // HTTP endpoint transport with batching
+} from 'magiclogger/transports';
+```
 
-const transport = new ConsoleTransport({
-  level?: LogLevel;        // Minimum level to log
+#### Console Transport
+
+```typescript
+const consoleTransport = new SyncConsoleTransport({
+  name?: string;           // Transport name (default: 'console')
+  enabled?: boolean;       // Enable/disable (default: true)
+  level?: LogLevel;        // Minimum log level
   useColors?: boolean;     // Enable colors (default: true)
-  format?: 'pretty' | 'json' | 'compact';
-  timestamp?: boolean;     // Include timestamps
+  format?: 'plain' | 'json';  // Output format
+  showTimestamp?: boolean;
+  showLevel?: boolean;
+  showMetadata?: boolean;
 });
 ```
 
-### FileTransport
-
-Writes logs to files with rotation support. Supports **NDJSON format** for structured logging.
+#### File Transport (Async - Recommended)
 
 ```typescript
-import { FileTransport } from 'magiclogger/transports';
-
-const transport = new FileTransport({
-  filepath: string;        // Required: log file path
-  format?: 'json' | 'plain' | 'custom'; // Output format (default: 'plain')
-  maxFiles?: number;       // Max rotated files to keep
-  maxSize?: string;        // Max file size (e.g., '10MB')
-  compress?: boolean;      // Compress rotated files
-  encoding?: BufferEncoding;
-  eol?: string;           // End of line character (default: '\n')
-  mode?: number;          // File permissions
-});
-
-// NDJSON format for structured logging (like Pino)
-const structuredTransport = new FileTransport({
+const fileTransport = new AsyncFileTransport({
   filepath: './logs/app.log',
-  format: 'json',  // Each log entry as a complete JSON object per line
-  maxSize: '100MB',
-  maxFiles: 7
+  name?: string;
+  enabled?: boolean;
+  level?: LogLevel;
+  format?: 'json' | 'plain';
+  minLength?: number;      // Buffer size before auto-flush (default: 4096)
+  maxWrite?: number;       // Max bytes per write (default: 16384)
+  sync?: boolean;          // Force sync writes (default: false)
+  mkdir?: boolean;         // Create directory if missing (default: false)
+  append?: boolean;        // Append to file (default: true)
+  mode?: number;           // File permissions (default: 0o666)
 });
-
-// Example NDJSON output:
-// {"id":"abc123","timestamp":"2024-01-20T10:30:00Z","level":"info","message":"Server started","context":{"port":3000}}
-// {"id":"def456","timestamp":"2024-01-20T10:30:01Z","level":"error","message":"Database error","error":{"name":"ConnectionError","message":"ECONNREFUSED"}}
 ```
 
-### HTTPTransport
-
-Sends logs to HTTP endpoints with batching and retry.
+#### HTTP Transport
 
 ```typescript
-import { HTTPTransport } from 'magiclogger/transports';
-
-const transport = new HTTPTransport({
-  url: string;            // Required: endpoint URL
+const httpTransport = new HTTPTransport({
+  endpoint: 'https://logs.example.com',
+  name?: string;
   method?: 'POST' | 'PUT';
   headers?: Record<string, string>;
-  
-  // Batching
   batch?: {
-    size?: number;        // Max batch size (default: 100)
-    timeout?: number;     // Max wait time in ms (default: 5000)
-    maxBytes?: number;    // Max batch size in bytes
+    size?: number;         // Batch size (default: 100)
+    timeout?: number;      // Flush timeout ms (default: 5000)
   };
-  
-  // Retry
   retry?: {
-    attempts?: number;    // Max retry attempts
-    delay?: number;       // Initial delay in ms
-    maxDelay?: number;    // Max delay between retries
-    factor?: number;      // Exponential backoff factor
+    attempts?: number;     // Max retry attempts (default: 3)
+    delay?: number;        // Initial retry delay ms (default: 1000)
+    maxDelay?: number;     // Max retry delay ms (default: 30000)
   };
-  
-  // Compression
-  compress?: boolean | 'gzip' | 'deflate' | 'br';
 });
 ```
-
-### WebSocketTransport
-
-Real-time log streaming via WebSocket.
-
-```typescript
-import { WebSocketTransport } from 'magiclogger/transports';
-
-const transport = new WebSocketTransport({
-  url: string;            // Required: WebSocket URL
-  reconnect?: boolean;    // Auto-reconnect on disconnect
-  reconnectDelay?: number;
-  maxReconnectAttempts?: number;
-  
-  // Batching (same as HTTPTransport)
-  batch?: BatchOptions;
-});
-```
-
-### S3Transport
-
-Direct upload to Amazon S3 with partitioning.
-
-```typescript
-import { S3Transport } from 'magiclogger/transports';
-
-const transport = new S3Transport({
-  bucket: string;         // Required: S3 bucket name
-  region?: string;
-  credentials?: AWS.Credentials;
-  
-  // Partitioning
-  keyPrefix?: string;     // e.g., 'logs/'
-  partition?: 'daily' | 'hourly' | 'none';
-  
-  // Batching
-  batch?: {
-    size?: number;        // Logs per batch (default: 1000)
-    timeout?: number;     // Max wait time (default: 30000)
-  };
-  
-  compress?: boolean;     // Compress before upload
-});
-```
-
-### MongoDBTransport
-
-Direct database writes with connection pooling.
-
-```typescript
-import { MongoDBTransport } from 'magiclogger/transports';
-
-const transport = new MongoDBTransport({
-  uri: string;            // Required: MongoDB connection URI
-  database?: string;      // Database name
-  collection?: string;    // Collection name (default: 'logs')
-  
-  // Batching
-  batch?: BatchOptions;
-  
-  // Indexes
-  createIndexes?: boolean; // Auto-create indexes
-});
-```
-
-### Custom Transport
-
-Create your own transport by extending the base Transport class:
-
-```typescript
-import { Transport } from 'magiclogger/transports/base';
-
-class CustomTransport extends Transport {
-  constructor(options: CustomTransportOptions) {
-    super(options);
-    // Initialize your transport
-  }
-  
-  async log(entry: LogEntry): Promise<void> {
-    // Handle single log entry
-  }
-  
-  async logBatch(entries: LogEntry[]): Promise<void> {
-    // Handle batch of entries (optional)
-  }
-  
-  async flush(): Promise<void> {
-    // Flush any pending data
-  }
-  
-  async close(): Promise<void> {
-    // Clean up resources
-  }
-}
-```
-
----
-
-## Helper Functions
-
-### Meta Helper
-
-Attach metadata without printing it to console:
-
-```typescript
-import { meta } from 'magiclogger';
-
-logger.info('User logged in', meta({ userId: '123', sessionId: 'abc' }));
-// Console: User logged in
-// Structured output includes metadata
-```
-
-### Error Helper
-
-Structure error objects for logging:
-
-```typescript
-import { err } from 'magiclogger';
-
-try {
-  // code that might throw
-} catch (error) {
-  logger.error('Operation failed', err(error), meta({ operation: 'save' }));
-}
-```
-
-### Create Logger Functions
-
-Factory functions with sensible defaults:
-
-```typescript
-import { 
-  createLogger,       // Smart logger (auto-detects best mode)
-  createAsyncLogger,  // Async logger that routes to transports
-  createSyncLogger    // Synchronous logger
-} from 'magiclogger';
-
-// Smart detection
-const logger = createLogger(); // Async in production, sync in dev
-
-// Explicit async
-const asyncLogger = createAsyncLogger({
-  buffer: { size: 32768 }
-});
-
-// Explicit sync
-const syncLogger = createSyncLogger({
-  file: './audit.log'
-});
-```
-
-### Style Reconstruction Functions
-
-Functions for working with MAGIC schema styled text:
-
-```typescript
-import { 
-  extractStyles, 
-  applyStyles, 
-  optimizeStyleRanges,
-  validateStyleRanges 
-} from 'magiclogger';
-
-// Extract styles from angle-bracket formatted text
-const result = extractStyles('<red.bold>Error:</> User <cyan>john@example.com</> not found');
-// Returns: {
-//   plainText: "Error: User john@example.com not found",
-//   styles: [[0, 6, "red.bold"], [12, 29, "cyan"]]
-// }
-
-// Reconstruct styled text from MAGIC log entry
-const styled = applyStyles(
-  "Error: User john@example.com not found",
-  [[0, 6, "red.bold"], [12, 29, "cyan"]]
-);
-// Returns: "<red.bold>Error:</> User <cyan>john@example.com</> not found"
-
-// Apply with custom formatter (e.g., for ANSI output)
-const ansiStyled = applyStyles(
-  "Error: User john@example.com not found",
-  [[0, 6, "red.bold"], [12, 29, "cyan"]],
-  (text, style) => {
-    // Custom ANSI formatter
-    const codes = getAnsiCodes(style); // Your ANSI mapping
-    return `${codes}${text}\x1b[0m`;
-  }
-);
-
-// Optimize overlapping or redundant style ranges
-const optimized = optimizeStyleRanges([
-  [0, 10, "red"],
-  [5, 15, "red"],  // Overlaps with first
-  [20, 25, "blue"]
-]);
-// Returns: [[0, 15, "red"], [20, 25, "blue"]]
-
-// Validate style ranges are within text bounds
-const isValid = validateStyleRanges(
-  "Hello world",
-  [[0, 5, "red"], [6, 11, "blue"]]
-);
-// Returns: true
-```
-
----
 
 ## Types
 
-### LogEntry
+### LogLevel
 
-The structured format for all log entries. MagicLogger outputs entries in **NDJSON (Newline Delimited JSON)** format when using JSON file transports - each log entry is a complete JSON object on its own line, making it compatible with log aggregation tools and stream processing:
+```typescript
+type LogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal' | 'success';
+```
+
+### LogEntry
 
 ```typescript
 interface LogEntry {
-  // Identity
-  id: string;                    // Unique identifier
-  timestamp: string;             // ISO 8601 timestamp
-  timestampMs: number;           // Unix milliseconds
-  
-  // Content
-  level: LogLevel;               // Log severity
-  message: string;               // Plain text message
-  styles?: Array<[number, number, string]>; // MAGIC style ranges
-  
-  // Metadata
-  loggerId?: string;
-  tags?: string[];
-  context?: Record<string, any>;
-  
-  // Error details
-  error?: {
+  id: string;                        // Unique log ID
+  timestamp: string | number;        // ISO string or Unix timestamp
+  level: LogLevel;                   // Log level
+  message: string;                   // Log message
+  context?: Record<string, any>;     // Structured metadata
+  tags?: string[];                   // Log tags
+  loggerId?: string;                 // Logger instance ID
+  error?: {                          // Error information
     name: string;
     message: string;
     stack?: string;
     code?: string | number;
-    cause?: any;
-  };
-  
-  // Trace context (W3C)
-  trace?: {
-    traceId: string;
-    spanId: string;
-    traceFlags?: string;
-    sampled?: boolean;
-  };
-  
-  // System metadata
-  metadata?: {
-    hostname?: string;
-    pid?: number;
-    platform?: string;
-    nodeVersion?: string;
   };
 }
-```
-
-### LogLevel
-
-Available log levels:
-
-```typescript
-type LogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal';
 ```
 
 ### Transport Interface
@@ -537,153 +388,165 @@ type LogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal';
 ```typescript
 interface Transport {
   name: string;
-  
-  // Required
+  enabled?: boolean;
   log(entry: LogEntry): void | Promise<void>;
-  
-  // Optional lifecycle
-  init?(): void | Promise<void>;
-  close?(): void | Promise<void>;
   flush?(): void | Promise<void>;
-  
-  // Optional batching
-  logBatch?(entries: LogEntry[]): void | Promise<void>;
-  
-  // Optional filtering
+  close?(): void | Promise<void>;
   shouldLog?(entry: LogEntry): boolean;
+  logBatch?(entries: LogEntry[]): void | Promise<void>;
+  init?(): void | Promise<void>;
 }
 ```
 
----
-
-## Extensions
-
-Optional extensions for specialized needs:
-
-### Redactor
-
-PII and sensitive data redaction:
+## Factory Functions
 
 ```typescript
-import { Redactor } from 'magiclogger/extensions';
+import { createLogger, createAsyncLogger, createSyncLogger } from 'magiclogger';
 
+// Create logger with auto-detection based on environment
+const logger = createLogger({
+  mode?: 'async' | 'sync' | 'auto' | 'balanced',
+  ...options
+});
+
+// Create specific logger types
+const asyncLogger = createAsyncLogger(options);
+const syncLogger = createSyncLogger(options);
+```
+
+## Examples
+
+### Basic Setup
+
+```typescript
+import { Logger } from 'magiclogger';
+
+// Simple console logger
+const logger = new Logger();
+logger.info('Application started');
+
+// With file logging
 const logger = new Logger({
-  redactor: new Redactor({
-    preset: 'strict',           // 'none' | 'basic' | 'strict'
-    patterns: [                 // Custom patterns
-      /\b\d{4}-\d{4}-\d{4}-\d{4}\b/g, // Credit cards
-      /\b\d{3}-\d{2}-\d{4}\b/g,        // SSN
-    ],
-    keys: ['password', 'token', 'secret'], // Keys to redact
-  })
+  writeToDisk: true,
+  file: './logs/app.log'
+});
+
+// With custom transports
+const logger = new Logger({
+  transports: [
+    new ConsoleTransport({ level: 'debug' }),
+    new FileTransport({ filepath: './logs/app.log' }),
+    new HTTPTransport({ endpoint: 'https://logs.example.com' })
+  ]
 });
 ```
 
-### Sampler
-
-Statistical sampling for high-volume logging:
+### Styled Logging
 
 ```typescript
-import { Sampler } from 'magiclogger/extensions';
+// Using angle brackets (auto-parsed in all log methods)
+logger.info('<green.bold>✅ Success:</> User <cyan>john@example.com</> authenticated');
+logger.error('<red>Error:</> Connection to <yellow>database</> failed');
 
-const logger = new Logger({
-  sampler: new Sampler({
-    rate: 0.1,                  // Sample 10% of logs
-    strategy: 'random',         // 'random' | 'reservoir' | 'adaptive'
-    alwaysInclude: ['error', 'fatal'], // Always log these levels
-  })
-});
+// Using template literals
+const database = 'users_db';
+logger.error(logger.fmt`@red.bold{ERROR:} Failed to connect to @yellow{${database}}`);
+
+// Using chainable API
+logger.info(logger.s.blue.bold('INFO:') + ' Processing ' + logger.s.cyan('data.json'));
+
+// Creating reusable styles
+const error = logger.s.red.bold;
+const success = logger.s.green.bold;
+const warning = logger.s.yellow;
+
+logger.info(success('✓ All tests passed'));
+logger.error(error('✗ Build failed'));
+logger.warn(warning('⚠ Deprecated API usage'));
 ```
 
-### RateLimiter
-
-Prevent log flooding:
+### Structured Logging
 
 ```typescript
-import { RateLimiter } from 'magiclogger/extensions';
-
-const logger = new Logger({
-  rateLimiter: new RateLimiter({
-    max: 1000,                  // Max logs per window
-    window: 60000,              // Time window in ms
-    strategy: 'sliding',        // 'fixed' | 'sliding' | 'token-bucket'
-  })
+// With metadata
+logger.info('User action', {
+  userId: 'u_123',
+  action: 'login',
+  ip: '192.168.1.1',
+  timestamp: Date.now()
 });
+
+// With error objects
+try {
+  await database.connect();
+} catch (error) {
+  logger.error('Database connection failed', error);
+  // Or with additional context
+  logger.error('Database connection failed', {
+    error,
+    database: 'production',
+    retryCount: 3
+  });
+}
+
+// With tags for categorization
+logger.info('API request', { tags: ['api', 'v2', 'users'] });
 ```
 
-### QueueManager
-
-Advanced queue management for AsyncLogger:
+### Performance Monitoring
 
 ```typescript
-import { QueueManager } from 'magiclogger/extensions';
-
 const logger = new AsyncLogger({
-  queueManager: new QueueManager({
-    maxSize: 100000,
-    dropPolicy: 'priority',     // 'head' | 'tail' | 'priority' | 'random'
-    priorityFn: (entry) => entry.level === 'error' ? 1 : 0,
-  })
+  enableMetrics: true
 });
-```
 
----
+// Monitor logger performance
+setInterval(() => {
+  const stats = logger.getStats();
+  console.log('Buffer utilization:', stats.buffer.utilization + '%');
+  console.log('Dropped logs:', stats.buffer.dropped);
+  console.log('Total processed:', stats.metrics.totalLogs);
+}, 5000);
 
-## MAGIC Schema
-
-MagicLogger outputs logs in the MAGIC Schema format, preserving styling information:
-
-```json
-{
-  "id": "1234567890-abc",
-  "timestamp": "2024-01-15T10:30:00.000Z",
-  "timestampMs": 1705316400000,
-  "level": "error",
-  "message": "Error: Database connection failed",
-  "styles": [
-    [0, 6, "red.bold"],
-    [7, 35, "yellow"]
-  ],
-  "context": {
-    "database": "production",
-    "attempts": 3
-  }
+// Check for backpressure
+if (logger.isBackpressured()) {
+  console.warn('Logger experiencing backpressure');
+  await logger.flush();
 }
 ```
 
-The `styles` array contains `[startIndex, endIndex, styleString]` tuples that preserve text formatting across any transport or platform.
+### Graceful Shutdown
 
----
-
-## Performance Notes
-
-### Optimization Techniques
-
-MagicLogger employs several optimizations for competitive performance:
-
-- **Fast-path detection**: Plain messages without `<` or `\x1b` characters skip all parsing
-- **Timestamp caching**: Reuses Date objects and ISO strings within the same millisecond
-- **Lazy style evaluation**: Only parses styles when angle brackets or ANSI codes are detected
-- **Transport caching**: Caches transport count to avoid repeated array operations
-
-### Performance Tips
-
-For maximum throughput:
 ```typescript
-// Use plain messages when possible
-logger.info('Plain message');  // Fastest
+// Ensure all logs are written before exit
+process.on('SIGTERM', async () => {
+  console.log('Shutting down gracefully...');
+  await logger.close();  // Flushes all pending logs
+  process.exit(0);
+});
 
-// Avoid unnecessary metadata
-logger.info('Message');  // Fast
-logger.info('Message', { data: 123 });  // Slower
-
-// Disable colors if not needed
-const logger = new Logger({ useColors: false });
+// For critical logs that must not be lost
+process.on('uncaughtException', async (error) => {
+  await logger.logCritical('fatal', 'Uncaught exception', { error });
+  await logger.close();
+  process.exit(1);
+});
 ```
 
----
+## Best Practices
 
-## Migration Guides
+1. **Use Logger (default) for most cases** - It provides the best balance of performance and features
+2. **Use AsyncLogger explicitly for high-throughput** - When you need maximum performance
+3. **Use SyncLogger only for audit logs** - When you absolutely cannot lose any logs
+4. **Enable graceful shutdown** - Always call `logger.close()` before process exit
+5. **Use structured metadata** - Pass objects as second parameter instead of string concatenation
+6. **Use semantic log levels** - Choose appropriate levels for filtering in production
+7. **Configure transports appropriately** - Use async file transport for performance, sync for auditing
+8. **Monitor for backpressure** - Check buffer utilization in high-throughput scenarios
+9. **Use child loggers** - Create scoped loggers with inherited configuration
+10. **Batch network transports** - Configure batching for HTTP/cloud transports to reduce overhead
+
+## Migration Guide
 
 ### From Winston
 
@@ -692,16 +555,16 @@ const logger = new Logger({ useColors: false });
 const winston = require('winston');
 const logger = winston.createLogger({
   level: 'info',
-  format: winston.format.json(),
   transports: [
     new winston.transports.Console(),
     new winston.transports.File({ filename: 'app.log' })
   ]
 });
 
-// MagicLogger equivalent
-import { Logger, ConsoleTransport, FileTransport } from 'magiclogger';
+// MagicLogger
+import { Logger } from 'magiclogger';
 const logger = new Logger({
+  verbose: false,  // 'info' level and above
   transports: [
     new ConsoleTransport(),
     new FileTransport({ filepath: 'app.log' })
@@ -721,11 +584,11 @@ const logger = pino({
   }
 });
 
-// MagicLogger equivalent
-import { createAsyncLogger } from 'magiclogger';
-const logger = createAsyncLogger({
-  useColors: true,
-  buffer: { size: 32768 } // High-performance like Pino
+// MagicLogger
+import { Logger } from 'magiclogger';
+const logger = new Logger({
+  verbose: false,  // 'info' level and above
+  useColors: true  // Pretty output by default
 });
 ```
 
@@ -736,19 +599,23 @@ const logger = createAsyncLogger({
 const bunyan = require('bunyan');
 const logger = bunyan.createLogger({
   name: 'myapp',
+  level: 'info',
   streams: [
     { stream: process.stdout },
-    { path: '/var/log/myapp.log' }
+    { path: 'app.log' }
   ]
 });
 
-// MagicLogger equivalent
-import { Logger, ConsoleTransport, FileTransport } from 'magiclogger';
+// MagicLogger
+import { Logger } from 'magiclogger';
 const logger = new Logger({
   id: 'myapp',
+  verbose: false,
   transports: [
     new ConsoleTransport(),
-    new FileTransport({ filepath: '/var/log/myapp.log' })
+    new FileTransport({ filepath: 'app.log' })
   ]
 });
 ```
+
+For more detailed API documentation, visit the <a href="/api/" target="_blank">Full API Documentation</a>.

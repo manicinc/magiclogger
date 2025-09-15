@@ -18,6 +18,7 @@ import { IS_PATH_REGEX } from './constants/paths';
 import { META_WRAPPER, type MetaArg } from './utils/meta';
 import { ThemeManager } from './theme/ThemeManager';
 import type { ThemeDefinition } from './types/theme';
+import { globalMetadataCache } from './core/MetadataCache';
 // Object pooling removed - minimal objects don't need pooling
 
 // Performance-optimized imports for Node.js modules
@@ -752,17 +753,32 @@ export class Logger {
       return;
     }
 
-    // Fast path: Create minimal entry - ONLY required fields
+    // OPTIMIZATION: Check for style markers early
+    const hasStyleMarkers = msg.includes('<') && msg.includes('>') && msg.includes('</>');
+    const levelInt = Logger.LEVEL_TO_INT[level] || 30;
+
+    // Super fast path for simple messages (no metadata, no styles)
+    if (!meta && !hasStyleMarkers) {
+      const entry = {
+        level: levelInt,
+        time: Date.now(),
+        msg: msg,
+      };
+
+      if (this.hasTransports && this.transportManager) {
+        this.transportManager.logSync(entry);
+      } else if (this.useConsoleOutput) {
+        console.log(`[${level}] ${msg}`);
+      }
+      return;
+    }
+
+    // Standard path: Create minimal entry
     const entry: MinimalLogEntry = {
-      level: Logger.LEVEL_TO_INT[level] || 30,
+      level: levelInt,
       time: Date.now(),
       msg: msg,
     };
-
-    // Fast path: Skip style processing entirely for messages without style markers
-    // This avoids expensive regex operations for 90% of logs
-    // OPTIMIZATION: Check for closing tag too to avoid false positives
-    const hasStyleMarkers = msg.includes('<') && msg.includes('>') && msg.includes('</>');
 
     if (this.useColors && !this.options.performanceMode && hasStyleMarkers) {
       // Only parse styles if we actually have style markers
@@ -778,14 +794,15 @@ export class Logger {
       entry.plainMsg = msg;
     }
 
-    // Fast metadata handling
+    // Fast metadata handling with caching
     if (meta) {
       // Special handling for Error objects
       if (meta instanceof Error) {
         entry.error = meta;
       } else {
-        // Copy all properties
-        Object.assign(entry, meta);
+        // Optimize metadata through cache
+        const optimizedMeta = globalMetadataCache.optimizeMetadata(meta);
+        Object.assign(entry, optimizedMeta);
       }
     }
 

@@ -30,6 +30,10 @@ export type { AsyncFileTransportOptions as FileTransportOptions } from './AsyncF
 export { WorkerFileTransport } from './WorkerFileTransport';
 export type { WorkerFileTransportOptions } from './WorkerFileTransport';
 
+// Export ultra-fast transport for benchmarks
+export { UltraFastFileTransport } from './UltraFastFileTransport';
+export type { UltraFastFileTransportOptions } from './UltraFastFileTransport';
+
 // Import for internal use
 import { AsyncFileTransport as FileTransport } from './AsyncFileTransport';
 

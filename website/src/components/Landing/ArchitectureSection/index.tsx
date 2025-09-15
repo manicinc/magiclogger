@@ -26,7 +26,7 @@ const layers = [
     color: '#764ba2',
     description: 'Lightweight routing layer that directs logs to transports efficiently',
     features: [
-      '39KB gzipped core', 
+      '47KB gzipped core', 
       'Minimal dependencies', 
       'Direct transport routing',
       'High performance',
@@ -70,7 +70,7 @@ export default function ArchitectureSection() {
       <div className="container">
         <div className={styles.sectionHeader}>
           <Heading as="h2" className={styles.sectionTitle}>
-            Architecture that <span className={styles.gradient}>scales</span>
+            <span className={styles.gradient}>Architectural Diagram</span>
           </Heading>
           <p className={styles.sectionSubtitle}>
             Worker thread architecture • Smart batching • Minimal dependencies • Tree-shakeable

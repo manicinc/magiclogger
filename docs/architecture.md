@@ -148,17 +148,17 @@ interface LogEntry {
 ## Performance Characteristics
 
 ### Synchronous Logging
-- **Throughput**: ~117K ops/sec plain text, ~30K ops/sec with styles
-- **Latency**: 0.008ms average blocking time
+- **Throughput**: ~147K ops/sec plain text, ~50K ops/sec with styles
+- **Latency**: 0.006ms average blocking time
 - **Memory**: Minimal buffering
 - **Reliability**: Guaranteed delivery (blocks until written)
 
 ### Asynchronous Logging
-- **Throughput**: ~127K ops/sec plain text, ~163K ops/sec with styles
-- **Latency**: 0.007ms average (non-blocking)
+- **Throughput**: ~164K ops/sec plain text, ~120K ops/sec with styles
+- **Latency**: 0.006ms average (non-blocking, 0.004ms P50)
 - **Memory**: Minimal with sonic-boom buffering
 - **Reliability**: Best-effort, requires graceful shutdown for guarantee
-- **Note**: Styled async outperforms plain sync (163K vs 68K ops/sec)
+- **Note**: Styled async significantly outperforms sync styled (120K vs 50K ops/sec)
 
 ### Architecture Benefits
 

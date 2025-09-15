@@ -235,6 +235,131 @@ nav.navbar {
   margin-left: auto;
 }
 
+/* Fix navbar positioning on mobile */
+@media (max-width: 996px) {
+  /* Fix navbar container */
+  .navbar {
+    height: 60px !important;
+    padding: 0 1rem !important;
+  }
+
+  .navbar__inner {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  /* Logo positioning */
+  .navbar__brand {
+    flex: 0 0 auto;
+    margin-right: auto;
+  }
+
+  .navbar__logo img {
+    height: 40px !important;
+  }
+
+  /* Hide theme toggle on mobile to prevent overlap */
+  .navbar__items--right [class*="colorModeToggle"] {
+    display: none !important;
+  }
+
+  /* Move GitHub icon to left of hamburger */
+  .navbar__items--right {
+    display: flex !important;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .header-github-link {
+    order: -1 !important; /* Negative order to put it first */
+    display: flex !important;
+    margin-right: 0.5rem;
+  }
+
+  /* Hamburger menu positioning */
+  .navbar__toggle {
+    order: 1 !important;
+    margin-left: 0 !important;
+  }
+
+  /* Mobile sidebar styles - PROPER WIDTH */
+  .navbar-sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: auto !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 85% !important;
+    max-width: 320px !important;
+    height: 100vh !important;
+    height: 100dvh !important; /* Dynamic viewport height for mobile */
+    background: var(--ifm-background-color) !important;
+    z-index: 9999 !important;
+    overflow-y: auto !important;
+    box-shadow: -2px 0 8px rgba(0, 0, 0, 0.15) !important;
+  }
+
+  /* Ensure mobile menu is visible when open */
+  .navbar-sidebar--show {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  /* Mobile sidebar backdrop - FULL SCREEN */
+  .navbar-sidebar__backdrop {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    height: 100vh !important;
+    background: rgba(0, 0, 0, 0.6) !important;
+    z-index: 9998 !important;
+  }
+
+  /* Mobile sidebar content */
+  .navbar-sidebar__items {
+    background: var(--ifm-background-color);
+    height: 100%;
+    overflow-y: auto;
+    padding: 1rem 0;
+  }
+
+  /* Mobile menu links */
+  .navbar-sidebar__item {
+    padding: 0 !important;
+    display: block !important;
+    margin: 0 !important;
+  }
+
+  .navbar-sidebar__item .menu__link,
+  .navbar-sidebar__link {
+    padding: 0.75rem 1.5rem !important;
+    color: var(--ifm-color-content) !important;
+    text-decoration: none !important;
+    display: block !important;
+    font-weight: 500;
+    border-bottom: 1px solid var(--ifm-toc-border-color);
+    margin: 0 !important;
+  }
+
+  .navbar-sidebar__item .menu__link:hover,
+  .navbar-sidebar__link:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--ifm-color-primary) !important;
+  }
+
+  /* Ensure proper stacking */
+  .navbar-sidebar,
+  .navbar-sidebar * {
+    pointer-events: auto !important;
+  }
+}
+
 .navbar__link {
   font-weight: 500;
   color: var(--ifm-color-content);
@@ -252,6 +377,31 @@ nav.navbar {
 .navbar__link--active {
   color: var(--ifm-color-primary);
   background: rgba(153, 69, 255, 0.1);
+}
+
+/* GitHub Icon in Navbar */
+.header-github-link {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem;
+  transition: var(--neo-transition);
+}
+
+.header-github-link:hover {
+  opacity: 0.7;
+}
+
+.header-github-link::before {
+  content: '';
+  width: 24px;
+  height: 24px;
+  display: block;
+  background: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJDNi40NzcgMiAyIDYuNDg0IDIgMTIuMDE3YzAgNC40MjUgMi44NjUgOC4xOCA2LjgzOSA5LjUwNC41LjA5Mi42ODItLjIxNy42ODItLjQ4MyAwLS4yMzctLjAwOC0uODY4LS4wMTMtMS43MDMtMi43ODIuNjA1LTMuMzY5LTEuMzQzLTMuMzY5LTEuMzQzLS40NTQtMS4xNTgtMS4xMS0xLjQ2Ni0xLjExLTEuNDY2LS45MDgtLjYyLjA2OS0uNjA4LjA2OS0uNjA4IDEuMDAzLjA3IDEuNTMxIDEuMDMyIDEuNTMxIDEuMDMyLjg5MiAxLjUzIDIuMzQxIDEuMDg4IDIuOTEuODMyLjA5Mi0uNjQ3LjM1LTEuMDg4LjYzNi0xLjMzOC0yLjIyLS4yNTMtNC41NTUtMS4xMTMtNC41NTUtNC45NDcgMC0xLjA5My4zOS0xLjk4OCAxLjAyOS0yLjY4OC0uMTAzLS4yNTMtLjQ0Ni0xLjI3Mi4wOTgtMi42NSAwIDAgLjg0LS4yNyAyLjc1IDEuMDI2LjguMjI2IDEuNjU0LjMzOSAyLjUwNC4zNDIuODUtLjAwNCAxLjcwNS0uMTE1IDIuNTA0LS4zMzkgMS45MDktMS4yOTYgMi43NDctMS4wMjcgMi43NDctMS4wMjcuNTQ2IDEuMzc5LjIwMiAyLjM5OC4xIDIuNjUxLjY0LjcgMS4wMjggMS41OTUgMS4wMjggMi42ODggMCAzLjg0OC0yLjMzOSA0LjY5NS00LjU2NiA0Ljk0My4zNTkuMzEuNjc4LjkyLjY3OCAxLjg1NSAwIDEuMzM4LS4wMTIgMi40MTktLjAxMiAyLjc0NyAwIC4yNjguMTguNTguNjg4LjQ4MkE5Ljk5OSA5Ljk5OSAwIDAwMjIgMTIuMDE3QzIyIDYuNDg0IDE3LjUyMiAyIDEyIDJ6IiBmaWxsPSJjdXJyZW50Q29sb3IiLz4KPC9zdmc+') no-repeat;
+  background-size: 24px 24px;
+}
+
+[data-theme='dark'] .header-github-link::before {
+  filter: invert(1);
 }
 
 /* Hero Section */
@@ -566,78 +716,50 @@ code {
   outline-offset: 2px;
 }
 
-/* Mobile Responsive */
+/* Additional Mobile Responsive Styles */
 @media (max-width: 996px) {
-  /* Keep navbar organized on tablet/mobile */
-  .navbar__inner {
-    position: relative;
-  }
-
-  /* Ensure theme toggle is visible on mobile */
-  .navbar__items--right {
-    display: flex !important;
-    align-items: center;
-  }
-
-  /* Keep theme toggle visible on mobile */
-  .navbar__items--right {
-    display: flex !important;
-    visibility: visible !important;
-  }
-
-  /* Ensure color mode toggle stays visible */
-  .navbar__items--right > :last-child,
-  .navbar__items--right .clean-btn,
-  [class*="colorModeToggle"] {
-    display: flex !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-  }
-
-  /* Position theme toggle properly */
-  .navbar__items--right .clean-btn {
-    margin-right: 0.5rem;
-  }
-
   /* Style the hamburger icon */
   .navbar__toggle svg {
     width: 24px !important;
     height: 24px !important;
     fill: var(--ifm-color-content) !important;
   }
-  
-  /* Keep logo size consistent */
-  .navbar__logo img {
-    height: 45px !important;
-    min-height: 45px !important;
-  }
-  
-  /* Ensure dashboard button stays visible and styled */
+
+  /* Ensure dashboard button stays visible and styled in mobile menu */
   .navbar-dashboard-link {
     margin: 0.25rem 0.5rem !important;
     padding: 0.4rem 0.8rem !important;
     font-size: 0.85rem;
   }
-  
+
   .navbar-dashboard-link::after {
     font-size: 8px;
     padding: 1px 4px;
   }
-  
-  /* Mobile menu sidebar - minimal overrides */
-  .navbar-sidebar {
-    background: var(--ifm-background-color);
-  }
 
+  /* Mobile sidebar brand section */
   .navbar-sidebar__brand {
     padding: 1rem;
     border-bottom: 1px solid var(--ifm-toc-border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
   }
 
-  .navbar-sidebar__item {
-    padding: 0.75rem 1.5rem;
+  /* Close button in mobile menu */
+  .navbar-sidebar__close {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    background: transparent;
+    border: none;
+    cursor: pointer;
   }
 
+  /* Mobile menu items hover effect */
   .navbar-sidebar__item:hover {
     background: rgba(0, 0, 0, 0.05);
   }
@@ -647,11 +769,14 @@ code {
   }
 
   /* Dark mode mobile sidebar */
+  [data-theme='dark'] .navbar-sidebar {
+    background: var(--ifm-background-color-dark, #1a1a1a);
+  }
+
   [data-theme='dark'] .navbar-sidebar .navbar__item {
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   }
-  
-  
+
   .hero {
     padding: 3rem 0 2rem;
   }

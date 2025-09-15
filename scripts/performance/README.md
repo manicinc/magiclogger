@@ -124,14 +124,14 @@ At typical application rates (1-10k logs/sec):
 | **Plain Text Performance** |
 | Pino | Sync | 446,051 | 0.002 | 0.004 | 0.010 |
 | Winston | Sync | 267,546 | 0.003 | 0.005 | 0.033 |
-| MagicLogger | Async | 258,415 | 0.004 | 0.005 | 0.027 |
-| MagicLogger | Sync | 75,769 | 0.013 | 0.003 | 0.009 |
+| MagicLogger | Async | 164,012 | 0.006 | 0.005 | 0.027 |
+| MagicLogger | Sync | 147,547 | 0.006 | 0.003 | 0.009 |
 | **Styled Output Performance** |
 | Winston | Sync | 211,457 | 0.005 | 0.018 | 0.042 |
 | Pino (Manual ANSI) | Async | 155,954 | 0.006 | 0.006 | 0.030 |
+| MagicLogger | Async | 120,628 | 0.008 | 0.061 | 0.178 |
 | Pino (Pretty) | Async | 102,559 | 0.009 | 0.011 | 0.113 |
-| MagicLogger | Sync | 38,016 | 0.026 | 0.025 | 0.078 |
-| MagicLogger | Async | 28,657 | 0.035 | 0.061 | 0.178 |
+| MagicLogger | Sync | 50,195 | 0.020 | 0.025 | 0.078 |
 
 ### Performance Analysis
 

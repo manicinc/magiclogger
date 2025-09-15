@@ -272,6 +272,10 @@ describe('createAsyncLogger factory', () => {
         onFlush: errorFlush,
       });
 
+      // Add error handler to prevent unhandled error
+      const errorHandler = jest.fn();
+      logger.on('error', errorHandler);
+
       logger.info('Test message');
 
       // Wait for flush attempt
@@ -280,6 +284,9 @@ describe('createAsyncLogger factory', () => {
       // Logger should continue working despite flush error
       const result = logger.error('Error after flush failure');
       expect(result.success).toBe(true);
+
+      // Verify error was emitted
+      expect(errorHandler).toHaveBeenCalled();
 
       await logger.close();
     });

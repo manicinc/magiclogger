@@ -25,7 +25,7 @@ export default function Home(): JSX.Element {
 
   return (
     <Layout
-      title="MagicLog - Beautiful Logging for JavaScript & TypeScript"
+      title="MagicLog - Home of MAGIC"
       description="Transform your console into a powerful debugging tool. MagicLogger brings color, structure, and intelligence to your logs with zero configuration.">
       <ScrollToTop />
       <HeroSection />

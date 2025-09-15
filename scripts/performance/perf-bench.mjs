@@ -15,6 +15,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import winston from 'winston';
+import bunyan from 'bunyan';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -92,7 +93,7 @@ async function benchmarkLogger(name, setupFn, iterations = ITERATIONS, useStyled
       if (useStyled) {
         logger.info(`<green>✓</> Request <cyan>${i}</> completed`);
       } else {
-        logger.info(`Request warmup ${i}`, testData);
+        logger.info(`Request warmup ${i}`);
       }
     }
     
@@ -107,7 +108,7 @@ async function benchmarkLogger(name, setupFn, iterations = ITERATIONS, useStyled
       if (useStyled) {
         logger.info(`<green>✓</> Request <cyan>${i}</> in <yellow>${testData.duration}ms</>`);
       } else {
-        logger.info(`Request processed ${i}`, testData);
+        logger.info(`Request processed ${i} in ${testData.duration}ms`);
       }
       
       const blockEnd = performance.now();
@@ -231,12 +232,12 @@ async function runBenchmarks() {
       await transport.init();
       activeTransports.add(transport);
       
-      // Use the REAL AsyncLogger with optimized defaults
+      // Use AsyncLogger without workers for consistent comparison
       const logger = new AsyncLogger({
         useColors: false,
         transports: [transport],
-        useConsole: false
-        // Using defaults: poolSize: 2, batchSize: 1000, batchTimeout: 10
+        useConsole: false,
+        useWorkers: false  // Disable workers for accurate comparison
       });
       
       await logger.waitForReady();
@@ -262,14 +263,17 @@ async function runBenchmarks() {
     try {
       const winstonPlainResult = await benchmarkLogger('Winston (Plain)', async () => {
         const logger = winston.createLogger({
-          format: winston.format.simple(),
+          format: winston.format.combine(
+            winston.format.timestamp(),
+            winston.format.json()  // JSON structured logging like MagicLogger
+          ),
           transports: [
-            new winston.transports.File({ 
+            new winston.transports.File({
               filename: path.join(TEST_DIR, 'winston-plain.log')
             })
           ]
         });
-        
+
         return { logger };
       });
       if (winstonPlainResult) plainResults.push(winstonPlainResult);
@@ -277,7 +281,38 @@ async function runBenchmarks() {
       console.log(`  ${colors.yellow}⚠ Winston test failed: ${e.message}${colors.reset}`);
     }
     
-    // 4. Pino
+    // 4. Bunyan Plain
+    console.log('Testing Bunyan (Plain)...');
+    try {
+      // Create a write stream for better performance
+      const bunyanStream = fs.createWriteStream(path.join(TEST_DIR, 'bunyan.log'), {
+        flags: 'a',
+        highWaterMark: 64 * 1024  // 64KB buffer
+      });
+
+      const bunyanResult = await benchmarkLogger('Bunyan', async () => {
+        const logger = bunyan.createLogger({
+          name: 'benchmark',
+          src: false,  // Disable source location tracking for performance
+          streams: [{
+            level: 'info',
+            stream: bunyanStream
+          }]
+        });
+
+        return {
+          logger,
+          cleanup: async () => {
+            bunyanStream.end();
+          }
+        };
+      });
+      if (bunyanResult) plainResults.push(bunyanResult);
+    } catch (e) {
+      console.log(`  ${colors.yellow}⚠ Bunyan test failed: ${e.message}${colors.reset}`);
+    }
+
+    // 5. Pino
     console.log('Testing Pino (Plain)...');
     let pinoStream = null;
     try {
@@ -290,9 +325,14 @@ async function runBenchmarks() {
           sync: false
         });
         
-        const logger = pino({ 
-          base: null,
-          timestamp: false
+        const logger = pino({
+          base: null,  // Still exclude base fields for fair comparison
+          timestamp: true,  // Include timestamp like MagicLogger
+          formatters: {
+            level: (label) => {
+              return { level: label };
+            }
+          }
         }, pinoStream);
         
         return { 
@@ -340,22 +380,22 @@ async function runBenchmarks() {
     }, ITERATIONS, true);
     if (styledSync) styledResults.push(styledSync);
     
-    // 2. Async Styled with Worker Threads
+    // 2. Async Styled (styles processed in MAIN thread, not workers)
     console.log('Testing MagicLogger (Async - Styled)...');
     const styledAsync = await benchmarkLogger('MagicLogger (Async + Styles)', async () => {
       const transport = new AsyncFileTransport({
         filepath: path.join(TEST_DIR, 'async-styled.log')
       });
-      
+
       await transport.init();
       activeTransports.add(transport);
-      
-      // Use the REAL AsyncLogger with optimized defaults AND styling support
+
+      // Use AsyncLogger with styles processed in MAIN thread for accurate comparison
       const logger = new AsyncLogger({
         useColors: true,  // Enable styling
         transports: [transport],
-        useConsole: false
-        // Using defaults: poolSize: 2, batchSize: 1000, batchTimeout: 10
+        useConsole: false,
+        useWorkers: false  // Process styles in main thread, not workers
       });
       
       await logger.waitForReady();
@@ -382,17 +422,15 @@ async function runBenchmarks() {
           format: winston.format.combine(
             winston.format.colorize(),
             winston.format.timestamp(),
-            winston.format.printf(({ timestamp, level, message }) => {
-              return `${timestamp} [${level}]: ${message}`;
-            })
+            winston.format.json()  // JSON structured logging with colors
           ),
           transports: [
-            new winston.transports.File({ 
+            new winston.transports.File({
               filename: path.join(TEST_DIR, 'winston-styled.log')
             })
           ]
         });
-        
+
         return { logger };
       }, ITERATIONS, false);
       if (winstonStyledResult) styledResults.push(winstonStyledResult);
@@ -400,7 +438,38 @@ async function runBenchmarks() {
       console.log(`  ${colors.yellow}⚠ Winston test failed: ${e.message}${colors.reset}`);
     }
     
-    // 9. Pino with pino-pretty (async worker thread)
+    // 4. Bunyan Styled (with colors)
+    console.log('Testing Bunyan (Styled)...');
+    try {
+      // Create a write stream for better performance
+      const bunyanStyledStream = fs.createWriteStream(path.join(TEST_DIR, 'bunyan-styled.log'), {
+        flags: 'a',
+        highWaterMark: 64 * 1024  // 64KB buffer
+      });
+
+      const bunyanStyledResult = await benchmarkLogger('Bunyan (Styled)', async () => {
+        const logger = bunyan.createLogger({
+          name: 'benchmark',
+          src: false,  // Disable source location for performance
+          streams: [{
+            level: 'info',
+            stream: bunyanStyledStream
+          }]
+        });
+
+        return {
+          logger,
+          cleanup: async () => {
+            bunyanStyledStream.end();
+          }
+        };
+      }, ITERATIONS, false);
+      if (bunyanStyledResult) styledResults.push(bunyanStyledResult);
+    } catch (e) {
+      console.log(`  ${colors.yellow}⚠ Bunyan styled test failed: ${e.message}${colors.reset}`);
+    }
+
+    // 5. Pino with pino-pretty (async worker thread)
     console.log('Testing Pino (Pretty - Async Worker)...');
     try {
       const pinoModule = await import('pino');
@@ -417,9 +486,9 @@ async function runBenchmarks() {
           }
         });
         
-        const logger = pino({ 
-          base: null,
-          timestamp: false
+        const logger = pino({
+          base: null,  // Still exclude base fields for fair comparison
+          timestamp: true  // Include timestamp for structured logging
         }, transport);
         
         return { 
@@ -436,89 +505,6 @@ async function runBenchmarks() {
       if (pinoPrettyResult) styledResults.push(pinoPrettyResult);
     } catch (e) {
       console.log('  Pino Pretty not available:', e.message);
-    }
-    
-    // 9. Pino with manual ANSI codes (sync)
-    console.log('Testing Pino (Manual ANSI - Sync)...');
-    try {
-      const pinoModule = await import('pino');
-      const pino = pinoModule.default;
-      
-      const pinoManualResult = await benchmarkLogger('Pino (Manual ANSI)', async () => {
-        const stream = pino.destination({ 
-          dest: path.join(TEST_DIR, 'pino-manual.log'),
-          sync: true  // Sync mode for comparison
-        });
-        
-        const logger = pino({ 
-          base: null,
-          timestamp: false
-        }, stream);
-        
-        // Wrap logger.info to add ANSI codes
-        const originalInfo = logger.info.bind(logger);
-        logger.info = function(msg, ...args) {
-          if (typeof msg === 'string') {
-            // Add cyan color like MagicLogger does
-            originalInfo(`\x1b[36m${msg}\x1b[0m`, ...args);
-          } else {
-            originalInfo(msg, ...args);
-          }
-        };
-        
-        return { 
-          logger,
-          cleanup: async () => {
-            stream.destroy();
-          }
-        };
-      }, ITERATIONS, false); // Note: false because we're adding ANSI manually
-      
-      if (pinoManualResult) styledResults.push(pinoManualResult);
-    } catch {
-      console.log('  Pino manual ANSI test failed');
-    }
-    
-    // 10. Pino with manual ANSI codes (async)
-    console.log('Testing Pino (Manual ANSI - Async)...');
-    try {
-      const pinoModule = await import('pino');
-      const pino = pinoModule.default;
-      
-      const pinoAsyncManualResult = await benchmarkLogger('Pino (Manual ANSI Async)', async () => {
-        const stream = pino.destination({ 
-          dest: path.join(TEST_DIR, 'pino-manual-async.log'),
-          sync: false  // Async mode
-        });
-        
-        const logger = pino({ 
-          base: null,
-          timestamp: false
-        }, stream);
-        
-        // Wrap logger.info to add ANSI codes
-        const originalInfo = logger.info.bind(logger);
-        logger.info = function(msg, ...args) {
-          if (typeof msg === 'string') {
-            // Add styled output similar to MagicLogger
-            originalInfo(`\x1b[32m✓\x1b[0m Request \x1b[36m${msg}\x1b[0m`, ...args);
-          } else {
-            originalInfo(msg, ...args);
-          }
-        };
-        
-        return { 
-          logger,
-          cleanup: async () => {
-            stream.end();
-            await new Promise(resolve => setTimeout(resolve, 100));
-          }
-        };
-      }, ITERATIONS, false);
-      
-      if (pinoAsyncManualResult) styledResults.push(pinoAsyncManualResult);
-    } catch {
-      console.log('  Pino async manual ANSI test failed');
     }
     
     // Clean up pino stream if it exists

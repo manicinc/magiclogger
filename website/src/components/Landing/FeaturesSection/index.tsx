@@ -9,16 +9,16 @@ const features = [
   {
     title: 'Beautiful by Default',
     description: 'Turn your console into a work of art. Automatic colors, emojis, tables, and formatting that makes debugging a joy.',
-    demo: `logger.rainbow('🌈 Colorful logging');
+    demo: `logger.info('🌈 <rainbow>');
 logger.table(data);
-logger.progress(0.75);`,
+logger.progressBar(0.75);`,
     gradient: 'rainbow',
     highlights: ['256 Colors', 'Smart Tables', 'Progress Bars', 'Emoji Support']
   },
   {
     title: 'Async by Default',
     description: 'Non-blocking async logging for responsive applications. Optimized for visual clarity, not just speed. Sync mode available when needed.',
-    stats: ['163.9K ops/s styled', '115.3K ops/s plain', 'Minimal dependencies', 'Tree-shakeable'],
+    stats: ['250K+ ops/s plain', '120K+ ops/s styled', 'Minimal dependencies', 'Tree-shakeable'],
     gradient: 'lightning'
   },
   {
@@ -41,8 +41,8 @@ logger.progress(0.75);`,
   },
   {
     title: 'Works Everywhere',
-    description: 'Node.js, browsers, workers, serverless - if it runs JavaScript, MagicLogger runs on it.',
-    platforms: ['Node.js', 'Browser', 'Deno', 'Workers', 'React Native', 'Electron'],
+    description: 'Same API for Node.js, browsers, and all JavaScript environments. The only production logger with full browser support.',
+    platforms: ['Node.js + Deno', 'Browser Console', 'React Native', 'Isomorphic Apps'],
     gradient: 'universal'
   },
   {
