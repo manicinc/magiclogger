@@ -2,13 +2,10 @@
 
 <p align="center">
   <img src="website/static/img/magiclog-primary-no-subtitle-transparent-4x.png" alt="MagicLog" width="520"/>
- <img src="https://img.shields.io/badge/core_gzip-46kb-brightgreen.svg" alt="core_gzip">
- <img src="https://img.shields.io/badge/core_console_gzip-46kb-brightgreen.svg" alt="core_console_gzip">
- <img src="https://img.shields.io/badge/core_transports_gzip-50kb-brightgreen.svg" alt="core_transports_gzip">
 </p>
 
 <p align="center">
-  <a href="https://magiclog.io"><strong>🌐 Documentation & Website</strong></a> • 
+  <a href="https://magiclog.io"><strong>🌐 Documentation & Website</strong></a> •
   <a href="https://magiclog.io/api/"><strong>📚 API Reference</strong></a>
 </p>
 

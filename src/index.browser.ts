@@ -137,7 +137,7 @@ export class Logger {
   }
 
   public styled(msg: string, preset: string | string[]): void {
-    this.impl.styled(msg, preset);
+    this.impl.styled(msg, preset as any);
   }
 
   public colorParts(message: string, colorMap: Record<string, ColorName[]>): string {

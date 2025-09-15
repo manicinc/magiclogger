@@ -309,8 +309,7 @@ describe('AsyncFileTransport Integration', () => {
         const now = Date.now();
         await asyncTransport.log({
           id: `${i}`,
-          timestamp: new Date(now).toISOString(),
-          timestampMs: now,
+          timestamp: now,
           level: 'info',
           message: 'Test',
         });
@@ -323,8 +322,7 @@ describe('AsyncFileTransport Integration', () => {
         const now = Date.now();
         await syncTransport.log({
           id: `${i}`,
-          timestamp: new Date(now).toISOString(),
-          timestampMs: now,
+          timestamp: now,
           level: 'info',
           message: 'Test',
         });

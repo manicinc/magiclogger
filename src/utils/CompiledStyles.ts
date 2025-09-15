@@ -192,7 +192,7 @@ export function processStylesFast(message: string, useColors: boolean): string {
   if (styleCache.size >= MAX_CACHE_SIZE) {
     // Clear oldest entry (first in map)
     const firstKey = styleCache.keys().next().value;
-    styleCache.delete(firstKey);
+    if (firstKey) styleCache.delete(firstKey);
   }
   styleCache.set(cacheKey, result);
 

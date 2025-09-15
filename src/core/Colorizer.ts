@@ -161,7 +161,7 @@ export class Colorizer {
         // Only check alternatives if direct lookup failed
         if (!colorCode) {
           // OPTIMIZATION: Check raw styles before custom colors (faster)
-          colorCode = RAW_STYLE_MAP[normalized];
+          colorCode = RAW_STYLE_MAP[normalized] || '';
 
           if (!colorCode) {
             // Check for custom colors (lazily loaded)

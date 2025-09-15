@@ -150,8 +150,8 @@ describe('ObjectPool', () => {
 
       // Modify all fields
       entry.id = 'modified-id';
-      entry.timestamp = '2024-01-01T00:00:00.000Z';
-      entry.timestampMs = 1704067200000;
+      entry.timestamp = Date.now();
+      entry.timestamp = 1704067200000;
       entry.level = 'error';
       entry.message = 'Modified message';
       entry.styles = [[0, 5, 'red']];

@@ -352,7 +352,7 @@ export class ConsoleTransport extends Transport {
           : `Error: ${errorName} - ${error.message}`;
         output += ' ' + errorLine;
         if ((error as { stack?: string }).stack) {
-          output += '\n' + (error as { stack: string }).stack;
+          output += '\n' + (error as unknown as { stack: string }).stack;
         }
       } else {
         try {

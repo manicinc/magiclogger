@@ -158,7 +158,7 @@ export class MetadataCache {
       // LRU eviction
       if (this.frozenCache.size >= this.maxCacheSize) {
         const firstKey = this.frozenCache.keys().next().value;
-        this.frozenCache.delete(firstKey);
+        if (firstKey) this.frozenCache.delete(firstKey);
         this.stats.evictions++;
       }
 
@@ -193,7 +193,7 @@ export class MetadataCache {
     if (this.jsonCache.size >= this.maxJsonCacheSize) {
       // Evict oldest
       const firstKey = this.jsonCache.keys().next().value;
-      this.jsonCache.delete(firstKey);
+      if (firstKey) this.jsonCache.delete(firstKey);
       this.stats.evictions++;
     }
 

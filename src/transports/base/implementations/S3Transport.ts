@@ -254,10 +254,10 @@ export class S3Transport extends NetworkTransport {
 
       this.awsModules = {
         S3Client: S3Client as S3ClientConstructor,
-        PutObjectCommand: PutObjectCommand as PutObjectCommandConstructor,
+        PutObjectCommand: PutObjectCommand as unknown as PutObjectCommandConstructor,
         HeadBucketCommand: HeadBucketCommand as HeadBucketCommandConstructor,
-        ListObjectsV2Command: ListObjectsV2Command as ListObjectsV2CommandConstructor,
-        DeleteObjectsCommand: DeleteObjectsCommand as DeleteObjectsCommandConstructor,
+        ListObjectsV2Command: ListObjectsV2Command as unknown as ListObjectsV2CommandConstructor,
+        DeleteObjectsCommand: DeleteObjectsCommand as unknown as DeleteObjectsCommandConstructor,
       };
 
       // Configure S3 client

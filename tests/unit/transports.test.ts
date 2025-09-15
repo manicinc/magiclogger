@@ -105,7 +105,6 @@ describe('transports.ts module', () => {
       const testLogEntry: LogEntry = {
         id: 'test-123',
         timestamp: Date.now(),
-        timestampMs: Date.now(),
         level: 'info',
         message: 'Test message',
       };

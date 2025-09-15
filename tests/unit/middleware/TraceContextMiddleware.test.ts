@@ -12,7 +12,6 @@ describe('TraceContextMiddleware', () => {
   const createMockEntry = (overrides?: Partial<LogEntry>): LogEntry => ({
     id: 'test-id',
     timestamp: Date.now(),
-    timestampMs: Date.now(),
     level: 'info',
     message: 'Test message',
     ...overrides,

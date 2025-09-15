@@ -893,12 +893,12 @@ describe('OTLPTransport', () => {
         serviceName: 'test-service',
       });
 
-      const timestampMs = 1609459200000; // 2021-01-01T00:00:00.000Z
+      const timestamp = 1609459200000; // 2021-01-01T00:00:00.000Z
       const entry: LogEntry = {
         id: 'test-' + Date.now(),
         level: 'info',
         message: 'Timestamp test',
-        timestamp: timestampMs,
+        timestamp: timestamp,
       };
 
       await transport.log(entry);
