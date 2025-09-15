@@ -1399,7 +1399,7 @@ The performance trade-off is purposeful: complete observability data in every lo
 | Bunyan (Styled) | 99,468 | 0.010 | 0.007 | 0.017 | 0.029 | 6.036 |
 | MagicLogger (Sync + Styles) | 80,502 | 0.012 | 0.005 | 0.016 | 0.031 | 8.340 |
 
-*Generated via `npm run perf:update` - see [scripts/performance/](./scripts/performance/)*
+*Performance benchmarks are run manually via `npm run perf:update` when performance improvements are made - see [scripts/performance/](./scripts/performance/)*
 
 #### How Styling Works
 

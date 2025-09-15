@@ -37,13 +37,17 @@ MagicLogger is designed to be fast, even with rich styling features. The benchma
 npm install
 npm run install-deps
 
-# Run benchmarks
-npm run bench        # JavaScript version
-npm run bench:ts     # TypeScript version
+# Run benchmarks (view-only, no updates)
+npm run perf:run     # Run benchmarks and display results
 
-# Update README with latest results
-npm run perf:update
+# ⚠️ MANUAL UPDATE ONLY - DO NOT RUN IN CI/CD
+# Updates README and benchmark-results.md with new performance data
+# Only run this when you've made performance improvements and want to update docs
+npm run perf:update  # Updates benchmark files (run manually when needed)
 ```
+
+**Important:** The `perf:update` command is NOT run automatically during builds, deploys, or CI/CD.
+It should only be run manually when you've made performance improvements and want to update the documentation.
 
 ## Benchmark Methodology
 

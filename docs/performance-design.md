@@ -14,6 +14,8 @@ MagicLogger's performance architecture represents a deliberate set of trade-offs
 
 ## Core Performance Metrics
 
+> **Note:** Performance benchmarks are updated manually via `npm run perf:update` when significant performance improvements are made. Benchmarks are NOT run automatically during builds or CI/CD to maintain consistent documentation.
+
 ### Current Performance Profile (Real Production Metrics)
 - **Sync Mode (Plain)**: 269,587 ops/sec (0.003ms avg latency) - **250K+ ops/sec**
 - **Async Mode (Plain)**: 165,694 ops/sec (0.006ms avg latency)
