@@ -330,7 +330,7 @@ export class AsyncFileTransport extends Transport {
       // Create sonic-boom instance with our configuration
       // Note: sonic-boom runs in the main thread, not worker threads
       // This eliminates IPC overhead and provides better performance
-      const sonic = new (SonicBoom as unknown as { new (opts: Record<string, unknown>): unknown })({
+      const sonic = new (SonicBoom as any)({
         dest: this.options.filepath,
         append: this.options.append,
         mkdir: this.options.mkdir,
@@ -340,7 +340,7 @@ export class AsyncFileTransport extends Transport {
         mode: this.options.mode,
         sync: false, // Always async for non-blocking I/O
         fsync: this.options.fsync, // Optional fsync for durability
-      });
+      }) as SonicBoom;
 
       // Handle sonic-boom errors gracefully
       sonic.on('error', (err: Error) => {
@@ -353,7 +353,7 @@ export class AsyncFileTransport extends Transport {
       });
 
       // Track successful writes for monitoring
-      sonic.on('write', (bytes: number) => {
+      (sonic as any).on('write', (bytes: number) => {
         this.stats.succeeded++;
 
         // Initialize custom stats if needed
@@ -369,7 +369,7 @@ export class AsyncFileTransport extends Transport {
       });
 
       // Handle ready event for initialization tracking
-      sonic.on('ready', () => {
+      (sonic as any).on('ready', () => {
         // Sonic-boom is ready to accept writes
         if (!this.stats.custom) {
           this.stats.custom = {};
@@ -664,7 +664,7 @@ export class AsyncFileTransport extends Transport {
       // Format based on configured format option
       if (this.options.format === 'plain') {
         // Human-readable plain text format
-        const timestamp = new Date(entry.timestamp || Date.now()).toISOString();
+        const timestamp = new Date((entry as any).timestamp || (entry as any).time || Date.now()).toISOString();
         const level = String(entry.level).toUpperCase().padEnd(5);
         const message = entry.message || '';
         const context = entry.context ? ` ${JSON.stringify(entry.context)}` : '';

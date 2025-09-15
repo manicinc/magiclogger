@@ -1,7 +1,7 @@
 // File: src/Logger.ts
 
 import { TransportManager } from './transports/base/TransportManager';
-import type { Transport } from './types/transport';
+import type { Transport, MinimalLogEntry } from './types/transport';
 import { ConsoleTransport } from './transports/base/implementations/ConsoleTransport';
 import { AsyncFileTransport } from './transports/AsyncFileTransport';
 import { Colorizer } from './core/Colorizer';
@@ -753,7 +753,7 @@ export class Logger {
     }
 
     // Fast path: Create minimal entry - ONLY required fields
-    const entry: LogEntry = {
+    const entry: MinimalLogEntry = {
       level: Logger.LEVEL_TO_INT[level] || 30,
       time: Date.now(),
       msg: msg,

@@ -10,6 +10,7 @@ import type {
   MinimalLogEntry,
   TransportType,
   TransportStats,
+  StyleRange,
 } from '../../types/transport';
 
 /**
@@ -686,14 +687,14 @@ export class TransportManager extends EventEmitter {
       id: generateId(),
       timestamp: time,
       level: levelMap[minimal.level] || 'info',
-      message: minimal.plainMsg || minimal.msg || '', // Use plain text if available
+      message: (minimal as any).plainMsg || minimal.msg || '', // Use plain text if available
       context: minimal,
-      loggerId: minimal.loggerId,
+      loggerId: (minimal as any).loggerId as string | undefined,
     };
 
     // Preserve styles if present
-    if (minimal.styles) {
-      logEntry.styles = minimal.styles;
+    if ((minimal as any).styles) {
+      logEntry.styles = (minimal as any).styles as StyleRange[];
     }
 
     return logEntry;

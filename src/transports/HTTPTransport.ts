@@ -664,7 +664,7 @@ export class HTTPTransport extends Transport {
     if (!this.worker) return;
 
     return new Promise(resolve => {
-      const handler = (msg: { type: string }) => {
+      const handler = (msg: { type: string; stats?: any }) => {
         if (msg.type === 'closed') {
           if (msg.stats) {
             console.log(`[${this.name}] Final stats:`, msg.stats);

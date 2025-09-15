@@ -134,7 +134,7 @@ export class EnhancedConsole {
     this.originalConsole.clear();
   }
 
-  dir(obj: unknown, options?: NodeJS.InspectOptions): void {
+  dir(obj: unknown, options?: any): void {
     this.originalConsole.dir(obj, options);
   }
 

@@ -282,7 +282,7 @@ export class SyncConsoleTransport extends Transport {
     }
 
     // Filter out internal fields and error (which is displayed separately)
-    const filteredMeta = { ...metadata };
+    const filteredMeta: Record<string, any> = { ...metadata };
     delete filteredMeta.err;
     delete filteredMeta.error;
     delete filteredMeta.level;
