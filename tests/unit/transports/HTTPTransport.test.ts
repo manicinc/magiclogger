@@ -13,15 +13,20 @@ jest.mock('worker_threads', () => ({
 }));
 
 describe('HTTPTransport', () => {
-  let mockWorker: any;
-  let eventHandlers: Record<string, (...args: any[]) => void> = {};
+  let mockWorker: {
+    postMessage: jest.Mock;
+    on: jest.Mock;
+    off: jest.Mock;
+    terminate: jest.Mock;
+  };
+  let eventHandlers: Record<string, (...args: unknown[]) => void> = {};
 
   beforeEach(() => {
     jest.clearAllMocks();
     eventHandlers = {};
 
     mockWorker = {
-      postMessage: jest.fn().mockImplementation((message: any) => {
+      postMessage: jest.fn().mockImplementation((message: { type: string }) => {
         // Simulate worker responses
         setImmediate(() => {
           if (eventHandlers.message) {
@@ -39,7 +44,7 @@ describe('HTTPTransport', () => {
           }
         });
       }),
-      on: jest.fn().mockImplementation((event: string, handler: (...args: any[]) => void) => {
+      on: jest.fn().mockImplementation((event: string, handler: (...args: unknown[]) => void) => {
         eventHandlers[event] = handler;
         return mockWorker; // Return this for chaining
       }),
@@ -153,8 +158,7 @@ describe('HTTPTransport', () => {
 
       const entry: LogEntry = {
         id: '123',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test message',
         loggerId: 'test-logger',
@@ -179,16 +183,14 @@ describe('HTTPTransport', () => {
       const entries: LogEntry[] = [
         {
           id: '1',
-          timestamp: new Date().toISOString(),
-          timestampMs: Date.now(),
+          timestamp: Date.now(),
           level: 'info',
           message: 'First',
           loggerId: 'test',
         },
         {
           id: '2',
-          timestamp: new Date().toISOString(),
-          timestampMs: Date.now(),
+          timestamp: Date.now(),
           level: 'error',
           message: 'Second',
           loggerId: 'test',
@@ -222,8 +224,7 @@ describe('HTTPTransport', () => {
 
       const entry: LogEntry = {
         id: '123',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test message',
         loggerId: 'test-logger',
@@ -258,8 +259,7 @@ describe('HTTPTransport', () => {
       // Simulate ready state
       await transport.log({
         id: 'init',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Init',
         loggerId: 'test',
@@ -275,8 +275,7 @@ describe('HTTPTransport', () => {
       for (let i = 0; i < 10; i++) {
         await transport.log({
           id: `log-${i}`,
-          timestamp: new Date().toISOString(),
-          timestampMs: Date.now(),
+          timestamp: Date.now(),
           level: 'info',
           message: `Message ${i}`,
           loggerId: 'test',
@@ -298,8 +297,7 @@ describe('HTTPTransport', () => {
 
       const entry: LogEntry = {
         id: '125',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Should not log',
         loggerId: 'test-logger',
@@ -321,8 +319,7 @@ describe('HTTPTransport', () => {
       // Initialize worker
       await transport.log({
         id: '1',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test',
         loggerId: 'test',
@@ -352,8 +349,7 @@ describe('HTTPTransport', () => {
       // Initialize
       await transport.log({
         id: '1',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test',
         loggerId: 'test',
@@ -387,8 +383,7 @@ describe('HTTPTransport', () => {
       // Initialize
       await transport.log({
         id: '1',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test',
         loggerId: 'test',
@@ -422,8 +417,7 @@ describe('HTTPTransport', () => {
       // Initialize by logging something
       await transport.log({
         id: '1',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test',
         loggerId: 'test',
@@ -450,8 +444,7 @@ describe('HTTPTransport', () => {
       // Initialize by logging something
       await transport.log({
         id: '1',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test',
         loggerId: 'test',
@@ -478,8 +471,7 @@ describe('HTTPTransport', () => {
       // Initialize by logging something
       await transport.log({
         id: '1',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test',
         loggerId: 'test',
@@ -504,8 +496,7 @@ describe('HTTPTransport', () => {
 
       await transport.log({
         id: '1',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test',
         loggerId: 'test',
@@ -534,8 +525,7 @@ describe('HTTPTransport', () => {
 
       await transport.log({
         id: '1',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test',
         loggerId: 'test',
@@ -569,8 +559,7 @@ describe('HTTPTransport', () => {
 
       await transport.log({
         id: '1',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test',
         loggerId: 'test',

@@ -64,14 +64,19 @@ export class TextStyler {
 
   // OPTIMIZATION: Pre-compiled patterns for common log formats
   private static readonly SIMPLE_STYLE = /^([^<]*)<([^<>]+)>([^<]*)<\/>([^<]*)$/;
-  private static readonly DOUBLE_STYLE = /^([^<]*)<([^<>]+)>([^<]*)<\/>([^<]*)<([^<>]+)>([^<]*)<\/>([^<]*)$/;
-  private static readonly TRIPLE_STYLE = /^([^<]*)<([^<>]+)>([^<]*)<\/>([^<]*)<([^<>]+)>([^<]*)<\/>([^<]*)<([^<>]+)>([^<]*)<\/>([^<]*)$/;
+  private static readonly DOUBLE_STYLE =
+    /^([^<]*)<([^<>]+)>([^<]*)<\/>([^<]*)<([^<>]+)>([^<]*)<\/>([^<]*)$/;
+  private static readonly TRIPLE_STYLE =
+    /^([^<]*)<([^<>]+)>([^<]*)<\/>([^<]*)<([^<>]+)>([^<]*)<\/>([^<]*)<([^<>]+)>([^<]*)<\/>([^<]*)$/;
 
   // Cache for parsed style strings to avoid repeated parsing
   private static readonly styleParseCache = new Map<string, ColorName[]>();
 
   // Cache for extraction results (avoid JSON serialization)
-  private static readonly extractionCache = new Map<string, { plainText: string; styledText: string; styles?: StyleRange[] }>();
+  private static readonly extractionCache = new Map<
+    string,
+    { plainText: string; styledText: string; styles?: StyleRange[] }
+  >();
 
   // Hoisted valid styles set for parseStyleString checks
   private static readonly VALID_STYLES: Set<string> = new Set<string>([
@@ -435,13 +440,12 @@ export class TextStyler {
       const styles: StyleRange[] = [[before.length, before.length + content.length, style]];
       if (useColors) {
         const parsedStyles = TextStyler.parseStyleString(style);
-        const styledContent = parsedStyles.length > 0
-          ? Colorizer.applyColors(content, parsedStyles, true)
-          : content;
+        const styledContent =
+          parsedStyles.length > 0 ? Colorizer.applyColors(content, parsedStyles, true) : content;
         return {
           plainText,
           styledText: before + styledContent + after,
-          styles
+          styles,
         };
       }
       return { plainText, styledText: plainText, styles };
@@ -470,16 +474,18 @@ export class TextStyler {
         let styledText = before;
         if (content1) {
           const parsedStyles1 = TextStyler.parseStyleString(style1);
-          styledText += parsedStyles1.length > 0
-            ? Colorizer.applyColors(content1, parsedStyles1, true)
-            : content1;
+          styledText +=
+            parsedStyles1.length > 0
+              ? Colorizer.applyColors(content1, parsedStyles1, true)
+              : content1;
         }
         styledText += middle;
         if (content2) {
           const parsedStyles2 = TextStyler.parseStyleString(style2);
-          styledText += parsedStyles2.length > 0
-            ? Colorizer.applyColors(content2, parsedStyles2, true)
-            : content2;
+          styledText +=
+            parsedStyles2.length > 0
+              ? Colorizer.applyColors(content2, parsedStyles2, true)
+              : content2;
         }
         styledText += after;
         return { plainText, styledText, styles };
@@ -508,9 +514,12 @@ export class TextStyler {
     // OPTIMIZATION: Skip nested processing if not needed (most common case)
     let processedText = text;
     if (text.indexOf('</></>') !== -1) {
-      processedText = text.replace(TextStyler.NESTED_PATTERN, (match, outerStyle, innerStyle, content) => {
-        return `<${outerStyle}.${innerStyle}>${content}</>`;
-      });
+      processedText = text.replace(
+        TextStyler.NESTED_PATTERN,
+        (match, outerStyle, innerStyle, content) => {
+          return `<${outerStyle}.${innerStyle}>${content}</>`;
+        }
+      );
     }
 
     while ((match = regex.exec(processedText)) !== null) {
@@ -599,7 +608,8 @@ export class TextStyler {
   public static parseStyleString(styleString: string): ColorName[] {
     // OPTIMIZATION: Fast early returns for common cases
     if (!styleString || styleString.length === 0) return [];
-    if (styleString === '/' || styleString === '</>') return []; {
+    if (styleString === '/' || styleString === '</>') return [];
+    {
       return [];
     }
 

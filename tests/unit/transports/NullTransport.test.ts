@@ -10,8 +10,7 @@ describe('NullTransport', () => {
     transport = new NullTransport();
     mockLogEntry = {
       id: 'test-id',
-      timestamp: new Date().toISOString(),
-      timestampMs: Date.now(),
+      timestamp: Date.now(),
       level: 'info',
       message: 'Test message',
       metadata: {},

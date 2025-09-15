@@ -168,7 +168,7 @@ describe('Style Extraction Integration', () => {
     it('should handle entries without styles field', () => {
       const entry: LogEntry = {
         id: 'test-1',
-        timestamp: new Date().toISOString(),
+        timestamp: Date.now(),
         timestampMs: Date.now(),
         level: 'info',
         message: 'Plain message without styles',

@@ -343,18 +343,20 @@ export class ConsoleTransport extends Transport {
     if (error) {
       // Display as "Error: name - message" format
       if (typeof error === 'object' && 'message' in error) {
-        const errorName = (error as any).name || 'Error';
+        const errorName = (error as { name?: string }).name || 'Error';
         const errorLine = this.useColors
           ? Colorizer.color(`Error: ${errorName} - ${error.message}`, 'red', true)
           : `Error: ${errorName} - ${error.message}`;
         output += ' ' + errorLine;
-        if ((error as any).stack) {
-          output += '\n' + (error as any).stack;
+        if ((error as { stack?: string }).stack) {
+          output += '\n' + (error as { stack: string }).stack;
         }
       } else {
         try {
           const errorOutput =
-            typeof this.formatError === 'function' ? this.formatError(error as any) : String(error);
+            typeof this.formatError === 'function'
+              ? this.formatError(error as Error)
+              : String(error);
           output += '\n' + errorOutput;
         } catch {
           /* ignore formatting errors */

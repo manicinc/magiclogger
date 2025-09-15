@@ -128,15 +128,15 @@ export class Logger {
     this.impl.groupEnd();
   }
 
-  public box(text: string, options?: any): void {
+  public box(text: string, options?: Record<string, unknown>): void {
     this.impl.box(text, options);
   }
 
-  public list(items: string[], options?: any): void {
+  public list(items: string[], options?: Record<string, unknown>): void {
     this.impl.list(items, options);
   }
 
-  public styled(msg: string, preset: any): void {
+  public styled(msg: string, preset: string | string[]): void {
     this.impl.styled(msg, preset);
   }
 

@@ -73,8 +73,7 @@ describe('OTLP Transport - MAGIC Schema Integration', () => {
     it('should map ID and schema version', async () => {
       const entry: LogEntry = {
         id: '1704067200000-abc123xyz',
-        timestamp: '2024-01-01T00:00:00.000Z',
-        timestampMs: 1704067200000,
+        timestamp: 1704067200000,
         level: 'info',
         message: 'Test message',
         schemaVersion: 'v1',
@@ -101,8 +100,7 @@ describe('OTLP Transport - MAGIC Schema Integration', () => {
     it('should use message field (now always plain text)', async () => {
       const entry: LogEntry = {
         id: 'test-123',
-        timestamp: '2024-01-01T00:00:00.000Z',
-        timestampMs: 1704067200000,
+        timestamp: 1704067200000,
         level: 'info',
         message: 'Plain message text',
         styles: [[0, 5, 'red.bold']], // Style info stored separately
@@ -121,8 +119,7 @@ describe('OTLP Transport - MAGIC Schema Integration', () => {
     it('should map service and environment fields', async () => {
       const entry: LogEntry = {
         id: 'test-123',
-        timestamp: '2024-01-01T00:00:00.000Z',
-        timestampMs: 1704067200000,
+        timestamp: 1704067200000,
         level: 'info',
         message: 'Test',
         service: 'api-gateway',
@@ -151,8 +148,7 @@ describe('OTLP Transport - MAGIC Schema Integration', () => {
     it('should map trace context from root trace field', async () => {
       const entry: LogEntry = {
         id: 'test-123',
-        timestamp: '2024-01-01T00:00:00.000Z',
-        timestampMs: 1704067200000,
+        timestamp: 1704067200000,
         level: 'info',
         message: 'Test',
         trace: {
@@ -191,8 +187,7 @@ describe('OTLP Transport - MAGIC Schema Integration', () => {
     it('should map trace context from metadata.trace for backward compatibility', async () => {
       const entry: LogEntry = {
         id: 'test-123',
-        timestamp: '2024-01-01T00:00:00.000Z',
-        timestampMs: 1704067200000,
+        timestamp: 1704067200000,
         level: 'info',
         message: 'Test',
         metadata: {
@@ -216,8 +211,7 @@ describe('OTLP Transport - MAGIC Schema Integration', () => {
     it('should prioritize root trace over metadata.trace', async () => {
       const entry: LogEntry = {
         id: 'test-123',
-        timestamp: '2024-01-01T00:00:00.000Z',
-        timestampMs: 1704067200000,
+        timestamp: 1704067200000,
         level: 'info',
         message: 'Test',
         trace: {
@@ -248,8 +242,7 @@ describe('OTLP Transport - MAGIC Schema Integration', () => {
     it('should map hostname and process info', async () => {
       const entry: LogEntry = {
         id: 'test-123',
-        timestamp: '2024-01-01T00:00:00.000Z',
-        timestampMs: 1704067200000,
+        timestamp: 1704067200000,
         level: 'info',
         message: 'Test',
         metadata: {
@@ -274,8 +267,7 @@ describe('OTLP Transport - MAGIC Schema Integration', () => {
     it('should map resource utilization metrics', async () => {
       const entry: LogEntry = {
         id: 'test-123',
-        timestamp: '2024-01-01T00:00:00.000Z',
-        timestampMs: 1704067200000,
+        timestamp: 1704067200000,
         level: 'info',
         message: 'Test',
         metadata: {
@@ -327,8 +319,7 @@ describe('OTLP Transport - MAGIC Schema Integration', () => {
     it('should map health metrics', async () => {
       const entry: LogEntry = {
         id: 'test-123',
-        timestamp: '2024-01-01T00:00:00.000Z',
-        timestampMs: 1704067200000,
+        timestamp: 1704067200000,
         level: 'info',
         message: 'Test',
         metadata: {
@@ -357,8 +348,7 @@ describe('OTLP Transport - MAGIC Schema Integration', () => {
     it('should map context fields as attributes', async () => {
       const entry: LogEntry = {
         id: 'test-123',
-        timestamp: '2024-01-01T00:00:00.000Z',
-        timestampMs: 1704067200000,
+        timestamp: 1704067200000,
         level: 'info',
         message: 'Test',
         context: {
@@ -391,8 +381,7 @@ describe('OTLP Transport - MAGIC Schema Integration', () => {
     it('should skip trace fields in context when already present at root', async () => {
       const entry: LogEntry = {
         id: 'test-123',
-        timestamp: '2024-01-01T00:00:00.000Z',
-        timestampMs: 1704067200000,
+        timestamp: 1704067200000,
         level: 'info',
         message: 'Test',
         trace: {
@@ -461,8 +450,7 @@ describe('OTLP Transport - MAGIC Schema Integration', () => {
       for (const { level, severityNumber } of levelMappings) {
         const entry: LogEntry = {
           id: 'test-123',
-          timestamp: '2024-01-01T00:00:00.000Z',
-          timestampMs: 1704067200000,
+          timestamp: 1704067200000,
           level: level as LogEntry['level'],
           message: 'Test',
         };

@@ -3,38 +3,61 @@
 
 declare module 'mongodb' {
   export class MongoClient {
-    constructor(uri: string, options?: any);
+    constructor(uri: string, options?: MongoClientOptions);
     connect(): Promise<MongoClient>;
     close(): Promise<void>;
     db(dbName?: string): Db;
   }
 
   export interface Db {
-    collection<T = any>(name: string): Collection<T>;
+    collection<T = Document>(name: string): Collection<T>;
   }
 
-  export interface Collection<T = any> {
-    insertOne(doc: T): Promise<any>;
-    insertMany(docs: T[]): Promise<any>;
-    find(filter?: any): any;
-    findOne(filter?: any): Promise<T | null>;
-    updateOne(filter: any, update: any, options?: any): Promise<any>;
-    deleteOne(filter: any): Promise<any>;
-    deleteMany(filter: any): Promise<any>;
+  export interface Collection<T = Document> {
+    insertOne(doc: T): Promise<InsertOneResult>;
+    insertMany(docs: T[]): Promise<BulkWriteResult>;
+    find(filter?: Record<string, unknown>): FindCursor<T>;
+    findOne(filter?: Record<string, unknown>): Promise<T | null>;
+    updateOne(
+      filter: Record<string, unknown>,
+      update: Record<string, unknown>,
+      options?: Record<string, unknown>
+    ): Promise<UpdateResult>;
+    deleteOne(filter: Record<string, unknown>): Promise<DeleteResult>;
+    deleteMany(filter: Record<string, unknown>): Promise<DeleteResult>;
   }
 
   export interface MongoClientOptions {
-    [key: string]: any;
+    [key: string]: unknown;
   }
 
   export interface InsertOneResult {
     acknowledged: boolean;
-    insertedId: any;
+    insertedId: unknown;
   }
 
   export interface BulkWriteResult {
     acknowledged: boolean;
     insertedCount: number;
-    insertedIds: { [key: number]: any };
+    insertedIds: { [key: number]: unknown };
+  }
+
+  export interface Document {
+    [key: string]: unknown;
+  }
+
+  export interface FindCursor<T> {
+    toArray(): Promise<T[]>;
+  }
+
+  export interface UpdateResult {
+    acknowledged: boolean;
+    modifiedCount: number;
+    matchedCount: number;
+  }
+
+  export interface DeleteResult {
+    acknowledged: boolean;
+    deletedCount: number;
   }
 }

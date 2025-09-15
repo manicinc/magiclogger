@@ -4,8 +4,7 @@ import type { LogEntry } from '../../../../src/types/transport';
 
 const entry: LogEntry = {
   id: 'idx',
-  timestamp: new Date('2024-01-01T00:00:00Z').toISOString(),
-  timestampMs: Date.now(),
+  timestamp: 1704067200000,
   level: 'info',
   message: 'Index test',
   metadata: { foo: 'bar' },

@@ -34,8 +34,7 @@ describe('CustomFormatter (legacy exports)', () => {
 
       const entry = {
         id: 'test-123',
-        timestamp: '2024-01-01T00:00:00.000Z',
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info' as const,
         message: 'Test message',
         plainMessage: 'Test message',
@@ -54,8 +53,7 @@ describe('CustomFormatter (legacy exports)', () => {
 
       const entry = {
         id: 'test-123',
-        timestamp: '2024-01-01T00:00:00.000Z',
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'error' as const,
         message: 'Error occurred',
         plainMessage: 'Error occurred',
@@ -74,8 +72,7 @@ describe('CustomFormatter (legacy exports)', () => {
 
       const entry = {
         id: 'test-123',
-        timestamp: '2024-01-01T00:00:00.000Z',
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info' as const,
         message: 'Test message',
         plainMessage: 'Test message',
@@ -96,8 +93,7 @@ describe('CustomFormatter (legacy exports)', () => {
 
       const entry = {
         id: 'test-123',
-        timestamp: '2024-01-01T00:00:00.000Z',
-        timestampMs: 1704067200000,
+        timestamp: 1704067200000,
         level: 'warn' as const,
         message: 'Warning message',
         plainMessage: 'Warning message',

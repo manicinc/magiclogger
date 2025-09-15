@@ -74,9 +74,9 @@ describe('createAsyncLogger factory', () => {
 
     it('should process entries through onFlush', async () => {
       const logger = createAsyncLogger({
-        buffer: { 
-          size: 100,           // Don't auto-flush on 3 messages
-          flushInterval: 1000  // Don't auto-flush from timer
+        buffer: {
+          size: 100, // Don't auto-flush on 3 messages
+          flushInterval: 1000, // Don't auto-flush from timer
         },
         onFlush: flushHandler,
       });
@@ -92,13 +92,13 @@ describe('createAsyncLogger factory', () => {
       await new Promise(resolve => setImmediate(resolve));
 
       expect(flushHandler).toHaveBeenCalled();
-      
+
       // Find the non-empty batch (micro-batching may call with empty array on flush)
       const calls = flushHandler.mock.calls;
       const nonEmptyBatch = calls.find(call => call[0].length > 0);
-      
+
       expect(nonEmptyBatch).toBeDefined();
-      
+
       // Check that we have all messages (may be in one batch or multiple)
       const allEntries = calls.flatMap(call => call[0]);
 
@@ -305,9 +305,9 @@ describe('createAsyncLogger factory', () => {
   describe('Graceful shutdown', () => {
     it('should flush pending logs on close', async () => {
       const logger = createAsyncLogger({
-        buffer: { 
-          size: 100,           // Don't auto-flush on 3 messages
-          flushInterval: 10000 // Long interval
+        buffer: {
+          size: 100, // Don't auto-flush on 3 messages
+          flushInterval: 10000, // Long interval
         },
         onFlush: flushHandler,
       });
@@ -320,7 +320,7 @@ describe('createAsyncLogger factory', () => {
       await logger.close();
 
       expect(flushHandler).toHaveBeenCalled();
-      
+
       // Find the non-empty batch
       const calls = flushHandler.mock.calls;
       const nonEmptyBatch = calls.find(call => call[0].length > 0);

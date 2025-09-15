@@ -289,9 +289,9 @@ describe('AsyncLogger', () => {
         transports: [mockTransport],
         onFlush,
         buffer: {
-          size: 100,           // Don't auto-flush on 2 messages
-          flushInterval: 1000  // Don't auto-flush from timer
-        }
+          size: 100, // Don't auto-flush on 2 messages
+          flushInterval: 1000, // Don't auto-flush from timer
+        },
       });
 
       // Log some entries
@@ -300,14 +300,14 @@ describe('AsyncLogger', () => {
 
       // Flush transports
       await logger.flush();
-      
+
       // Wait for async processing - multiple rounds to ensure completion
       await new Promise(resolve => setImmediate(resolve));
       await new Promise(resolve => setImmediate(resolve));
 
       // With micro-batching, onFlush is called once with all entries
       expect(onFlush).toHaveBeenCalled();
-      
+
       // Find the call with our messages
       const calls = onFlush.mock.calls;
       console.log('onFlush calls:', calls.length);
@@ -318,11 +318,11 @@ describe('AsyncLogger', () => {
           console.log('First entry:', call[0][0]);
         }
       });
-      
-      const batchWithMessages = calls.find(call => 
-        call[0] && call[0].some((entry: LogEntry) => entry.message === 'Message 1')
+
+      const batchWithMessages = calls.find(
+        call => call[0] && call[0].some((entry: LogEntry) => entry.message === 'Message 1')
       );
-      
+
       expect(batchWithMessages).toBeDefined();
 
       // Check if messages are in the same batch or separate calls

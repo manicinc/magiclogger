@@ -19,7 +19,7 @@ describe('Sampler', () => {
   const createEntry = (id: string, level: 'debug' | 'info' | 'warn' | 'error' = 'info'): LogEntry =>
     ({
       id,
-      timestamp: new Date().toISOString(),
+      timestamp: Date.now(),
       timestampMs: Date.now(),
       level,
       message: `Message ${id}`,
@@ -435,7 +435,7 @@ describe('Sampler', () => {
       });
 
       const entryNoId = {
-        timestamp: new Date().toISOString(),
+        timestamp: Date.now(),
         timestampMs: Date.now(),
         level: 'info' as const,
         message: 'No ID',

@@ -330,7 +330,7 @@ export class AsyncFileTransport extends Transport {
       // Create sonic-boom instance with our configuration
       // Note: sonic-boom runs in the main thread, not worker threads
       // This eliminates IPC overhead and provides better performance
-      const sonic = new (SonicBoom as any)({
+      const sonic = new (SonicBoom as unknown as { new (opts: Record<string, unknown>): unknown })({
         dest: this.options.filepath,
         append: this.options.append,
         mkdir: this.options.mkdir,
@@ -428,7 +428,8 @@ export class AsyncFileTransport extends Transport {
         JSON.stringify({
           level: entry.level,
           time: entry.time,
-          msg: (entry as any).plainMsg || (entry as any).msg,
+          msg:
+            (entry as Record<string, unknown>).plainMsg || (entry as Record<string, unknown>).msg,
         }) + '\n';
 
       this.addToBatch(line);
@@ -580,14 +581,14 @@ export class AsyncFileTransport extends Transport {
     const formatted = this.formatEntry(entry) + '\n';
 
     // Write and handle backpressure properly
-    return new Promise((resolve) => {
-      const written = this.sonic!.write(formatted);
+    return new Promise(resolve => {
+      const written = this.sonic?.write(formatted) ?? false;
       if (written) {
         // Data was written to buffer immediately
         setImmediate(() => resolve());
       } else {
         // Buffer is full, wait for drain
-        this.sonic!.once('drain', () => resolve());
+        this.sonic?.once('drain', () => resolve());
       }
     });
   }
@@ -609,14 +610,14 @@ export class AsyncFileTransport extends Transport {
     const formatted = entries.map(entry => this.formatEntry(entry) + '\n').join('');
 
     // Write entire batch at once for maximum efficiency
-    return new Promise((resolve) => {
-      const written = this.sonic!.write(formatted);
+    return new Promise(resolve => {
+      const written = this.sonic?.write(formatted) ?? false;
       if (written) {
         // Batch written to buffer
         setImmediate(() => resolve());
       } else {
         // Handle backpressure
-        this.sonic!.once('drain', () => resolve());
+        this.sonic?.once('drain', () => resolve());
       }
     });
   }
@@ -716,7 +717,7 @@ export class AsyncFileTransport extends Transport {
     if (!this.sonic || this.closing) return;
 
     return new Promise((resolve, reject) => {
-      this.sonic!.flush(err => {
+      this.sonic?.flush(err => {
         if (err) {
           // Log flush error
           this.handleError(err);
@@ -766,15 +767,18 @@ export class AsyncFileTransport extends Transport {
 
     return new Promise((resolve, reject) => {
       // First flush any pending data
-      this.sonic!.flush(err => {
+      this.sonic?.flush(err => {
         if (err) {
           // Even on error, try to close
           this.handleError(err);
 
           // Attempt to destroy anyway
           try {
-            if (this.sonic && typeof (this.sonic as any).destroy === 'function') {
-              (this.sonic as any).destroy();
+            if (
+              this.sonic &&
+              typeof (this.sonic as { destroy?: () => void }).destroy === 'function'
+            ) {
+              (this.sonic as { destroy: () => void }).destroy();
             }
           } catch {
             // Ignore errors during cleanup
@@ -787,8 +791,11 @@ export class AsyncFileTransport extends Transport {
 
         // Successfully flushed, now destroy the stream
         try {
-          if (this.sonic && typeof (this.sonic as any).destroy === 'function') {
-            (this.sonic as any).destroy();
+          if (
+            this.sonic &&
+            typeof (this.sonic as { destroy?: () => void }).destroy === 'function'
+          ) {
+            (this.sonic as { destroy: () => void }).destroy();
           }
 
           // Clear the reference
@@ -847,7 +854,7 @@ export class AsyncFileTransport extends Transport {
     return new Promise((resolve, reject) => {
       try {
         // Sonic-boom's reopen method handles the file reopening
-        (this.sonic as any).reopen();
+        (this.sonic as { reopen: () => void }).reopen();
 
         // Update reopen statistics
         if (!this.stats.custom) {
@@ -893,7 +900,7 @@ export class AsyncFileTransport extends Transport {
       filepath: this.options.filepath,
       minLength: this.options.minLength,
       maxWrite: this.options.maxWrite,
-      bufferLength: this.sonic ? (this.sonic as any)._len || 0 : 0,
+      bufferLength: this.sonic ? (this.sonic as { _len?: number })._len || 0 : 0,
       isClosing: this.closing,
       isInitialized: !!this.sonic,
       implementation: 'sonic-boom',

@@ -80,8 +80,7 @@ describe('FileTransport', () => {
 
       const entry: LogEntry = {
         id: '123',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test message',
         loggerId: 'test-logger',
@@ -110,8 +109,7 @@ describe('FileTransport', () => {
 
       const entry: LogEntry = {
         id: '123',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test message',
         loggerId: 'test-logger',

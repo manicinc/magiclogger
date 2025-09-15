@@ -77,15 +77,13 @@ describe('FileWorker Direct Coverage', () => {
       const entries = [
         {
           id: 'test-1',
-          timestamp: '2024-01-01T00:00:00.000Z',
-          timestampMs: 1704067200000,
+          timestamp: 1704067200000,
           level: 'info',
           message: 'Test message 1',
         },
         {
           id: 'test-2',
-          timestamp: '2024-01-01T00:00:01.000Z',
-          timestampMs: 1704067201000,
+          timestamp: 1704067201000,
           level: 'error',
           message: 'Test message 2',
         },
@@ -284,8 +282,7 @@ describe('FileWorker Direct Coverage', () => {
       // Send multiple entries
       const entries = Array.from({ length: 10 }, (_, i) => ({
         id: `test-${i}`,
-        timestamp: '2024-01-01T00:00:00.000Z',
-        timestampMs: 1704067200000,
+        timestamp: 1704067200000,
         level: 'info',
         message: `Message ${i}`,
       }));

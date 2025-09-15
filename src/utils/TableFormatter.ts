@@ -128,7 +128,7 @@ export class TableFormatter {
   /**
    * Main public API for formatting data as a table
    */
-  static formatTable(data: any, options: TableOptions = {}): string {
+  static formatTable(data: unknown, options: TableOptions = {}): string {
     const useColors = false; // Disable colors by default for tests
     // Handle invalid input
     if (!data || !Array.isArray(data) || data.length === 0) {

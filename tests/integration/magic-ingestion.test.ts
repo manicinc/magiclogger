@@ -177,7 +177,7 @@ describe('MAGIC Schema Cross-Language Ingestion', () => {
     it('should convert TypeScript logs to MAGIC format', () => {
       const entry: LogEntry = {
         id: 'ts-123',
-        timestamp: new Date().toISOString(),
+        timestamp: Date.now(),
         timestampMs: Date.now(),
         level: 'info',
         message: 'User logged in',
@@ -195,7 +195,7 @@ describe('MAGIC Schema Cross-Language Ingestion', () => {
     it('should handle logs without styles', () => {
       const entry = {
         id: 'plain-123',
-        timestamp: new Date().toISOString(),
+        timestamp: Date.now(),
         timestampMs: Date.now(),
         level: 'debug',
         message: 'Plain debug message',

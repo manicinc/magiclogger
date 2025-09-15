@@ -94,7 +94,7 @@ describe('AsyncLogger with RingBuffer', () => {
 
     it('should maintain unique timestamps with performance.now()', async () => {
       const timestamps: number[] = [];
-      
+
       const logger = new AsyncLogger({
         worker: {
           enabled: true,
@@ -116,7 +116,7 @@ describe('AsyncLogger with RingBuffer', () => {
       }
 
       await logger.flush();
-      
+
       // Check that timestamps are unique (or at least increasing)
       for (let i = 1; i < timestamps.length; i++) {
         expect(timestamps[i]).toBeGreaterThanOrEqual(timestamps[i - 1]);

@@ -576,8 +576,8 @@ describe('Logger Management Methods', () => {
     it('should handle null/undefined values gracefully', () => {
       // These should not throw
       expect(() => {
-        logger.setContext(null as any);
-        logger.setTags(null as any);
+        logger.setContext(null as unknown as Record<string, unknown>);
+        logger.setTags(null as unknown as string[]);
       }).not.toThrow();
 
       // Methods should still work after null values
@@ -586,7 +586,7 @@ describe('Logger Management Methods', () => {
     });
 
     it('should handle circular references in context', () => {
-      const circularObj: any = { name: 'test' };
+      const circularObj: { name: string; self?: unknown } = { name: 'test' };
       circularObj.self = circularObj;
 
       // Should not throw when setting circular context

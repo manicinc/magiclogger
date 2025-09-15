@@ -3,24 +3,26 @@
 
 declare module '@aws-sdk/client-s3' {
   export class S3Client {
-    constructor(config: any);
-    send(command: any): Promise<any>;
+    constructor(config: S3ClientConfig);
+    send(
+      command: PutObjectCommand | HeadBucketCommand | ListObjectsV2Command | DeleteObjectsCommand
+    ): Promise<unknown>;
   }
 
   export class PutObjectCommand {
-    constructor(input: any);
+    constructor(input: Record<string, unknown>);
   }
 
   export class HeadBucketCommand {
-    constructor(input: any);
+    constructor(input: Record<string, unknown>);
   }
 
   export class ListObjectsV2Command {
-    constructor(input: any);
+    constructor(input: Record<string, unknown>);
   }
 
   export class DeleteObjectsCommand {
-    constructor(input: any);
+    constructor(input: Record<string, unknown>);
   }
 
   export interface S3ClientConfig {
@@ -30,6 +32,6 @@ declare module '@aws-sdk/client-s3' {
       secretAccessKey: string;
       sessionToken?: string;
     };
-    [key: string]: any;
+    [key: string]: unknown;
   }
 }

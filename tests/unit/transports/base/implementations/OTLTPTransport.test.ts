@@ -163,8 +163,7 @@ describe('OTLPTransport', () => {
         id: 'test-' + Date.now(),
         level: 'info',
         message: 'Test message',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
       };
 
       await transport.log(entry);
@@ -181,22 +180,19 @@ describe('OTLPTransport', () => {
           id: 'test-1',
           level: 'info',
           message: 'Message 1',
-          timestamp: new Date().toISOString(),
-          timestampMs: Date.now(),
+          timestamp: Date.now(),
         },
         {
           id: 'test-2',
           level: 'error',
           message: 'Message 2',
-          timestamp: new Date().toISOString(),
-          timestampMs: Date.now(),
+          timestamp: Date.now(),
         },
         {
           id: 'test-3',
           level: 'debug',
           message: 'Message 3',
-          timestamp: new Date().toISOString(),
-          timestampMs: Date.now(),
+          timestamp: Date.now(),
         },
       ];
 
@@ -215,8 +211,7 @@ describe('OTLPTransport', () => {
         id: 'test-' + Date.now(),
         level: 'error',
         message: 'Error occurred',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         loggerId: 'test-logger',
         tags: ['api', 'error'],
         context: {
@@ -273,8 +268,7 @@ describe('OTLPTransport', () => {
           id: 'test-' + Date.now(),
           level: testCase.level,
           message: `Test ${testCase.level}`,
-          timestamp: new Date().toISOString(),
-          timestampMs: Date.now(),
+          timestamp: Date.now(),
         };
 
         await transport.log(entry);
@@ -305,8 +299,7 @@ describe('OTLPTransport', () => {
         id: 'test-' + Date.now(),
         level: 'info',
         message: 'Test',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
       };
 
       await transport.log(entry);
@@ -346,8 +339,7 @@ describe('OTLPTransport', () => {
         id: 'test-' + Date.now(),
         level: 'info',
         message: 'Test',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
       };
 
       await transport.log(entry);
@@ -398,8 +390,7 @@ describe('OTLPTransport', () => {
         id: 'test-' + Date.now(),
         level: 'info',
         message: 'Test with trace',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
       };
 
       await transport.log(entry);
@@ -424,8 +415,7 @@ describe('OTLPTransport', () => {
         id: 'test-' + Date.now(),
         level: 'info',
         message: 'Test without trace',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
       };
 
       await transport.log(entry);
@@ -456,8 +446,7 @@ describe('OTLPTransport', () => {
         id: 'test-' + Date.now(),
         level: 'info',
         message: 'Test',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
       };
 
       await transport.log(entry);
@@ -486,8 +475,7 @@ describe('OTLPTransport', () => {
           id: 'test-' + Date.now(),
           level: 'info',
           message: 'Browser test',
-          timestamp: new Date().toISOString(),
-          timestampMs: Date.now(),
+          timestamp: Date.now(),
         };
 
         await transport.log(entry);
@@ -514,8 +502,7 @@ describe('OTLPTransport', () => {
           id: 'test-' + Date.now(),
           level: 'error',
           message: 'Test error',
-          timestamp: new Date().toISOString(),
-          timestampMs: Date.now(),
+          timestamp: Date.now(),
         };
 
         await transport.log(entry);
@@ -540,8 +527,7 @@ describe('OTLPTransport', () => {
           id: 'test-' + Date.now(),
           level: 'error',
           message: 'Test',
-          timestamp: new Date().toISOString(),
-          timestampMs: Date.now(),
+          timestamp: Date.now(),
         };
 
         await transport.log(entry);
@@ -572,8 +558,7 @@ describe('OTLPTransport', () => {
           id: 'test-' + Date.now(),
           level: 'info',
           message: 'Node.js test',
-          timestamp: new Date().toISOString(),
-          timestampMs: Date.now(),
+          timestamp: Date.now(),
         };
 
         await transport.log(entry);
@@ -594,8 +579,7 @@ describe('OTLPTransport', () => {
           id: 'test-' + Date.now(),
           level: 'info',
           message: 'HTTPS test',
-          timestamp: new Date().toISOString(),
-          timestampMs: Date.now(),
+          timestamp: Date.now(),
         };
 
         await transport.log(entry);
@@ -619,8 +603,7 @@ describe('OTLPTransport', () => {
           id: 'test-' + Date.now(),
           level: 'error',
           message: 'Test',
-          timestamp: new Date().toISOString(),
-          timestampMs: Date.now(),
+          timestamp: Date.now(),
         };
 
         await transport.log(entry);
@@ -645,8 +628,7 @@ describe('OTLPTransport', () => {
           id: 'test-' + Date.now(),
           level: 'info',
           message: 'Timeout test',
-          timestamp: new Date().toISOString(),
-          timestampMs: Date.now(),
+          timestamp: Date.now(),
         };
 
         await transport.log(entry);
@@ -666,8 +648,7 @@ describe('OTLPTransport', () => {
           id: 'test-' + Date.now(),
           level: 'error',
           message: 'Test',
-          timestamp: new Date().toISOString(),
-          timestampMs: Date.now(),
+          timestamp: Date.now(),
         };
 
         await transport.log(entry);
@@ -701,8 +682,7 @@ describe('OTLPTransport', () => {
         id: 'test-' + Date.now(),
         level: 'info',
         message: 'Compression test',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
       };
 
       await transport.log(entry);
@@ -722,8 +702,7 @@ describe('OTLPTransport', () => {
         id: 'test-' + Date.now(),
         level: 'info',
         message: 'No compression',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
       };
 
       await transport.log(entry);
@@ -746,8 +725,7 @@ describe('OTLPTransport', () => {
         id: 'test-' + Date.now(),
         level: 'error',
         message: 'Test',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
       };
 
       await transport.log(entry);
@@ -768,8 +746,7 @@ describe('OTLPTransport', () => {
         id: 'test-' + Date.now(),
         level: 'info',
         message: 'JSON test',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
       };
 
       await transport.log(entry);
@@ -790,8 +767,7 @@ describe('OTLPTransport', () => {
         id: 'test-' + Date.now(),
         level: 'info',
         message: 'Protobuf test',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
       };
 
       await transport.log(entry);
@@ -817,8 +793,7 @@ describe('OTLPTransport', () => {
         id: 'test-' + Date.now(),
         level: 'info',
         message: 'Headers test',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
       };
 
       await transport.log(entry);
@@ -839,8 +814,7 @@ describe('OTLPTransport', () => {
         id: 'test-' + Date.now(),
         level: 'info',
         message: 'Test',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
       };
 
       await transport.log(entry);
@@ -881,8 +855,7 @@ describe('OTLPTransport', () => {
         id: 'test-' + Date.now(),
         level: 'info',
         message: 'Test',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
       };
 
       await transport.log(entry);
@@ -903,8 +876,7 @@ describe('OTLPTransport', () => {
         id: 'test-' + Date.now(),
         level: 'error',
         message: 'Test',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
       };
 
       await transport.log(entry);
@@ -952,8 +924,7 @@ describe('OTLPTransport', () => {
         id: 'test-' + Date.now(),
         level: 'error',
         message: 'Error occurred',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         error,
       };
 
@@ -993,15 +964,13 @@ describe('OTLPTransport', () => {
           id: 'batch-1',
           level: 'info',
           message: 'Message 1',
-          timestamp: new Date().toISOString(),
-          timestampMs: Date.now(),
+          timestamp: Date.now(),
         },
         {
           id: 'batch-2',
           level: 'info',
           message: 'Message 2',
-          timestamp: new Date().toISOString(),
-          timestampMs: Date.now(),
+          timestamp: Date.now(),
         },
       ];
 
@@ -1029,8 +998,7 @@ describe('OTLPTransport', () => {
         id: 'test-' + Date.now(),
         level: 'info',
         message: 'Single message',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
       };
 
       await transport.log(entry);
@@ -1066,8 +1034,7 @@ describe('OTLPTransport', () => {
         id: 'test-' + Date.now(),
         level: 'info',
         message: 'Scope test',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
       };
 
       await transport.log(entry);
@@ -1091,8 +1058,7 @@ describe('OTLPTransport', () => {
         id: 'test-' + Date.now(),
         level: 'info',
         message: 'Logger ID test',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         loggerId: 'custom-logger-id',
       };
 
@@ -1117,8 +1083,7 @@ describe('OTLPTransport', () => {
         id: 'test-' + Date.now(),
         level: 'info',
         message: 'Tags test',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         tags: ['api', 'production', 'critical'],
       };
 
@@ -1143,8 +1108,7 @@ describe('OTLPTransport', () => {
         id: 'test-' + Date.now(),
         level: 'info',
         message: 'Context test',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         context: {
           stringField: 'value',
           numberField: 42,
@@ -1197,8 +1161,7 @@ describe('OTLPTransport', () => {
           id: `test-${i}`,
           level: i % 2 === 0 ? 'info' : 'error',
           message: `Message ${i}`,
-          timestamp: new Date().toISOString(),
-          timestampMs: Date.now(),
+          timestamp: Date.now(),
         });
 
         // Small delay between logs

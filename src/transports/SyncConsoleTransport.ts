@@ -250,7 +250,7 @@ export class SyncConsoleTransport extends Transport {
     }
 
     // Add error stack if present - check both entry.error and entry.context.err
-    const error = entry.error || (entry.context && (entry.context as any).err);
+    const error = entry.error || (entry.context && (entry.context as { err?: unknown }).err);
     if (error) {
       // Format error display
       if (typeof error === 'object' && 'message' in error) {
@@ -276,7 +276,7 @@ export class SyncConsoleTransport extends Transport {
    * @returns {string} Formatted metadata.
    * @private
    */
-  private formatMetadata(metadata: any): string {
+  private formatMetadata(metadata: unknown): string {
     if (!metadata || typeof metadata !== 'object') {
       return '';
     }

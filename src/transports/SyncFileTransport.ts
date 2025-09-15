@@ -493,7 +493,9 @@ export class SyncFileTransport extends Transport {
         const line = this.formatMinimalEntry(entry) + '\n';
         const bytes = Buffer.byteLength(line, 'utf8');
 
-        fs.writeSync(this.fd!, line);
+        if (this.fd !== null) {
+          fs.writeSync(this.fd, line);
+        }
 
         this.metrics.writeCount++;
         this.metrics.bytesWritten += bytes;
@@ -605,7 +607,7 @@ export class SyncFileTransport extends Transport {
      * Using writeSync for predictable performance characteristics.
      */
     try {
-      const bytesWritten = fs.writeSync(this.fd!, data);
+      const bytesWritten = this.fd !== null ? fs.writeSync(this.fd, data) : 0;
 
       /**
        * Update metrics for monitoring.

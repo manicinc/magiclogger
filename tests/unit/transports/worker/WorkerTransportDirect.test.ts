@@ -99,8 +99,7 @@ describe('WorkerTransport Direct Coverage', () => {
 
       const entry = {
         id: 'test-123',
-        timestamp: '2024-01-01T00:00:00.000Z',
-        timestampMs: 1704067200000,
+        timestamp: 1704067200000,
         level: 'info' as const,
         message: 'Test message',
       };
@@ -121,8 +120,7 @@ describe('WorkerTransport Direct Coverage', () => {
       const largeMessage = 'x'.repeat(5000);
       const entry = {
         id: 'test-123',
-        timestamp: '2024-01-01T00:00:00.000Z',
-        timestampMs: 1704067200000,
+        timestamp: 1704067200000,
         level: 'info' as const,
         message: largeMessage,
       };
@@ -197,8 +195,7 @@ describe('WorkerTransport Direct Coverage', () => {
       // Fill buffer with entries
       const entry = {
         id: 'test',
-        timestamp: '2024-01-01T00:00:00.000Z',
-        timestampMs: 1704067200000,
+        timestamp: 1704067200000,
         level: 'info' as const,
         message: 'Test',
       };
@@ -220,8 +217,7 @@ describe('WorkerTransport Direct Coverage', () => {
 
       const entry = {
         id: 'test',
-        timestamp: '2024-01-01T00:00:00.000Z',
-        timestampMs: 1704067200000,
+        timestamp: 1704067200000,
         level: 'info' as const,
         message: 'Test',
       };
@@ -301,8 +297,7 @@ describe('WorkerTransport Direct Coverage', () => {
         await transport.init();
         await transport.log({
           id: 'test',
-          timestamp: '2024-01-01T00:00:00.000Z',
-          timestampMs: 1704067200000,
+          timestamp: 1704067200000,
           level: 'info',
           message: 'Test',
         });
@@ -322,8 +317,7 @@ describe('WorkerTransport Direct Coverage', () => {
       // Create entry that will cause wrap
       const entry = {
         id: 'test',
-        timestamp: '2024-01-01T00:00:00.000Z',
-        timestampMs: 1704067200000,
+        timestamp: 1704067200000,
         level: 'info' as const,
         message: 'x'.repeat(50), // Medium size message
       };
@@ -348,8 +342,7 @@ describe('WorkerTransport Direct Coverage', () => {
 
       const entry = {
         id: 'test',
-        timestamp: '2024-01-01T00:00:00.000Z',
-        timestampMs: 1704067200000,
+        timestamp: 1704067200000,
         level: 'info' as const,
         message: 'Test',
       };

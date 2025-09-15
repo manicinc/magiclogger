@@ -7,8 +7,7 @@ import type { LogEntry } from '../../../../src/types/transport';
 
 const entry: LogEntry = {
   id: 'idx1',
-  timestamp: new Date('2024-01-01T00:00:00Z').toISOString(),
-  timestampMs: Date.now(),
+  timestamp: 1704067200000,
   level: 'info',
   message: 'Hi',
   metadata: { x: 1 },

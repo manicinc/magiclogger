@@ -189,16 +189,14 @@ describe('WorkerTransport', () => {
     it('should batch log entries', async () => {
       const entry1: LogEntry = {
         id: '1',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test 1',
       };
 
       const entry2: LogEntry = {
         id: '2',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'error',
         message: 'Test 2',
       };
@@ -220,8 +218,7 @@ describe('WorkerTransport', () => {
     it('should flush pending logs', async () => {
       const entry: LogEntry = {
         id: '1',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test',
       };
@@ -257,16 +254,14 @@ describe('WorkerTransport', () => {
 
       const debugEntry: LogEntry = {
         id: '1',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'debug',
         message: 'Debug',
       };
 
       const errorEntry: LogEntry = {
         id: '2',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'error',
         message: 'Error',
       };
@@ -332,8 +327,7 @@ describe('WorkerTransport', () => {
 
       const entry: LogEntry = {
         id: '1',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test',
       };
@@ -381,8 +375,7 @@ describe('WorkerTransport', () => {
       // Log one entry so there's a pending batch
       const entry: LogEntry = {
         id: 'x',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'pending',
       };
@@ -459,8 +452,7 @@ describe('WorkerTransport', () => {
 
       const entry: LogEntry = {
         id: '1',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Final log',
       };
@@ -503,8 +495,7 @@ describe('WorkerTransport', () => {
 
       const entry: LogEntry = {
         id: '1',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Should not log',
       };
@@ -531,8 +522,7 @@ describe('WorkerTransport', () => {
         .fill(null)
         .map((_, i) => ({
           id: `${i}`,
-          timestamp: new Date().toISOString(),
-          timestampMs: Date.now(),
+          timestamp: Date.now(),
           level: 'info',
           message: `Message ${i}`,
         }));
@@ -559,8 +549,7 @@ describe('WorkerTransport', () => {
         .map((_, i) =>
           transport.log({
             id: `${i}`,
-            timestamp: new Date().toISOString(),
-            timestampMs: Date.now(),
+            timestamp: Date.now(),
             level: 'info',
             message: `Concurrent ${i}`,
           })
@@ -623,8 +612,7 @@ describe('workerHandler', () => {
     const entries: LogEntry[] = [
       {
         id: '1',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test',
       },

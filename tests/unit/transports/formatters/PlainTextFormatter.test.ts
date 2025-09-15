@@ -9,8 +9,7 @@ type Entry = LogEntry;
 
 const mkEntry = (extra: Partial<Entry> = {}): Entry => ({
   id: 'e1',
-  timestamp: new Date('2024-01-01T00:00:00Z').toISOString(),
-  timestampMs: Date.now(),
+  timestamp: Date.now(),
   level: 'info',
   message: 'Test msg',
   metadata: { meta: 'x' },

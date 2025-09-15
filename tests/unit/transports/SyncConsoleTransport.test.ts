@@ -52,8 +52,7 @@ describe('SyncConsoleTransport', () => {
       const transport = new SyncConsoleTransport();
       const entry: LogEntry = {
         id: '123',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test info message',
         loggerId: 'test-logger',
@@ -67,8 +66,7 @@ describe('SyncConsoleTransport', () => {
       const transport = new SyncConsoleTransport();
       const entry: LogEntry = {
         id: '124',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'error',
         message: 'Test error message',
         loggerId: 'test-logger',
@@ -82,8 +80,7 @@ describe('SyncConsoleTransport', () => {
       const transport = new SyncConsoleTransport();
       const entry: LogEntry = {
         id: '125',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'warn',
         message: 'Test warning message',
         loggerId: 'test-logger',
@@ -97,8 +94,7 @@ describe('SyncConsoleTransport', () => {
       const transport = new SyncConsoleTransport();
       const entry: LogEntry = {
         id: '126',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'debug',
         message: 'Test debug message',
         loggerId: 'test-logger',
@@ -112,8 +108,7 @@ describe('SyncConsoleTransport', () => {
       const transport = new SyncConsoleTransport();
       const entry: LogEntry = {
         id: '127',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'success',
         message: 'Test success message',
         loggerId: 'test-logger',
@@ -127,8 +122,7 @@ describe('SyncConsoleTransport', () => {
       const transport = new SyncConsoleTransport({ enabled: false });
       const entry: LogEntry = {
         id: '128',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Should not log',
         loggerId: 'test-logger',
@@ -144,8 +138,7 @@ describe('SyncConsoleTransport', () => {
       const transport = new SyncConsoleTransport({ useColors: true });
       const entry: LogEntry = {
         id: '129',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Colored message',
         loggerId: 'test-logger',
@@ -164,8 +157,7 @@ describe('SyncConsoleTransport', () => {
       const transport = new SyncConsoleTransport({ useColors: false });
       const entry: LogEntry = {
         id: '130',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Plain message',
         loggerId: 'test-logger',
@@ -186,8 +178,7 @@ describe('SyncConsoleTransport', () => {
       const transport = new SyncConsoleTransport();
       const entry: LogEntry = {
         id: '131',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Message with metadata',
         loggerId: 'test-logger',
@@ -209,8 +200,7 @@ describe('SyncConsoleTransport', () => {
       const transport = new SyncConsoleTransport();
       const entry: LogEntry = {
         id: '132',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Tagged message',
         loggerId: 'test-logger',
@@ -226,8 +216,7 @@ describe('SyncConsoleTransport', () => {
       const testError = new Error('Test error');
       const entry: LogEntry = {
         id: '133',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'error',
         message: 'Error occurred',
         loggerId: 'test-logger',
@@ -279,8 +268,7 @@ describe('SyncConsoleTransport', () => {
       const transport = new TestableTransport();
       const entry: LogEntry = {
         id: '134',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test format',
         loggerId: 'test-logger',
@@ -295,8 +283,7 @@ describe('SyncConsoleTransport', () => {
       const transport = new TestableTransport();
       const entry: LogEntry = {
         id: '135',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test doLog',
         loggerId: 'test-logger',
@@ -324,8 +311,7 @@ describe('SyncConsoleTransport', () => {
 
         const entry: LogEntry = {
           id: `test-${level}`,
-          timestamp: new Date().toISOString(),
-          timestampMs: Date.now(),
+          timestamp: Date.now(),
           level,
           message: `Test ${level} message`,
           loggerId: 'test-logger',
@@ -342,8 +328,7 @@ describe('SyncConsoleTransport', () => {
       const transport = new SyncConsoleTransport();
       const entry: LogEntry = {
         id: '136',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: '',
         loggerId: 'test-logger',
@@ -357,8 +342,7 @@ describe('SyncConsoleTransport', () => {
       const transport = new SyncConsoleTransport();
       const entry: LogEntry = {
         id: '137',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test message',
         loggerId: 'test-logger',
@@ -376,8 +360,7 @@ describe('SyncConsoleTransport', () => {
 
       const entry: LogEntry = {
         id: '138',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Circular reference',
         loggerId: 'test-logger',

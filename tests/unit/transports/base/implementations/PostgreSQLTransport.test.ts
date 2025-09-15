@@ -214,8 +214,7 @@ describe('PostgreSQLTransport', () => {
     it('should batch log entries', async () => {
       const entry1: LogEntry = {
         id: '1',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test message 1',
         loggerId: 'test-logger',
@@ -226,8 +225,7 @@ describe('PostgreSQLTransport', () => {
 
       const entry2: LogEntry = {
         id: '2',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'error',
         message: 'Test message 2',
         loggerId: 'test-logger',
@@ -250,8 +248,7 @@ describe('PostgreSQLTransport', () => {
     it('should handle single log entry', async () => {
       const entry: LogEntry = {
         id: '1',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Debug message',
       };
@@ -283,8 +280,7 @@ describe('PostgreSQLTransport', () => {
 
       const entry: LogEntry = {
         id: '1',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'error',
         message: 'Test',
       };
@@ -311,16 +307,14 @@ describe('PostgreSQLTransport', () => {
 
       const debugEntry: LogEntry = {
         id: '1',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'debug',
         message: 'Debug',
       };
 
       const errorEntry: LogEntry = {
         id: '2',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'error',
         message: 'Error',
       };
@@ -446,8 +440,7 @@ describe('PostgreSQLTransport', () => {
 
       const entry: LogEntry = {
         id: '1',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test',
       };
@@ -464,8 +457,7 @@ describe('PostgreSQLTransport', () => {
 
       const entry: LogEntry = {
         id: '1',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test',
         context: circularRef,
@@ -493,8 +485,7 @@ describe('PostgreSQLTransport', () => {
     it('should track transport statistics', async () => {
       const entry: LogEntry = {
         id: '1',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test',
       };
@@ -520,8 +511,7 @@ describe('PostgreSQLTransport', () => {
 
       const entry: LogEntry = {
         id: '1',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test',
       };

@@ -12,15 +12,13 @@ describe('MAGIC Schema v1 Compliance', () => {
     it('should have all required identity and timing fields', () => {
       const entry: LogEntry = {
         id: '1704067200000-abc123xyz',
-        timestamp: '2024-01-01T00:00:00.000Z',
-        timestampMs: 1704067200000,
+        timestamp: 1704067200000,
         level: 'info',
         message: 'Test message',
       };
 
       expect(entry.id).toMatch(/^\d+-[a-z0-9]+$/);
-      expect(entry.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
-      expect(entry.timestampMs).toBeGreaterThan(0);
+      expect(entry.timestamp).toBeGreaterThan(0);
       expect(entry.level).toBeDefined();
       expect(entry.message).toBeDefined();
     });
@@ -31,8 +29,7 @@ describe('MAGIC Schema v1 Compliance', () => {
       validLevels.forEach(level => {
         const entry: LogEntry = {
           id: 'test-123',
-          timestamp: new Date().toISOString(),
-          timestampMs: Date.now(),
+          timestamp: Date.now(),
           level: level as LogEntry['level'],
           message: 'Test',
         };
@@ -46,8 +43,7 @@ describe('MAGIC Schema v1 Compliance', () => {
     it('should support schema version', () => {
       const entry: LogEntry = {
         id: 'test-123',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test',
         schemaVersion: 'v1',
@@ -59,8 +55,7 @@ describe('MAGIC Schema v1 Compliance', () => {
     it('should support plain message for ANSI-free content', () => {
       const entry: LogEntry = {
         id: 'test-123',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Colored message', // Message should always be plain text in MAGIC schema
       };
@@ -71,8 +66,7 @@ describe('MAGIC Schema v1 Compliance', () => {
     it('should support logger context fields', () => {
       const entry: LogEntry = {
         id: 'test-123',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test',
         loggerId: 'my-logger',
@@ -92,8 +86,7 @@ describe('MAGIC Schema v1 Compliance', () => {
     it('should support arbitrary context data', () => {
       const entry: LogEntry = {
         id: 'test-123',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'User action',
         context: {
@@ -115,8 +108,7 @@ describe('MAGIC Schema v1 Compliance', () => {
     it('should support structured error information', () => {
       const entry: LogEntry = {
         id: 'test-123',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'error',
         message: 'Operation failed',
         error: {
@@ -139,8 +131,7 @@ describe('MAGIC Schema v1 Compliance', () => {
     it('should support basic runtime metadata', () => {
       const entry: LogEntry = {
         id: 'test-123',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test',
         metadata: {
@@ -160,8 +151,7 @@ describe('MAGIC Schema v1 Compliance', () => {
     it('should support trace metadata for OpenTelemetry', () => {
       const entry: LogEntry = {
         id: 'test-123',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test',
         metadata: {
@@ -183,8 +173,7 @@ describe('MAGIC Schema v1 Compliance', () => {
     it('should support resource utilization metadata', () => {
       const entry: LogEntry = {
         id: 'test-123',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test',
         metadata: {
@@ -211,8 +200,7 @@ describe('MAGIC Schema v1 Compliance', () => {
     it('should support health indicators', () => {
       const entry: LogEntry = {
         id: 'test-123',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test',
         metadata: {
@@ -233,8 +221,7 @@ describe('MAGIC Schema v1 Compliance', () => {
     it('should support trace context at root level', () => {
       const entry: LogEntry = {
         id: 'test-123',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test',
         trace: {
@@ -255,8 +242,7 @@ describe('MAGIC Schema v1 Compliance', () => {
     it('should support both root trace and metadata.trace for compatibility', () => {
       const entry: LogEntry = {
         id: 'test-123',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test',
         trace: {
@@ -281,8 +267,7 @@ describe('MAGIC Schema v1 Compliance', () => {
     it('should allow additional fields for forward compatibility', () => {
       const entry: LogEntry & { futureField?: string } = {
         id: 'test-123',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test',
         futureField: 'future value',
@@ -294,8 +279,7 @@ describe('MAGIC Schema v1 Compliance', () => {
     it('should support extensible metadata', () => {
       const entry: LogEntry = {
         id: 'test-123',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test',
         metadata: {
@@ -316,8 +300,7 @@ describe('MAGIC Schema v1 Compliance', () => {
     it('should provide fields needed for Loki', () => {
       const entry: LogEntry = {
         id: 'test-123',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test',
         service: 'my-service',
@@ -335,8 +318,7 @@ describe('MAGIC Schema v1 Compliance', () => {
     it('should provide fields needed for Elasticsearch', () => {
       const entry: LogEntry = {
         id: 'test-123',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test message',
         tags: ['tag1', 'tag2'],
@@ -353,8 +335,7 @@ describe('MAGIC Schema v1 Compliance', () => {
     it('should provide fields needed for OTLP', () => {
       const entry: LogEntry = {
         id: 'test-123',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test', // OTLP should use plain message
         service: 'my-service',
@@ -368,7 +349,7 @@ describe('MAGIC Schema v1 Compliance', () => {
       };
 
       // OTLP needs these fields
-      expect(entry.timestampMs).toBeDefined(); // For nanosecond conversion
+      expect(entry.timestamp).toBeDefined(); // For nanosecond conversion
       expect(entry.message).toBeDefined(); // For body.stringValue
       expect(entry.trace?.traceId).toBeDefined(); // For trace correlation
       expect(entry.service).toBeDefined(); // For resource.service.name
@@ -406,14 +387,12 @@ describe('MAGIC Schema v1 Compliance', () => {
     it('should have matching timestamp and timestampMs', () => {
       const entry: LogEntry = {
         id: 'test-123',
-        timestamp: '2024-01-01T00:00:00.000Z',
-        timestampMs: 1704067200000,
+        timestamp: 1704067200000,
         level: 'info',
         message: 'Test',
       };
 
-      const dateFromISO = new Date(entry.timestamp).getTime();
-      expect(dateFromISO).toBe(entry.timestampMs);
+      expect(entry.timestamp).toBe(1704067200000);
     });
   });
 });

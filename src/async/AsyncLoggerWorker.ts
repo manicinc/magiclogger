@@ -219,7 +219,7 @@ class WorkerState {
 
         // OPTIMIZATION: Process styles in worker thread (parallel execution)
         const needsStyleProcessing = entry.context?._processStyles === true;
-        const messageToProcess = entry.context?._rawMessage as string || entry.message;
+        const messageToProcess = (entry.context?._rawMessage as string) || entry.message;
         const useColors = entry.context?._useColors !== false;
 
         if (needsStyleProcessing && messageToProcess && typeof messageToProcess === 'string') {
@@ -237,7 +237,7 @@ class WorkerState {
             processedEntry.message = messageToProcess;
           }
         }
-        
+
         // Remove worker-specific data from context
         if (processedEntry.context) {
           delete processedEntry.context._rawMessage;
@@ -277,7 +277,7 @@ class WorkerState {
       console.error(`[Worker ${this.workerId}] Processing error:`, error);
     }
   }
-  
+
   /**
    * Legacy flush method - now just a no-op since we don't buffer.
    * Kept for backward compatibility.
@@ -345,7 +345,7 @@ class WorkerState {
   public shutdown(): void {
     // No timer to stop anymore
     // No buffer to flush anymore
-    
+
     // Send final metrics
     this.sendMetrics();
   }

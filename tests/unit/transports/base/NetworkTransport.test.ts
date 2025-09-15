@@ -222,8 +222,7 @@ describe('NetworkTransport', () => {
 
     mockEntry = {
       id: 'test-123',
-      timestamp: new Date().toISOString(),
-      timestampMs: Date.now(),
+      timestamp: Date.now(),
       level: 'info',
       message: 'Test message',
       loggerId: 'test-logger',

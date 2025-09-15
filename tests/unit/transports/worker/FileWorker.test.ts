@@ -166,15 +166,13 @@ describe('FileWorker', () => {
       const entries: LogEntry[] = [
         {
           id: '1',
-          timestamp: '2024-01-01T00:00:00Z',
-          timestampMs: Date.now(),
+          timestamp: Date.now(),
           level: 'info',
           message: 'Test message 1',
         },
         {
           id: '2',
-          timestamp: '2024-01-01T00:00:01Z',
-          timestampMs: Date.now(),
+          timestamp: Date.now(),
           level: 'error',
           message: 'Test message 2',
         },
@@ -194,8 +192,7 @@ describe('FileWorker', () => {
         .fill(null)
         .map((_, i) => ({
           id: `${i}`,
-          timestamp: new Date().toISOString(),
-          timestampMs: Date.now(),
+          timestamp: Date.now(),
           level: 'info',
           message: `Message ${i}`,
           context: { index: i },
@@ -217,8 +214,7 @@ describe('FileWorker', () => {
         .fill(null)
         .map((_, i) => ({
           id: `${i}`,
-          timestamp: new Date().toISOString(),
-          timestampMs: Date.now(),
+          timestamp: Date.now(),
           level: 'info',
           message: `Message ${i}`,
         }));
@@ -259,8 +255,7 @@ describe('FileWorker', () => {
       const entries: LogEntry[] = [
         {
           id: '1',
-          timestamp: new Date().toISOString(),
-          timestampMs: Date.now(),
+          timestamp: Date.now(),
           level: 'info',
           message: 'Buffered message',
         },
@@ -319,8 +314,7 @@ describe('FileWorker', () => {
       const entries: LogEntry[] = [
         {
           id: '1',
-          timestamp: new Date().toISOString(),
-          timestampMs: Date.now(),
+          timestamp: Date.now(),
           level: 'info',
           message: 'Final message',
         },
@@ -402,8 +396,7 @@ describe('FileWorker', () => {
           .fill(null)
           .map((_, j) => ({
             id: `${i}-${j}`,
-            timestamp: new Date().toISOString(),
-            timestampMs: Date.now(),
+            timestamp: Date.now(),
             level: 'info',
             message: `Batch ${i} Message ${j}`,
           }));
@@ -454,8 +447,7 @@ describe('FileWorker', () => {
       const entries: LogEntry[] = [
         {
           id: '1',
-          timestamp: new Date().toISOString(),
-          timestampMs: Date.now(),
+          timestamp: Date.now(),
           level: 'error',
           message: 'This will fail',
         },
@@ -482,8 +474,7 @@ describe('FileWorker', () => {
         .fill(null)
         .map((_, i) => ({
           id: `${i}`,
-          timestamp: new Date().toISOString(),
-          timestampMs: Date.now(),
+          timestamp: Date.now(),
           level: 'info',
           message: `Message ${i}`,
         }));

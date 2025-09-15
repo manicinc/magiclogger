@@ -53,8 +53,7 @@ describe('NullTransport', () => {
     it('should not throw when logging entries', async () => {
       const entry: LogEntry = {
         id: 'test-123',
-        timestamp: '2024-01-01T00:00:00.000Z',
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test message',
       };
@@ -66,15 +65,13 @@ describe('NullTransport', () => {
       const entries: LogEntry[] = [
         {
           id: 'test-1',
-          timestamp: '2024-01-01T00:00:00.000Z',
-          timestampMs: Date.now(),
+          timestamp: Date.now(),
           level: 'info',
           message: 'Message 1',
         },
         {
           id: 'test-2',
-          timestamp: '2024-01-01T00:00:01.000Z',
-          timestampMs: Date.now() + 1000,
+          timestamp: Date.now() + 1000,
           level: 'error',
           message: 'Message 2',
         },
@@ -88,8 +85,7 @@ describe('NullTransport', () => {
     it('should handle entries with metadata', async () => {
       const entry: LogEntry = {
         id: 'test-123',
-        timestamp: '2024-01-01T00:00:00.000Z',
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test message',
         context: {
@@ -139,11 +135,9 @@ describe('NullTransport', () => {
   describe('Performance', () => {
     it('should handle high volume of logs efficiently', async () => {
       // Pre-create log entry template to minimize object creation overhead
-      const timestamp = new Date().toISOString();
-      const timestampMs = Date.now();
+      const timestamp = Date.now();
       const baseEntry = {
         timestamp,
-        timestampMs,
         level: 'info' as const,
         message: '',
       };
@@ -183,8 +177,7 @@ describe('NullTransport', () => {
     it('should handle empty message', async () => {
       const entry: LogEntry = {
         id: 'test-123',
-        timestamp: '2024-01-01T00:00:00.000Z',
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: '',
       };
@@ -196,8 +189,7 @@ describe('NullTransport', () => {
       const largeMessage = 'x'.repeat(1000000); // 1MB message
       const entry: LogEntry = {
         id: 'test-123',
-        timestamp: '2024-01-01T00:00:00.000Z',
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: largeMessage,
       };
@@ -208,8 +200,7 @@ describe('NullTransport', () => {
     it('should handle special characters in messages', async () => {
       const entry: LogEntry = {
         id: 'test-123',
-        timestamp: '2024-01-01T00:00:00.000Z',
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: '特殊文字 🎉 \n\t\r',
       };

@@ -186,7 +186,7 @@ export class WorkerTransport implements Transport {
 /**
  * Factory function for browser compatibility
  */
-export function createWorkerTransport(options?: any): Transport {
+export function createWorkerTransport(options?: Record<string, unknown>): Transport {
   // Check if Worker is available at call time - this handles mocked scenarios
   // Access Worker from workerThreads to allow proper mocking
   const WorkerClass = workerThreads?.Worker;

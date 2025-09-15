@@ -4,8 +4,7 @@ import type { LogEntry } from '../../../../src/types/transport';
 
 const makeEntry = (over: Partial<LogEntry> = {}): LogEntry => ({
   id: '1',
-  timestamp: new Date('2024-01-01T00:00:00Z').toISOString(),
-  timestampMs: 1704067200000,
+  timestamp: 1704067200000,
   level: 'info',
   message: 'hello',
   context: { a: { b: { c: 1 } } },

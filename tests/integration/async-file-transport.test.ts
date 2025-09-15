@@ -100,7 +100,7 @@ describe('AsyncFileTransport Integration', () => {
     expect(lines.length).toBeGreaterThanOrEqual(1);
 
     // Try to parse first line as JSON
-    let firstEntry: any = null;
+    let firstEntry: Record<string, unknown> | null = null;
     let isJsonContent = false;
 
     try {

@@ -32,7 +32,8 @@ export class LogEntryPool {
     this.borrowed++;
 
     if (this.pool.length > 0) {
-      return this.pool.pop()!;
+      const entry = this.pool.pop();
+      if (entry) return entry;
     }
 
     // Create new entry if pool is empty

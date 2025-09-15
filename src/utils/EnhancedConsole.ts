@@ -134,7 +134,7 @@ export class EnhancedConsole {
     this.originalConsole.clear();
   }
 
-  dir(obj: unknown, options?: any): void {
+  dir(obj: unknown, options?: NodeJS.InspectOptions): void {
     this.originalConsole.dir(obj, options);
   }
 
@@ -157,14 +157,19 @@ export class EnhancedConsole {
   }
 
   profile(label?: string): void {
-    if (typeof (this.originalConsole as any).profile === 'function') {
-      (this.originalConsole as any).profile(label);
+    if (
+      typeof (this.originalConsole as { profile?: (label?: string) => void }).profile === 'function'
+    ) {
+      (this.originalConsole as { profile: (label?: string) => void }).profile(label);
     }
   }
 
   profileEnd(label?: string): void {
-    if (typeof (this.originalConsole as any).profileEnd === 'function') {
-      (this.originalConsole as any).profileEnd(label);
+    if (
+      typeof (this.originalConsole as { profileEnd?: (label?: string) => void }).profileEnd ===
+      'function'
+    ) {
+      (this.originalConsole as { profileEnd: (label?: string) => void }).profileEnd(label);
     }
   }
 
@@ -194,7 +199,7 @@ export class EnhancedConsole {
     this.logger.progressBar(value, length, completeChar, incompleteChar);
   }
 
-  table(data: any, columns?: string[]): void {
+  table(data: unknown, columns?: string[]): void {
     if (columns !== undefined) {
       this.originalConsole.table(data, columns);
     } else {

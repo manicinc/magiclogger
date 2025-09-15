@@ -633,7 +633,7 @@ export class HTTPTransport extends Transport {
         return;
       }
 
-      const handler = (msg: any) => {
+      const handler = (msg: { type: string }) => {
         if (msg.type === 'flushed') {
           this.worker?.off('message', handler);
           resolve();
@@ -664,7 +664,7 @@ export class HTTPTransport extends Transport {
     if (!this.worker) return;
 
     return new Promise(resolve => {
-      const handler = (msg: any) => {
+      const handler = (msg: { type: string }) => {
         if (msg.type === 'closed') {
           if (msg.stats) {
             console.log(`[${this.name}] Final stats:`, msg.stats);
@@ -675,8 +675,8 @@ export class HTTPTransport extends Transport {
         }
       };
 
-      this.worker!.on('message', handler);
-      this.worker!.postMessage({ type: 'close' });
+      this.worker?.on('message', handler);
+      this.worker?.postMessage({ type: 'close' });
 
       // Force terminate after 30 seconds
       setTimeout(() => {

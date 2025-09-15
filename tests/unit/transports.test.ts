@@ -104,7 +104,7 @@ describe('transports.ts module', () => {
       // This test ensures types are exported properly
       const testLogEntry: LogEntry = {
         id: 'test-123',
-        timestamp: new Date().toISOString(),
+        timestamp: Date.now(),
         timestampMs: Date.now(),
         level: 'info',
         message: 'Test message',

@@ -35,7 +35,7 @@ describe('AsyncLogger Worker Thread Integration', () => {
           poolSize: 2,
         },
         useConsole: false,
-        enableMetrics: true,  // Enable metrics to track logs
+        enableMetrics: true, // Enable metrics to track logs
       });
 
       // Give workers time to initialize

@@ -7,7 +7,7 @@ import type { LogEntry } from '../../../src/types/transport';
 const buildEntries = (n: number): LogEntry[] =>
   Array.from({ length: n }, (_, i) => ({
     id: `${Date.now()}-${i}`,
-    timestamp: new Date().toISOString(),
+    timestamp: Date.now(),
     timestampMs: Date.now(),
     level: 'info',
     message: `msg-${i}`,
@@ -131,7 +131,7 @@ describe('AsyncLoggerWorker core behavior', () => {
       // Process batch with circular reference directly
       const circularEntry: LogEntry = {
         id: 'x',
-        timestamp: new Date().toISOString(),
+        timestamp: Date.now(),
         timestampMs: Date.now(),
         level: 'info',
         message: 'c',

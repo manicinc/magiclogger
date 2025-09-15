@@ -18,7 +18,7 @@ export interface MinimalLogEntry {
   /** Log message */
   msg: string;
   /** Any additional properties are metadata */
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**

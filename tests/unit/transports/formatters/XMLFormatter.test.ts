@@ -4,8 +4,7 @@ import type { LogEntry } from '../../../../src/types/transport';
 
 const baseEntry: LogEntry = {
   id: 'x1',
-  timestamp: '2024-01-01T00:00:00.000Z',
-  timestampMs: Date.now(),
+  timestamp: Date.now(),
   level: 'info',
   message: 'Hello <World>',
   context: { user: 'alice', nested: { a: 1 } },

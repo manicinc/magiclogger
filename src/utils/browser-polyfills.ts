@@ -4,7 +4,7 @@
  */
 
 // No-op function for unimplemented methods
-const noop = (..._args: any[]) => {
+const noop = (..._args: unknown[]) => {
   /* noop */
 };
 

@@ -385,7 +385,7 @@ export class WorkerFileTransport extends Transport {
         return;
       }
 
-      const handler = (msg: any) => {
+      const handler = (msg: { type: string }) => {
         if (msg.type === 'flushed') {
           this.worker?.off('message', handler);
           resolve();
@@ -413,7 +413,7 @@ export class WorkerFileTransport extends Transport {
     if (!this.worker) return;
 
     return new Promise(resolve => {
-      const handler = (msg: any) => {
+      const handler = (msg: { type: string }) => {
         if (msg.type === 'closed') {
           this.worker?.terminate();
           this.worker = null;
@@ -421,8 +421,8 @@ export class WorkerFileTransport extends Transport {
         }
       };
 
-      this.worker!.on('message', handler);
-      this.worker!.postMessage({ type: 'close' });
+      this.worker?.on('message', handler);
+      this.worker?.postMessage({ type: 'close' });
 
       // Force terminate after 5 seconds
       setTimeout(() => {

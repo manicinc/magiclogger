@@ -7,7 +7,7 @@ import type { LogEntry } from '../../../src/types/transport';
 const buildEntries = (n: number): LogEntry[] =>
   Array.from({ length: n }, (_, i) => ({
     id: `${Date.now()}-${i}`,
-    timestamp: new Date().toISOString(),
+    timestamp: Date.now(),
     timestampMs: Date.now(),
     level: 'info' as const,
     message: `msg-${i}`,
@@ -21,9 +21,9 @@ describe('AsyncLoggerWorker Direct Processing', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.resetModules();
-    
+
     postMessage = jest.fn();
-    
+
     // Mock worker environment
     jest.doMock('node:worker_threads', () => ({
       parentPort: {
@@ -33,7 +33,7 @@ describe('AsyncLoggerWorker Direct Processing', () => {
       workerData: { workerId: 1 },
       isMainThread: false,
     }));
-    
+
     // Import after mocking
     exported = require('../../../src/async/AsyncLoggerWorker');
   });
@@ -113,7 +113,7 @@ describe('AsyncLoggerWorker Direct Processing', () => {
 
       const entry: LogEntry = {
         id: '123',
-        timestamp: new Date().toISOString(),
+        timestamp: Date.now(),
         timestampMs: Date.now(),
         level: 'info',
         message: 'placeholder',
@@ -137,7 +137,7 @@ describe('AsyncLoggerWorker Direct Processing', () => {
 
       const entry: LogEntry = {
         id: '123',
-        timestamp: new Date().toISOString(),
+        timestamp: Date.now(),
         timestampMs: Date.now(),
         level: 'info',
         message: 'test',
@@ -168,7 +168,7 @@ describe('AsyncLoggerWorker Direct Processing', () => {
 
       const entry: LogEntry = {
         id: '123',
-        timestamp: new Date().toISOString(),
+        timestamp: Date.now(),
         timestampMs: Date.now(),
         level: 'error',
         message: 'Error with circular',
@@ -176,12 +176,12 @@ describe('AsyncLoggerWorker Direct Processing', () => {
       };
 
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-      
+
       worker.processBatch([entry]);
 
       const stats = worker.getStats();
       expect(stats.errors).toBeGreaterThanOrEqual(1);
-      
+
       consoleSpy.mockRestore();
     });
 
@@ -198,7 +198,7 @@ describe('AsyncLoggerWorker Direct Processing', () => {
         buildEntries(1)[0],
         {
           id: 'bad',
-          timestamp: new Date().toISOString(),
+          timestamp: Date.now(),
           timestampMs: Date.now(),
           level: 'error',
           message: 'Bad entry',
@@ -208,7 +208,7 @@ describe('AsyncLoggerWorker Direct Processing', () => {
       ];
 
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-      
+
       worker.processBatch(entries);
 
       const stats = worker.getStats();
@@ -216,12 +216,11 @@ describe('AsyncLoggerWorker Direct Processing', () => {
       // Some implementations may count all as processed, others may separate
       const totalHandled = (stats.processed || 0) + (stats.errors || 0);
       expect(totalHandled).toBeGreaterThanOrEqual(1); // At least something was handled
-      
-      // If errors are tracked separately, we should have at least 1
-      if (stats.errors !== undefined) {
-        expect(stats.errors).toBeGreaterThanOrEqual(0); // May or may not track errors
-      }
-      
+
+      // Check errors property exists and is valid
+      const errorsValue = stats.errors ?? 0;
+      expect(errorsValue).toBeGreaterThanOrEqual(0);
+
       consoleSpy.mockRestore();
     });
   });
@@ -241,9 +240,7 @@ describe('AsyncLoggerWorker Direct Processing', () => {
       }
 
       // Should have sent METRICS message
-      const metricsCalls = postMessage.mock.calls.filter(
-        (call) => call[0].type === 'METRICS'
-      );
+      const metricsCalls = postMessage.mock.calls.filter(call => call[0].type === 'METRICS');
       expect(metricsCalls.length).toBeGreaterThanOrEqual(1);
     });
 
@@ -258,22 +255,14 @@ describe('AsyncLoggerWorker Direct Processing', () => {
       const stats = worker.getStats();
       // Processing time may not be tracked in all implementations
       // Check if timing stats exist before asserting
-      const hasAvgTime = stats.avgProcessingTime !== undefined;
-      const hasMaxTime = stats.maxProcessingTime !== undefined;
-      
-      if (hasAvgTime) {
-        expect(stats.avgProcessingTime).toBeGreaterThanOrEqual(0);
-      } else {
-        // Just verify the property doesn't exist
-        expect(stats.avgProcessingTime).toBeUndefined();
-      }
-      
-      if (hasMaxTime) {
-        expect(stats.maxProcessingTime).toBeGreaterThanOrEqual(0);
-      } else {
-        // Just verify the property doesn't exist
-        expect(stats.maxProcessingTime).toBeUndefined();
-      }
+
+      // Check avgProcessingTime unconditionally
+      const avgTime = stats.avgProcessingTime;
+      expect(avgTime === undefined || avgTime >= 0).toBe(true);
+
+      // Check maxProcessingTime unconditionally
+      const maxTime = stats.maxProcessingTime;
+      expect(maxTime === undefined || maxTime >= 0).toBe(true);
     });
   });
 

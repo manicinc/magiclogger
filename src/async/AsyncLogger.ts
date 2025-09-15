@@ -346,7 +346,7 @@ export class AsyncLogger extends EventEmitter {
 
   /** @private {number} Current worker index for round-robin */
   private currentWorker = 0;
-  
+
   /** @private {boolean} Use ring buffer for maximum performance */
   private useRingBuffer = false;
 
@@ -374,7 +374,6 @@ export class AsyncLogger extends EventEmitter {
 
   /** @private {number} Batch size configuration */
   private readonly batchSize: number;
-
 
   /** @private {number} Flush interval configuration */
   private readonly flushInterval: number;
@@ -411,7 +410,6 @@ export class AsyncLogger extends EventEmitter {
 
   /** @private {boolean} Whether we have network transports */
   private hasNetworkTransports = false;
-  
 
   /**
    * Creates a new AsyncLogger instance.
@@ -436,12 +434,13 @@ export class AsyncLogger extends EventEmitter {
     }
 
     // OPTIMIZATION: Detect network transports for smart batching
-    this.hasNetworkTransports = this.transports.some(t =>
-      t.name.includes('http') ||
-      t.name.includes('s3') ||
-      t.name.includes('mongo') ||
-      t.name.includes('elastic') ||
-      t.name.includes('cloud')
+    this.hasNetworkTransports = this.transports.some(
+      t =>
+        t.name.includes('http') ||
+        t.name.includes('s3') ||
+        t.name.includes('mongo') ||
+        t.name.includes('elastic') ||
+        t.name.includes('cloud')
     );
 
     /**
@@ -483,7 +482,7 @@ export class AsyncLogger extends EventEmitter {
     this.templateParser = new TemplateParser(this.useColors);
     this.templateFormatter = this.templateParser.createFormatter();
 
-      // OPTIMIZATION: Smart worker configuration
+    // OPTIMIZATION: Smart worker configuration
     const workerConfig = options.worker || {};
     this.poolSize = workerConfig.poolSize || 2;
 
@@ -498,7 +497,7 @@ export class AsyncLogger extends EventEmitter {
     this.useRingBuffer = false;
 
     // No pre-allocation needed - immediate dispatch
-    
+
     // Initialize based on worker availability
     this.initPromise = this.initialize();
   }
@@ -534,7 +533,7 @@ export class AsyncLogger extends EventEmitter {
           await this.flush();
         })();
       }, this.flushInterval);
-      
+
       // Allow process to exit even if timer is active (for tests)
       if (this.flushTimer && typeof this.flushTimer.unref === 'function') {
         this.flushTimer.unref();
@@ -565,13 +564,13 @@ export class AsyncLogger extends EventEmitter {
     if (process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID) {
       throw new Error('Worker threads disabled in test environment');
     }
-    
+
     // Try high-performance ring buffer transport first
     if (this.useRingBuffer) {
       try {
         this.workerTransport = new WorkerTransport({
           bufferSize: 65536, // 64KB ring buffer for lock-free performance
-          maxRetries: 3
+          maxRetries: 3,
         });
         await this.workerTransport.init();
         // Only log in non-test environments
@@ -582,7 +581,10 @@ export class AsyncLogger extends EventEmitter {
       } catch (error) {
         // Only log in non-test environments
         if (process.env.NODE_ENV !== 'test' && !process.env.JEST_WORKER_ID) {
-          console.warn(`[${this.id}] Failed to initialize ring buffer transport, falling back to regular workers:`, error);
+          console.warn(
+            `[${this.id}] Failed to initialize ring buffer transport, falling back to regular workers:`,
+            error
+          );
         }
         this.useRingBuffer = false;
         this.workerTransport = null;
@@ -827,7 +829,6 @@ export class AsyncLogger extends EventEmitter {
     return selected;
   }
 
-
   /**
    * Processes a log entry with intelligent batching.
    * OPTIMIZATION: Batch for network transports, immediate for local.
@@ -873,7 +874,7 @@ export class AsyncLogger extends EventEmitter {
     if (this.enableMetrics) {
       this.updateMetricsForEntry(entry);
     }
-    
+
     // Use high-performance ring buffer if available
     if (this.workerTransport && this.workerTransport.shouldLog()) {
       this.workerTransport.log(entry).catch((error: Error) => {
@@ -884,14 +885,14 @@ export class AsyncLogger extends EventEmitter {
       });
       return;
     }
-    
+
     // Fallback to legacy workers
     if (this.workers.length > 0) {
       const worker = this.selectWorker();
       if (worker) {
         worker.send({
           type: WorkerMessageType.LOG_BATCH,
-          payload: [entry]
+          payload: [entry],
         });
       } else if (this.enableMetrics) {
         this.metrics.droppedLogs++;
@@ -934,11 +935,11 @@ export class AsyncLogger extends EventEmitter {
   ): { success: boolean } {
     // PERFORMANCE: Fast timestamp - Date.now() is 10x faster than performance.now()
     const now = Date.now();
-    
+
     // PERFORMANCE CRITICAL: Skip style processing for plain text (90%+ of logs)
     // Only check for styles if ALL conditions are met:
     // 1. Colors are enabled
-    // 2. Not using workers (workers handle their own styling)  
+    // 2. Not using workers (workers handle their own styling)
     // 3. Message contains '<' character (quick check)
     // OPTIMIZATION: Ultra-fast style detection and processing
     let processedMessage = message;
@@ -970,12 +971,15 @@ export class AsyncLogger extends EventEmitter {
           const { TextStyler } = require('../utils/TextStyler');
           this.textStyler = TextStyler;
         }
-        const result = this.textStyler!.parseBracketsWithExtraction(message, this.useColors);
+        const result = this.textStyler?.parseBracketsWithExtraction(message, this.useColors) || {
+          plainText: message,
+          styles: undefined,
+        };
         processedMessage = result.plainText;
         styles = result.styles;
       }
     }
-    
+
     // OPTIMIZATION: Pre-allocate object shape for V8 optimization
     // Use object literal with all properties for consistent hidden class
     const entry: LogEntry = {
@@ -984,10 +988,10 @@ export class AsyncLogger extends EventEmitter {
       message: processedMessage,
       timestamp: now,
       styles: styles || undefined,
-      context: undefined as any,
-      loggerId: undefined as string | undefined
+      context: undefined as Record<string, unknown> | undefined,
+      loggerId: undefined as string | undefined,
     };
-    
+
     // OPTIMIZATION: Set properties conditionally without delete operations
     // Delete operations deoptimize V8 hidden classes
 
@@ -997,7 +1001,7 @@ export class AsyncLogger extends EventEmitter {
       entry.context = {
         _rawMessage: message,
         _useColors: this.useColors,
-        ...(meta || {})
+        ...(meta || {}),
       };
     } else if (meta && Object.keys(meta).length > 0) {
       entry.context = meta;
@@ -1260,8 +1264,6 @@ export class AsyncLogger extends EventEmitter {
   public get fmt(): TemplateFormatter {
     return this.templateFormatter;
   }
-
-
 
   /**
    * OPTIMIZATION: Determine if we should batch this entry.

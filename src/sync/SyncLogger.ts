@@ -576,7 +576,7 @@ export class SyncLogger {
     const transports = this.transportManager.getTransports();
     for (const transport of transports) {
       if ('flushSync' in transport && typeof transport.flushSync === 'function') {
-        (transport as any).flushSync();
+        (transport as { flushSync: () => void }).flushSync();
       } else if ('flush' in transport && typeof transport.flush === 'function') {
         // For transports that only have async flush, we can't wait for the promise
         // but we can at least trigger it

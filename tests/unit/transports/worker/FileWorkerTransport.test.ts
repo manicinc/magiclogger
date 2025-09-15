@@ -36,8 +36,7 @@ describe('FileWorkerTransport', () => {
   function makeEntry(i = 0): LogEntry {
     return {
       id: `${i}`,
-      timestamp: new Date().toISOString(),
-      timestampMs: Date.now(),
+      timestamp: Date.now(),
       level: 'info',
       message: `Msg ${i}`,
     } as LogEntry;

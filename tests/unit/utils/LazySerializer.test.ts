@@ -10,8 +10,7 @@ describe('LazySerializer', () => {
   describe('LazyLogEntry', () => {
     const createMockEntry = (): LogEntry => ({
       id: 'test-123',
-      timestamp: '2024-01-01T00:00:00.000Z',
-      timestampMs: 1704067200000,
+      timestamp: 1704067200000,
       level: 'info',
       message: 'Test message',
       loggerId: 'test-logger',
@@ -99,8 +98,7 @@ describe('LazySerializer', () => {
     it('should serialize entry with all fields', () => {
       const entry: LogEntry = {
         id: 'test-123',
-        timestamp: '2024-01-01T00:00:00.000Z',
-        timestampMs: 1704067200000,
+        timestamp: 1704067200000,
         level: 'info',
         message: 'Test message',
         styles: [[0, 4, 'red']],
@@ -124,8 +122,7 @@ describe('LazySerializer', () => {
     it('should serialize entry with minimal fields', () => {
       const entry: LogEntry = {
         id: 'minimal',
-        timestamp: '2024-01-01T00:00:00.000Z',
-        timestampMs: 1704067200000,
+        timestamp: 1704067200000,
         level: 'debug',
         message: 'Minimal',
       };
@@ -142,8 +139,7 @@ describe('LazySerializer', () => {
     it('should handle different value types correctly', () => {
       const entry: LogEntry = {
         id: 'types',
-        timestamp: '2024-01-01T00:00:00.000Z',
-        timestampMs: 1704067200000,
+        timestamp: 1704067200000,
         level: 'info',
         message: 'Types test',
         context: {
@@ -175,8 +171,7 @@ describe('LazySerializer', () => {
 
       const entry: LogEntry = {
         id: 'error-test',
-        timestamp: '2024-01-01T00:00:00.000Z',
-        timestampMs: 1704067200000,
+        timestamp: 1704067200000,
         level: 'error',
         message: 'Error occurred',
         error: error,
@@ -194,8 +189,7 @@ describe('LazySerializer', () => {
     it('should handle special characters in strings', () => {
       const entry: LogEntry = {
         id: 'special',
-        timestamp: '2024-01-01T00:00:00.000Z',
-        timestampMs: 1704067200000,
+        timestamp: 1704067200000,
         level: 'info',
         message: 'Test "quotes" and \n newlines \t tabs',
         context: {
@@ -219,8 +213,7 @@ describe('LazySerializer', () => {
         message: 'Message',
         level: 'info',
         id: 'order-test',
-        timestampMs: 1704067200000,
-        timestamp: '2024-01-01T00:00:00.000Z',
+        timestamp: 1704067200000,
       };
 
       const serializer = new SchemaSerializer();
@@ -262,8 +255,7 @@ describe('LazySerializer', () => {
       let callCount = 0;
       const entry: any = {
         id: 'memo-test',
-        timestamp: '2024-01-01T00:00:00.000Z',
-        timestampMs: 1704067200000,
+        timestamp: 1704067200000,
         level: 'info',
         get message() {
           callCount++;
@@ -283,8 +275,7 @@ describe('LazySerializer', () => {
     it('should handle undefined values in entry', () => {
       const entry: any = {
         id: 'undefined-test',
-        timestamp: '2024-01-01T00:00:00.000Z',
-        timestampMs: 1704067200000,
+        timestamp: 1704067200000,
         level: 'info',
         message: undefined,
         context: undefined,
@@ -310,8 +301,7 @@ describe('LazySerializer', () => {
     it('should handle BigInt in context', () => {
       const entry: LogEntry = {
         id: 'bigint',
-        timestamp: '2024-01-01T00:00:00.000Z',
-        timestampMs: 1704067200000,
+        timestamp: 1704067200000,
         level: 'info',
         message: 'BigInt test',
         context: {
@@ -328,8 +318,7 @@ describe('LazySerializer', () => {
       const sym = Symbol('test');
       const entry: LogEntry = {
         id: 'symbol',
-        timestamp: '2024-01-01T00:00:00.000Z',
-        timestampMs: 1704067200000,
+        timestamp: 1704067200000,
         level: 'info',
         message: 'Symbol test',
         context: {
@@ -347,8 +336,7 @@ describe('LazySerializer', () => {
     function createMockEntry(): LogEntry {
       return {
         id: 'test-123',
-        timestamp: '2024-01-01T00:00:00.000Z',
-        timestampMs: 1704067200000,
+        timestamp: 1704067200000,
         level: 'info',
         message: 'Test message',
         loggerId: 'test-logger',

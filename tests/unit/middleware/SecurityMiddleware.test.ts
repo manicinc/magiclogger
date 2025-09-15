@@ -12,8 +12,7 @@ describe('SecurityMiddleware', () => {
   beforeEach(() => {
     mockEntry = {
       id: 'test-123',
-      timestamp: '2024-01-01T00:00:00.000Z',
-      timestampMs: 1704067200000,
+      timestamp: 1704067200000,
       level: 'info',
       message: 'Test message',
       loggerId: 'test-logger',

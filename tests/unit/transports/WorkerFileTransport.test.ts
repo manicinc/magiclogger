@@ -13,15 +13,21 @@ jest.mock('worker_threads', () => ({
 }));
 
 describe('WorkerFileTransport', () => {
-  let mockWorker: any;
-  let eventHandlers: Record<string, (...args: any[]) => void> = {};
+  let mockWorker: {
+    postMessage: jest.Mock;
+    on: jest.Mock;
+    off: jest.Mock;
+    terminate: jest.Mock;
+    _disableAutoRespond?: boolean;
+  };
+  let eventHandlers: Record<string, (...args: unknown[]) => void> = {};
 
   beforeEach(() => {
     jest.clearAllMocks();
     eventHandlers = {};
 
     mockWorker = {
-      postMessage: jest.fn().mockImplementation((message: any) => {
+      postMessage: jest.fn().mockImplementation((message: { type: string }) => {
         // Simulate worker responses
         setImmediate(() => {
           if (eventHandlers.message) {
@@ -39,7 +45,7 @@ describe('WorkerFileTransport', () => {
           }
         });
       }),
-      on: jest.fn().mockImplementation((event: string, handler: (...args: any[]) => void) => {
+      on: jest.fn().mockImplementation((event: string, handler: (...args: unknown[]) => void) => {
         eventHandlers[event] = handler;
         return mockWorker; // Return this for chaining
       }),
@@ -113,8 +119,7 @@ describe('WorkerFileTransport', () => {
 
       const entry: LogEntry = {
         id: '123',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test message',
         loggerId: 'test-logger',
@@ -147,16 +152,14 @@ describe('WorkerFileTransport', () => {
       const entries: LogEntry[] = [
         {
           id: '1',
-          timestamp: new Date().toISOString(),
-          timestampMs: Date.now(),
+          timestamp: Date.now(),
           level: 'info',
           message: 'First',
           loggerId: 'test',
         },
         {
           id: '2',
-          timestamp: new Date().toISOString(),
-          timestampMs: Date.now(),
+          timestamp: Date.now(),
           level: 'info',
           message: 'Second',
           loggerId: 'test',
@@ -199,8 +202,7 @@ describe('WorkerFileTransport', () => {
 
       const entry: LogEntry = {
         id: '123',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test message',
         loggerId: 'test-logger',
@@ -231,8 +233,7 @@ describe('WorkerFileTransport', () => {
       const levels: LogEntry['level'][] = ['info', 'warn', 'error', 'debug', 'success'];
       const entries: LogEntry[] = levels.map((level, _index) => ({
         id: `test-${level}`,
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level,
         message: `Test ${level} message`,
         loggerId: 'test-logger',
@@ -266,8 +267,7 @@ describe('WorkerFileTransport', () => {
 
       const entry: LogEntry = {
         id: '124',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Message with context',
         loggerId: 'test-logger',
@@ -302,8 +302,7 @@ describe('WorkerFileTransport', () => {
 
       const entry: LogEntry = {
         id: '125',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Should not log',
         loggerId: 'test-logger',
@@ -332,8 +331,7 @@ describe('WorkerFileTransport', () => {
 
       await transport.log({
         id: '1',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test',
         loggerId: 'test',
@@ -377,8 +375,7 @@ describe('WorkerFileTransport', () => {
       // Initialize worker
       await transport.log({
         id: '1',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test',
         loggerId: 'test',
@@ -410,8 +407,7 @@ describe('WorkerFileTransport', () => {
       // Initialize worker by logging something
       await transport.log({
         id: '1',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test',
         loggerId: 'test',
@@ -437,8 +433,7 @@ describe('WorkerFileTransport', () => {
       // Initialize worker by logging something
       await transport.log({
         id: '1',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test',
         loggerId: 'test',
@@ -494,8 +489,7 @@ describe('WorkerFileTransport', () => {
 
       await transport.log({
         id: '1',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test',
         loggerId: 'test',
@@ -525,8 +519,7 @@ describe('WorkerFileTransport', () => {
 
       await transport.log({
         id: '1',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test',
         loggerId: 'test',
@@ -555,8 +548,7 @@ describe('WorkerFileTransport', () => {
 
       await transport.log({
         id: '1',
-        timestamp: new Date().toISOString(),
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         level: 'info',
         message: 'Test',
         loggerId: 'test',

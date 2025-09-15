@@ -753,7 +753,7 @@ export class Logger {
     }
 
     // Fast path: Create minimal entry - ONLY required fields
-    const entry: any = {
+    const entry: LogEntry = {
       level: Logger.LEVEL_TO_INT[level] || 30,
       time: Date.now(),
       msg: msg,
@@ -791,8 +791,8 @@ export class Logger {
 
     // Direct dispatch - optimized hot path
     // Use cached boolean to avoid repeated checks
-    if (this.hasTransports) {
-      this.transportManager!.logSync(entry); // Safe to use ! since hasTransports guarantees it exists
+    if (this.hasTransports && this.transportManager) {
+      this.transportManager.logSync(entry);
     } else if (this.useConsoleOutput) {
       console.log(`[${entry.level}] ${entry.msg}`);
     }
@@ -807,7 +807,7 @@ export class Logger {
    * @param {LogEntryMeta} [meta] - Additional metadata
    * @returns {void}
    */
-  public info(...args: any[]): void {
+  public info(...args: unknown[]): void {
     // Fast path for single string argument (most common case)
     if (args.length === 1 && typeof args[0] === 'string') {
       this.log(args[0], 'info');
@@ -1458,7 +1458,7 @@ export class Logger {
    * Get the current context object.
    * @returns {Record<string, any> | undefined} Current context
    */
-  public getContext(): Record<string, any> | undefined {
+  public getContext(): Record<string, unknown> | undefined {
     return this.options.context;
   }
 
@@ -1499,7 +1499,7 @@ export class Logger {
    * Similar to Pino's bindings() method.
    * @returns {Record<string, any>} Combined context and metadata
    */
-  public getBindings(): Record<string, any> {
+  public getBindings(): Record<string, unknown> {
     return {
       ...(this.options.context || {}),
       ...(this.options.id && { loggerId: this.options.id }),
@@ -1511,7 +1511,7 @@ export class Logger {
    * Set the context (replaces existing).
    * @param {Record<string, any>} context - New context object
    */
-  public setContext(context: Record<string, any>): void {
+  public setContext(context: Record<string, unknown>): void {
     this.options.context = context;
   }
 
@@ -1519,7 +1519,7 @@ export class Logger {
    * Add to existing context (merges with existing).
    * @param {Record<string, any>} context - Context to merge
    */
-  public addContext(context: Record<string, any>): void {
+  public addContext(context: Record<string, unknown>): void {
     this.options.context = {
       ...(this.options.context || {}),
       ...context,
