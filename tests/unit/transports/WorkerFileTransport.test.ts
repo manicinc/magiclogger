@@ -1,4 +1,4 @@
-import { WorkerFileTransport } from '../../../src/transports/WorkerFileTransport';
+import { WorkerFileTransport } from '../../../src/transports/base/implementations/WorkerFileTransport';
 import { Worker } from 'worker_threads';
 import type { LogEntry } from '../../../src/types/transport';
 

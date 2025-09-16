@@ -10,7 +10,7 @@
  */
 
 import { Logger } from '../../src/Logger';
-import { AsyncFileTransport } from '../../src/transports/AsyncFileTransport';
+import { AsyncFileTransport } from '../../src/transports/base/implementations/AsyncFileTransport';
 import * as fs from 'fs';
 import * as path from 'path';
 import { performance } from 'perf_hooks';
@@ -285,7 +285,7 @@ describe('AsyncFileTransport Integration', () => {
 
   describe('Performance comparison', () => {
     it('should be faster than sync for main thread operations', async () => {
-      const { SyncFileTransport } = await import('../../src/transports/SyncFileTransport');
+      const { SyncFileTransport } = await import('../../src/transports/base/implementations/SyncFileTransport');
 
       // Setup async transport
       const asyncPath = path.join(TEST_DIR, 'perf-async.log');

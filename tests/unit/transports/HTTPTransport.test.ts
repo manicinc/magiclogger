@@ -1,4 +1,4 @@
-import { HTTPTransport } from '../../../src/transports/HTTPTransport';
+import { HTTPTransport } from '../../../src/transports/base/implementations/HTTPTransport';
 import { Worker } from 'worker_threads';
 import type { LogEntry } from '../../../src/types/transport';
 

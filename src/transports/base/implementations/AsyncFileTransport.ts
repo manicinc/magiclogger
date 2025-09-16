@@ -49,8 +49,8 @@
  */
 
 import SonicBoom from 'sonic-boom';
-import { Transport } from './base/Transport';
-import type { LogEntry, LogLevel, MinimalLogEntry } from '../types/transport';
+import { Transport } from '../Transport';
+import type { LogEntry, LogLevel, MinimalLogEntry } from '../../../types/transport';
 import * as path from 'path';
 import * as fs from 'fs';
 

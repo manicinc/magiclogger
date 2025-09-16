@@ -23,8 +23,8 @@ export default defineConfig(options => {
     'transports/otlp': 'src/transports/otlp.ts',
     'transports/postgresql': 'src/transports/postgresql.ts',
     'transports/base': 'src/transports/index.ts', // registry + base classes
-    'transports/SyncFileTransport': 'src/transports/SyncFileTransport.ts', // High-performance sync file transport
-    'transports/AsyncFileTransport': 'src/transports/AsyncFileTransport.ts', // High-perf async with sonic-boom
+    'transports/SyncFileTransport': 'src/transports/base/implementations/SyncFileTransport.ts', // High-performance sync file transport
+    'transports/AsyncFileTransport': 'src/transports/base/implementations/AsyncFileTransport.ts', // High-perf async with sonic-boom
 
     // Theme system
     'theme/theme': 'src/theme/theme.ts',

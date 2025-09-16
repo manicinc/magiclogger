@@ -14,7 +14,7 @@ import { Printer } from '../core/Printer';
 import { StyleBuilder } from '../core/StyleBuilder';
 import { TemplateParser } from '../parsers/TemplateParser';
 import { TextStyler } from '../utils/TextStyler';
-import { TableFormatter } from '../utils/TableFormatter';
+import { TableFormatter } from '../transports/formatters/TableFormatter';
 import type { LoggerOptions, LogLevel } from '../types/logger';
 import type { ColorName } from '../types/colors';
 import type { IStyleBuilder } from '../types/styling';
@@ -22,7 +22,7 @@ import type { StylePreset } from '../types/preset';
 import { ThemeManager } from '../theme/ThemeManager';
 import { PRESETS } from '../constants/preset';
 import { generateId } from '../utils/idGenerator';
-import { SyncFileTransport } from '../transports/SyncFileTransport';
+import { SyncFileTransport } from '../transports/base/implementations/SyncFileTransport';
 import { TransportManager } from '../transports/base/TransportManager';
 
 // Node.js imports for synchronous file operations

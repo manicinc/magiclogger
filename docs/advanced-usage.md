@@ -4,12 +4,70 @@ This guide covers advanced patterns and best practices for MagicLogger.
 
 ## Table of Contents
 
+- [Architecture Details](#architecture-details)
 - [Custom Transports](#custom-transports)
 - [Middleware & Plugins](#middleware--plugins)
 - [Distributed Tracing](#distributed-tracing)
 - [Security & Compliance](#security--compliance)
 - [Testing Strategies](#testing-strategies)
 - [Production Best Practices](#production-best-practices)
+
+## Architecture Details
+
+### Transport-Optimized Architecture
+
+MagicLogger uses a multi-layered transport system designed for maximum flexibility and performance:
+
+**Core Architecture Components:**
+- **Logger Core**: Lightweight, synchronous message formatting and routing
+- **Transport Layer**: Pluggable outputs with independent configuration
+- **Async Workers**: Optional worker threads for non-blocking I/O
+- **Batch Processing**: Intelligent batching for network and file I/O
+
+**Transport Types:**
+- **Synchronous**: Console, File (immediate write)
+- **Asynchronous**: HTTP, WebSocket, Database (queued with retry)
+- **Streaming**: Real-time outputs with backpressure handling
+- **Conditional**: Route logs based on level, content, or metadata
+
+### Dispatch Architecture
+
+The logging pipeline is optimized for different scenarios:
+
+**Synchronous Mode (SyncLogger):**
+- Direct dispatch to transports
+- Guaranteed delivery order
+- Best for: Audit logs, debugging, small applications
+- Trade-off: Can block on slow I/O
+
+**Asynchronous Mode (AsyncLogger):**
+- Worker thread pool for I/O operations
+- Non-blocking main thread
+- Smart batching and buffering
+- Best for: Production services, high-throughput applications
+- Trade-off: Possible log loss on crash (mitigated by flush strategies)
+
+### Log Delivery Guarantees
+
+MagicLogger provides configurable delivery guarantees:
+
+**At-Most-Once (Default for Async):**
+- Logs queued in memory
+- Fast, non-blocking
+- Possible loss on crash
+- Use for: Application logs, metrics
+
+**At-Least-Once (With Retry):**
+- Automatic retry on failure
+- Exponential backoff
+- Duplicate possible on retry
+- Use for: Important events, alerts
+
+**Exactly-Once (With Sync):**
+- Synchronous confirmation
+- Transaction support
+- Guaranteed single delivery
+- Use for: Audit logs, compliance
 
 ## Custom Transports
 

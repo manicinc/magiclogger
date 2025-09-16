@@ -25,11 +25,11 @@
  */
 
 // Export the HTTP transport
-export { HTTPTransport } from './HTTPTransport';
-export type { HTTPTransportOptions } from './HTTPTransport';
+export { HTTPTransport } from './base/implementations/HTTPTransport';
+export type { HTTPTransportOptions } from './base/implementations/HTTPTransport';
 
 // Import for internal use
-import { HTTPTransport } from './HTTPTransport';
+import { HTTPTransport } from './base/implementations/HTTPTransport';
 
 /**
  * Creates an HTTP transport using worker threads.

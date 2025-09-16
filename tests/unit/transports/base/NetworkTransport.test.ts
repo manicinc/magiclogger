@@ -18,7 +18,7 @@ jest.mock('../../../../src/transports/file', () => ({
   })),
 }));
 
-jest.mock('../../../../src/transports/SyncConsoleTransport', () => ({
+jest.mock('../../../../src/transports/base/implementations/SyncConsoleTransport', () => ({
   SyncConsoleTransport: jest.fn().mockImplementation(() => ({
     name: 'test-fallback',
     enabled: true,

@@ -8,8 +8,8 @@
  * @module transports/SyncConsoleTransport
  */
 
-import { Transport } from './base/Transport';
-import type { LogEntry, LogLevel } from '../types/transport';
+import { Transport } from '../Transport';
+import type { LogEntry, LogLevel } from '../../../types/transport';
 
 /**
  * Configuration options for SyncConsoleTransport.

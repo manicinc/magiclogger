@@ -188,119 +188,24 @@ const logger = new Logger({
 logger.info('Request received', { tags: ['api'] });  // Auto-styled
 ```
 
-### Transport-Optimized Architecture
+### Async vs Sync Loggers
 
-MagicLogger's architecture is designed for production workloads with intelligent performance optimizations:
+**AsyncLogger (default)** - Non-blocking, 120K+ ops/sec with styles. Use for 99.9% of cases.
 
-#### Performance Design Decisions
-
-**Metadata Caching System:**
-- **String interning** reduces memory usage for repeated field names
-- **Object shape caching** reuses JSON structures for identical log patterns
-- **LRU eviction** keeps hot data in cache while preventing unbounded growth
-- **Frozen metadata** for frequently-used immutable objects
-
-**Style Processing Pipeline:**
-- **Compiled patterns** for common styles avoid regex parsing
-- **Style cache** with LRU eviction for repeated styled messages
-- **Fast path detection** bypasses processing for unstyled text
-- **Pre-compiled ANSI codes** eliminate lookup overhead
-
-**Batching & Buffering:**
-- **Adaptive batching** with 1000-entry buffers for file transports
-- **Intelligent flush intervals** (2ms for file, 10ms for network)
-- **sonic-boom integration** with 16KB buffer, 64KB max write
-- **Minimal allocations** through object pooling and reuse
-
-#### OpenTelemetry & Observability
-
-MagicLogger includes built-in OpenTelemetry support, adding ~15-20% overhead for complete observability:
-- **Automatic trace correlation** with W3C Trace Context
-- **MAGIC schema compliance** for structured logging
-- **Span injection** for distributed tracing
-- **Resource attributes** for service identification
-
-This overhead is intentional - MagicLogger prioritizes **complete observability** over raw throughput. For comparison:
-- Pino: Minimal overhead, basic JSON
-- MagicLogger: Full telemetry, styled output, structured metadata
-- Trade-off: 2x slower, 10x more observable
-
-#### Each Transport Manages Its Own Strategy
-Transports use the optimal I/O pattern for their use case:
+**SyncLogger** - Blocks until written to disk. Only for regulatory/audit requirements.
 
 ```typescript
-const logger = new Logger({
-  transports: [
-    // Console: synchronous for immediate feedback
-    new ConsoleTransport(),
-    
-    // File: sonic-boom for non-blocking high-performance I/O
-    new FileTransport({
-      filepath: './app.log',
-      minLength: 4096,        // Buffer before auto-flush
-      maxWrite: 16384         // Max bytes per write
-    }),
-    
-    // HTTP: batching with async requests
-    new HTTPTransport({
-      endpoint: 'https://logs.example.com',
-      batch: { size: 100, timeout: 5000 }  // Batch 100 logs or flush every 5s
-    })
-  ]
-});
-```
-
-#### Dispatch Architecture
-MagicLogger uses an immediate dispatch architecture:
-
-**Logger Level**: Immediate dispatch to transports
-- AsyncLogger sends logs directly to transports without batching
-- Minimal overhead with timestamp caching optimization
-- Near-zero latency for log delivery
-
-**Transport Level**: Optimized batching per transport type
-
-```typescript
-// Each transport handles its own batching strategy
-const httpTransport = new HTTPTransport({
-  batch: { size: 100, timeout: 5000 }  // Batch 100 logs or flush every 5s
-});
-```
-
-**Note**: Worker threads are optional. Enable with `worker.enabled: true` for CPU-intensive workloads. Style processing in the main thread adds minimal overhead (~0.01ms per log).
-
-### Log Delivery Guarantees
-
-**Logger (AsyncLogger - default, recommended)**:
-- **Non-blocking** - keeps your app responsive under load
-- **Faster for styled output** - 120K ops/sec vs 50K for sync
-- **With graceful shutdown** (`await logger.close()`): All transports are flushed
-- **Without graceful shutdown** (crash/SIGKILL): Transport buffers may not flush
-- Perfect for 99.9% of use cases including production applications
-- The default choice for modern applications
-
-**SyncLogger (rarely needed)**:
-- Blocks until each log is written to disk (using `fs.appendFileSync`)
-- **Always guarantees delivery** - logs are never lost unless OS crashes
-- **Trade-off**: Blocks event loop, can make app unresponsive under load
-- Use ONLY for critical audit logs with regulatory requirements
-
-**For critical logs that must never be lost**:
-```typescript
-// Option 1: Use SyncLogger for audit/security logs
+// For critical logs that must never be lost
 const auditLogger = new SyncLogger({ file: './audit.log' });
 
-// Option 2: Ensure graceful shutdown for AsyncLogger
+// Or ensure graceful shutdown
 process.on('SIGTERM', async () => {
   await logger.close();  // Flushes all pending logs
   process.exit(0);
 });
-
-// Option 3: Use synchronous transports with AsyncLogger
-const logger = new AsyncLogger({
-  transports: [new SyncFileTransport({ filepath: './critical.log' })]
-});
 ```
+
+> **Note:** See [Performance Design](./docs/performance-design.md) for architecture details and [Advanced Usage](./docs/advanced-usage.md) for production configurations.
 
 
 ## MAGIC Schema - Universal Styled Logging Standard
@@ -1358,7 +1263,7 @@ const logger = new Logger({
 });
 ```
 
-## ⚡ Performance
+## Performance
 
 ### Why MagicLogger?
 

@@ -15,8 +15,8 @@
  */
 
 import { Worker } from 'worker_threads';
-import { Transport } from './base/Transport';
-import type { LogEntry } from '../types/transport';
+import { Transport } from '../Transport';
+import type { LogEntry } from '../../../types/transport';
 
 /**
  * Configuration options for HTTPWorkerTransport.
