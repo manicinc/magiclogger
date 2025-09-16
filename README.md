@@ -41,7 +41,7 @@
 
 ## 🚀 Universal Color Logging Standard
 
-**MagicLogger** is a TypeScript logger built on a [universal color logging standard](https://github.com/manicinc/magiclogger/blob/master/docs/magic-schema.md) that preserves styled text across any language, transport, or platform.
+**MagicLogger** is a TypeScript logger that works in Node and browser built on a [universal color logging standard](https://github.com/manicinc/magiclogger/blob/master/docs/magic-schema.md) that preserves styled text across any language, transport, or platform.
 
 Traditional prod environments suppress / strip styling / pretty print in logs, dropping presumed unnecessary bundling and load.
 
