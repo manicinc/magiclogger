@@ -19,7 +19,7 @@ describe('Sampler', () => {
   const createEntry = (id: string, level: 'debug' | 'info' | 'warn' | 'error' = 'info'): LogEntry =>
     ({
       id,
-        timestamp: Date.now(),
+      timestamp: Date.now(),
       level,
       message: `Message ${id}`,
       plainMessage: `Message ${id}`,

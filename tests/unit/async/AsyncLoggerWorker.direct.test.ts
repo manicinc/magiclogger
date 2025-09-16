@@ -7,7 +7,7 @@ import type { LogEntry } from '../../../src/types/transport';
 const buildEntries = (n: number): LogEntry[] =>
   Array.from({ length: n }, (_, i) => ({
     id: `${Date.now()}-${i}`,
-        timestamp: Date.now(),
+    timestamp: Date.now(),
     level: 'info' as const,
     message: `msg-${i}`,
   }));
@@ -194,7 +194,7 @@ describe('AsyncLoggerWorker Direct Processing', () => {
         buildEntries(1)[0],
         {
           id: 'bad',
-        timestamp: Date.now(),
+          timestamp: Date.now(),
           level: 'error',
           message: 'Bad entry',
           context: { circular },

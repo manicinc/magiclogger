@@ -285,12 +285,11 @@ export class ConsoleTransport extends Transport {
 
     // Timestamp
     if (this.showTimestamp) {
-      const timestampStr = typeof entry.timestamp === 'number'
-        ? new Date(entry.timestamp).toISOString()
-        : String(entry.timestamp);
-      const timestamp = this.useColors
-        ? Colorizer.color(timestampStr, 'gray', true)
-        : timestampStr;
+      const timestampStr =
+        typeof entry.timestamp === 'number'
+          ? new Date(entry.timestamp).toISOString()
+          : String(entry.timestamp);
+      const timestamp = this.useColors ? Colorizer.color(timestampStr, 'gray', true) : timestampStr;
       parts.push(timestamp);
     }
 

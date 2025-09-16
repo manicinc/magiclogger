@@ -694,7 +694,7 @@ export class TransportManager extends EventEmitter {
       context: minimal,
       // OPTIMIZATION: Add optional fields inline to avoid extra property assignments
       ...(minimalAny.loggerId && { loggerId: minimalAny.loggerId }),
-      ...(minimalAny.styles && { styles: minimalAny.styles as StyleRange[] })
+      ...(minimalAny.styles && { styles: minimalAny.styles as StyleRange[] }),
     };
 
     return logEntry;

@@ -418,7 +418,6 @@ export class AsyncLogger extends EventEmitter {
   /** @private {Set<Transport>} Transports that have been closed */
   private closedTransports = new Set<Transport>();
 
-
   /** @private {LogEntry[]} Batch buffer for network transports */
   private batch: LogEntry[] = [];
 
@@ -984,11 +983,13 @@ export class AsyncLogger extends EventEmitter {
     if (!meta && (!this.useColors || message.indexOf('<') === -1)) {
       // Direct dispatch without creating entry object for plain text
       if (!this.useWorkers && this.onFlush && !this.hasNetworkTransports) {
-        this.onFlush([{
-          level,
-          message,
-          timestamp: now,
-        } as LogEntry]);
+        this.onFlush([
+          {
+            level,
+            message,
+            timestamp: now,
+          } as LogEntry,
+        ]);
         if (this.enableMetrics) {
           this.metrics.totalLogs++;
           if (this.metrics.logsByLevel) {
@@ -1035,9 +1036,7 @@ export class AsyncLogger extends EventEmitter {
     // This duplicate check is no longer needed - removed
 
     // Styled message path - process styles inline
-    const processedMessage = !this.useWorkers
-      ? processStylesFast(message, true)
-      : message;
+    const processedMessage = !this.useWorkers ? processStylesFast(message, true) : message;
 
     // Create entry for styled message
     const entry: LogEntry = {
@@ -1314,7 +1313,6 @@ export class AsyncLogger extends EventEmitter {
   public get fmt(): TemplateFormatter {
     return this.templateFormatter;
   }
-
 
   /**
    * Add entry to batch and manage flush timing.

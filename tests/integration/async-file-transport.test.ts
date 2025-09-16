@@ -285,7 +285,9 @@ describe('AsyncFileTransport Integration', () => {
 
   describe('Performance comparison', () => {
     it('should be faster than sync for main thread operations', async () => {
-      const { SyncFileTransport } = await import('../../src/transports/base/implementations/SyncFileTransport');
+      const { SyncFileTransport } = await import(
+        '../../src/transports/base/implementations/SyncFileTransport'
+      );
 
       // Setup async transport
       const asyncPath = path.join(TEST_DIR, 'perf-async.log');
