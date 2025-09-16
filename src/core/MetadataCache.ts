@@ -247,7 +247,8 @@ export class MetadataCache {
    * Pre-compile metadata template for repeated use
    */
   compileTemplate(template: Record<string, any>): () => Record<string, any> {
-    const shape = this.getShape(template);
+    // Cache shape for potential future use
+    this.getShape(template);
     const keys = Object.keys(template);
 
     // Create optimized factory function

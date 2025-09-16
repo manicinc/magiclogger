@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import Layout from '@theme/Layout';
 import styles from './dashboard.module.css';
 
-export default function Dashboard(): JSX.Element {
+export default function Dashboard(): React.JSX.Element {
   const formRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

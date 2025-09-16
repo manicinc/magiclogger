@@ -126,9 +126,35 @@ export const CompiledStyles = {
     return output;
   },
 
-  // Remove all style tags (for plain text)
+  // Remove all style tags (for plain text) - secure implementation
   stripStyles: (msg: string) => {
-    return msg.replace(/<[^>]+>/g, '').replace(/<\/>/g, '');
+    // Process in a single pass to avoid incomplete sanitization
+    let result = '';
+    let pos = 0;
+
+    while (pos < msg.length) {
+      const openIdx = msg.indexOf('<', pos);
+      if (openIdx === -1) {
+        result += msg.slice(pos);
+        break;
+      }
+
+      // Add text before tag
+      result += msg.slice(pos, openIdx);
+
+      // Find closing bracket
+      const closeIdx = msg.indexOf('>', openIdx);
+      if (closeIdx === -1) {
+        // No closing bracket, treat as literal text
+        result += msg.slice(openIdx);
+        break;
+      }
+
+      // Skip the entire tag
+      pos = closeIdx + 1;
+    }
+
+    return result;
   },
 };
 
@@ -177,8 +203,24 @@ export function processStylesFast(message: string, useColors: boolean): string {
   } else if (message.includes('<cyan>') && message.includes('Request')) {
     result = CompiledStyles.requestCyan(message);
   } else {
-    // Count style tags to choose handler
-    const styleCount = (message.match(/<[^/>]+>/g) || []).length;
+    // Count style tags safely without regex to avoid ReDoS
+    let styleCount = 0;
+    let pos = 0;
+    while (pos < message.length) {
+      const openIdx = message.indexOf('<', pos);
+      if (openIdx === -1) break;
+
+      const closeIdx = message.indexOf('>', openIdx);
+      if (closeIdx === -1) break;
+
+      const tag = message.slice(openIdx + 1, closeIdx);
+      // Check if it's not a closing tag
+      if (!tag.startsWith('/') && tag.length > 0) {
+        styleCount++;
+      }
+      pos = closeIdx + 1;
+    }
+
     if (styleCount === 1) {
       result = CompiledStyles.applySingleStyle(message);
     } else if (styleCount > 1) {
