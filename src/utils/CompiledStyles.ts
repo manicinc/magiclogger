@@ -86,7 +86,7 @@ export const CompiledStyles = {
 
   // Handle multiple style tags efficiently
   applyMultipleStyles: (msg: string) => {
-    let result = msg;
+    const result = msg;
     let pos = 0;
     let output = '';
 
