@@ -213,7 +213,7 @@ export class PlainTextFormatter {
 
     // Timestamp
     if (this.options.includeTimestamp) {
-      parts.push(this.formatTimestamp(entry.timestamp));
+      parts.push(this.formatTimestamp(String(entry.timestamp)));
     }
 
     // Level
@@ -279,7 +279,7 @@ export class PlainTextFormatter {
 
     // Replace placeholders
     const replacements: Record<string, string> = {
-      timestamp: this.formatTimestamp(entry.timestamp),
+      timestamp: this.formatTimestamp(String(entry.timestamp)),
       level: this.options.uppercaseLevel ? entry.level.toUpperCase() : entry.level,
       message: entry.message,
       loggerId: entry.loggerId || '',

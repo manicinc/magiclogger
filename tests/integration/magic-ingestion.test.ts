@@ -15,8 +15,7 @@ describe('MAGIC Schema Cross-Language Ingestion', () => {
     it('should validate correct MAGIC schema entries', () => {
       const validEntry = {
         id: 'test-123',
-        timestamp: '2024-01-15T10:30:00.000Z',
-        timestampMs: 1705316400000,
+        timestamp: 1705316400000,
         level: 'info',
         message: 'Test message',
         styles: [
@@ -74,8 +73,7 @@ describe('MAGIC Schema Cross-Language Ingestion', () => {
       // Simulated Python logger output
       const pythonLog = {
         id: 'py-1705316400000-abc123',
-        timestamp: '2024-01-15T10:30:00.000Z',
-        timestampMs: 1705316400000,
+        timestamp: 1705316400000,
         level: 'error',
         message: 'Database connection failed for user alice@example.com',
         styles: [
@@ -101,8 +99,7 @@ describe('MAGIC Schema Cross-Language Ingestion', () => {
       // Simulated Go logger output
       const goLog = {
         id: 'go-1705316400000-xyz789',
-        timestamp: '2024-01-15T10:30:00.000Z',
-        timestampMs: 1705316400000,
+        timestamp: 1705316400000,
         level: 'warn',
         message: 'Cache miss for key user:12345 in region us-west-2',
         styles: [
@@ -123,8 +120,7 @@ describe('MAGIC Schema Cross-Language Ingestion', () => {
       // Simulated Rust logger output
       const rustLog = {
         id: 'rust-1705316400000-def456',
-        timestamp: '2024-01-15T10:30:00.000Z',
-        timestampMs: 1705316400000,
+        timestamp: 1705316400000,
         level: 'info',
         message: 'Processing 1000 records in 45ms',
         styles: [
@@ -178,7 +174,6 @@ describe('MAGIC Schema Cross-Language Ingestion', () => {
       const entry: LogEntry = {
         id: 'ts-123',
         timestamp: Date.now(),
-        timestampMs: Date.now(),
         level: 'info',
         message: 'User logged in',
         styles: [
@@ -196,7 +191,6 @@ describe('MAGIC Schema Cross-Language Ingestion', () => {
       const entry = {
         id: 'plain-123',
         timestamp: Date.now(),
-        timestampMs: Date.now(),
         level: 'debug',
         message: 'Plain debug message',
         // No styles field
@@ -214,8 +208,7 @@ describe('MAGIC Schema Cross-Language Ingestion', () => {
         // Python log
         {
           id: 'py-001',
-          timestamp: '2024-01-15T10:30:00.000Z',
-          timestampMs: 1705316400000,
+          timestamp: 1705316400000,
           level: 'error',
           message: 'Python error occurred',
           styles: [[0, 6, 'red']] as Array<[number, number, string]>,
@@ -224,8 +217,7 @@ describe('MAGIC Schema Cross-Language Ingestion', () => {
         // Go log
         {
           id: 'go-002',
-          timestamp: '2024-01-15T10:30:01.000Z',
-          timestampMs: 1705316401000,
+          timestamp: 1705316401000,
           level: 'info',
           message: 'Go service started',
           styles: [[0, 2, 'green']],
@@ -234,8 +226,7 @@ describe('MAGIC Schema Cross-Language Ingestion', () => {
         // Rust log
         {
           id: 'rust-003',
-          timestamp: '2024-01-15T10:30:02.000Z',
-          timestampMs: 1705316402000,
+          timestamp: 1705316402000,
           level: 'warn',
           message: 'Rust warning issued',
           styles: [[0, 4, 'yellow']],

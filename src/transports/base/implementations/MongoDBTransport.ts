@@ -455,9 +455,11 @@ export class MongoDBTransport extends NetworkTransport {
         (doc as Record<string, unknown>)._id = doc.id;
       }
 
-      // Convert ISO timestamp to Date object for better querying
-      if (typeof doc.timestamp === 'string') {
-        (doc as Record<string, unknown>)._timestamp = new Date(doc.timestamp);
+      // Convert timestamp to Date object for better querying
+      if (doc.timestamp) {
+        (doc as Record<string, unknown>)._timestamp = typeof doc.timestamp === 'string'
+          ? new Date(doc.timestamp)
+          : new Date(doc.timestamp as number);
       }
 
       return doc;

@@ -30,8 +30,8 @@
     "*"
   ],
   "navigationLinks": {
-    "🏠 Home": "https://magiclog.io",
-    "📖 Documentation": "https://magiclog.io/docs/intro",
+    "🏠 Home": "/",
+    "📖 Documentation": "/docs/intro",
     "GitHub": "https://github.com/manicinc/magiclogger"
   },
   "sidebarLinks": {

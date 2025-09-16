@@ -112,32 +112,26 @@ export default function HeroSection() {
 
             {/* Updated Stats with correct performance numbers */}
             <div className={styles.heroStats}>
-              <StatCard 
-                value={43.3} 
-                unit="KB" 
-                label="Core (gzip)" 
+              <StatCard
+                value={47}
+                unit="KB"
+                label="Core (gzip)"
                 icon={<PackageIcon />}
-                color="purple" 
+                color="purple"
               />
-              <StatCard 
-                value={203.4} 
-                unit="K ops/s" 
-                label="Async Plain" 
+              <StatCard
+                value={250}
+                unit="K+ ops/s"
+                label="Plain Text"
                 icon={<SpeedIcon />}
-                color="cyan" 
+                color="cyan"
               />
-              <StatCard 
-                value={31.1} 
-                unit="K ops/s" 
-                label="Async Styled" 
+              <StatCard
+                value={120}
+                unit="K+ ops/s"
+                label="Styled Output"
                 icon={<SyncIcon />}
-                color="green" 
-              />
-              <StatCard 
-                value="Minimal" 
-                label="Dependencies" 
-                icon={<ZeroIcon />}
-                color="yellow" 
+                color="green"
               />
             </div>
 

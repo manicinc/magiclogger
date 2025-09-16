@@ -285,9 +285,12 @@ export class ConsoleTransport extends Transport {
 
     // Timestamp
     if (this.showTimestamp) {
+      const timestampStr = typeof entry.timestamp === 'number'
+        ? new Date(entry.timestamp).toISOString()
+        : String(entry.timestamp);
       const timestamp = this.useColors
-        ? Colorizer.color(entry.timestamp, 'gray', true)
-        : entry.timestamp;
+        ? Colorizer.color(timestampStr, 'gray', true)
+        : timestampStr;
       parts.push(timestamp);
     }
 
@@ -349,7 +352,7 @@ export class ConsoleTransport extends Transport {
           : `Error: ${errorName} - ${error.message}`;
         output += ' ' + errorLine;
         if ((error as { stack?: string }).stack) {
-          output += '\n' + (error as { stack: string }).stack;
+          output += '\n' + (error as unknown as { stack: string }).stack;
         }
       } else {
         try {

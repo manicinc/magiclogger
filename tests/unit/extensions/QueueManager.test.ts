@@ -13,8 +13,7 @@ describe('QueueManager', () => {
   ): LogEntry =>
     ({
       id,
-      timestamp: new Date(timestamp || Date.now()).toISOString(),
-      timestampMs: timestamp || Date.now(),
+      timestamp: timestamp || Date.now(),
       level,
       message: `Message ${id}`,
       plainMessage: `Message ${id}`,

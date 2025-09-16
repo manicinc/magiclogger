@@ -384,7 +384,7 @@ describe('MAGIC Schema v1 Compliance', () => {
       });
     });
 
-    it('should have matching timestamp and timestampMs', () => {
+    it('should have matching timestamp and timestamp', () => {
       const entry: LogEntry = {
         id: 'test-123',
         timestamp: 1704067200000,

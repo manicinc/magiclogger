@@ -366,7 +366,7 @@ function PerformanceSection() {
             Performance Architecture
           </Heading>
           <p className={styles.sectionSubtitle}>
-            How MagicLogger achieves 850k+ ops/sec
+            How MagicLogger achieves 164K+ ops/sec
           </p>
         </div>
         

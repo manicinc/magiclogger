@@ -7,8 +7,7 @@ import type { LogEntry } from '../../../src/types/transport';
 const buildEntries = (n: number): LogEntry[] =>
   Array.from({ length: n }, (_, i) => ({
     id: `${Date.now()}-${i}`,
-    timestamp: Date.now(),
-    timestampMs: Date.now(),
+        timestamp: Date.now(),
     level: 'info' as const,
     message: `msg-${i}`,
   }));
@@ -114,7 +113,6 @@ describe('AsyncLoggerWorker Direct Processing', () => {
       const entry: LogEntry = {
         id: '123',
         timestamp: Date.now(),
-        timestampMs: Date.now(),
         level: 'info',
         message: 'placeholder',
         context: {
@@ -138,7 +136,6 @@ describe('AsyncLoggerWorker Direct Processing', () => {
       const entry: LogEntry = {
         id: '123',
         timestamp: Date.now(),
-        timestampMs: Date.now(),
         level: 'info',
         message: 'test',
         context: {
@@ -169,7 +166,6 @@ describe('AsyncLoggerWorker Direct Processing', () => {
       const entry: LogEntry = {
         id: '123',
         timestamp: Date.now(),
-        timestampMs: Date.now(),
         level: 'error',
         message: 'Error with circular',
         context: { circular },
@@ -198,8 +194,7 @@ describe('AsyncLoggerWorker Direct Processing', () => {
         buildEntries(1)[0],
         {
           id: 'bad',
-          timestamp: Date.now(),
-          timestampMs: Date.now(),
+        timestamp: Date.now(),
           level: 'error',
           message: 'Bad entry',
           context: { circular },

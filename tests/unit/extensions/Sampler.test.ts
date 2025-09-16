@@ -19,8 +19,7 @@ describe('Sampler', () => {
   const createEntry = (id: string, level: 'debug' | 'info' | 'warn' | 'error' = 'info'): LogEntry =>
     ({
       id,
-      timestamp: Date.now(),
-      timestampMs: Date.now(),
+        timestamp: Date.now(),
       level,
       message: `Message ${id}`,
       plainMessage: `Message ${id}`,
@@ -435,8 +434,8 @@ describe('Sampler', () => {
       });
 
       const entryNoId = {
+        id: 'test-no-id',
         timestamp: Date.now(),
-        timestampMs: Date.now(),
         level: 'info' as const,
         message: 'No ID',
       } as LogEntry;
@@ -450,8 +449,7 @@ describe('Sampler', () => {
       // Reuse a prebuilt entry to avoid 10k Date/toISOString allocations in the loop
       const hotEntry: LogEntry = {
         id: 'hot',
-        timestamp: '2000-01-01T00:00:00.000Z',
-        timestampMs: 946684800000,
+        timestamp: 946684800000,
         level: 'info',
         message: 'Hot path',
         plainMessage: 'Hot path',

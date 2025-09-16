@@ -85,17 +85,19 @@ export default function CTASection() {
               <span className={styles.command}>npm install magiclogger</span>
             </div>
             <div className={styles.terminalLine}>
-              <span className={styles.prompt}>$</span>
-              <span className={styles.command}>npx magiclogger init</span>
+              <span className={styles.prompt}></span>
             </div>
             <div className={styles.terminalLine}>
-              <span className={styles.output}>✨ MagicLogger configured successfully!</span>
+              <span className={styles.comment}>// Start logging in seconds</span>
             </div>
             <div className={styles.terminalLine}>
-              <span className={styles.output}>📖 Docs: https://docs.magiclog.io</span>
+              <span className={styles.keyword}>import</span> <span className={styles.variable}>Logger</span> <span className={styles.keyword}>from</span> <span className={styles.string}>'magiclogger'</span>;
             </div>
             <div className={styles.terminalLine}>
-              <span className={styles.output}>🚀 Happy logging!</span>
+              <span className={styles.keyword}>const</span> <span className={styles.variable}>logger</span> = <span className={styles.keyword}>new</span> <span className={styles.variable}>Logger</span>();
+            </div>
+            <div className={styles.terminalLine}>
+              <span className={styles.variable}>logger</span>.<span className={styles.method}>info</span>(<span className={styles.string}>'✨ Hello, MagicLogger!'</span>);
             </div>
           </div>
         </div>

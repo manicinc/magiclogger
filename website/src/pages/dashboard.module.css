@@ -117,9 +117,27 @@
 
 .features {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 2rem;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.5rem;
   margin-bottom: 4rem;
+}
+
+@media (max-width: 1200px) {
+  .features {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 996px) {
+  .features {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .features {
+    grid-template-columns: 1fr;
+  }
 }
 
 .feature {
@@ -257,24 +275,463 @@
   border-color: rgba(255, 255, 255, 0.2);
 }
 
+/* SVG Icon Animations */
+.featureIcon svg {
+  display: block;
+  margin: 0 auto 1rem;
+}
+
+/* Chart Animations */
+.bar1, .bar2, .bar3, .bar4 {
+  animation: growBar 2s ease-out infinite;
+  transform-origin: bottom;
+}
+
+.bar1 { animation-delay: 0s; }
+.bar2 { animation-delay: 0.2s; }
+.bar3 { animation-delay: 0.4s; }
+.bar4 { animation-delay: 0.6s; }
+
+@keyframes growBar {
+  0%, 100% {
+    transform: scaleY(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scaleY(1.1);
+    opacity: 1;
+  }
+}
+
+.chartLine {
+  stroke-dasharray: 150;
+  stroke-dashoffset: 150;
+  animation: drawLine 3s ease-in-out infinite;
+}
+
+@keyframes drawLine {
+  0% {
+    stroke-dashoffset: 150;
+  }
+  50% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -150;
+  }
+}
+
+.chartDot1, .chartDot2, .chartDot3, .chartDot4 {
+  animation: pulseDot 2s ease-in-out infinite;
+}
+
+.chartDot1 { animation-delay: 0s; }
+.chartDot2 { animation-delay: 0.3s; }
+.chartDot3 { animation-delay: 0.6s; }
+.chartDot4 { animation-delay: 0.9s; }
+
+@keyframes pulseDot {
+  0%, 100% {
+    r: 4;
+    opacity: 0.8;
+  }
+  50% {
+    r: 6;
+    opacity: 1;
+  }
+}
+
+/* Paint Brush Animations */
+.paintBrush {
+  animation: paint 3s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@keyframes paint {
+  0%, 100% {
+    transform: rotate(-5deg) translateY(0);
+  }
+  25% {
+    transform: rotate(5deg) translateY(-5px);
+  }
+  50% {
+    transform: rotate(-5deg) translateY(2px);
+  }
+  75% {
+    transform: rotate(5deg) translateY(-3px);
+  }
+}
+
+.paint1, .paint2, .paint3 {
+  animation: splatter 4s ease-in-out infinite;
+}
+
+.paint1 { animation-delay: 0s; }
+.paint2 { animation-delay: 1.3s; }
+.paint3 { animation-delay: 2.6s; }
+
+@keyframes splatter {
+  0%, 100% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+}
+
+/* Search Magnifier Animations */
+.magnifier {
+  animation: searchMove 4s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@keyframes searchMove {
+  0%, 100% {
+    transform: rotate(0deg) scale(1);
+  }
+  25% {
+    transform: rotate(-10deg) scale(1.05);
+  }
+  50% {
+    transform: rotate(10deg) scale(1);
+  }
+  75% {
+    transform: rotate(-5deg) scale(1.05);
+  }
+}
+
+.sparkles circle {
+  animation: sparkle 2s ease-in-out infinite;
+}
+
+.sparkles circle:nth-child(1) { animation-delay: 0s; }
+.sparkles circle:nth-child(2) { animation-delay: 0.5s; }
+.sparkles circle:nth-child(3) { animation-delay: 1s; }
+.sparkles circle:nth-child(4) { animation-delay: 1.5s; }
+
+@keyframes sparkle {
+  0%, 100% {
+    opacity: 0;
+    transform: scale(0);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.aiGlow, .aiGlow2 {
+  animation: glowPulse 3s ease-in-out infinite;
+}
+
+.aiGlow { animation-delay: 0s; }
+.aiGlow2 { animation-delay: 1.5s; }
+
+@keyframes glowPulse {
+  0%, 100% {
+    opacity: 0.5;
+    transform: rotate(0deg) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: rotate(45deg) scale(1.2);
+  }
+}
+
+/* Lightning Bolt Animations */
+.lightning {
+  animation: strike 3s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@keyframes strike {
+  0%, 100% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  51% {
+    opacity: 0.3;
+  }
+  52% {
+    opacity: 1;
+  }
+}
+
+.pulse1, .pulse2 {
+  animation: ringPulse 2s ease-out infinite;
+  transform-origin: center;
+}
+
+.pulse1 { animation-delay: 0s; }
+.pulse2 { animation-delay: 1s; }
+
+@keyframes ringPulse {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1.2);
+    opacity: 0;
+  }
+}
+
+/* Smart Filtering Animations */
+.filterBar1, .filterBar2, .filterBar3, .filterBar4, .filterBar5 {
+  animation: slideFilter 3s ease-in-out infinite;
+}
+
+.filterBar1 { animation-delay: 0s; }
+.filterBar2 { animation-delay: 0.3s; }
+.filterBar3 { animation-delay: 0.6s; }
+.filterBar4 { animation-delay: 0.9s; }
+.filterBar5 { animation-delay: 1.2s; }
+
+@keyframes slideFilter {
+  0%, 100% {
+    transform: scaleX(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scaleX(1.1);
+    opacity: 1;
+  }
+}
+
+.filterDot {
+  animation: filterPulse 2s ease-in-out infinite;
+}
+
+@keyframes filterPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+}
+
+.checkMark {
+  animation: checkDraw 2s ease-in-out infinite;
+  stroke-dasharray: 20;
+  stroke-dashoffset: 20;
+}
+
+@keyframes checkDraw {
+  0% {
+    stroke-dashoffset: 20;
+  }
+  50%, 100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Multi-Transport Animations */
+.transportLine1, .transportLine2, .transportLine3 {
+  animation: flowData 2s ease-in-out infinite;
+  stroke-dasharray: 30;
+  stroke-dashoffset: 30;
+}
+
+.transportLine1 { animation-delay: 0s; }
+.transportLine2 { animation-delay: 0.3s; }
+.transportLine3 { animation-delay: 0.6s; }
+
+@keyframes flowData {
+  0% {
+    stroke-dashoffset: 30;
+    opacity: 0.3;
+  }
+  50% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: -30;
+    opacity: 0.3;
+  }
+}
+
+.dataPoint1, .dataPoint2, .dataPoint3, .dataPoint4 {
+  animation: dataPulse 2s ease-in-out infinite;
+}
+
+.dataPoint1 { animation-delay: 0s; }
+.dataPoint2 { animation-delay: 0.5s; }
+.dataPoint3 { animation-delay: 1s; }
+.dataPoint4 { animation-delay: 1.5s; }
+
+@keyframes dataPulse {
+  0%, 100% {
+    r: 2;
+    opacity: 0.5;
+  }
+  50% {
+    r: 4;
+    opacity: 1;
+  }
+}
+
+.transportGroup {
+  animation: transportRotate 20s linear infinite;
+  transform-origin: center;
+}
+
+@keyframes transportRotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Context & Metadata Animations */
+.contextLayer1, .contextLayer2 {
+  animation: contextPulse 3s ease-in-out infinite;
+}
+
+.contextLayer1 { animation-delay: 0s; }
+.contextLayer2 { animation-delay: 0.5s; }
+
+@keyframes contextPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+}
+
+.contextCore {
+  animation: contextGlow 2s ease-in-out infinite;
+}
+
+@keyframes contextGlow {
+  0%, 100% {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+.contextDot1, .contextDot2, .contextDot3, .contextDot4 {
+  animation: contextBlink 3s ease-in-out infinite;
+}
+
+.contextDot1 { animation-delay: 0s; }
+.contextDot2 { animation-delay: 0.5s; }
+.contextDot3 { animation-delay: 1s; }
+.contextDot4 { animation-delay: 1.5s; }
+
+@keyframes contextBlink {
+  0%, 100% {
+    opacity: 0;
+    transform: scale(0);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Log Rotation Animations */
+.rotatePath {
+  animation: rotateProgress 4s ease-in-out infinite;
+  stroke-dasharray: 40;
+  stroke-dashoffset: 40;
+}
+
+@keyframes rotateProgress {
+  0% {
+    stroke-dashoffset: 40;
+  }
+  50% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -40;
+  }
+}
+
+.fileStack {
+  animation: stackShift 4s ease-in-out infinite;
+}
+
+@keyframes stackShift {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+.activeFile {
+  animation: fileHighlight 2s ease-in-out infinite;
+}
+
+@keyframes fileHighlight {
+  0%, 100% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scaleX(1.05);
+  }
+}
+
+.arrowHead {
+  animation: arrowPulse 2s ease-in-out infinite;
+}
+
+@keyframes arrowPulse {
+  0%, 100% {
+    transform: rotate(0deg) scale(1);
+  }
+  50% {
+    transform: rotate(5deg) scale(1.2);
+  }
+}
+
+/* Hover effects for feature cards */
+.feature:hover .featureIcon svg {
+  transform: scale(1.1);
+  transition: transform 0.3s ease;
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
   .title {
     font-size: 2.5rem;
   }
-  
+
   .subtitle {
     font-size: 1.2rem;
   }
-  
+
   .features {
     grid-template-columns: 1fr;
   }
-  
+
   .emailForm {
     flex-direction: column;
   }
-  
+
   .emailInput {
     width: 100%;
   }

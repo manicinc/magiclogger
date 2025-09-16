@@ -42,6 +42,13 @@ export class Colorizer {
   private static codeCache: Map<string, string> = new Map();
 
   /**
+   * Fast-path cache for single colors (most common case).
+   * @private
+   * @static
+   */
+  private static singleColorCache: Map<string, string> = new Map();
+
+  /**
    * Whether the terminal supports colors.
    * @private
    * @static
@@ -66,9 +73,19 @@ export class Colorizer {
   public static color(text: string, color: ColorName, useColors = true): string {
     if (!useColors || !text) return text;
 
-    // Get color code, or empty string if color is invalid
-    const colorCode = COLORS[color] || '';
-    return colorCode ? `${colorCode}${text}${COLORS.reset}` : text;
+    // OPTIMIZATION: Check single color cache first
+    let cached = this.singleColorCache.get(color);
+    if (!cached) {
+      const colorCode = COLORS[color] || '';
+      if (colorCode) {
+        cached = `${colorCode}__TEXT__${COLORS.reset}`;
+        if (this.singleColorCache.size < this.MAX_CACHE_SIZE) {
+          this.singleColorCache.set(color, cached);
+        }
+      }
+    }
+
+    return cached ? cached.replace('__TEXT__', text) : text;
   }
 
   /**
@@ -95,73 +112,91 @@ export class Colorizer {
    * @returns Text with all styles applied
    */
   public static applyColors(text: string, colors: ColorName[], useColors = true): string {
-    if (!useColors || !text || !colors || colors.length === 0) return text;
+    // OPTIMIZATION: Early return checks combined
+    if (!useColors || !text || !colors?.length) return text;
 
-    const cacheKey = colors.join(',');
+    // OPTIMIZATION: Use faster cache key generation for common cases
+    const cacheKey = colors.length === 1 ? (colors[0] as string) : colors.join(',');
     let cachedCodes = this.codeCache.get(cacheKey);
 
     if (!cachedCodes) {
-      let result = '';
+      // OPTIMIZATION: Pre-allocate array for better performance
+      const codes: string[] = [];
 
-      // Apply each color code in sequence
-      for (const color of colors) {
+      // OPTIMIZATION: Use for loop instead of for-of (faster)
+      for (let i = 0; i < colors.length; i++) {
+        const color = colors[i];
         if (typeof color !== 'string') continue;
 
-        let colorCode: string | undefined;
-
-        // Normalize common aliases so fallbacks like 'gray' are honored
-        const normalized = ((): string => {
-          switch (color) {
-            case 'grey':
-              return 'gray';
-            case 'inverse':
-              return 'reverse';
-            default:
-              return color as string;
-          }
-        })();
-
-        // Use direct style/color if available; COLORS proxy already consults support
-        const direct = COLORS[normalized as keyof typeof COLORS];
-        if (direct) {
-          colorCode = direct;
+        // OPTIMIZATION: Inline normalization for common cases
+        let normalized: string;
+        if (color === 'grey') {
+          normalized = 'gray';
+        } else if (color === 'inverse') {
+          normalized = 'reverse';
         } else {
-          // Check for custom colors (lazily loaded)
-          const customCode = this.getCustomColorCode(normalized);
-          if (customCode) {
-            colorCode = customCode;
-          } else {
-            // Try fallback style. Prefer raw ANSI when it's a style (e.g., 'underline', 'dim').
-            // If the fallback is a color (e.g., 'gray'), consult COLORS to obtain its code.
+          normalized = color as string;
+        }
+
+        // OPTIMIZATION: Direct lookup first (most common case)
+        let colorCode = COLORS[normalized as keyof typeof COLORS];
+
+        // Check if style is supported, use fallback if not
+        if (colorCode && (normalized === 'italic' || normalized === 'strikethrough')) {
+          // Check if this style is supported by the terminal
+          const isSupported = terminalUtils.isStyleSupported(normalized);
+          if (!isSupported) {
+            // Use fallback style instead
             const fallbackStyle = this.getFallbackStyleInternal(normalized);
-            if (fallbackStyle) {
-              if (RAW_STYLE_MAP[fallbackStyle]) {
-                colorCode = RAW_STYLE_MAP[fallbackStyle];
-              } else {
-                const fbDirect = COLORS[fallbackStyle as keyof typeof COLORS];
-                if (fbDirect) {
-                  colorCode = fbDirect;
-                }
+            if (fallbackStyle && fallbackStyle !== normalized) {
+              const fallbackCode = RAW_STYLE_MAP[fallbackStyle] ||
+                        COLORS[fallbackStyle as keyof typeof COLORS];
+              if (fallbackCode) {
+                colorCode = fallbackCode;
+              }
+            }
+          }
+        }
+
+        // Only check alternatives if direct lookup failed
+        if (!colorCode) {
+          // OPTIMIZATION: Check raw styles before custom colors (faster)
+          colorCode = RAW_STYLE_MAP[normalized] || '';
+
+          if (!colorCode) {
+            // Check for custom colors (lazily loaded)
+            const customCode = this.getCustomColorCode(normalized);
+            if (customCode) {
+              colorCode = customCode;
+            } else {
+              // Last resort: try fallback style
+              const fallbackStyle = this.getFallbackStyleInternal(normalized);
+              if (fallbackStyle) {
+                colorCode = RAW_STYLE_MAP[fallbackStyle] ||
+                          COLORS[fallbackStyle as keyof typeof COLORS];
               }
             }
           }
         }
 
         if (colorCode) {
-          result += colorCode;
+          codes.push(colorCode);
         }
       }
 
-      cachedCodes = result;
-      this.addToCache(cacheKey, cachedCodes);
+      // OPTIMIZATION: Join once at the end
+      cachedCodes = codes.join('');
+      if (cachedCodes) {
+        this.addToCache(cacheKey, cachedCodes);
+      }
     }
 
-    // If no codes resolved (unsupported styles mapping to 'normal' etc.), return text unchanged
+    // If no codes resolved, return text unchanged
     if (!cachedCodes) {
       return text;
     }
 
-    // Append the text and reset code
+    // OPTIMIZATION: Single string template for final result
     return `${cachedCodes}${text}${COLORS.reset}`;
   }
 
@@ -352,6 +387,7 @@ export class Colorizer {
    */
   public static clearCache(): void {
     this.codeCache.clear();
+    this.singleColorCache.clear();
   }
 
   /**

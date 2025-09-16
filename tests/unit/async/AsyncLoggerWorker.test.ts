@@ -7,8 +7,7 @@ import type { LogEntry } from '../../../src/types/transport';
 const buildEntries = (n: number): LogEntry[] =>
   Array.from({ length: n }, (_, i) => ({
     id: `${Date.now()}-${i}`,
-    timestamp: Date.now(),
-    timestampMs: Date.now(),
+        timestamp: Date.now(),
     level: 'info',
     message: `msg-${i}`,
   }));
@@ -132,7 +131,6 @@ describe('AsyncLoggerWorker core behavior', () => {
       const circularEntry: LogEntry = {
         id: 'x',
         timestamp: Date.now(),
-        timestampMs: Date.now(),
         level: 'info',
         message: 'c',
         context: { circular },

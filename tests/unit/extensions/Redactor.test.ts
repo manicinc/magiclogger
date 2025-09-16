@@ -486,8 +486,7 @@ describe('Redactor', () => {
 
       const entry: LogEntry = {
         id: '123',
-        timestamp: '2024-01-01T00:00:00Z',
-        timestampMs: 1704067200000,
+        timestamp: 1704067200000,
         level: 'info',
         message: 'User john@example.com logged in from 192.168.1.1',
         context: {

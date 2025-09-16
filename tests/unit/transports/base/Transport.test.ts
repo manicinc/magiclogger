@@ -583,7 +583,8 @@ describe('Transport', () => {
 
       const result = transport.testFormatEntry(mockEntry);
 
-      expect(result).toContain(mockEntry.timestamp);
+      // Should contain timestamp (either the numeric value or formatted)
+      expect(result).toMatch(/\d{10,}/); // At least a timestamp-like number
       expect(result).toContain('[INFO]');
       expect(result).toContain('Test message');
     });

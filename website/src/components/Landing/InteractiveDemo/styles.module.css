@@ -551,24 +551,43 @@
 .tab {
   flex: 1;
   padding: 0.75rem 1rem;
-  background: none;
+  background: rgba(255, 255, 255, 0.1);
   border: none;
   border-bottom: 2px solid transparent;
   cursor: pointer;
   font-weight: 600;
-  color: #6b7280;
+  color: rgba(255, 255, 255, 0.8);  /* Light text for purple background */
   transition: all 0.3s ease;
 }
 
 .tab:hover {
-  color: #374151;
-  background: #f9fafb;
+  color: rgba(255, 255, 255, 0.95);  /* Brighter white on hover */
+  background: rgba(255, 255, 255, 0.15);
 }
 
 .tab.active {
-  color: #667eea;
-  border-bottom-color: #667eea;
-  background: #f8faff;
+  color: #ffffff;  /* Pure white for active tab */
+  border-bottom-color: #ffffff;
+  background: rgba(255, 255, 255, 0.2);
+  font-weight: 700;
+}
+
+/* Dark mode uses same colors since background is always purple */
+:global([data-theme='dark']) .tab {
+  color: rgba(255, 255, 255, 0.8);  /* Same as light mode */
+  background: rgba(255, 255, 255, 0.1);
+}
+
+:global([data-theme='dark']) .tab:hover {
+  color: rgba(255, 255, 255, 0.95);  /* Same as light mode */
+  background: rgba(255, 255, 255, 0.15);
+}
+
+:global([data-theme='dark']) .tab.active {
+  color: #ffffff;  /* Same as light mode */
+  border-bottom-color: #ffffff;
+  background: rgba(255, 255, 255, 0.2);
+  font-weight: 700;
 }
 
 .tabContent {
@@ -722,11 +741,23 @@
   cursor: pointer;
   transition: all 0.3s ease;
   color: #333;
+  opacity: 1;
 }
 
 .tabButton:hover {
   background: rgba(0, 0, 0, 0.08);
   color: #000;
+}
+
+/* Dark mode support for tabs - much whiter text */
+:global([data-theme='dark']) .tabButton {
+  color: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+:global([data-theme='dark']) .tabButton:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
 }
 
 .activeTab {

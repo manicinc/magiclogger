@@ -28,13 +28,13 @@ const sidebars = {
       type: 'category',
       label: '📖 API & Usage',
       items: [
-        'api-reference',
-        'advanced-usage',
         {
           type: 'link',
-          label: 'Full API Documentation',
-          href: '/api/',
+          label: 'Full API Documentation ↗',
+          href: 'pathname:///api/',
         },
+        'api-reference',
+        'advanced-usage',
       ],
     },
     {
@@ -68,7 +68,7 @@ const sidebars = {
   ],
   // Add TypeDoc API sidebar if it exists and has valid items
   ...(typedocSidebar && typedocSidebar.items && typedocSidebar.items.length > 0
-    ? { apiSidebar: typedocSidebar.items } 
+    ? { apiSidebar: typedocSidebar.items }
     : {}), // Don't create apiSidebar if TypeDoc hasn't been generated yet
 };
 

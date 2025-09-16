@@ -9,8 +9,7 @@ describe('RateLimiter', () => {
   const createEntry = (id: string, level: 'info' | 'error' = 'info'): LogEntry =>
     ({
       id,
-      timestamp: Date.now(),
-      timestampMs: Date.now(),
+        timestamp: Date.now(),
       level,
       message: `Message ${id}`,
       plainMessage: `Message ${id}`,

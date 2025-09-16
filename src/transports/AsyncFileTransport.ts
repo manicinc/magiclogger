@@ -223,16 +223,18 @@ export class AsyncFileTransport extends Transport {
   /**
    * Application-level batch buffer for improved performance.
    * Collects log entries before sending to sonic-boom.
+   * Pre-allocated for better performance.
    * @private
    */
   private batchBuffer: string[] = [];
+  private batchBufferSize = 0;  // Track size separately to avoid array operations
 
   /**
    * Maximum batch size before automatic flush.
    * Tuned for optimal performance vs latency tradeoff.
    * @private
    */
-  private readonly batchSize = 100;
+  private readonly batchSize = 1000;
 
   /**
    * Timer for periodic batch flushing.
@@ -246,7 +248,7 @@ export class AsyncFileTransport extends Transport {
    * Low value ensures minimal latency for real-time logs.
    * @private
    */
-  private readonly batchInterval = 10;
+  private readonly batchInterval = 5;
 
   /**
    * Creates a new AsyncFileTransport instance.
@@ -273,8 +275,8 @@ export class AsyncFileTransport extends Transport {
       filepath: options.filepath,
       enabled: options.enabled !== false,
       level: options.level || 'debug',
-      minLength: options.minLength || options.bufferSize || 4096, // 4KB default minLength
-      maxWrite: options.maxWrite || 16384, // 16KB default maxWrite
+      minLength: options.minLength || options.bufferSize || 16384, // 16KB default minLength for better batching
+      maxWrite: options.maxWrite || 65536, // 64KB default maxWrite for larger batches
       mkdir: options.mkdir !== false,
       retryEAGAIN: options.retryEAGAIN !== false,
       mode: options.mode || 0o666,
@@ -330,7 +332,7 @@ export class AsyncFileTransport extends Transport {
       // Create sonic-boom instance with our configuration
       // Note: sonic-boom runs in the main thread, not worker threads
       // This eliminates IPC overhead and provides better performance
-      const sonic = new (SonicBoom as unknown as { new (opts: Record<string, unknown>): unknown })({
+      const sonic = new (SonicBoom as any)({
         dest: this.options.filepath,
         append: this.options.append,
         mkdir: this.options.mkdir,
@@ -340,7 +342,7 @@ export class AsyncFileTransport extends Transport {
         mode: this.options.mode,
         sync: false, // Always async for non-blocking I/O
         fsync: this.options.fsync, // Optional fsync for durability
-      });
+      }) as SonicBoom;
 
       // Handle sonic-boom errors gracefully
       sonic.on('error', (err: Error) => {
@@ -353,7 +355,7 @@ export class AsyncFileTransport extends Transport {
       });
 
       // Track successful writes for monitoring
-      sonic.on('write', (bytes: number) => {
+      (sonic as any).on('write', (bytes: number) => {
         this.stats.succeeded++;
 
         // Initialize custom stats if needed
@@ -369,7 +371,7 @@ export class AsyncFileTransport extends Transport {
       });
 
       // Handle ready event for initialization tracking
-      sonic.on('ready', () => {
+      (sonic as any).on('ready', () => {
         // Sonic-boom is ready to accept writes
         if (!this.stats.custom) {
           this.stats.custom = {};
@@ -471,7 +473,7 @@ export class AsyncFileTransport extends Transport {
    */
   private addToBatch(line: string): void {
     // Add to batch buffer
-    this.batchBuffer.push(line);
+    this.batchBuffer[this.batchBufferSize++] = line;
 
     // Start batch timer if not already running
     if (!this.batchTimer && this.batchInterval > 0) {
@@ -481,7 +483,7 @@ export class AsyncFileTransport extends Transport {
     }
 
     // Flush if batch is full
-    if (this.batchBuffer.length >= this.batchSize) {
+    if (this.batchBufferSize >= this.batchSize) {
       this.flushBatch();
     }
   }
@@ -504,7 +506,7 @@ export class AsyncFileTransport extends Transport {
    * @private
    */
   private flushBatch(): void {
-    if (this.batchBuffer.length === 0 || !this.sonic) {
+    if (this.batchBufferSize === 0 || !this.sonic) {
       return;
     }
 
@@ -515,11 +517,11 @@ export class AsyncFileTransport extends Transport {
     }
 
     try {
-      // Concatenate all lines in batch
-      const batchData = this.batchBuffer.join('');
+      // Concatenate only the filled portion
+      const batchData = this.batchBuffer.slice(0, this.batchBufferSize).join('');
 
-      // Clear buffer immediately to allow new logs during write
-      this.batchBuffer = [];
+      // Reset buffer counter
+      this.batchBufferSize = 0;
 
       // Write entire batch to sonic-boom
       const written = this.sonic.write(batchData);
@@ -664,7 +666,7 @@ export class AsyncFileTransport extends Transport {
       // Format based on configured format option
       if (this.options.format === 'plain') {
         // Human-readable plain text format
-        const timestamp = new Date(entry.timestamp || Date.now()).toISOString();
+        const timestamp = new Date((entry as any).timestamp || (entry as any).time || Date.now()).toISOString();
         const level = String(entry.level).toUpperCase().padEnd(5);
         const message = entry.message || '';
         const context = entry.context ? ` ${JSON.stringify(entry.context)}` : '';
