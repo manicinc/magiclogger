@@ -2,6 +2,9 @@
 
 <p align="center">
   <img src="website/static/img/magiclog-primary-no-subtitle-transparent-4x.png" alt="MagicLog" width="520"/>
+ <img src="https://img.shields.io/badge/core_gzip-46kb-brightgreen.svg" alt="core_gzip">
+ <img src="https://img.shields.io/badge/core_console_gzip-46kb-brightgreen.svg" alt="core_console_gzip">
+ <img src="https://img.shields.io/badge/core_transports_gzip-50kb-brightgreen.svg" alt="core_transports_gzip">
 </p>
 
 <p align="center">
@@ -11,9 +14,9 @@
 
 <p align="center">
   <!-- Bundle Sizes -->
-  <img src="https://img.shields.io/badge/core_gzip-36kb-brightgreen.svg" alt="core_gzip">
-  <img src="https://img.shields.io/badge/core_console_gzip-36kb-brightgreen.svg" alt="core_console_gzip">
-  <img src="https://img.shields.io/badge/core_transports_gzip-41kb-brightgreen.svg" alt="core_transports_gzip">
+  <img src="https://img.shields.io/badge/core_gzip-47.1kb-brightgreen.svg" alt="core_gzip">
+  <img src="https://img.shields.io/badge/core_console_gzip-47.1kb-brightgreen.svg" alt="core_console_gzip">
+  <img src="https://img.shields.io/badge/core_transports_gzip-51.2kb-brightgreen.svg" alt="core_transports_gzip">
 </p>
 
 <p align="center">
@@ -1433,65 +1436,29 @@ MIT © [Manic.agency](https://manic.agency)
 
 | Scenario | Size |
 |----------|------|
-| Core (bare minimum) | 47 kB |
-| Core + Console Transport | 47 kB |
-| Core + File Transport | 47 kB |
+| Core (bare minimum) | 47.1 kB |
+| Core + Console Transport | 47.1 kB |
+| Core + File Transport | 47.1 kB |
 | Core + HTTP Transport | 49.7 kB |
-| Core + All Basic Transports | 51.1 kB |
+| Core + All Basic Transports | 51.2 kB |
 
 *Generated via `scripts/analyze-build.js`.*
 
 | File | Format | Raw Size | Gzip |
 |------|--------|----------|------|
 | `index.cjs` | CJS | 10.7 kB | 2.35 kB |
-| `index.js` | ESM | 6.46 kB | 1.93 kB |
-| `index.d.ts` | Types | 178 kB | 37.9 kB |
+| `index.js` | ESM | 6.49 kB | 1.94 kB |
+| `index.d.ts` | Types | 180 kB | 38.2 kB |
 
 ### Core Bundle Sizes (gzipped)
 
 | Scenario | Size |
 |----------|------|
-| Core (bare minimum) | 43.5 kB |
-| Core + Console Transport | 43.5 kB |
-| Core + File Transport | 43.5 kB |
-| Core + HTTP Transport | 46.1 kB |
-| Core + All Basic Transports | 47.6 kB |
-
-*Generated via `scripts/analyze-build.js`.*
-
-| File | Format | Raw Size | Gzip |
-|------|--------|----------|------|
-| `index.cjs` | CJS | 10.7 kB | 2.34 kB |
-| `index.js` | ESM | 6.46 kB | 1.93 kB |
-| `index.d.ts` | Types | 178 kB | 37.8 kB |
-
-### Core Bundle Sizes (gzipped)
-
-| Scenario | Size |
-|----------|------|
-| Core (bare minimum) | 43.3 kB |
-| Core + Console Transport | 43.3 kB |
-| Core + File Transport | 43.3 kB |
-| Core + HTTP Transport | 45.9 kB |
-| Core + All Basic Transports | 47.4 kB |
-
-*Generated via `scripts/analyze-build.js`.*
-
-| File | Format | Raw Size | Gzip |
-|------|--------|----------|------|
-| `index.cjs` | CJS | 9.87 kB | 2.24 kB |
-| `index.js` | ESM | 6.23 kB | 1.87 kB |
-| `index.d.ts` | Types | 132 kB | 28.1 kB |
-
-### Core Bundle Sizes (gzipped)
-
-| Scenario | Size |
-|----------|------|
-| Core (bare minimum) | 37.1 kB |
-| Core + Console Transport | 37.1 kB |
-| Core + File Transport | 38.6 kB |
-| Core + HTTP Transport | 39.7 kB |
-| Core + All Basic Transports | 42.1 kB |
+| Core (bare minimum) | 47.1 kB |
+| Core + Console Transport | 47.1 kB |
+| Core + File Transport | 47.1 kB |
+| Core + HTTP Transport | 49.7 kB |
+| Core + All Basic Transports | 51.2 kB |
 
 *Generated via `scripts/analyze-build.js`.*
 

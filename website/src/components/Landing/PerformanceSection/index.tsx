@@ -25,8 +25,8 @@ const benchmarks = {
       { name: 'Pino', value: 25, percentage: 49, color: '#4facfe', unit: 'KB' },
       { name: 'SyncLogger Only', value: 29.4, percentage: 58, color: '#764ba2', unit: 'KB' },
       { name: 'Winston', value: 44, percentage: 86, color: '#fee140', unit: 'KB' },
-      { name: 'MagicLogger Core', value: 47, percentage: 92, color: '#667eea', unit: 'KB' },
-      { name: 'MagicLogger + All', value: 51.1, percentage: 100, color: '#9945ff', unit: 'KB' },
+      { name: 'MagicLogger Core', value: 47.1, percentage: 92, color: '#667eea', unit: 'KB' },
+      { name: 'MagicLogger + All', value: 51.2, percentage: 100, color: '#9945ff', unit: 'KB' },
       { name: 'Bunyan', value: 65, percentage: 127, color: '#fa709a', unit: 'KB' }
     ]
   }

@@ -26,29 +26,32 @@ const config: Config = {
   onBrokenLinks: 'warn',
   onBrokenMarkdownLinks: 'warn',
 
-  // SEO metadata
-  metadata: [
-    { name: 'keywords', content: 'logger, logging, typescript logger, javascript logger, node logger, nodejs logging, colorful logs, styled logs, terminal colors, console colors, structured logging, json logging, ndjson, log levels, debug logging, production logging, async logger, sync logger, file logging, http logging, log transport, winston alternative, pino alternative, bunyan alternative, log4js alternative, morgan alternative, debug tool, development tool, monitoring, observability, opentelemetry, tracing, log aggregation, log analysis, terminal output, cli colors, ansi colors, chalk alternative, log formatting, log rotation, log filtering, performance logging, error tracking, application monitoring, pretty print, log viewer, log management, elasticsearch logging, mongodb logging, redis logging, kafka logging, syslog, remote logging, cloud logging, aws cloudwatch, google cloud logging, azure monitor, datadog, splunk, loggly, papertrail, log streaming, real-time logs, log dashboard, log metrics, log alerts, typescript, javascript, node.js, npm package, open source, MIT license' },
-    { name: 'author', content: 'Manic.agency' },
-    { name: 'publisher', content: 'Manic.agency' },
-    { name: 'copyright', content: 'Manic.agency' },
-    { name: 'description', content: 'MagicLogger - A beautiful, fast, and feature-rich TypeScript/JavaScript logging library with colorful terminal output, structured JSON logging, multiple transports, and production-ready performance. Perfect alternative to Winston, Pino, and Bunyan.' },
-    { name: 'robots', content: 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1' },
-    { name: 'googlebot', content: 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1' },
-    { property: 'og:type', content: 'website' },
-    { property: 'og:site_name', content: 'MagicLog' },
-    { property: 'og:url', content: 'https://magiclog.io' },
-    { property: 'og:title', content: 'MagicLog - Beautiful TypeScript & JavaScript Logging Library' },
-    { property: 'og:description', content: 'The most colorful and feature-rich logging library for TypeScript and JavaScript. Beautiful terminal output, structured JSON, multiple transports, and blazing fast performance.' },
-    { property: 'og:image', content: 'https://magiclog.io/img/magiclog-primary-no-subtitle-white-4x.png' },
-    { property: 'og:image:alt', content: 'MagicLog Logo' },
-    { name: 'twitter:card', content: 'summary_large_image' },
-    { name: 'twitter:site', content: '@manicagency' },
-    { name: 'twitter:creator', content: '@manicagency' },
-    { name: 'twitter:title', content: 'MagicLog - Beautiful TypeScript & JavaScript Logging' },
-    { name: 'twitter:description', content: 'The most colorful logging library for TypeScript/JavaScript with styled terminal output and structured JSON logging.' },
-    { name: 'twitter:image', content: 'https://magiclog.io/img/magiclog-primary-no-subtitle-white-4x.png' },
-  ],
+  // Custom fields for additional data
+  customFields: {
+    // SEO metadata moved here from deprecated metadata field
+    metadata: [
+      { name: 'keywords', content: 'logger, logging, typescript logger, javascript logger, node logger, nodejs logging, colorful logs, styled logs, terminal colors, console colors, structured logging, json logging, ndjson, log levels, debug logging, production logging, async logger, sync logger, file logging, http logging, log transport, winston alternative, pino alternative, bunyan alternative, log4js alternative, morgan alternative, debug tool, development tool, monitoring, observability, opentelemetry, tracing, log aggregation, log analysis, terminal output, cli colors, ansi colors, chalk alternative, log formatting, log rotation, log filtering, performance logging, error tracking, application monitoring, pretty print, log viewer, log management, elasticsearch logging, mongodb logging, redis logging, kafka logging, syslog, remote logging, cloud logging, aws cloudwatch, google cloud logging, azure monitor, datadog, splunk, loggly, papertrail, log streaming, real-time logs, log dashboard, log metrics, log alerts, typescript, javascript, node.js, npm package, open source, MIT license' },
+      { name: 'author', content: 'Manic.agency' },
+      { name: 'publisher', content: 'Manic.agency' },
+      { name: 'copyright', content: 'Manic.agency' },
+      { name: 'description', content: 'MagicLogger - A beautiful, fast, and feature-rich TypeScript/JavaScript logging library with colorful terminal output, structured JSON logging, multiple transports, and production-ready performance. Perfect alternative to Winston, Pino, and Bunyan.' },
+      { name: 'robots', content: 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1' },
+      { name: 'googlebot', content: 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1' },
+      { property: 'og:type', content: 'website' },
+      { property: 'og:site_name', content: 'MagicLog' },
+      { property: 'og:url', content: 'https://magiclog.io' },
+      { property: 'og:title', content: 'MagicLog - Beautiful TypeScript & JavaScript Logging Library' },
+      { property: 'og:description', content: 'The most colorful and feature-rich logging library for TypeScript and JavaScript. Beautiful terminal output, structured JSON, multiple transports, and blazing fast performance.' },
+      { property: 'og:image', content: 'https://magiclog.io/img/magiclog-primary-no-subtitle-white-4x.png' },
+      { property: 'og:image:alt', content: 'MagicLog Logo' },
+      { name: 'twitter:card', content: 'summary_large_image' },
+      { name: 'twitter:site', content: '@manicagency' },
+      { name: 'twitter:creator', content: '@manicagency' },
+      { name: 'twitter:title', content: 'MagicLog - Beautiful TypeScript & JavaScript Logging' },
+      { name: 'twitter:description', content: 'The most colorful logging library for TypeScript/JavaScript with styled terminal output and structured JSON logging.' },
+      { name: 'twitter:image', content: 'https://magiclog.io/img/magiclog-primary-no-subtitle-white-4x.png' },
+    ],
+  },
 
   headTags: [
     {
