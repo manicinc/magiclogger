@@ -149,8 +149,8 @@ export class Colorizer {
             // Use fallback style instead
             const fallbackStyle = this.getFallbackStyleInternal(normalized);
             if (fallbackStyle && fallbackStyle !== normalized) {
-              const fallbackCode = RAW_STYLE_MAP[fallbackStyle] ||
-                        COLORS[fallbackStyle as keyof typeof COLORS];
+              const fallbackCode =
+                RAW_STYLE_MAP[fallbackStyle] || COLORS[fallbackStyle as keyof typeof COLORS];
               if (fallbackCode) {
                 colorCode = fallbackCode;
               }
@@ -172,8 +172,8 @@ export class Colorizer {
               // Last resort: try fallback style
               const fallbackStyle = this.getFallbackStyleInternal(normalized);
               if (fallbackStyle) {
-                colorCode = RAW_STYLE_MAP[fallbackStyle] ||
-                          COLORS[fallbackStyle as keyof typeof COLORS];
+                colorCode =
+                  RAW_STYLE_MAP[fallbackStyle] || COLORS[fallbackStyle as keyof typeof COLORS];
               }
             }
           }

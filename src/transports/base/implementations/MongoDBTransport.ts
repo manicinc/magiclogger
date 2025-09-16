@@ -457,9 +457,10 @@ export class MongoDBTransport extends NetworkTransport {
 
       // Convert timestamp to Date object for better querying
       if (doc.timestamp) {
-        (doc as Record<string, unknown>)._timestamp = typeof doc.timestamp === 'string'
-          ? new Date(doc.timestamp)
-          : new Date(doc.timestamp as number);
+        (doc as Record<string, unknown>)._timestamp =
+          typeof doc.timestamp === 'string'
+            ? new Date(doc.timestamp)
+            : new Date(doc.timestamp as number);
       }
 
       return doc;

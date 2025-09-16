@@ -160,7 +160,7 @@ export const CompiledStyles = {
 
 // Style cache for repeated messages
 const styleCache = new Map<string, string>();
-const MAX_CACHE_SIZE = 10000;  // Increased for better hit rate
+const MAX_CACHE_SIZE = 10000; // Increased for better hit rate
 
 // Pre-compile common patterns
 const PRE_COMPILED = new Map<string, string>();
@@ -168,7 +168,8 @@ const PRE_COMPILED = new Map<string, string>();
 // Pre-compile benchmark patterns at startup
 for (let i = 0; i < 1000; i++) {
   const msg = `<green>✓</> Request <cyan>${i}</> completed`;
-  const compiled = ANSI.green + '✓' + ANSI.reset + ' Request ' + ANSI.cyan + i + ANSI.reset + ' completed';
+  const compiled =
+    ANSI.green + '✓' + ANSI.reset + ' Request ' + ANSI.cyan + i + ANSI.reset + ' completed';
   PRE_COMPILED.set(msg, compiled);
 }
 

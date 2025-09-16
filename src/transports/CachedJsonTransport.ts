@@ -60,9 +60,11 @@ export class CachedJsonTransport implements Transport {
   private needsJson(): boolean {
     // Check transport type or name
     const transportName = this.transport.constructor.name.toLowerCase();
-    return transportName.includes('file') ||
-           transportName.includes('http') ||
-           transportName.includes('json');
+    return (
+      transportName.includes('file') ||
+      transportName.includes('http') ||
+      transportName.includes('json')
+    );
   }
 
   /**

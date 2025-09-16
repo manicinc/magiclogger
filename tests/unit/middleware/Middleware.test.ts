@@ -110,7 +110,7 @@ describe('Middleware', () => {
   beforeEach(() => {
     mockEntry = {
       id: 'test-123',
-        timestamp: 1704067200000,
+      timestamp: 1704067200000,
       level: 'info',
       message: 'Test message',
       loggerId: 'test-logger',

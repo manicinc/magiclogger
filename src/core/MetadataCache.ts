@@ -39,7 +39,7 @@ export class MetadataCache {
     hits: 0,
     misses: 0,
     evictions: 0,
-    size: 0
+    size: 0,
   };
 
   // Configuration
@@ -219,7 +219,10 @@ export class MetadataCache {
 
     // For larger objects, use shape + sample values
     const shape = this.getShape(obj);
-    const sample = keys.slice(0, 3).map(k => `${k}:${obj[k]}`).join(',');
+    const sample = keys
+      .slice(0, 3)
+      .map(k => `${k}:${obj[k]}`)
+      .join(',');
     return `${shape}::${sample}`;
   }
 
@@ -267,7 +270,8 @@ export class MetadataCache {
   getStats(): CacheStats {
     return {
       ...this.stats,
-      size: this.shapeCache.size + this.stringPool.size + this.frozenCache.size + this.jsonCache.size
+      size:
+        this.shapeCache.size + this.stringPool.size + this.frozenCache.size + this.jsonCache.size,
     };
   }
 
@@ -289,7 +293,7 @@ export class MetadataCache {
       hits: 0,
       misses: 0,
       evictions: 0,
-      size: 0
+      size: 0,
     };
   }
 }
