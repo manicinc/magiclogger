@@ -117,6 +117,6 @@ export type {
   HTTPTransportOptions,
   StreamTransportOptions,
 } from './types/transport';
-export type { AsyncFileTransportOptions as FileTransportOptions } from './transports/AsyncFileTransport';
-export type { WorkerFileTransportOptions } from './transports/WorkerFileTransport';
+export type { AsyncFileTransportOptions as FileTransportOptions } from './transports/base/implementations/AsyncFileTransport';
+export type { WorkerFileTransportOptions } from './transports/base/implementations/WorkerFileTransport';
 export type { OTLPTransportOptions } from './transports/otlp';
