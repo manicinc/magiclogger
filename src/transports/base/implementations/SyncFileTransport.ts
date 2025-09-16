@@ -21,8 +21,8 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { Transport } from './base/Transport';
-import type { LogEntry, LogLevel, MinimalLogEntry, TransportStats } from '../types/transport';
+import { Transport } from '../Transport';
+import type { LogEntry, LogLevel, MinimalLogEntry, TransportStats } from '../../../types/transport';
 
 /**
  * Extended statistics interface for SyncFileTransport

@@ -1,4 +1,4 @@
-import { Emitter } from '../../../src/core/events-compat';
+import { Emitter } from '../../../src/utils/events-compat';
 
 describe('events-compat', () => {
   let emitter: InstanceType<typeof Emitter>;

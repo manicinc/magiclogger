@@ -55,8 +55,8 @@ import { processStylesFast } from '../utils/CompiledStyles';
 import type { IStyleBuilder, TemplateFormatter } from '../types/styling';
 import type { LogEntry, Transport } from '../types/transport';
 import type { LogLevel } from '../types/logger';
-import { globalMetadataCache } from '../core/MetadataCache';
-import { SyncConsoleTransport } from '../transports/SyncConsoleTransport';
+import { globalMetadataCache } from '../utils/MetadataCache';
+import { SyncConsoleTransport } from '../transports/base/implementations/SyncConsoleTransport';
 import { WorkerTransport } from '../transports/worker/WorkerTransport';
 
 // Performance optimization: Use Date.now() directly for simplicity

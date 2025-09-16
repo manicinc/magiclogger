@@ -5,8 +5,8 @@
  * for improved performance with structured logging.
  */
 
-import type { Transport, LogEntry } from '../types/transport';
-import { globalMetadataCache } from '../core/MetadataCache';
+import type { Transport, LogEntry } from '../../types/transport';
+import { globalMetadataCache } from '../../utils/MetadataCache';
 
 /**
  * Wraps a transport with JSON serialization caching

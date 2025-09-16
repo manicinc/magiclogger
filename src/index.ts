@@ -43,17 +43,17 @@ export type { AsyncLoggerOptions } from './async/AsyncLogger';
  * WorkerFileTransport provides worker thread isolation for CPU-intensive processing.
  * SyncFileTransport provides guaranteed synchronous writes.
  */
-export { SyncConsoleTransport } from './transports/SyncConsoleTransport';
-export { AsyncFileTransport as FileTransport } from './transports/AsyncFileTransport';
-export { AsyncFileTransport } from './transports/AsyncFileTransport';
-export { WorkerFileTransport } from './transports/WorkerFileTransport';
-export { SyncFileTransport } from './transports/SyncFileTransport';
-export { HTTPTransport } from './transports/HTTPTransport';
-export type { AsyncFileTransportOptions as FileTransportOptions } from './transports/AsyncFileTransport';
-export type { AsyncFileTransportOptions } from './transports/AsyncFileTransport';
-export type { WorkerFileTransportOptions } from './transports/WorkerFileTransport';
-export type { SyncFileTransportOptions } from './transports/SyncFileTransport';
-export type { HTTPTransportOptions } from './transports/HTTPTransport';
+export { SyncConsoleTransport } from './transports/base/implementations/SyncConsoleTransport';
+export { AsyncFileTransport as FileTransport } from './transports/base/implementations/AsyncFileTransport';
+export { AsyncFileTransport } from './transports/base/implementations/AsyncFileTransport';
+export { WorkerFileTransport } from './transports/base/implementations/WorkerFileTransport';
+export { SyncFileTransport } from './transports/base/implementations/SyncFileTransport';
+export { HTTPTransport } from './transports/base/implementations/HTTPTransport';
+export type { AsyncFileTransportOptions as FileTransportOptions } from './transports/base/implementations/AsyncFileTransport';
+export type { AsyncFileTransportOptions } from './transports/base/implementations/AsyncFileTransport';
+export type { WorkerFileTransportOptions } from './transports/base/implementations/WorkerFileTransport';
+export type { SyncFileTransportOptions } from './transports/base/implementations/SyncFileTransport';
+export type { HTTPTransportOptions } from './transports/base/implementations/HTTPTransport';
 
 /**
  * Synchronous logger with blocking I/O.
@@ -219,8 +219,8 @@ export type { EnhanceConsoleOptions } from './utils/EnhancedConsole';
 /**
  * Table formatting utilities for beautiful tables, boxes, and lists.
  */
-export { TableFormatter } from './utils/TableFormatter';
-export type { TableOptions } from './utils/TableFormatter';
+export { TableFormatter } from './transports/formatters/TableFormatter';
+export type { TableOptions } from './transports/formatters/TableFormatter';
 
 /**
  * Style extraction and reconstruction utilities for MAGIC schema.

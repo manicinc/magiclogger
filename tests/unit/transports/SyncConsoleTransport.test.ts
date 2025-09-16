@@ -1,4 +1,4 @@
-import { SyncConsoleTransport } from '../../../src/transports/SyncConsoleTransport';
+import { SyncConsoleTransport } from '../../../src/transports/base/implementations/SyncConsoleTransport';
 import type { LogEntry } from '../../../src/types/transport';
 
 describe('SyncConsoleTransport', () => {

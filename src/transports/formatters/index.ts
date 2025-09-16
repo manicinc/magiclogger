@@ -5,6 +5,8 @@ import type { LogEntry } from '../../types/transport';
 import { CustomFormatter } from './BaseFormatter';
 export { CustomFormatter, FunctionFormatter, type ICustomFormatter } from './BaseFormatter';
 export { XMLFormatter } from './XMLFormatter';
+export { TableFormatter } from './TableFormatter';
+export type { TableOptions } from './TableFormatter';
 
 /**
  * CSV formatter for log entries.

@@ -3,7 +3,7 @@
  */
 
 import { FileTransport } from '../../../../../src/transports/file';
-import { AsyncFileTransport } from '../../../../../src/transports/AsyncFileTransport';
+import { AsyncFileTransport } from '../../../../../src/transports/base/implementations/AsyncFileTransport';
 import SonicBoom from 'sonic-boom';
 import type { LogEntry } from '../../../../../src/types/transport';
 

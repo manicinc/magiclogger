@@ -2,7 +2,7 @@
  * @fileoverview Tests for TableFormatter utility
  */
 
-import { TableFormatter } from '../../../src/utils/TableFormatter';
+import { TableFormatter } from '../../../../src/transports/formatters/TableFormatter';
 
 describe('TableFormatter', () => {
   describe('formatTable', () => {

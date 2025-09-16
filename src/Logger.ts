@@ -3,13 +3,13 @@
 import { TransportManager } from './transports/base/TransportManager';
 import type { Transport, MinimalLogEntry } from './types/transport';
 import { ConsoleTransport } from './transports/base/implementations/ConsoleTransport';
-import { AsyncFileTransport } from './transports/AsyncFileTransport';
+import { AsyncFileTransport } from './transports/base/implementations/AsyncFileTransport';
 import { Colorizer } from './core/Colorizer';
 import { Formatter } from './core/Formatter';
 import { StyleBuilder } from './core/StyleBuilder';
 import { TemplateParser } from './parsers/TemplateParser';
 import { TextStyler } from './utils/TextStyler';
-import { TableFormatter } from './utils/TableFormatter';
+import { TableFormatter } from './transports/formatters/TableFormatter';
 import type { LoggerOptions, LogLevel } from './types/logger';
 import type { StylePreset } from './types/preset';
 import type { ColorName } from './types/colors';
@@ -18,7 +18,7 @@ import { IS_PATH_REGEX } from './constants/paths';
 import { META_WRAPPER, type MetaArg } from './utils/meta';
 import { ThemeManager } from './theme/ThemeManager';
 import type { ThemeDefinition } from './types/theme';
-import { globalMetadataCache } from './core/MetadataCache';
+import { globalMetadataCache } from './utils/MetadataCache';
 // Object pooling removed - minimal objects don't need pooling
 
 // Performance-optimized imports for Node.js modules

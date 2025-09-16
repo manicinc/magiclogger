@@ -23,15 +23,15 @@
  */
 
 // FileTransport is an alias for AsyncFileTransport (the best default)
-export { AsyncFileTransport as FileTransport } from './AsyncFileTransport';
-export type { AsyncFileTransportOptions as FileTransportOptions } from './AsyncFileTransport';
+export { AsyncFileTransport as FileTransport } from './base/implementations/AsyncFileTransport';
+export type { AsyncFileTransportOptions as FileTransportOptions } from './base/implementations/AsyncFileTransport';
 
 // Also export the worker-based transport for explicit use
-export { WorkerFileTransport } from './WorkerFileTransport';
-export type { WorkerFileTransportOptions } from './WorkerFileTransport';
+export { WorkerFileTransport } from './base/implementations/WorkerFileTransport';
+export type { WorkerFileTransportOptions } from './base/implementations/WorkerFileTransport';
 
 // Import for internal use
-import { AsyncFileTransport as FileTransport } from './AsyncFileTransport';
+import { AsyncFileTransport as FileTransport } from './base/implementations/AsyncFileTransport';
 
 /**
  * Creates a high-performance file transport using sonic-boom.

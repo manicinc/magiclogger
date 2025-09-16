@@ -8,8 +8,8 @@
 // Re-export all transport classes
 export { ConsoleTransport } from './transports/console';
 export { FileTransport, WorkerFileTransport } from './transports/file';
-export { AsyncFileTransport } from './transports/AsyncFileTransport';
-export { SyncFileTransport } from './transports/SyncFileTransport';
+export { AsyncFileTransport } from './transports/base/implementations/AsyncFileTransport';
+export { SyncFileTransport } from './transports/base/implementations/SyncFileTransport';
 export { StreamTransport } from './transports/stream';
 export { HTTPTransport } from './transports/http';
 export { NullTransport } from './transports/null';
@@ -117,6 +117,6 @@ export type {
   HTTPTransportOptions,
   StreamTransportOptions,
 } from './types/transport';
-export type { AsyncFileTransportOptions as FileTransportOptions } from './transports/AsyncFileTransport';
-export type { WorkerFileTransportOptions } from './transports/WorkerFileTransport';
+export type { AsyncFileTransportOptions as FileTransportOptions } from './transports/base/implementations/AsyncFileTransport';
+export type { WorkerFileTransportOptions } from './transports/base/implementations/WorkerFileTransport';
 export type { OTLPTransportOptions } from './transports/otlp';

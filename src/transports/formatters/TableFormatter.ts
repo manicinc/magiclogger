@@ -3,8 +3,8 @@
  * Handles proper table rendering with borders, colors, and alignment
  */
 
-import type { ColorName } from '../types/styling.js';
-import { TextStyler } from './TextStyler';
+import type { ColorName } from '../../types/styling.js';
+import { TextStyler } from '../../utils/TextStyler';
 
 export interface TableOptions {
   border?: 'single' | 'double' | 'rounded' | 'heavy' | 'none';
