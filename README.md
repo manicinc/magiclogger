@@ -2,6 +2,9 @@
 
 <p align="center">
   <img src="website/static/img/magiclog-primary-no-subtitle-transparent-4x.png" alt="MagicLog" width="520"/>
+ <img src="https://img.shields.io/badge/core_gzip-46kb-brightgreen.svg" alt="core_gzip">
+ <img src="https://img.shields.io/badge/core_console_gzip-46kb-brightgreen.svg" alt="core_console_gzip">
+ <img src="https://img.shields.io/badge/core_transports_gzip-50kb-brightgreen.svg" alt="core_transports_gzip">
 </p>
 
 <p align="center">
@@ -1422,6 +1425,24 @@ MIT © [Manic.agency](https://manic.agency)
 </p>
 
 ## 📦 Build Output Sizes
+
+| File | Format | Raw Size | Gzip |
+|------|--------|----------|------|
+| `index.cjs` | CJS | 10.7 kB | 2.35 kB |
+| `index.js` | ESM | 6.49 kB | 1.94 kB |
+| `index.d.ts` | Types | 180 kB | 38.2 kB |
+
+### Core Bundle Sizes (gzipped)
+
+| Scenario | Size |
+|----------|------|
+| Core (bare minimum) | 47.1 kB |
+| Core + Console Transport | 47.1 kB |
+| Core + File Transport | 47.1 kB |
+| Core + HTTP Transport | 49.7 kB |
+| Core + All Basic Transports | 51.2 kB |
+
+*Generated via `scripts/analyze-build.js`.*
 
 | File | Format | Raw Size | Gzip |
 |------|--------|----------|------|
