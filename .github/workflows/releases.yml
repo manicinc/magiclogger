@@ -108,6 +108,11 @@ jobs:
         run: |
           git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:${{ github.ref }}
       
+      # Trusted publishing needs npm 11.5.1 or later. Node 20 ships npm 10, which can only publish with the token
+      # and ends in ENEEDAUTH when a plugin skips the token after the exchange (framerslab/agentos run 39490192582).
+      - name: Use npm 11 for trusted publishing
+        run: npm install -g npm@11.20.0 && npm --version
+
       - name: Semantic Release
         id: semantic
         env:
