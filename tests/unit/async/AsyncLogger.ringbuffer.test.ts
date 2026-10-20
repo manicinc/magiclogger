@@ -215,8 +215,11 @@ describe('AsyncLogger with RingBuffer', () => {
 
       // Ring buffer should be at least as fast (usually faster)
       // We can't guarantee it's always faster in CI environments
-      // Allow up to 3x slower to account for system load variations
-      expect(ringBufferTime).toBeLessThanOrEqual(regularTime * 3);
+      // Allow up to 3x slower to account for system load variations.
+      // Date.now() counts whole milliseconds and the regular run can finish inside one, so it
+      // can measure 0 ms (CI on 20 Oct 2026: regular 0 ms, ring buffer 8 ms) and make the bound 0;
+      // the bound never drops below 50 ms.
+      expect(ringBufferTime).toBeLessThanOrEqual(Math.max(regularTime * 3, 50));
     });
   });
 });
