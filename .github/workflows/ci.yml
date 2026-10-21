@@ -30,6 +30,11 @@ jobs:
         if: github.event_name == 'pull_request'
         uses: wagoid/commitlint-github-action@v5
         continue-on-error: true
+        with:
+          # A .js file in this package is an ES module ("type": "module"), and the action's v5
+          # default, ./commitlint.config.js, failed to load on every pull request with
+          # ERR_REQUIRE_ESM (pre-check job 119076416056), which continue-on-error hid.
+          configFile: ./commitlint.config.cjs
       - name: Large file check (10MB warn)
         uses: ActionsDesk/lfs-warning@v2.0
         with:
