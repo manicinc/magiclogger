@@ -18,9 +18,14 @@ permissions:
   id-token: write
   packages: write
 
+# A merged pull request starts two runs in this group, the push to master and the
+# pull_request closed event (whose ref is master). With cancel-in-progress the later one
+# cancelled the earlier (runs 39502528638, 17751756261), and when the cancelled run was the
+# push, the release never ran: semantic-release publishes nothing from a pull_request event.
+# A publishing workflow never cancels; the second run waits for the first.
 concurrency:
   group: release-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   release:
@@ -84,6 +89,9 @@ jobs:
       
       - name: Build project
         run: pnpm run --if-present build
+
+      - name: Check the packed package
+        run: node scripts/check-packed-files.js
       
       - name: Generate coverage badge
         run: |
