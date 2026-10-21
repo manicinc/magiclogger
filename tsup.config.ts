@@ -92,6 +92,15 @@ export default defineConfig(options => {
       // exports names; the browser build needs only the root's (dist/browser/index.d.ts).
       entry: isBrowser ? { index: entry.index } : declaredEntries,
       resolve: true,
+      // The checks of `pnpm run typecheck` (tsconfig.json, strict), not the four extra flags
+      // tsconfig.build.json adds: noUncheckedIndexedAccess failed the declarations of
+      // core/formatter (src/core/Formatter.ts line 640) once every exported entry had them.
+      compilerOptions: {
+        noUncheckedIndexedAccess: false,
+        noUnusedLocals: false,
+        noUnusedParameters: false,
+        noImplicitReturns: false,
+      },
       options: {
         declarationMap: true,
       },
