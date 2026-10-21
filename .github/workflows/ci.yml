@@ -225,6 +225,11 @@ jobs:
       
       - name: Build
         run: pnpm run build
+
+      # npm publish packs after prepublishOnly; a lifecycle script that deletes dist
+      # ships a package without its code (magiclogger 0.1.0).
+      - name: Check the packed package
+        run: node scripts/check-packed-files.js
       
       - name: Bundle size check
         run: pnpm run size:check
