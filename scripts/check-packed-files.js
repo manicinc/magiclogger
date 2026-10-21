@@ -1,19 +1,16 @@
 /* eslint-env node */
-// Fails when the package npm would publish lacks a file that package.json names
-// (main, module, types and every target of exports), or loses a file that was on
-// disk before npm packed it.
+// Fails when the package npm would publish lacks a file that package.json names:
+// main, module, types and every target of exports.
 //
-// npm publish runs prepublishOnly, then packs the directory; packing runs prepare
-// before the file list is taken (pacote), so a prepare that deletes dist publishes
-// a package without its code. magiclogger 0.1.0 on npm holds package.json,
-// LICENSE.md and README.md only.
+// npm publish runs prepublishOnly, then packs the directory, and packing runs
+// prepare before the file list is taken (pacote), so a prepare that deletes dist
+// publishes a package without its code: magiclogger 0.1.0 on npm holds
+// package.json, LICENSE.md and README.md only. npm 10's pacote runs prepare even
+// under --ignore-scripts, so the files on disk are read before packing instead.
 //
 // Run it after the build: pnpm run build && node scripts/check-packed-files.js
-// It packs twice without writing a tarball: once with --ignore-scripts (the files
-// on disk that the files field keeps) and once as publish packs (lifecycle
-// scripts run).
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -30,13 +27,14 @@ function collectTargets(value, into) {
   return into;
 }
 
-/** The paths `npm pack --dry-run --json` lists; lifecycle output, if any, comes before the JSON. */
-function packedFiles(extraArgs) {
-  const out = execFileSync(
-    'npm',
-    ['pack', '--dry-run', '--json', '--foreground-scripts=false', ...extraArgs],
-    { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'], maxBuffer: 1 << 26 }
-  );
+/** The paths `npm pack --dry-run --json` lists, lifecycle scripts run as npm publish runs them. */
+function packedFiles() {
+  const out = execFileSync('npm', ['pack', '--dry-run', '--json', '--foreground-scripts=false'], {
+    cwd: root,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'inherit'],
+    maxBuffer: 1 << 26,
+  });
   const start = out.search(/^\[/m);
   if (start === -1) throw new Error(`npm pack printed no JSON:\n${out}`);
   const [packed] = JSON.parse(out.slice(start));
@@ -49,12 +47,11 @@ for (const field of ['main', 'module', 'types']) {
 }
 collectTargets(manifest.exports, named);
 
-const onDisk = packedFiles(['--ignore-scripts']);
-const published = packedFiles([]);
+const builtBeforePacking = new Set([...named].filter(file => existsSync(path.join(root, file))));
+const published = packedFiles();
 
-const lostWhenPacked = [...onDisk].filter(file => !published.has(file)).sort();
-const notPublished = [...named].filter(file => onDisk.has(file) && !published.has(file)).sort();
-const notThere = [...named].filter(file => !onDisk.has(file)).sort();
+const lostWhenPacked = [...builtBeforePacking].filter(file => !published.has(file)).sort();
+const neverBuilt = [...named].filter(file => !builtBeforePacking.has(file)).sort();
 
 function report(title, files) {
   if (files.length === 0) return;
@@ -62,11 +59,10 @@ function report(title, files) {
   for (const file of files) console.error(`  ${file}`);
 }
 
-report('On disk, but lost when npm packs (a lifecycle script removed them)', lostWhenPacked);
-report('Named in package.json, built, and lost when npm packs', notPublished);
-report('Named in package.json, and not there to pack (not built, or outside files)', notThere);
+report('Named in package.json and built, but missing from the packed package', lostWhenPacked);
+report('Named in package.json, but not on disk after the build', neverBuilt);
 
-if (lostWhenPacked.length || notPublished.length || notThere.length) {
+if (lostWhenPacked.length || neverBuilt.length) {
   process.exit(1);
 }
 console.log(
