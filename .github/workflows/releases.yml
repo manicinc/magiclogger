@@ -10,6 +10,10 @@ on:
     branches:
       - main
       - master
+  # Runs the release again by hand, for a release that failed after its commits landed: a
+  # re-run reads the workflow of the failed commit, and a push releases only when its own
+  # message starts with feat:, fix: or perf:.
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -18,20 +22,26 @@ permissions:
   id-token: write
   packages: write
 
-# A merged pull request starts two runs in this group, the push to master and the
-# pull_request closed event (whose ref is master), and with cancel-in-progress one cancelled
-# the other: after #49 and #41 the closed runs 39502528638 and 17751756261 were cancelled.
-# Were the push run cancelled instead, the release would not run: semantic-release publishes
-# nothing from a pull_request event. A publishing workflow never cancels; the second run waits.
+# A merged pull request starts two runs here, the push to master and the pull_request closed
+# event (whose ref is master), and with cancel-in-progress one cancelled the other: after #49
+# and #41 the closed runs 39502528638 and 17751756261 were cancelled. Were the push run
+# cancelled instead, the release would not run: semantic-release publishes nothing from a
+# pull_request event. A publishing workflow never cancels, and every run of this one waits in
+# one fixed group, whatever its branch or event. queue: max keeps up to 100 runs waiting; with
+# the default (queue: single) a newer run, even a push whose job is skipped, replaces the one
+# waiting, so a waiting manual run would be dropped.
 concurrency:
-  group: release-${{ github.ref }}
+  group: semantic-release
   cancel-in-progress: false
+  queue: max
 
 jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
-    # Skip for commits that don't need releases
+    # Skip for commits that don't need releases. A manual run releases master or main only, the
+    # branches .releaserc names: on any other branch the coverage steps below would push to it
+    # before semantic-release refused the branch.
     if: |
       (github.event_name == 'push' && 
        !contains(github.event.head_commit.message, '[skip ci]') && 
@@ -47,11 +57,20 @@ jobs:
         startsWith(github.event.head_commit.message, 'fix:') ||
         startsWith(github.event.head_commit.message, 'perf:') ||
         contains(github.event.head_commit.message, 'BREAKING CHANGE'))) ||
-      (github.event_name == 'pull_request' && 
+      (github.event_name == 'pull_request' &&
        github.event.pull_request.merged == true &&
-       !contains(github.event.pull_request.labels.*.name, 'skip-release'))
+       !contains(github.event.pull_request.labels.*.name, 'skip-release')) ||
+      (github.event_name == 'workflow_dispatch' &&
+       (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'))
     timeout-minutes: 45
-    
+    # Git hooks are for commits made by hand. pnpm install installs them here (prepare: husky),
+    # and @semantic-release/git commits and pushes with hooks on: run 39541215457 stopped when
+    # commit-msg's commitlint rejected the release notes' long lines, and pre-push would run
+    # the typecheck and the whole suite again. husky 9 skips its install and every hook when
+    # HUSKY is 0.
+    env:
+      HUSKY: '0'
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -92,6 +111,9 @@ jobs:
 
       - name: Check the packed package
         run: node scripts/check-packed-files.js
+
+      - name: Check the release assets
+        run: node scripts/check-release-assets.js
       
       - name: Generate coverage badge
         run: |
@@ -114,8 +136,10 @@ jobs:
       
       - name: Push coverage badge updates
         if: env.BADGE_UPDATED == 'true'
+        # The branch reaches the shell as the runner's GITHUB_REF variable, quoted, rather than
+        # pasted into the script, so a branch name cannot add a command.
         run: |
-          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:${{ github.ref }}
+          git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" "HEAD:${GITHUB_REF}"
       
       # Trusted publishing needs npm 11.5.1 or later. Node 22 ships npm 10, which can only publish with the token
       # and ends in ENEEDAUTH when a plugin skips the token after the exchange (framerslab/agentos run 39490192582).
@@ -128,6 +152,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # The steps above ran the lint, the suite, the build and the packed-files check on this
+          # commit. semantic-release pushes the release commit and the tag before its publish step
+          # (semantic-release 21.1.2 index.js lines 205 to 212), and npm publish would then run
+          # prepublishOnly: the suite again with parallel workers (CI runs it only with
+          # --runInBand), the lint, the build and the badge and size scripts. A red second run
+          # there leaves the tag with nothing on npm. npm reads this for the version and publish
+          # commands @semantic-release/npm runs, so it also skips the version script's format.
+          npm_config_ignore_scripts: 'true'
         run: |
           npx semantic-release --ci
       
