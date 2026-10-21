@@ -39,10 +39,6 @@
       }
     },
     "./extensions/sampler": {
-      "browser": {
-        "types": "./dist/extensions/sampler.d.ts",
-        "default": "./dist/browser/extensions/sampler.js"
-      },
       "import": {
         "types": "./dist/extensions/sampler.d.ts",
         "default": "./dist/extensions/sampler.js"
@@ -53,10 +49,6 @@
       }
     },
     "./extensions/rate-limiter": {
-      "browser": {
-        "types": "./dist/extensions/rate-limiter.d.ts",
-        "default": "./dist/browser/extensions/rate-limiter.js"
-      },
       "import": {
         "types": "./dist/extensions/rate-limiter.d.ts",
         "default": "./dist/extensions/rate-limiter.js"
@@ -67,10 +59,6 @@
       }
     },
     "./extensions/redactor": {
-      "browser": {
-        "types": "./dist/extensions/redactor.d.ts",
-        "default": "./dist/browser/extensions/redactor.js"
-      },
       "import": {
         "types": "./dist/extensions/redactor.d.ts",
         "default": "./dist/extensions/redactor.js"
@@ -81,10 +69,6 @@
       }
     },
     "./extensions/queue-manager": {
-      "browser": {
-        "types": "./dist/extensions/queue-manager.d.ts",
-        "default": "./dist/browser/extensions/queue-manager.js"
-      },
       "import": {
         "types": "./dist/extensions/queue-manager.d.ts",
         "default": "./dist/extensions/queue-manager.js"
@@ -95,10 +79,6 @@
       }
     },
     "./extensions": {
-      "browser": {
-        "types": "./dist/extensions/index.d.ts",
-        "default": "./dist/browser/extensions/index.js"
-      },
       "import": {
         "types": "./dist/extensions/index.d.ts",
         "default": "./dist/extensions/index.js"
@@ -109,10 +89,6 @@
       }
     },
     "./validation": {
-      "browser": {
-        "types": "./dist/validation/index.d.ts",
-        "default": "./dist/browser/validation/index.js"
-      },
       "import": {
         "types": "./dist/validation/index.d.ts",
         "default": "./dist/validation/index.js"
@@ -123,10 +99,6 @@
       }
     },
     "./colors/CustomColorRegistry": {
-      "browser": {
-        "types": "./dist/colors/CustomColorRegistry.d.ts",
-        "default": "./dist/browser/colors/CustomColorRegistry.js"
-      },
       "import": {
         "types": "./dist/colors/CustomColorRegistry.d.ts",
         "default": "./dist/colors/CustomColorRegistry.js"
@@ -137,10 +109,6 @@
       }
     },
     "./utils/trace-context": {
-      "browser": {
-        "types": "./dist/utils/trace-context.d.ts",
-        "default": "./dist/browser/utils/trace-context.js"
-      },
       "import": {
         "types": "./dist/utils/trace-context.d.ts",
         "default": "./dist/utils/trace-context.js"
@@ -390,32 +358,22 @@
     },
     "./async": {
       "import": {
-        "types": "./dist/async/AsyncLogger.d.ts",
-        "default": "./dist/async/AsyncLogger.js"
+        "types": "./dist/async/logger.d.ts",
+        "default": "./dist/async/logger.js"
       },
       "require": {
-        "types": "./dist/async/AsyncLogger.d.cts",
-        "default": "./dist/async/AsyncLogger.cjs"
+        "types": "./dist/async/logger.d.cts",
+        "default": "./dist/async/logger.cjs"
       }
     },
     "./async/logger": {
       "import": {
-        "types": "./dist/async/AsyncLogger.d.ts",
-        "default": "./dist/async/AsyncLogger.js"
+        "types": "./dist/async/logger.d.ts",
+        "default": "./dist/async/logger.js"
       },
       "require": {
-        "types": "./dist/async/AsyncLogger.d.cts",
-        "default": "./dist/async/AsyncLogger.cjs"
-      }
-    },
-    "./async/buffer": {
-      "import": {
-        "types": "./dist/async/AsyncBuffer.d.ts",
-        "default": "./dist/async/AsyncBuffer.js"
-      },
-      "require": {
-        "types": "./dist/async/AsyncBuffer.d.cts",
-        "default": "./dist/async/AsyncBuffer.cjs"
+        "types": "./dist/async/logger.d.cts",
+        "default": "./dist/async/logger.cjs"
       }
     },
     "./sync": {
@@ -477,7 +435,7 @@
     "version:bump": "node scripts/version-bump.js",
     "preflight": "npm run clean && npm run check && npm run lint && npm run test:coverage && npm run build && npm run test:coverage:badge && npm run analyze:build && npm run test:treeshake",
     "prepublishOnly": "npm run test && npm run lint && npm run build && npm run test:coverage:badge && npm run analyze:build",
-    "prepare": "npm run clean && husky",
+    "prepare": "husky",
     "version": "npm run format && git add -A src",
     "release:manual": "npm run preflight && npm run version:bump",
     "security:audit": "pnpm audit || true",
