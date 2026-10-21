@@ -68,22 +68,29 @@ export default defineConfig(options => {
     'utils/trace-context': 'src/utils/trace-context.ts',
   } as const;
 
+  // Entries no exports subpath names: worker scripts and file transports loaded by path.
+  const undeclared = new Set<string>([
+    'transports/SyncFileTransport',
+    'transports/AsyncFileTransport',
+    'async/AsyncLoggerWorker',
+    'transports/worker/FileWorkerTransport',
+    'transports/worker/FileWorker',
+    'transports/worker/worker-thread',
+    'utils/enhanced-console',
+  ]);
+  const declaredEntries = Object.fromEntries(
+    Object.entries(entry).filter(([name]) => !undeclared.has(name))
+  );
+
   return {
     entry,
     format: ['cjs', 'esm'],
     splitting: true, // enable code-splitting for ESM builds
     treeshake: true,
     dts: {
-      entry: [
-        './src/index.ts',
-        './src/types/index.ts',
-        './src/transports/postgresql.ts',
-        './src/extensions/index.ts',
-        './src/extensions/Sampler.ts',
-        './src/extensions/RateLimiter.ts',
-        './src/extensions/Redactor.ts',
-        './src/extensions/QueueManager.ts',
-      ],
+      // Declarations under the same names as the JavaScript, for every entry package.json's
+      // exports names; the browser build needs only the root's (dist/browser/index.d.ts).
+      entry: isBrowser ? { index: entry.index } : declaredEntries,
       resolve: true,
       options: {
         declarationMap: true,
