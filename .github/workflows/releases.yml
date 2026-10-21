@@ -12,8 +12,14 @@ on:
       - master
   # Runs the release again by hand, for a release that failed after its commits landed: a
   # re-run reads the workflow of the failed commit, and a push releases only when its own
-  # message starts with feat:, fix: or perf:.
+  # message starts with feat:, fix: or perf:. With dry_run, the dry-run job below runs
+  # instead, on any branch.
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run: semantic-release --dry-run with no npm token (publishes, tags and pushes nothing)'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -40,8 +46,8 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     # Skip for commits that don't need releases. A manual run releases master or main only, the
-    # branches .releaserc names: on any other branch the coverage steps below would push to it
-    # before semantic-release refused the branch.
+    # branches .releaserc names, and only without dry_run: on any other branch the coverage
+    # steps below would push to it before semantic-release refused the branch.
     if: |
       (github.event_name == 'push' && 
        !contains(github.event.head_commit.message, '[skip ci]') && 
@@ -60,7 +66,7 @@ jobs:
       (github.event_name == 'pull_request' &&
        github.event.pull_request.merged == true &&
        !contains(github.event.pull_request.labels.*.name, 'skip-release')) ||
-      (github.event_name == 'workflow_dispatch' &&
+      (github.event_name == 'workflow_dispatch' && !inputs.dry_run &&
        (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'))
     timeout-minutes: 45
     # Git hooks are for commits made by hand. pnpm install installs them here (prepare: husky),
@@ -205,3 +211,55 @@ jobs:
                 });
               }
             }
+
+  # A manual run with dry_run checks a release without making one, on any branch. No npm token
+  # is in reach (NPM_TOKEN is not passed and NODE_AUTH_TOKEN is empty), so @semantic-release/npm
+  # passes verifyConditions only through the OIDC exchange with the trusted publisher for this
+  # file. semantic-release --dry-run runs verifyConditions, the commit analysis and the notes,
+  # and skips prepare, publish, the tag and every push. --branches names the dispatched branch:
+  # on a branch .releaserc does not name, semantic-release stops before verifyConditions. The
+  # suite, the build and the coverage badge steps stay in the release job.
+  dry-run:
+    name: Release dry run
+    if: github.event_name == 'workflow_dispatch' && inputs.dry_run
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      # semantic-release asks the remote whether it may push (git push --dry-run) first.
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Semantic Release (dry run, no npm token)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # setup-node's .npmrc reads its token from NODE_AUTH_TOKEN.
+          NODE_AUTH_TOKEN: ''
+        run: |
+          if [ -n "${NPM_TOKEN:-}" ] || [ -n "${NODE_AUTH_TOKEN:-}" ]; then
+            echo "::error::An npm token is in this step's environment."
+            exit 1
+          fi
+          echo "NPM_TOKEN is not set and NODE_AUTH_TOKEN is empty."
+          npx semantic-release --dry-run --branches "$GITHUB_REF_NAME"
