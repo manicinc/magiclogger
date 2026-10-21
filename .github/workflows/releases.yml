@@ -10,6 +10,10 @@ on:
     branches:
       - main
       - master
+  # Runs the release again by hand, for a release that failed after its commits landed: a
+  # re-run reads the workflow of the failed commit, and a push releases only when its own
+  # message starts with feat:, fix: or perf:.
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -47,11 +51,19 @@ jobs:
         startsWith(github.event.head_commit.message, 'fix:') ||
         startsWith(github.event.head_commit.message, 'perf:') ||
         contains(github.event.head_commit.message, 'BREAKING CHANGE'))) ||
-      (github.event_name == 'pull_request' && 
+      (github.event_name == 'pull_request' &&
        github.event.pull_request.merged == true &&
-       !contains(github.event.pull_request.labels.*.name, 'skip-release'))
+       !contains(github.event.pull_request.labels.*.name, 'skip-release')) ||
+      github.event_name == 'workflow_dispatch'
     timeout-minutes: 45
-    
+    # Git hooks are for commits made by hand. pnpm install installs them here (prepare: husky),
+    # and @semantic-release/git commits and pushes with hooks on: run 39541215457 stopped when
+    # commit-msg's commitlint rejected the release notes' long lines, and pre-push would run
+    # the typecheck and the whole suite again. husky 9 skips its install and every hook when
+    # HUSKY is 0.
+    env:
+      HUSKY: '0'
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
