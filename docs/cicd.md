@@ -175,15 +175,7 @@ BREAKING CHANGE: Previous function signature changed
 
 Coverage generated via `pnpm test:coverage` (Jest). The Ubuntu/Node 18 job uploads `coverage/lcov.info` if `CODECOV_TOKEN` secret is present. Without a token public repos may still work but token improves reliability.
 
-Add `codecov.yml` (optional) to enforce thresholds (statements/branches/functions/lines). Example minimal config:
-```yaml
-coverage:
-   status:
-      project:
-         default:
-            target: 95%
-            threshold: 1%
-```
+`codecov.yml` sets the `codecov/project` and `codecov/patch` statuses on each pull request, and the coverage badge in the README and in [Test Coverage](./test_coverage.md) reads Codecov's figure for `master`. No workflow commits a coverage badge.
 
 ## Release Procedure
 

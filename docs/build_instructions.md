@@ -70,10 +70,7 @@ Run with coverage:
 npm run test:coverage
 ```
 
-Generate coverage badge and markdown report:
-```bash
-npm run test:coverage:badge
-```
+CI uploads the coverage of every push to `master` and every pull request to Codecov, and the coverage badge in the README reads it there ([Test Coverage](./test_coverage.md)).
 
 ## Linting and Formatting
 
@@ -104,7 +101,6 @@ This will:
 * Run format checks and lint
 * Run all tests
 * Build the output
-* Generate a coverage badge
 * Inject build size stats into `README.md`
 
 ## Manual Release Workflow

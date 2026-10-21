@@ -11,7 +11,7 @@ Releases are made by [semantic-release](https://github.com/semantic-release/sema
 
 A merge commit's message starts with `Merge pull request`, so after a pull request is merged with a merge commit, run the release by hand to release what it brought. The workflow also runs when a pull request into `master` is merged, and semantic-release then stops with "This run was triggered by a pull request and therefore a new version won't be published".
 
-The release job runs the lint, the test suite with coverage, the build, the packed-files and release-asset checks and the coverage badge update, then semantic-release. semantic-release reads the commits since the last `v*` tag. When they call for a release (`feat` a minor, `fix`, `perf` and `revert` a patch, a breaking change a major; `build`, `chore`, `ci`, `docs`, `refactor`, `style` and `test` none), it:
+The release job runs the lint, the test suite with coverage, the build and the packed-files and release-asset checks, then semantic-release. It commits no coverage badge: coverage reaches Codecov from the CI workflow, and the badge reads it there ([Test Coverage](./test_coverage.md)). semantic-release reads the commits since the last `v*` tag. When they call for a release (`feat` a minor, `fix`, `perf` and `revert` a patch, a breaking change a major; `build`, `chore`, `ci`, `docs`, `refactor`, `style` and `test` none), it:
 
 1. commits `package.json` and `CHANGELOG.md` as `chore(release): X.Y.Z [skip ci]` and pushes the commit,
 2. tags that commit `vX.Y.Z`,
@@ -101,7 +101,7 @@ If `NPM_TOKEN` is set, keep it a granular token limited to publishing this packa
 | Lint | No ESLint errors (warnings acceptable) |
 | Type | No TypeScript errors (`tsc --noEmit`) |
 | Tests | All pass on matrix |
-| Coverage | ~95% target (enforced via docs + Codecov threshold if enabled) |
+| Coverage | Codecov's `codecov/project` and `codecov/patch` statuses pass ([Test Coverage](./test_coverage.md)) |
 | Build | Bundle builds (CJS + ESM) |
 | Secret Scan | Trivy reports no hardcoded secrets in the repo |
 

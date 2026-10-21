@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 /**
  * Comprehensive version bump script for local development
- * Usage: node scripts/version-bump.js [patch|minor|major]
+ * Usage: node scripts/version-bump.cjs [patch|minor|major]
+ *
+ * CommonJS, hence .cjs: package.json sets "type": "module", which makes a .js file an ES
+ * module, and require is not defined there.
  */
 
 const fs = require('fs');
@@ -57,10 +60,6 @@ try {
 
   readmeContent = readmeContent.replace(versionRegex, versionBadge);
   fs.writeFileSync(readmePath, readmeContent);
-  
-  // Generate coverage badge
-  log('Generating coverage badge...', 'warning');
-  execSync('npm run test:coverage:badge', { stdio: 'inherit' });
 
   // Prepare CHANGELOG
   log('Updating CHANGELOG.md...', 'warning');
@@ -91,9 +90,10 @@ try {
   
   fs.writeFileSync(changelogPath, changelog);
 
-  // Stage changes
+  // Stage the files this script writes. git add stages nothing when one of its paths matches no
+  // file (scripts/check-git-add-paths.js checks that in CI).
   log('Staging changes...', 'warning');
-  execSync('git add package.json package-lock.json CHANGELOG.md README.md docs/test-coverage.md', { stdio: 'inherit' });
+  execSync('git add package.json CHANGELOG.md README.md', { stdio: 'inherit' });
   
   // Commit changes
   log('Creating commit...', 'warning');

@@ -46,8 +46,8 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     # Skip for commits that don't need releases. A manual run releases master or main only, the
-    # branches .releaserc names, and only without dry_run: on any other branch the coverage
-    # steps below would push to it before semantic-release refused the branch.
+    # branches .releaserc names, and only without dry_run: semantic-release refuses any other
+    # branch, after the suite and the build have run.
     if: |
       (github.event_name == 'push' && 
        !contains(github.event.head_commit.message, '[skip ci]') && 
@@ -120,33 +120,15 @@ jobs:
 
       - name: Check the release assets
         run: node scripts/check-release-assets.js
-      
-      - name: Generate coverage badge
-        run: |
-          if [ -f "package.json" ] && grep -q '"test:coverage:badge"' package.json; then
-            pnpm run test:coverage:badge
-          else
-            echo "No coverage badge script found, skipping..."
-          fi
-      
-      - name: Commit coverage badge updates
-        run: |
-          if [ -n "$(git status --porcelain README.md docs/test-coverage.md docs/test_coverage.md 2>/dev/null)" ]; then
-            git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git config --local user.name "github-actions[bot]"
-            git add README.md docs/test-coverage.md docs/test_coverage.md 2>/dev/null || true
-            git diff --staged --quiet || (git commit -m "docs: update coverage badge [skip ci]" && echo "BADGE_UPDATED=true" >> $GITHUB_ENV)
-          else
-            echo "No coverage badge changes to commit"
-          fi
-      
-      - name: Push coverage badge updates
-        if: env.BADGE_UPDATED == 'true'
-        # The branch reaches the shell as the runner's GITHUB_REF variable, quoted, rather than
-        # pasted into the script, so a branch name cannot add a command.
-        run: |
-          git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" "HEAD:${GITHUB_REF}"
-      
+
+      # Coverage reaches Codecov from the CI workflow (ci.yml, test-linux) on every push to
+      # master and every pull request, and the coverage badge in the README and in
+      # docs/test_coverage.md reads Codecov's figure for master, so this job commits no badge.
+      # The badge steps that stood here never committed: their git add named
+      # docs/test-coverage.md, which does not exist, so git staged nothing, and the redirect
+      # and || true hid the error (Release run 39660472604, job 119431829023). Fixed, they
+      # would have put a second, typed coverage badge on master.
+
       # Trusted publishing needs npm 11.5.1 or later. Node 22 ships npm 10, which can only publish with the token
       # and ends in ENEEDAUTH when a plugin skips the token after the exchange (framerslab/agentos run 39490192582).
       - name: Use npm 11 for trusted publishing
@@ -162,7 +144,7 @@ jobs:
           # commit. semantic-release pushes the release commit and the tag before its publish step
           # (semantic-release 21.1.2 index.js lines 205 to 212), and npm publish would then run
           # prepublishOnly: the suite again with parallel workers (CI runs it only with
-          # --runInBand), the lint, the build and the badge and size scripts. A red second run
+          # --runInBand), the lint, the build and the size script. A red second run
           # there leaves the tag with nothing on npm. npm reads this for the version and publish
           # commands @semantic-release/npm runs, so it also skips the version script's format.
           npm_config_ignore_scripts: 'true'
@@ -218,7 +200,7 @@ jobs:
   # file. semantic-release --dry-run runs verifyConditions, the commit analysis and the notes,
   # and skips prepare, publish, the tag and every push. --branches names the dispatched branch:
   # on a branch .releaserc does not name, semantic-release stops before verifyConditions. The
-  # suite, the build and the coverage badge steps stay in the release job.
+  # suite and the build stay in the release job.
   #
   # Who can publish: npm's trusted publisher for this package names this file and no
   # environment, so a run of it from any branch of this repository can make the exchange, and

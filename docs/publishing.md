@@ -30,7 +30,6 @@ Releases to npm are made by semantic-release in CI (`.github/workflows/releases.
 | `npm run build` | Production Build | Compiles TypeScript to JavaScript for distribution |
 | `npm run build:examples` | Example Builds | Compiles example scripts |
 | `npm run analyze:build` | Build Size Analysis | Generates a table of build output sizes in README |
-| `npm run test:coverage:badge` | Coverage Badge | Generates a test coverage badge for README |
 | `npm run preflight` | Pre-publish Checks | Comprehensive script running all checks, tests, and builds |
 
 ### Release Management Scripts
@@ -45,7 +44,7 @@ Releases to npm are made by semantic-release in CI (`.github/workflows/releases.
 
 ### `preflight` Script
 ```json
-"preflight": "npm run clean && npm run check && npm run lint && npm run test:coverage && npm run build && npm run test:coverage:badge && npm run analyze:build"
+"preflight": "npm run clean && npm run check && npm run lint && npm run test:coverage && npm run build && npm run analyze:build && npm run test:treeshake"
 ```
 
 This script is the guardian of code quality:
@@ -54,16 +53,15 @@ This script is the guardian of code quality:
 3. Runs linting
 4. Executes full test suite with coverage
 5. Builds the project
-6. Generates coverage badge
-7. Analyzes and logs build sizes
+6. Analyzes and logs build sizes
+7. Runs the tree-shaking test
 
 ### `version:bump` Script
-Located at `scripts/version-bump.js`, this comprehensive script:
+Located at `scripts/version-bump.cjs`, this comprehensive script:
 - Validates version bump type (patch/minor/major)
 - Runs pre-bump checks (tests, linting)
 - Bumps package version
 - Updates README version badge
-- Generates coverage badge
 - Updates CHANGELOG.md with git logs
 - Stages and commits changes
 - Creates git tag
@@ -75,13 +73,8 @@ Located at `scripts/analyze-build.js`, this script:
 - Injects the table into README.md
 - Provides visibility into bundle sizes
 
-### `generate-cover-badge.js`
-Located at `scripts/generate-cover-badge.js`, this script:
-- Reads Jest coverage reports
-- Generates a coverage percentage badge
-- Updates README.md
-- Updates `docs/test-coverage.md`
-- Color-codes badge based on coverage percentage
+### Coverage
+CI uploads the coverage of every push to `master` and every pull request to Codecov, and the coverage badge in the README and in [Test Coverage](./test_coverage.md) reads it there. No script writes a coverage figure into the README or the docs.
 
 ## 🚀 Typical Workflow
 
@@ -125,7 +118,6 @@ Our scripts aim to:
   - Git is initialized
   - All changes are committed
   - You have proper npm and git configurations
-- For coverage badge issues, run `npm run test:coverage` first
 
 ## 📦 Extensibility
 
