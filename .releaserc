@@ -19,11 +19,12 @@
     "@semantic-release/changelog",
     ["@semantic-release/npm", {
       "npmPublish": true,
-      "pkgRoot": "."
+      "pkgRoot": ".",
+      "tarballDir": "release"
     }],
     ["@semantic-release/github", {
       "assets": [
-        {"path": "dist/**", "label": "Distribution"},
+        {"path": "release/*.tgz", "label": "Distribution (npm package)"},
         {"path": "LICENSE.md", "label": "License"},
         {"path": "README.md", "label": "Readme"}
       ]
