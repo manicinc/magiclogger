@@ -52,6 +52,8 @@ The "Release dry run" job installs with scripts off and runs `semantic-release -
 
 A `v*` tag pushed by hand runs `.github/workflows/release.yml`. It checks the tag format, builds and packs the package and creates a GitHub Release for the tag with the tarball. It does not publish to npm. Tags made by semantic-release never run it: they are pushed with `GITHUB_TOKEN`, and GitHub starts no workflow for events made with that token ([GitHub: GITHUB_TOKEN](https://docs.github.com/en/actions/concepts/security/github_token)).
 
+semantic-release takes the highest `v*` tag on `master` as the last release. Push a `v*` tag by hand only for a version already on npm (run `npm publish` first, as in the [Publishing Workflow](./publishing.md)); a tag for a version npm never received leaves that version off npm while semantic-release counts it as released.
+
 ## Local Checks
 
 Before opening a pull request that should release, run the full local checks:

@@ -71,7 +71,7 @@ To see what the next release would be without making it, run a dry run on any br
 gh workflow run releases.yml --ref <branch> -f dry_run=true
 ```
 
-The [Deployment & Release Guide](./deployment.md) has the details. A `v*` tag pushed by hand (for example after `scripts/version-bump.js`) builds the package and creates a GitHub Release; it does not publish to npm.
+The [Deployment & Release Guide](./deployment.md) has the details. A `v*` tag pushed by hand (for example after `scripts/version-bump.js`) builds the package and creates a GitHub Release; it does not publish to npm. semantic-release takes the highest `v*` tag as the last release, so push one by hand only for a version already on npm.
 
 Preflight checks before opening a pull request:
 ```bash

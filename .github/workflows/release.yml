@@ -4,7 +4,10 @@ name: Release
 # tag, builds and packs the package and creates the GitHub release with the tarball. It
 # publishes nothing to npm: semantic-release in releases.yml does, through npm's trusted
 # publisher for that file, with no npm token. semantic-release pushes its own tags with
-# GITHUB_TOKEN, which starts no workflow, so its releases never run this one.
+# GITHUB_TOKEN, which starts no workflow, so its releases never run this one. semantic-release
+# takes the highest v* tag on master as the last release, so push one by hand only for a
+# version already on npm (npm publish first); a tag for a version npm never received would
+# leave that version off npm while semantic-release counts it as released.
 on:
   push:
     tags:
