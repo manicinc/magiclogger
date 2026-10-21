@@ -140,6 +140,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # The steps above ran the lint, the suite, the build and the packed-files check on this
+          # commit. semantic-release pushes the release commit and the tag before its publish step
+          # (semantic-release 21.1.2 index.js lines 205 to 212), and npm publish would then run
+          # prepublishOnly: the suite again with parallel workers (CI runs it only with
+          # --runInBand), the lint, the build and the badge and size scripts. A red second run
+          # there leaves the tag with nothing on npm. npm reads this for the version and publish
+          # commands @semantic-release/npm runs, so it also skips the version script's format.
+          npm_config_ignore_scripts: 'true'
         run: |
           npx semantic-release --ci
       
