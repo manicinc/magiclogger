@@ -106,8 +106,10 @@ try {
   log('\n🎉 Version bump completed successfully!', 'success');
   log('Next steps:', 'info');
   log('  1. Verify changes', 'info');
-  log('  2. Run: git push && git push --tags', 'info');
-  log('  3. Trigger npm publish via CI/CD', 'info');
+  // The tag workflow (release.yml) publishes nothing to npm, and semantic-release takes the
+  // highest v* tag as the last release, so the version goes to npm before the tag is pushed.
+  log('  2. Run: npm publish (with your own npm login)', 'info');
+  log('  3. Then: git push && git push --tags', 'info');
 
 } catch (error) {
   log(`Error during version bump: ${error.message}`, 'error');

@@ -1,6 +1,6 @@
 # CI/CD Setup
 
-Magiclogger uses GitHub Actions for continuous integration and (tag‑driven) delivery. This document explains the pipeline, required secrets, and how to promote code from `dev` to `master` and then to an npm release.
+Magiclogger uses GitHub Actions for continuous integration and for releases to npm. This document explains the pipeline, the secrets it uses and how a change on `master` becomes an npm release.
 
 ## Table of Contents
 
@@ -18,13 +18,13 @@ Magiclogger CI currently does:
 
 1. Pre‑checks (commit lint, large file warning)
 2. Lint, type-check, formatting verification, basic audit
-3. Test matrix (Node 16 / 18 / 20 across Ubuntu / Windows / macOS subset) with coverage
+3. Tests with coverage on Node 18 (Ubuntu)
 4. Build artifacts (ESM + CJS) and upload dist
 5. Draft release notes maintenance (Release Drafter) when on `master` / `main`
 6. Optional coverage upload to Codecov
 7. Secret scanning with Trivy (free, no license required)
 
-It does **not** auto-publish on merge to `master`; publishing only happens when a semver tag (`vX.Y.Z`) is pushed.
+Releases to npm are made by semantic-release in `releases.yml`, through npm's trusted publisher; see [Release Procedure](#release-procedure).
 
 ## Documentation Structure
 
@@ -90,9 +90,11 @@ The pipeline is defined in these workflow files:
 | `.github/workflows/ci.yml` | Core CI: pre-check, quality, matrix tests, build, draft update |
 | `.github/workflows/auto-label.yml` | Auto label PRs (paths + conventional commit types + size) |
 | `.github/workflows/release-drafter.yml` | Maintain draft release notes on PR merges / label changes |
-| `.github/workflows/release.yml` | Tag-triggered build + npm publish + GitHub Release |
+| `.github/workflows/releases.yml` | Release: semantic-release on `master` (a release-bearing push or a manual run), npm through the trusted publisher; dry runs on any branch |
+| `.github/workflows/release.yml` | A `v*` tag pushed by hand: build + GitHub Release (no npm publish) |
+| `.github/workflows/lockfile.yml` | Resolves `pnpm-lock.yaml` as an artifact when a branch push changes `package.json`, `website/package.json` or `pnpm-workspace.yaml` |
 
-No `.releaserc` / semantic-release is used; versioning is manual + tags.
+Versions come from semantic-release, configured in `.releaserc`.
 
 ## Security Scanning (Secrets)
 
@@ -126,11 +128,7 @@ Exit code 1 indicates secrets found; rotate any exposed credentials and remove t
 
 ## Versioning Strategy
 
-Manual semver bump + Release Drafter:
-1. Bump `package.json` version (script or manual).
-2. Merge to `master` (draft release updates automatically).
-3. Push tag `vX.Y.Z` to trigger publish.
-4. Release workflow packs, publishes to npm, creates GitHub Release (simple notes; you can edit draft first).
+semantic-release sets each version from the conventional commits since the last `v*` tag (`.releaserc`): `feat` a minor, `fix`, `perf` and `revert` a patch, a breaking change a major; the other types release nothing. It commits the new version to `package.json` and `CHANGELOG.md`, tags it, publishes it to npm and creates the GitHub Release. Release Drafter keeps a separate draft of the notes, grouped by pull request label.
 
 ## Commit Message Conventions
 
@@ -189,54 +187,40 @@ coverage:
 
 ## Release Procedure
 
-1. Ensure `dev` is fully merged and stable.
-2. Open PR: `dev` → `master` (all checks green, review).
-3. On `master`, bump version in `package.json` (e.g. `0.2.0`). Commit with `chore(release): v0.2.0`.
-4. Push tag:
-   ```bash
-   git tag v0.2.0
-   git push origin v0.2.0
-   ```
-5. Wait for `release.yml` workflow to finish (npm publish + GitHub Release).
-6. Sync `dev`:
-   ```bash
-   git checkout dev
-   git pull
-   git merge master   # or rebase dev onto master
-   git push
-   ```
-7. Optionally edit the GitHub Release notes (they are simple by default); Release Drafter will reset a new draft for future changes.
+The [Deployment & Release Guide](./deployment.md) has the details. In short:
+
+1. Merge pull requests into `master` with green checks.
+2. A push to `master` whose commit message starts with `feat:`, `fix:` or `perf:` (or contains `BREAKING CHANGE`) runs the release job. After a merge commit, run it by hand: `gh workflow run releases.yml --ref master`.
+3. semantic-release commits the version, tags it, publishes to npm through the trusted publisher (no npm token) and creates the GitHub Release, when the commits since the last tag call for a release.
+4. To check a release without making one, on any branch: `gh workflow run releases.yml --ref <branch> -f dry_run=true`.
 
 To skip CI for non-critical doc-only commits you can append `[skip ci]` to the commit message (use sparingly).
-
-## Required Secrets
 
 ## Required & Optional Secrets
 
 | Secret | Required | Purpose |
 |--------|----------|---------|
-| `NPM_TOKEN` | For publishing | Auth token with publish rights to npm registry (automation / granular token recommended) |
+| `NPM_TOKEN` | Optional | Fallback for the release step when the OIDC exchange with npm's trusted publisher fails; a release needs no npm token |
 | `CODECOV_TOKEN` | Optional | Reliable Codecov uploads for coverage reporting |
 | (none for Trivy) | — | Trivy secret scan requires no license or API keys |
 
 Add via: Repository → Settings → Secrets and variables → Actions → New repository secret.
 
-`GITHUB_TOKEN` is automatically provided and used for draft releases, artifact uploads, and labeling.
+`GITHUB_TOKEN` is automatically provided and used for draft releases, artifact uploads, labeling, and by semantic-release for the release commit, the tag and the GitHub Release.
 
-Security tip: Restrict `NPM_TOKEN` to package publish only and rotate periodically.
+If `NPM_TOKEN` is set, keep it a granular token limited to publishing this package.
 
 ## Troubleshooting
 
 | Symptom | Likely Cause | Fix |
 |---------|--------------|-----|
-| Release workflow skipped | No tag or tag not matching `v*` | Use `v1.2.3` pattern |
-| Publish failed auth | Missing / invalid `NPM_TOKEN` | Recreate token, add as secret |
+| Release job skipped on a push | The commit message does not start with `feat:`, `fix:` or `perf:` (a merge commit never does) | Run it by hand: `gh workflow run releases.yml --ref master` |
+| `verifyConditions` fails in `@semantic-release/npm` | The OIDC exchange failed (the log gives the status) and there is no valid `NPM_TOKEN` | Check that the package's trusted publisher on npmjs.com names `manicinc/magiclogger` and `releases.yml`, then check with a dry run |
 | Coverage not on Codecov | Missing token or job matrix mismatch | Add `CODECOV_TOKEN`, confirm path `coverage/lcov.info` |
 | Draft release empty | PR labels missing conventional prefixes | Ensure commit/PR titles follow convention |
 
 ## Future Enhancements (Optional)
 
 - Add bundle size limits (e.g. `andresz1/size-limit-action`).
-- Introduce semantic-release if fully automated versioning desired.
 - Add Dependabot for dependency update PRs.
 - Add `codeql` workflow for security scanning.

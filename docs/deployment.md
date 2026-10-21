@@ -1,134 +1,99 @@
 # Deployment & Release Guide
 
-This document explains how to publish a new version of `magiclogger` to npm, update GitHub release notes, and manage required credentials.
+This document explains how a new version of `magiclogger` reaches npm and GitHub Releases, how npm authenticates the publish, and how to run or check a release by hand.
 
 ## Overview
 
-Releases are tag-driven:
-1. Prepare & validate on `dev`.
-2. Merge `dev` → `master` via PR.
-3. Bump version in `package.json` on `master`.
-4. Tag the commit `vX.Y.Z` and push tag.
-5. GitHub Actions (`release.yml`) builds, packs, publishes to npm, and creates a GitHub Release.
+Releases are made by [semantic-release](https://github.com/semantic-release/semantic-release) in the Release workflow, `.github/workflows/releases.yml`, with the plugins and rules in `.releaserc`. The workflow's release job runs on `master` in two cases:
 
-No publish occurs without a semver tag (`v*`). Draft release notes are maintained continuously by Release Drafter.
+- a push to `master` whose commit message starts with `feat:`, `fix:` or `perf:`, or contains `BREAKING CHANGE` (a scoped `feat(api):` does not match);
+- a manual run on `master` (see [Run a Release by Hand](#run-a-release-by-hand)).
 
-## Required Credentials
+A merge commit's message starts with `Merge pull request`, so after a pull request is merged with a merge commit, run the release by hand to release what it brought. The workflow also runs when a pull request into `master` is merged, and semantic-release then stops with "This run was triggered by a pull request and therefore a new version won't be published".
 
-| Credential | Location | Purpose | Notes |
-|------------|----------|---------|-------|
-| `NPM_TOKEN` | GitHub Repo → Settings → Secrets → Actions | Publish to npm registry | Use automation token with publish scope only |
-| `CODECOV_TOKEN` (optional) | Same | Coverage upload reliability | Not required for release |
-| (none for Trivy) | — | Secret scanning in CI | Trivy requires no API keys or license for this workflow |
+The release job runs the lint, the test suite with coverage, the build, the packed-files and release-asset checks and the coverage badge update, then semantic-release. semantic-release reads the commits since the last `v*` tag. When they call for a release (`feat` a minor, `fix`, `perf` and `revert` a patch, a breaking change a major; `build`, `chore`, `ci`, `docs`, `refactor`, `style` and `test` none), it:
 
-### Creating an npm Automation Token
-1. Log into https://www.npmjs.com/.
-2. Go to Access Tokens → Generate New Token → Automation.
-3. Copy token (visible once) and add to GitHub as `NPM_TOKEN` secret.
-4. If part of an org scope, ensure package name permissions are granted.
+1. commits `package.json` and `CHANGELOG.md` as `chore(release): X.Y.Z [skip ci]` and pushes the commit,
+2. tags that commit `vX.Y.Z`,
+3. publishes the version to npm,
+4. creates the GitHub Release with the packed tarball, `LICENSE.md` and `README.md`.
 
-Security best practices:
-- Use **Automation** token type, not classic.
-- Rotate at least every 6–12 months.
-- Revoke immediately if exposed.
+## npm Authentication
 
-## Pre-Release Checklist (Local)
+npm accepts the publish through the package's trusted publisher, which names `manicinc/magiclogger` and `releases.yml`. In `verifyConditions`, `@semantic-release/npm` 13 exchanges the job's GitHub OIDC token with the registry and logs `OIDC token exchange with the npm registry succeeded`, and `npm publish` (npm 11) makes its own exchange. A release needs no npm token, and npm attaches a provenance statement to each version published this way from this public repository ([npm: trusted publishing](https://docs.npmjs.com/trusted-publishers)).
 
-From latest `dev`:
+The release step still receives the `NPM_TOKEN` secret, as a fallback for a failed exchange.
+
+semantic-release 21 loads `@semantic-release/npm` from its own dependencies before the project's, so `pnpm-workspace.yaml` overrides that dependency with the version `package.json` names.
+
+**Who can publish.** The trusted publisher names no GitHub environment, so a run of `releases.yml` from any branch of this repository can make the exchange, and anyone with write access to the repository can publish. A GitHub environment that admits `master` only, named on the trusted publisher and in the release job, would narrow that to runs on `master`.
+
+## Run a Release by Hand
+
+Run the Release workflow on `master` with `dry_run` off, from the Actions tab (the "Release" workflow that offers **Run workflow**) or with the GitHub CLI:
+
 ```bash
-git checkout dev
-git pull --rebase origin dev
+gh workflow run releases.yml --ref master
+```
+
+The release job runs as above; semantic-release releases only when the commits since the last tag call for it.
+
+## Check a Release Without Making One
+
+Run the same workflow with `dry_run` on, on any branch:
+
+```bash
+gh workflow run releases.yml --ref <branch> -f dry_run=true
+```
+
+The "Release dry run" job installs with scripts off and runs `semantic-release --dry-run --branches <branch>` with no npm token in reach. It checks push access, the OIDC exchange with npm and the commit analysis, and logs the version and notes it would release. It publishes, tags and pushes nothing.
+
+## Tags Pushed by Hand
+
+A `v*` tag pushed by hand runs `.github/workflows/release.yml`. It checks the tag format, builds and packs the package and creates a GitHub Release for the tag with the tarball. It does not publish to npm. Tags made by semantic-release never run it: they are pushed with `GITHUB_TOKEN`, and GitHub starts no workflow for events made with that token ([GitHub: GITHUB_TOKEN](https://docs.github.com/en/actions/concepts/security/github_token)).
+
+semantic-release takes the highest `v*` tag on `master` as the last release. Push a `v*` tag by hand only for a version already on npm (run `npm publish` first, as in the [Publishing Workflow](./publishing.md)); a tag for a version npm never received leaves that version off npm while semantic-release counts it as released.
+
+## Local Checks
+
+Before opening a pull request that should release, run the full local checks:
+
+```bash
 pnpm install
 pnpm preflight
 ```
+
 Ensure:
 - Lint passes
 - Tests & coverage meet thresholds
 - Build succeeds (`dist/` created)
 - No unexpected size regressions in `scripts/analyze-build.js`
 
-## Promote `dev` to `master`
-```bash
-git checkout master
-git pull origin master
-# Merge (or rebase) dev
-git merge --no-ff dev   # or: git rebase dev
-# Resolve conflicts if any
-pnpm preflight
-git push origin master
-```
-A Release Drafter update occurs (draft release notes).
-
-## Version Bump
-Choose semantic bump (patch/minor/major). Update `package.json` version manually or via script:
-```bash
-node scripts/version-bump.js patch   # or minor | major
-```
-Commit the bump:
-```bash
-git add package.json pnpm-lock.yaml
-git commit -m "chore(release): vX.Y.Z"
-git push origin master
-```
-
-(Optional) Inspect the draft release on GitHub and edit sections if desired.
-
-## Tag & Publish
-Tag the exact release commit:
-```bash
-git tag vX.Y.Z
-git push origin vX.Y.Z
-```
-This triggers `release.yml`:
-1. Validates tag format
-2. Builds package (tsup)
-3. Packs tarball (`pnpm pack`) to `dist/`
-4. Publishes to npm with provenance (if provenance supported)
-5. Creates GitHub Release attaching tarball
-
-Monitor the Actions tab until success.
-
-## Post-Release Actions
-- Verify npm: https://www.npmjs.com/package/magiclogger
-- Pull updated `master` to `dev`:
-  ```bash
-  git checkout dev
-  git pull
-  git merge master   # keep dev in sync
-  git push
-  ```
-- Communicate release (Changelog / Release Notes).
-- Optionally pin version in internal consumers to test.
-
-## Hotfix Flow
-1. Branch from `master`: `fix/hotfix-crash`.
-2. Implement & `pnpm preflight`.
-3. PR → `master` (NOT dev).
-4. After merge: bump patch version, tag, publish.
-5. Merge `master` back into `dev`.
-
 ## Rollback Strategy
+
 If a release is broken:
-1. Deprecate problematic version on npm:
+1. Deprecate the version on npm:
    ```bash
    npm deprecate magiclogger@X.Y.Z "Critical issue: <brief reason>"
    ```
-2. Revert commit or apply fix → new patch bump/tag.
+2. Revert the commit or fix it with a `fix:` commit; the next release publishes a new patch.
 3. Communicate in release notes / README.
 
-## Draft Release Notes Editing
-Release Drafter composes notes grouped by labels:
-- Apply labels (feat, fix, chore, perf, docs, breaking) to PRs.
-- Before tagging, open Draft Release → refine text.
-- After tagging, the manual GitHub Release content (from `release.yml`) is simple; you can copy enriched draft text if needed.
+## Release Notes
 
-## Adding a New Secret
-```text
-Repository → Settings → Secrets and variables → Actions → New repository secret
-Name: NPM_TOKEN
-Value: <paste token>
-```
-Secrets are environment‑scoped automatically per workflow; no plaintext logging.
+semantic-release writes each GitHub Release's notes and the `CHANGELOG.md` entry from the conventional commits since the previous tag. Release Drafter keeps a separate draft release whose notes group merged pull requests by label (feat, fix, chore, perf, docs, breaking).
+
+## Secrets
+
+| Secret | Location | Purpose |
+|--------|----------|---------|
+| `NPM_TOKEN` (optional) | GitHub Repo → Settings → Secrets → Actions | Fallback for the release step when the OIDC exchange fails; a release needs no npm token |
+| `CODECOV_TOKEN` (optional) | Same | Coverage upload reliability |
+| (none for Trivy) | — | Trivy requires no API keys or license for this workflow |
+
+`GITHUB_TOKEN` is provided by GitHub Actions; semantic-release uses it to push the release commit and the tag and to create the GitHub Release.
+
+If `NPM_TOKEN` is set, keep it a granular token limited to publishing this package.
 
 ## CI Gate Expectations
 | Gate | Requirement |
@@ -142,29 +107,24 @@ Secrets are environment‑scoped automatically per workflow; no plaintext loggin
 
 ## Frequently Asked Questions
 **Q: Can I publish from a feature branch?**  
-A: Deliberately disabled. Only tags (usually on `master`) trigger publish.
+A: No. `.releaserc` releases from `master` (and `main`) only, and the release job runs only there. A dry run works on any branch and publishes nothing.
 
-**Q: How do I merge dev → master without triggering a version bump or including changes in the next draft release?**  
-A: Apply the PR label `skip-release` (and optionally `skip-changelog`). The label:
-  - Excludes the PR from Release Drafter notes
-  - Signals reviewers no version bump is expected
-You must also avoid pushing a `v*` tag. Without a tag, no publish happens.
-  - A guard workflow (`skip-release-guard.yml`) will fail the PR if a version bump is detected while the label is set.
+**Q: How do I keep a pull request out of the release notes?**  
+A: Apply the label `skip-release` (optionally also `skip-changelog`). Release Drafter leaves the pull request out of its draft, and `skip-release-guard.yml` fails the pull request if it changes the version in `package.json` or carries a release-style commit message while the label is set. Its conventional commits still count in the next semantic-release run.
 
 **Q: Do I need to run `npm publish` locally?**  
-A: No—CI handles publish on tag push.
+A: No. The release job publishes through the trusted publisher.
 
 **Q: How do I test a build before release?**  
 A: Use `pnpm pack` locally or install from a Git ref via `npm install github:manicinc/magiclogger#<commit>`.
 
-**Q: Provenance failed?**  
-A: Ensure Git client supports signed provenance (Node 18+, Actions OIDC) and that `npm publish` flag `--provenance` is allowed for your account.
+**Q: Where does the provenance statement come from?**  
+A: npm generates it for each trusted publish from this public repository; the release needs no `--provenance` flag.
 
 ## Future Enhancements
-- Optional semantic-release adoption for fully automated versioning.
 - Signed tags (GPG) for extra trust.
 - Add size-limit action to guard bundle growth.
 - Add CodeQL / OSS scan for security.
 
 ---
-_Last updated: 2025-08-15_
+_Last updated: 2026-10-21_

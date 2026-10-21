@@ -1,3 +1,11 @@
 packages:
   - .
   - website
+
+# semantic-release looks for each plugin among its own dependencies before the project's
+# (semantic-release 21.1.2 lib/plugins/utils.js, loadPlugin), and 21.1.2 asks for
+# @semantic-release/npm ^10.0.2, which stops the release without a valid npm token. This
+# gives it the version package.json names: 13.2.0 and later skip the token once the npm OIDC
+# exchange with the trusted publisher for releases.yml succeeds.
+overrides:
+  '@semantic-release/npm': '$@semantic-release/npm'
