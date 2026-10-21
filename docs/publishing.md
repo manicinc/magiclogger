@@ -4,6 +4,10 @@
 
 Magiclogger uses a comprehensive set of npm scripts and custom Node.js scripts to manage the entire development, build, test, and release process. This document explains the ecosystem, why each script exists, and how they work together.
 
+## Releases from CI
+
+Releases to npm are made by semantic-release in CI (`.github/workflows/releases.yml`), through the package's trusted publisher, with no npm token. The [Deployment & Release Guide](./deployment.md) covers when it runs, how to run it by hand and how to check a release with a dry run. The scripts below are for local checks and for a release made by hand with your own npm login. A `v*` tag pushed by hand runs `.github/workflows/release.yml`, which builds the package and creates the GitHub Release; it does not publish to npm.
+
 ## 🛠 Scripts Ecosystem
 
 ### Development Scripts

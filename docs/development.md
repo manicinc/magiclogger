@@ -48,49 +48,36 @@ Magiclogger maintains rigorous test coverage standards (see Codecov docs). Targe
 
 ## Branch & Merge Workflow
 
-We maintain two long‑lived branches:
-
-- `master` (default, stable)
-- `dev` (integration / staging)
+`master` is the only long-lived development branch; `gh-pages` holds the built documentation site.
 
 Flow:
-1. Create feature/fix branches from `dev` (e.g. `feat/browser-export`).
-2. Open PR → `dev`. CI (lint/tests/build) must pass.
-3. After multiple merges and when `dev` is stable, open a PR `dev` → `master`.
-4. Merge into `master` updates the draft release notes (Release Drafter). No publish occurs until a version tag is pushed.
- 5. If the promotion PR should NOT influence release notes or versioning (e.g. docs-only sync), add the label `skip-release` (optionally also `skip-changelog`).
+1. Create feature/fix branches from `master` (e.g. `feat/browser-export`).
+2. Open a pull request into `master`. CI (lint/tests/build) must pass.
+3. Merging updates the draft release notes (Release Drafter). Releases to npm are made by semantic-release; see Version & Release below.
+4. If a pull request should stay out of the release notes (e.g. docs only), add the label `skip-release` (optionally also `skip-changelog`).
   - A dedicated GitHub Action (`skip-release-guard.yml`) enforces that no version bump or release-style commits occur while this label is present.
 
-## Version & Release (Tag-Based)
+## Version & Release
 
-We currently use manual version bumps + Release Drafter (not semantic-release).
+semantic-release makes the releases from `.github/workflows/releases.yml`: it reads the conventional commits since the last `v*` tag, commits the new version to `package.json` and `CHANGELOG.md`, tags it, publishes it to npm through the package's trusted publisher (no npm token) and creates the GitHub Release. A push to `master` whose commit message starts with `feat:`, `fix:` or `perf:` starts it; after a merge commit, run it by hand:
 
-Local version bump (updates `package.json` & CHANGELOG logic via script if adapted later):
 ```bash
-node scripts/version-bump.js patch   # or minor | major
+gh workflow run releases.yml --ref master
 ```
 
-Tag & publish workflow:
-1. Ensure `master` is green (`pnpm preflight`).
-2. Bump version in `package.json` (script or manual) and commit (conventional message `chore(release): vX.Y.Z`).
-3. Push commit to `master`.
-4. Create & push tag `vX.Y.Z`:
-  ```bash
-  git tag vX.Y.Z
-  git push origin vX.Y.Z
-  ```
-5. GitHub Action `release.yml` builds and publishes to npm (requires `NPM_TOKEN`).
+To see what the next release would be without making it, run a dry run on any branch:
 
-Draft release notes are maintained automatically; adjust them before tagging if desired.
+```bash
+gh workflow run releases.yml --ref <branch> -f dry_run=true
+```
 
-Preflight checks before any tag:
+The [Deployment & Release Guide](./deployment.md) has the details. A `v*` tag pushed by hand (for example after `scripts/version-bump.js`) builds the package and creates a GitHub Release; it does not publish to npm.
+
+Preflight checks before opening a pull request:
 ```bash
 pnpm preflight
 ```
 | `LOG_VERBOSE` | Enable verbose logging | `false` |
-5. Push branch & open PR to `dev`
-6. Ensure CI green; request review; merge
-7. Follow release section when promoting to `master`
 | `LOG_DIR` | Custom log directory | `./logs` |
 
 Recommended TypeScript configuration:
@@ -127,19 +114,12 @@ Indicate breaking changes by:
 
 ## Release Process
 
-### Local Release Testing
+### Checking a Release
 
-Test version bumps without publishing:
+See what the next release would be, without publishing, tagging or pushing anything, with a dry run of the Release workflow on your branch:
 
 ```bash
-# Patch release
-node scripts/version-bump.js patch
-
-# Minor release
-node scripts/version-bump.js minor
-
-# Major release
-node scripts/version-bump.js major
+gh workflow run releases.yml --ref <branch> -f dry_run=true
 ```
 
 ### Preflight Checks
