@@ -22,20 +22,26 @@ permissions:
   id-token: write
   packages: write
 
-# A merged pull request starts two runs in this group, the push to master and the
-# pull_request closed event (whose ref is master), and with cancel-in-progress one cancelled
-# the other: after #49 and #41 the closed runs 39502528638 and 17751756261 were cancelled.
-# Were the push run cancelled instead, the release would not run: semantic-release publishes
-# nothing from a pull_request event. A publishing workflow never cancels; the second run waits.
+# A merged pull request starts two runs here, the push to master and the pull_request closed
+# event (whose ref is master), and with cancel-in-progress one cancelled the other: after #49
+# and #41 the closed runs 39502528638 and 17751756261 were cancelled. Were the push run
+# cancelled instead, the release would not run: semantic-release publishes nothing from a
+# pull_request event. A publishing workflow never cancels, and every run of this one waits in
+# one fixed group, whatever its branch or event. queue: max keeps up to 100 runs waiting; with
+# the default (queue: single) a newer run, even a push whose job is skipped, replaces the one
+# waiting, so a waiting manual run would be dropped.
 concurrency:
-  group: release-${{ github.ref }}
+  group: semantic-release
   cancel-in-progress: false
+  queue: max
 
 jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
-    # Skip for commits that don't need releases
+    # Skip for commits that don't need releases. A manual run releases master or main only, the
+    # branches .releaserc names: on any other branch the coverage steps below would push to it
+    # before semantic-release refused the branch.
     if: |
       (github.event_name == 'push' && 
        !contains(github.event.head_commit.message, '[skip ci]') && 
@@ -54,7 +60,8 @@ jobs:
       (github.event_name == 'pull_request' &&
        github.event.pull_request.merged == true &&
        !contains(github.event.pull_request.labels.*.name, 'skip-release')) ||
-      github.event_name == 'workflow_dispatch'
+      (github.event_name == 'workflow_dispatch' &&
+       (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'))
     timeout-minutes: 45
     # Git hooks are for commits made by hand. pnpm install installs them here (prepare: husky),
     # and @semantic-release/git commits and pushes with hooks on: run 39541215457 stopped when
@@ -126,8 +133,10 @@ jobs:
       
       - name: Push coverage badge updates
         if: env.BADGE_UPDATED == 'true'
+        # The branch reaches the shell as the runner's GITHUB_REF variable, quoted, rather than
+        # pasted into the script, so a branch name cannot add a command.
         run: |
-          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:${{ github.ref }}
+          git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" "HEAD:${GITHUB_REF}"
       
       # Trusted publishing needs npm 11.5.1 or later. Node 22 ships npm 10, which can only publish with the token
       # and ends in ENEEDAUTH when a plugin skips the token after the exchange (framerslab/agentos run 39490192582).
