@@ -477,7 +477,7 @@
     "version:bump": "node scripts/version-bump.js",
     "preflight": "npm run clean && npm run check && npm run lint && npm run test:coverage && npm run build && npm run test:coverage:badge && npm run analyze:build && npm run test:treeshake",
     "prepublishOnly": "npm run test && npm run lint && npm run build && npm run test:coverage:badge && npm run analyze:build",
-    "prepare": "npm run clean && husky",
+    "prepare": "husky",
     "version": "npm run format && git add -A src",
     "release:manual": "npm run preflight && npm run version:bump",
     "security:audit": "pnpm audit || true",
