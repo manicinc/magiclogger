@@ -1,3 +1,13 @@
+## [0.1.1](https://github.com/manicinc/magiclogger/compare/v0.1.0...v0.1.1) (2026-10-21)
+
+
+### Bug Fixes
+
+* **exports:** build the declarations under the type checks the typecheck script runs ([718af54](https://github.com/manicinc/magiclogger/commit/718af5465bafa03d74abcaf24842005c81322854))
+* **exports:** every file the exports map names is built ([7b0ef44](https://github.com/manicinc/magiclogger/commit/7b0ef44b50248e476c9b6f1cf35a29b4978498fe))
+* keep the build when npm packs the package ([d5545e7](https://github.com/manicinc/magiclogger/commit/d5545e7e49a5f87133ccb219674b2f14a7f9f47b))
+* publish the built package; prepare deleted dist before npm packed it ([#52](https://github.com/manicinc/magiclogger/issues/52)) ([b1bf1c7](https://github.com/manicinc/magiclogger/commit/b1bf1c7ef7f5401c717f7b9533585fb2fe23eae4))
+
 # Changelog
 
 All notable changes to this project will be documented in this file.

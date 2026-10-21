@@ -1,6 +1,6 @@
 {
   "name": "magiclogger",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Lightweight magical terminal and browser-compatible logger with color support, file logging, and numerous formatting options",
   "type": "module",
   "dependencies": {
