@@ -111,6 +111,9 @@ jobs:
 
       - name: Check the packed package
         run: node scripts/check-packed-files.js
+
+      - name: Check the release assets
+        run: node scripts/check-release-assets.js
       
       - name: Generate coverage badge
         run: |

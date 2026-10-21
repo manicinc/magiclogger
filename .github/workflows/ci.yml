@@ -230,6 +230,11 @@ jobs:
       # ships a package without its code (magiclogger 0.1.0).
       - name: Check the packed package
         run: node scripts/check-packed-files.js
+
+      # @semantic-release/github uploads each file its asset globs match under the file's
+      # own name, and a GitHub release holds one asset per name.
+      - name: Check the release assets
+        run: node scripts/check-release-assets.js
       
       - name: Bundle size check
         run: pnpm run size:check
