@@ -70,10 +70,7 @@ Run with coverage:
 npm run test:coverage
 ```
 
-Generate coverage badge and markdown report:
-```bash
-npm run test:coverage:badge
-```
+CI uploads the coverage of every push to `master` and every pull request to Codecov, and the coverage badge in the README reads it there ([Test Coverage](./test_coverage.md)).
 
 ## Linting and Formatting
 
@@ -104,7 +101,6 @@ This will:
 * Run format checks and lint
 * Run all tests
 * Build the output
-* Generate a coverage badge
 * Inject build size stats into `README.md`
 
 ## Manual Release Workflow
@@ -119,9 +115,12 @@ npm run preflight
 npm run version:bump patch # or minor / major
 ```
 
-3. Push and publish:
+`version:bump` stops, and lists them, when anything is staged or when `src/`, `package.json`, `CHANGELOG.md` or `README.md` has uncommitted changes, `preflight`'s among them (the formatter's in `src/`, the build-size table in `README.md`): its release commit would include them. Commit them, then run it again.
+
+3. Publish, then push the commit and its tag (semantic-release takes the highest `v*` tag as the last release, so the version reaches npm first):
 ```bash
-git push && git push --tags npm publish
+npm publish                  # with your own npm login
+git push && git push --tags
 ```
 
 Or run it all in one step:
@@ -129,7 +128,7 @@ Or run it all in one step:
 npm run release:manual patch
 ```
 
-This combines `preflight` + version bump automation + changelog + README injection.
+This runs `preflight`, then `version:bump`. When `preflight` changed `README.md` (its build-size table) or formatted `src/`, the bump stops: commit those changes, then run `npm run version:bump patch`.
 
 ## Troubleshooting
 

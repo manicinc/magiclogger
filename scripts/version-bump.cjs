@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 /**
  * Comprehensive version bump script for local development
- * Usage: node scripts/version-bump.js [patch|minor|major]
+ * Usage: node scripts/version-bump.cjs [patch|minor|major]
+ *
+ * CommonJS, hence .cjs: package.json sets "type": "module", which makes a .js file an ES
+ * module, and require is not defined there.
  */
 
 const fs = require('fs');
@@ -18,7 +21,12 @@ if (!validBumpTypes.includes(bumpType)) {
   process.exit(1);
 }
 
-// Comprehensive logging function
+/**
+ * Prints a message in the colour of its type.
+ *
+ * @param {string} message
+ * @param {'info' | 'success' | 'error' | 'warning'} [type]
+ */
 function log(message, type = 'info') {
   const colors = {
     info: '\x1b[36m', // Cyan
@@ -29,7 +37,32 @@ function log(message, type = 'info') {
   console.log(`${colors[type]}${message}\x1b[0m`);
 }
 
+/**
+ * Lists the changes the release commit would take in besides the bump: everything already
+ * staged, and uncommitted changes in src/ and in the files this script stages (package.json,
+ * CHANGELOG.md, README.md). npm version runs the package's "version" script, which formats src/
+ * and stages all of it, and this script commits the whole index.
+ *
+ * @returns {string} One line per change, empty when there are none.
+ */
+function changesTheReleaseWouldTake() {
+  const staged = execSync('git diff --cached --name-only', { encoding: 'utf8' }).trim();
+  const changed = execSync(
+    'git status --porcelain --untracked-files=all -- src package.json CHANGELOG.md README.md',
+    { encoding: 'utf8' }
+  ).trim();
+  return [staged, changed].filter(Boolean).join('\n');
+}
+
 try {
+  // A change of your own would ship in the release commit and its tag.
+  const pending = changesTheReleaseWouldTake();
+  if (pending) {
+    log('Commit or stash these changes first; the release commit would include them:', 'error');
+    console.log(pending);
+    process.exit(1);
+  }
+
   // Pre-bump checks
   log('Running pre-bump checks...', 'warning');
   
@@ -57,10 +90,6 @@ try {
 
   readmeContent = readmeContent.replace(versionRegex, versionBadge);
   fs.writeFileSync(readmePath, readmeContent);
-  
-  // Generate coverage badge
-  log('Generating coverage badge...', 'warning');
-  execSync('npm run test:coverage:badge', { stdio: 'inherit' });
 
   // Prepare CHANGELOG
   log('Updating CHANGELOG.md...', 'warning');
@@ -91,9 +120,10 @@ try {
   
   fs.writeFileSync(changelogPath, changelog);
 
-  // Stage changes
+  // Stage the files this script writes. git add stages nothing when one of its paths matches no
+  // file (scripts/check-git-add-paths.js checks that in CI).
   log('Staging changes...', 'warning');
-  execSync('git add package.json package-lock.json CHANGELOG.md README.md docs/test-coverage.md', { stdio: 'inherit' });
+  execSync('git add package.json CHANGELOG.md README.md', { stdio: 'inherit' });
   
   // Commit changes
   log('Creating commit...', 'warning');

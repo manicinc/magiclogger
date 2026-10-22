@@ -12,7 +12,7 @@ coverage:
         threshold: 5%  # allow 5% drop
         base: auto
         if_ci_failed: error
-        if_not_found: success
+        if_not_found: failure  # no report for the commit fails the status
         informational: false
     patch:
       default:
@@ -20,7 +20,7 @@ coverage:
         threshold: 10%  # allow 10% variance
         base: auto
         if_ci_failed: error
-        if_not_found: success
+        if_not_found: failure  # no report for the commit fails the status
         informational: false
 
 comment:

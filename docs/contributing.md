@@ -131,7 +131,7 @@ npm run format
 We maintain high test coverage standards:
 - Write tests for all new features
 - Ensure all edge cases are covered
-- Maintain coverage thresholds (95%+)
+- Keep Codecov's coverage checks on your pull request green (see [Test Coverage](./test_coverage.md))
 
 Run tests with:
 ```bash

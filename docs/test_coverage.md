@@ -1,39 +1,16 @@
 # Test Coverage Report
 
-Magiclogger maintains high test coverage to ensure reliability and stability.
+[![Coverage on master, from Codecov](https://codecov.io/gh/manicinc/magiclogger/branch/master/graph/badge.svg)](https://app.codecov.io/gh/manicinc/magiclogger/tree/master)
 
-## Latest Coverage Report
+The CI workflow (`.github/workflows/ci.yml`) runs the test suite with coverage on every push to `master` and on every pull request into it, and uploads `coverage/lcov.info` to [Codecov](https://app.codecov.io/gh/manicinc/magiclogger). The badge above shows Codecov's coverage figure for `master`, which each upload from a push to `master` updates. The README carries the same badge.
 
-<!-- COVERAGE_TABLE_PLACEHOLDER -->
-```
-| File |  | Statements |  | Branches |  | Functions |  | Lines |  |
-|---------|---------|---------|---------|---------|---------|---------|---------|---------|---------|
-| src |  | 70.4% | 352/500 | 64.59% | 166/257 | 55.55% | 85/153 | 69.48% | 321/462 |
-| src/async |  | 90.98% | 222/244 | 79.23% | 103/130 | 94.23% | 49/52 | 91.45% | 214/234 |
-| src/async/workers |  | 86.11% | 62/72 | 71.87% | 23/32 | 76.47% | 13/17 | 87.87% | 58/66 |
-| src/compatibility |  | 100% | 26/26 | 100% | 0/0 | 71.42% | 10/14 | 100% | 20/20 |
-| src/compatibility/loggers |  | 84.9% | 686/808 | 76.68% | 375/489 | 87.73% | 143/163 | 87.02% | 671/771 |
-| src/constants |  | 92.3% | 120/130 | 87.27% | 48/55 | 93.33% | 28/30 | 93.02% | 120/129 |
-| src/core |  | 75.82% | 1807/2383 | 73.08% | 899/1230 | 67.34% | 332/493 | 76.28% | 1718/2252 |
-| src/parsers |  | 91.44% | 171/187 | 84.78% | 78/92 | 95.65% | 22/23 | 92.61% | 163/176 |
-| src/theme |  | 90.29% | 186/206 | 77.19% | 88/114 | 76.47% | 26/34 | 91.53% | 173/189 |
-| src/transports |  | 84.11% | 90/107 | 38.09% | 16/42 | 57.5% | 23/40 | 82.1% | 78/95 |
-| src/transports/base |  | 71.25% | 714/1002 | 72.47% | 337/465 | 63.02% | 121/192 | 72.81% | 699/960 |
-| src/transports/base/implementations |  | 82.81% | 1359/1641 | 73.73% | 671/910 | 87.27% | 247/283 | 83.71% | 1326/1584 |
-| src/transports/formatters |  | 76.28% | 222/291 | 73.27% | 159/217 | 82.08% | 55/67 | 77.28% | 211/273 |
-| src/types |  | 33.33% | 11/33 | 0% | 0/14 | 25% | 2/8 | 34.61% | 9/26 |
-| src/utils |  | 85.32% | 285/334 | 88.64% | 164/185 | 63.15% | 36/57 | 86.75% | 275/317 |
-```
-<!-- /COVERAGE_TABLE_PLACEHOLDER -->
+## Coverage by Directory and File
 
-## Coverage Breakdown
+[Codecov's file view](https://app.codecov.io/gh/manicinc/magiclogger/tree/master) gives the coverage of each directory and file on `master` and marks the uncovered lines. The sunburst below draws the same data: a slice's size is its number of tracked lines and its colour its coverage, from green for more to red for less ([Codecov: graphs](https://docs.codecov.com/docs/graphs)).
 
-<!-- COVERAGE_BREAKDOWN_PLACEHOLDER -->
-- **Statements**: 79.26% covered
-- **Branches**: 73.88% covered
-- **Functions**: 73.30% covered
-- **Lines**: 80.16% covered
-<!-- /COVERAGE_BREAKDOWN_PLACEHOLDER -->
+[![Coverage sunburst for master, from Codecov](https://codecov.io/gh/manicinc/magiclogger/branch/master/graphs/sunburst.svg)](https://app.codecov.io/gh/manicinc/magiclogger/tree/master)
+
+Each CI run also keeps its full report as an artifact named `coverage-` plus the commit's SHA.
 
 ## Running the Coverage Report
 
@@ -45,31 +22,13 @@ npm run test:coverage
 
 This will generate a detailed report in the `coverage` directory and output a summary to the console.
 
-## Coverage Goals
+## Coverage Checks on Pull Requests
 
-We maintain a minimum coverage threshold of 95% for all new code. The thresholds are configured in `jest.config.js`:
+`codecov.yml` sets two statuses ([Codecov: status checks](https://docs.codecov.com/docs/commit-status)):
 
-```javascript
-coverageThreshold: {
-  global: {
-    branches: 95,
-    functions: 95,
-    lines: 95,
-    statements: 95,
-  },
-},
-```
+- **codecov/patch** measures only the lines the pull request changes: `target: 70%`, with `threshold: 10%`. Codecov reports it on each pull request and on each push to `master`.
+- **codecov/project** measures the whole project's coverage against the pull request's base: `target: auto` takes the base's coverage as the target, and `threshold: 5%` lets coverage drop by up to 5% and still pass. Codecov has reported no `codecov/project` on this repository (none on pull requests 48 to 56 or on the last 40 `master` commits, back to September 2025), so read the project figure on the pull request's page on Codecov.
 
-## Continuous Integration
+A status passes only on a report that arrived. Both statuses fail when Codecov has no report for the commit (`if_not_found: failure`), and the test-linux job fails when an upload made with the `CODECOV_TOKEN` secret does not reach Codecov (`fail_ci_if_error`). Pull requests from forks and from Dependabot run without the secret, and their upload's failure does not fail the job. Codecov takes a fork's upload without a token. Any other upload needs one while the organisation requires tokens for its public repositories, Codecov's default for an organisation that joined before the setting existed ([Codecov: tokens](https://docs.codecov.com/docs/codecov-tokens)), so Dependabot's upload needs `CODECOV_TOKEN` stored as a Dependabot secret as well ([codecov-action: Dependabot](https://github.com/codecov/codecov-action#dependabot)); Dependabot's pull requests 48 to 50 carry no Codecov status. When no upload arrives, no Codecov status appears on the pull request.
 
-Our CI pipeline automatically runs tests and checks coverage on every pull request and commit to the main branch. Pull requests that reduce coverage below the thresholds will not be merged until coverage is improved.
-
-## Uncovered Areas
-
-The few uncovered lines are primarily in edge cases and error handling paths that are difficult to test deterministically, such as:
-
-- File system errors in specific environments
-- Race conditions in async operations
-- Platform-specific code paths
-
-We continuously work to improve coverage in these areas where possible.
+Jest enforces no minimum of its own: every `coverageThreshold` value in `jest.config.ts` is 0.

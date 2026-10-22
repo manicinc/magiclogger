@@ -44,7 +44,7 @@ View detailed coverage report with:
 `pnpm test:coverage`
 ## Testing
 
-Magiclogger maintains rigorous test coverage standards (see Codecov docs). Target ~95% lines.
+CI reports coverage to Codecov on every push to `master` and every pull request. [Test Coverage](./test_coverage.md) has the coverage badge and the coverage checks on pull requests.
 
 ## Branch & Merge Workflow
 
@@ -71,7 +71,7 @@ To see what the next release would be without making it, run a dry run on any br
 gh workflow run releases.yml --ref <branch> -f dry_run=true
 ```
 
-The [Deployment & Release Guide](./deployment.md) has the details. A `v*` tag pushed by hand (for example after `scripts/version-bump.js`) builds the package and creates a GitHub Release; it does not publish to npm. semantic-release takes the highest `v*` tag as the last release, so push one by hand only for a version already on npm.
+The [Deployment & Release Guide](./deployment.md) has the details. A `v*` tag pushed by hand (for example after `scripts/version-bump.cjs`) builds the package and creates a GitHub Release; it does not publish to npm. semantic-release takes the highest `v*` tag as the last release, so push one by hand only for a version already on npm.
 
 Preflight checks before opening a pull request:
 ```bash

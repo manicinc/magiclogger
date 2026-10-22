@@ -35,13 +35,15 @@ Codecov is a code coverage reporting tool that helps developers monitor how well
 
    ```yaml
    - name: Upload to Codecov
-     uses: codecov/codecov-action@v4
+     uses: codecov/codecov-action@v5
      with:
-       token: ${{ secrets.CODECOV_TOKEN }} # optional for public repos
+       token: ${{ secrets.CODECOV_TOKEN }}
        files: ./coverage/lcov.info
        flags: unittests
-       fail_ci_if_error: false
+       # Fail the job when an upload made with the token does not reach Codecov.
+       fail_ci_if_error: ${{ secrets.CODECOV_TOKEN != '' }}
        verbose: true
+       slug: manicinc/magiclogger
    ```
 
 ## Adding a Codecov Badge
@@ -55,7 +57,7 @@ Once set up, you can add a Codecov badge to your README:
 Replace:
 - `{USERNAME}` with your GitHub username
 - `{REPO}` with your repository name
-- For public repos, tokenless uploads and badges work by default (no `token` param required)
+- The badge needs no token for a public repository. An upload needs one unless it comes from a fork's pull request into a public repository, or the organisation has turned token authentication off for its public repositories on the `Global Upload Token` tab of its Codecov settings (codecov-action v5 or later). Tokens are required by default for an organisation that joined Codecov before that setting existed ([Codecov: tokens](https://docs.codecov.com/docs/codecov-tokens))
 
 ## Viewing Coverage Reports
 

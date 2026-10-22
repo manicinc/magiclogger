@@ -30,7 +30,6 @@ Releases to npm are made by semantic-release in CI (`.github/workflows/releases.
 | `npm run build` | Production Build | Compiles TypeScript to JavaScript for distribution |
 | `npm run build:examples` | Example Builds | Compiles example scripts |
 | `npm run analyze:build` | Build Size Analysis | Generates a table of build output sizes in README |
-| `npm run test:coverage:badge` | Coverage Badge | Generates a test coverage badge for README |
 | `npm run preflight` | Pre-publish Checks | Comprehensive script running all checks, tests, and builds |
 
 ### Release Management Scripts
@@ -38,14 +37,14 @@ Releases to npm are made by semantic-release in CI (`.github/workflows/releases.
 | Script | Purpose | What it Does |
 |--------|---------|--------------|
 | `npm run version:bump` | Version & Changelog | Bumps version, updates changelog, creates git tag |
-| `npm run release:manual` | Manual Release | Runs preflight, bumps version, prepares for publish |
+| `npm run release:manual` | Manual Release | Runs preflight, then the version bump, which stops when preflight changed `README.md` (its build-size table) or formatted `src/`: commit those changes, then run `npm run version:bump` |
 | `npm run commit` | Conventional Commit | Opens Commitizen for structured commit messages |
 
 ## 🔍 Deep Dive: Key Scripts
 
 ### `preflight` Script
 ```json
-"preflight": "npm run clean && npm run check && npm run lint && npm run test:coverage && npm run build && npm run test:coverage:badge && npm run analyze:build"
+"preflight": "npm run clean && npm run check && npm run lint && npm run test:coverage && npm run build && npm run analyze:build && npm run test:treeshake"
 ```
 
 This script is the guardian of code quality:
@@ -54,16 +53,16 @@ This script is the guardian of code quality:
 3. Runs linting
 4. Executes full test suite with coverage
 5. Builds the project
-6. Generates coverage badge
-7. Analyzes and logs build sizes
+6. Analyzes and logs build sizes
+7. Runs the tree-shaking test
 
 ### `version:bump` Script
-Located at `scripts/version-bump.js`, this comprehensive script:
+Located at `scripts/version-bump.cjs`, this comprehensive script:
 - Validates version bump type (patch/minor/major)
+- Stops when anything is staged, or when `src/`, `package.json`, `CHANGELOG.md` or `README.md` has uncommitted changes, and lists them: its release commit takes the whole index and the files it stages, and `npm version` runs the package's `version` script, which formats `src/` and stages all of it
 - Runs pre-bump checks (tests, linting)
 - Bumps package version
 - Updates README version badge
-- Generates coverage badge
 - Updates CHANGELOG.md with git logs
 - Stages and commits changes
 - Creates git tag
@@ -75,13 +74,8 @@ Located at `scripts/analyze-build.js`, this script:
 - Injects the table into README.md
 - Provides visibility into bundle sizes
 
-### `generate-cover-badge.js`
-Located at `scripts/generate-cover-badge.js`, this script:
-- Reads Jest coverage reports
-- Generates a coverage percentage badge
-- Updates README.md
-- Updates `docs/test-coverage.md`
-- Color-codes badge based on coverage percentage
+### Coverage
+CI uploads the coverage of every push to `master` and every pull request to Codecov, and the coverage badge in the README and in [Test Coverage](./test_coverage.md) reads it there. No script writes a coverage figure into the README or the docs.
 
 ## 🚀 Typical Workflow
 
@@ -123,15 +117,13 @@ Our scripts aim to:
 
 - If `version:bump` fails, check:
   - Git is initialized
-  - All changes are committed
+  - Nothing is staged, and `src/`, `package.json`, `CHANGELOG.md` and `README.md` have no uncommitted changes (the script lists the ones it finds). After `preflight`, which writes the build-size table into `README.md` and formats `src/`, commit the changes it made there, then run `npm run version:bump`
   - You have proper npm and git configurations
-- For coverage badge issues, run `npm run test:coverage` first
 
 ## 📦 Extensibility
 
 These scripts are designed to be easily modified. Feel free to:
 - Add more pre-release checks
-- Customize badge generation
 - Extend changelog formatting
 
 ---
