@@ -150,9 +150,10 @@ jobs:
           flags: unittests
           # An upload that holds the token must reach Codecov, or the job fails: a lost upload
           # leaves the pull request's coverage unread and the README badge behind master.
-          # Dependabot's and forks' pull requests run without the secret (a fork's upload goes
-          # tokenless; Dependabot's needs CODECOV_TOKEN as a Dependabot secret), so theirs may
-          # fail without failing the job.
+          # Pull requests from forks and from Dependabot run without the secret, so theirs may
+          # fail without failing the job. Codecov takes a fork's upload without a token; a
+          # Dependabot upload needs CODECOV_TOKEN as a Dependabot secret while the organisation
+          # requires tokens for public repositories (docs.codecov.com/docs/codecov-tokens).
           fail_ci_if_error: ${{ secrets.CODECOV_TOKEN != '' }}
           verbose: true
           slug: manicinc/magiclogger

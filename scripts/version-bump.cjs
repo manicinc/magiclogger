@@ -39,16 +39,16 @@ function log(message, type = 'info') {
 
 /**
  * Lists the changes the release commit would take in besides the bump: everything already
- * staged, and uncommitted changes in src/, package.json and CHANGELOG.md. npm version runs the
- * package's "version" script, which formats src/ and stages all of it, and this script commits
- * the whole index.
+ * staged, and uncommitted changes in src/ and in the files this script stages (package.json,
+ * CHANGELOG.md, README.md). npm version runs the package's "version" script, which formats src/
+ * and stages all of it, and this script commits the whole index.
  *
  * @returns {string} One line per change, empty when there are none.
  */
 function changesTheReleaseWouldTake() {
   const staged = execSync('git diff --cached --name-only', { encoding: 'utf8' }).trim();
   const changed = execSync(
-    'git status --porcelain --untracked-files=all -- src package.json CHANGELOG.md',
+    'git status --porcelain --untracked-files=all -- src package.json CHANGELOG.md README.md',
     { encoding: 'utf8' }
   ).trim();
   return [staged, changed].filter(Boolean).join('\n');

@@ -57,7 +57,7 @@ Once set up, you can add a Codecov badge to your README:
 Replace:
 - `{USERNAME}` with your GitHub username
 - `{REPO}` with your repository name
-- The badge needs no token for a public repository. Uploads do: Codecov takes an upload without a token only from a fork's pull request into a public repository ([codecov-action](https://github.com/codecov/codecov-action#v4-release))
+- The badge needs no token for a public repository. An upload needs one unless it comes from a fork's pull request into a public repository, or the organisation has turned token authentication off for its public repositories on the `Global Upload Token` tab of its Codecov settings (codecov-action v5 or later). Tokens are required by default for an organisation that joined Codecov before that setting existed ([Codecov: tokens](https://docs.codecov.com/docs/codecov-tokens))
 
 ## Viewing Coverage Reports
 

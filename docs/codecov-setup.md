@@ -19,7 +19,7 @@ The codecov badge in README.md shows as not working because the repository needs
    The current CI workflow is already configured correctly at `.github/workflows/ci.yml`:
    - Runs tests with coverage
    - Uploads to codecov using `codecov/codecov-action@v5`
-   - Uploads with the `CODECOV_TOKEN` secret, and fails the job when that upload does not reach Codecov; Codecov takes an upload without a token only from a fork's pull request
+   - Uploads with the `CODECOV_TOKEN` secret, and fails the job when that upload does not reach Codecov. Without a token, Codecov takes an upload from a fork's pull request, and from anywhere once the organisation turns token authentication off for its public repositories ([Codecov: tokens](https://docs.codecov.com/docs/codecov-tokens))
 
 4. **Fix the badge URL**
    The current badge points to master branch, but the default branch might be different.

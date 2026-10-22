@@ -37,7 +37,7 @@ Releases to npm are made by semantic-release in CI (`.github/workflows/releases.
 | Script | Purpose | What it Does |
 |--------|---------|--------------|
 | `npm run version:bump` | Version & Changelog | Bumps version, updates changelog, creates git tag |
-| `npm run release:manual` | Manual Release | Runs preflight, bumps version, prepares for publish |
+| `npm run release:manual` | Manual Release | Runs preflight, then the version bump, which stops when preflight changed the README's build-size table: commit `README.md`, then run `npm run version:bump` |
 | `npm run commit` | Conventional Commit | Opens Commitizen for structured commit messages |
 
 ## 🔍 Deep Dive: Key Scripts
@@ -59,7 +59,7 @@ This script is the guardian of code quality:
 ### `version:bump` Script
 Located at `scripts/version-bump.cjs`, this comprehensive script:
 - Validates version bump type (patch/minor/major)
-- Stops when anything is staged, or when `src/`, `package.json` or `CHANGELOG.md` has uncommitted changes, and lists them: its release commit takes the whole index, and `npm version` runs the package's `version` script, which formats `src/` and stages all of it
+- Stops when anything is staged, or when `src/`, `package.json`, `CHANGELOG.md` or `README.md` has uncommitted changes, and lists them: its release commit takes the whole index and the files it stages, and `npm version` runs the package's `version` script, which formats `src/` and stages all of it
 - Runs pre-bump checks (tests, linting)
 - Bumps package version
 - Updates README version badge
@@ -117,7 +117,7 @@ Our scripts aim to:
 
 - If `version:bump` fails, check:
   - Git is initialized
-  - Nothing is staged, and `src/`, `package.json` and `CHANGELOG.md` have no uncommitted changes (the script lists the ones it finds)
+  - Nothing is staged, and `src/`, `package.json`, `CHANGELOG.md` and `README.md` have no uncommitted changes (the script lists the ones it finds). After `preflight`, which writes the build-size table into `README.md`, commit `README.md`, then run `npm run version:bump`
   - You have proper npm and git configurations
 
 ## 📦 Extensibility
