@@ -21,7 +21,12 @@ if (!validBumpTypes.includes(bumpType)) {
   process.exit(1);
 }
 
-// Comprehensive logging function
+/**
+ * Prints a message in the colour of its type.
+ *
+ * @param {string} message
+ * @param {'info' | 'success' | 'error' | 'warning'} [type]
+ */
 function log(message, type = 'info') {
   const colors = {
     info: '\x1b[36m', // Cyan
@@ -32,7 +37,32 @@ function log(message, type = 'info') {
   console.log(`${colors[type]}${message}\x1b[0m`);
 }
 
+/**
+ * Lists the changes the release commit would take in besides the bump: everything already
+ * staged, and uncommitted changes in src/, package.json and CHANGELOG.md. npm version runs the
+ * package's "version" script, which formats src/ and stages all of it, and this script commits
+ * the whole index.
+ *
+ * @returns {string} One line per change, empty when there are none.
+ */
+function changesTheReleaseWouldTake() {
+  const staged = execSync('git diff --cached --name-only', { encoding: 'utf8' }).trim();
+  const changed = execSync(
+    'git status --porcelain --untracked-files=all -- src package.json CHANGELOG.md',
+    { encoding: 'utf8' }
+  ).trim();
+  return [staged, changed].filter(Boolean).join('\n');
+}
+
 try {
+  // A change of your own would ship in the release commit and its tag.
+  const pending = changesTheReleaseWouldTake();
+  if (pending) {
+    log('Commit or stash these changes first; the release commit would include them:', 'error');
+    console.log(pending);
+    process.exit(1);
+  }
+
   // Pre-bump checks
   log('Running pre-bump checks...', 'warning');
   

@@ -88,7 +88,7 @@ semantic-release writes each GitHub Release's notes and the `CHANGELOG.md` entry
 | Secret | Location | Purpose |
 |--------|----------|---------|
 | `NPM_TOKEN` (optional) | GitHub Repo → Settings → Secrets → Actions | Fallback for the release step when the OIDC exchange fails; a release needs no npm token |
-| `CODECOV_TOKEN` (optional) | Same | Coverage upload reliability |
+| `CODECOV_TOKEN` | Same | Authorises the Codecov upload in the CI workflow; when it is set, an upload that fails fails the job |
 | (none for Trivy) | — | Trivy requires no API keys or license for this workflow |
 
 `GITHUB_TOKEN` is provided by GitHub Actions; semantic-release uses it to push the release commit and the tag and to create the GitHub Release.
@@ -101,7 +101,7 @@ If `NPM_TOKEN` is set, keep it a granular token limited to publishing this packa
 | Lint | No ESLint errors (warnings acceptable) |
 | Type | No TypeScript errors (`tsc --noEmit`) |
 | Tests | All pass on matrix |
-| Coverage | Codecov's `codecov/project` and `codecov/patch` statuses pass ([Test Coverage](./test_coverage.md)) |
+| Coverage | The upload reaches Codecov and Codecov's `codecov/patch` status passes ([Test Coverage](./test_coverage.md)) |
 | Build | Bundle builds (CJS + ESM) |
 | Secret Scan | Trivy reports no hardcoded secrets in the repo |
 

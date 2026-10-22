@@ -45,7 +45,8 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
       # A path given to git add that matches no file stops git add before it stages anything,
       # and a step that hides the error commits nothing: the release workflow's coverage badge
-      # step did so on every run.
+      # step did so on every run. The script runs its own cases first, that step's command
+      # among them.
       - name: Check the paths that workflows and scripts stage
         run: node scripts/check-git-add-paths.js
 
@@ -147,7 +148,12 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage/lcov.info
           flags: unittests
-          fail_ci_if_error: false
+          # An upload that holds the token must reach Codecov, or the job fails: a lost upload
+          # leaves the pull request's coverage unread and the README badge behind master.
+          # Dependabot's and forks' pull requests run without the secret (a fork's upload goes
+          # tokenless; Dependabot's needs CODECOV_TOKEN as a Dependabot secret), so theirs may
+          # fail without failing the job.
+          fail_ci_if_error: ${{ secrets.CODECOV_TOKEN != '' }}
           verbose: true
           slug: manicinc/magiclogger
 

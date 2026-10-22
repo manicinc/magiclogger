@@ -9,9 +9,9 @@ The codecov badge in README.md shows as not working because the repository needs
    - Go to https://app.codecov.io/gh
    - Sign in with GitHub
    - Find and activate the `manicinc/magiclogger` repository
-   - Copy the upload token (if private repo)
+   - Copy the upload token
 
-2. **Configure GitHub Secrets (if private repo)**
+2. **Configure GitHub Secrets**
    - Go to GitHub repo settings → Secrets and variables → Actions
    - Add new secret: `CODECOV_TOKEN` with the token from step 1
 
@@ -19,7 +19,7 @@ The codecov badge in README.md shows as not working because the repository needs
    The current CI workflow is already configured correctly at `.github/workflows/ci.yml`:
    - Runs tests with coverage
    - Uploads to codecov using `codecov/codecov-action@v5`
-   - For public repos, no token is needed
+   - Uploads with the `CODECOV_TOKEN` secret, and fails the job when that upload does not reach Codecov; Codecov takes an upload without a token only from a fork's pull request
 
 4. **Fix the badge URL**
    The current badge points to master branch, but the default branch might be different.
@@ -48,7 +48,8 @@ The codecov badge in README.md shows as not working because the repository needs
 ### Codecov Configuration (`codecov.yml`)
 - ✅ Requires CI to pass
 - ✅ Coverage range 70-100%
-- ✅ Fails on any coverage drop
+- ✅ `codecov/project` passes a drop of up to 5%, and `codecov/patch` needs 70% of the changed lines (10% leeway)
+- ✅ A status fails when Codecov has no report for the commit
 - ✅ Comments on PRs enabled
 
 ## Verification

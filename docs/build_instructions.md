@@ -115,9 +115,12 @@ npm run preflight
 npm run version:bump patch # or minor / major
 ```
 
-3. Push and publish:
+`version:bump` stops, and lists them, when anything is staged or when `src/`, `package.json` or `CHANGELOG.md` has uncommitted changes, the formatter's changes from `preflight` among them: its release commit would include them. Commit them, then run it again.
+
+3. Publish, then push the commit and its tag (semantic-release takes the highest `v*` tag as the last release, so the version reaches npm first):
 ```bash
-git push && git push --tags npm publish
+npm publish                  # with your own npm login
+git push && git push --tags
 ```
 
 Or run it all in one step:
