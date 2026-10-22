@@ -37,7 +37,7 @@ Releases to npm are made by semantic-release in CI (`.github/workflows/releases.
 | Script | Purpose | What it Does |
 |--------|---------|--------------|
 | `npm run version:bump` | Version & Changelog | Bumps version, updates changelog, creates git tag |
-| `npm run release:manual` | Manual Release | Runs preflight, then the version bump, which stops when preflight changed the README's build-size table: commit `README.md`, then run `npm run version:bump` |
+| `npm run release:manual` | Manual Release | Runs preflight, then the version bump, which stops when preflight changed `README.md` (its build-size table) or formatted `src/`: commit those changes, then run `npm run version:bump` |
 | `npm run commit` | Conventional Commit | Opens Commitizen for structured commit messages |
 
 ## 🔍 Deep Dive: Key Scripts
@@ -117,7 +117,7 @@ Our scripts aim to:
 
 - If `version:bump` fails, check:
   - Git is initialized
-  - Nothing is staged, and `src/`, `package.json`, `CHANGELOG.md` and `README.md` have no uncommitted changes (the script lists the ones it finds). After `preflight`, which writes the build-size table into `README.md`, commit `README.md`, then run `npm run version:bump`
+  - Nothing is staged, and `src/`, `package.json`, `CHANGELOG.md` and `README.md` have no uncommitted changes (the script lists the ones it finds). After `preflight`, which writes the build-size table into `README.md` and formats `src/`, commit the changes it made there, then run `npm run version:bump`
   - You have proper npm and git configurations
 
 ## 📦 Extensibility
