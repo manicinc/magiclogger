@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?><?xml-stylesheet type="text/xsl" href="atom.xsl"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <id>https://magiclog.io/blog</id>
+    <title>MagicLog - Beautiful TypeScript &amp; JavaScript Logging Library Blog</title>
+    <updated>2025-09-11T00:00:00.000Z</updated>
+    <generator>https://github.com/jpmonette/feed</generator>
+    <link rel="alternate" href="https://magiclog.io/blog"/>
+    <subtitle>MagicLog - Beautiful TypeScript &amp; JavaScript Logging Library Blog</subtitle>
+    <icon>https://magiclog.io/img/icon/favicon-32x32.png</icon>
+    <entry>
+        <title type="html"><![CDATA[Introducing MagicLogger]]></title>
+        <id>https://magiclog.io/blog/introducing-magiclogger</id>
+        <link href="https://magiclog.io/blog/introducing-magiclogger"/>
+        <updated>2025-09-11T00:00:00.000Z</updated>
+        <summary type="html"><![CDATA[MagicLogger transforms your logging experience into a visually rich and smooth API with automatic colors, tables, and structured formatting that makes debugging enjoyable.]]></summary>
+        <content type="html"><![CDATA[<p><img decoding="async" loading="lazy" alt="MagicLogger Logo" src="https://magiclog.io/assets/images/magiclogger-primary-white-4x-58984d5e92d3dd4c17ee3b505c47c30f.png" width="1120" height="320" class="img_aCfy"></p>
+<h2 class="anchor anchorWithStickyNavbar_k26X" id="why-we-built-magiclogger">Why We Built MagicLogger<a href="https://magiclog.io/blog/introducing-magiclogger#why-we-built-magiclogger" class="hash-link" aria-label="Direct link to Why We Built MagicLogger" title="Direct link to Why We Built MagicLogger">​</a></h2>
+<p>Logging is one of those fundamental things every developer does, yet most logging libraries treat visual output as an afterthought. We wanted something that makes debugging feel less like archaeology and more like reading a well designed dashboard.</p>
+<h2 class="anchor anchorWithStickyNavbar_k26X" id="the-problem-with-traditional-logging">The Problem with Traditional Logging<a href="https://magiclog.io/blog/introducing-magiclogger#the-problem-with-traditional-logging" class="hash-link" aria-label="Direct link to The Problem with Traditional Logging" title="Direct link to The Problem with Traditional Logging">​</a></h2>
+<p>Have you ever stared at thousands of lines of monochrome logs trying to find that one error? Or struggled to make sense of JSON blobs that stretch across your terminal? We have too.</p>
+<p>Traditional logging libraries focus on performance and features but forget about the human on the other side of the screen. They dump data efficiently but leave you to figure out what it all means.</p>
+<h2 class="anchor anchorWithStickyNavbar_k26X" id="our-vision-logging-thats-actually-readable">Our Vision: Logging That's Actually Readable<a href="https://magiclog.io/blog/introducing-magiclogger#our-vision-logging-thats-actually-readable" class="hash-link" aria-label="Direct link to Our Vision: Logging That's Actually Readable" title="Direct link to Our Vision: Logging That's Actually Readable">​</a></h2>
+<p>MagicLog will maintain the open-source MAGIC schema and Magic dashboard.</p>
+<p>With clear visual hierarchies and stunning colors, tables, progress bars, and structured formatting, your logs become instantly scannable and actually parsable by humans, even at scale.</p>
+<p>We didn't stop at making things pretty. MagicLogger is built for production:</p>
+<ul>
+<li><strong>Performant and fast</strong>: 164K ops/sec plain text, 120K ops/sec with full styling</li>
+<li><strong>Async by default</strong>: Non blocking operations that won't slow your app</li>
+<li><strong>Universal compatibility</strong>: Works everywhere JavaScript runs, in browser, Node</li>
+<li><strong>Production ready</strong>: Built in rate limiting, sampling, and error handling</li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_k26X" id="the-magic-schema">The MAGIC Schema<a href="https://magiclog.io/blog/introducing-magiclogger#the-magic-schema" class="hash-link" aria-label="Direct link to The MAGIC Schema" title="Direct link to The MAGIC Schema">​</a></h2>
+<p>Our secret sauce is the MAGIC schema, a universal format that preserves styling across all transports. Whether your logs go to the console, a file, or a remote service, they maintain their visual structure and formatting, exportable / ingestible by any language.</p>
+<h2 class="anchor anchorWithStickyNavbar_k26X" id="get-started-today">Get Started Today<a href="https://magiclog.io/blog/introducing-magiclogger#get-started-today" class="hash-link" aria-label="Direct link to Get Started Today" title="Direct link to Get Started Today">​</a></h2>
+<p>MagicLogger is open source and ready to use:</p>
+<div class="language-bash codeBlockContainer_RLYs theme-code-block" style="--prism-color:#393A34;--prism-background-color:#f6f8fa"><div class="codeBlockContent_MMkZ"><pre tabindex="0" class="prism-code language-bash codeBlock_X2ZS thin-scrollbar" style="color:#393A34;background-color:#f6f8fa"><code class="codeBlockLines_XFAV"><span class="token-line" style="color:#393A34"><span class="token plain">npm install magiclogger</span><br></span></code></pre></div></div>
+<div class="language-javascript codeBlockContainer_RLYs theme-code-block" style="--prism-color:#393A34;--prism-background-color:#f6f8fa"><div class="codeBlockContent_MMkZ"><pre tabindex="0" class="prism-code language-javascript codeBlock_X2ZS thin-scrollbar" style="color:#393A34;background-color:#f6f8fa"><code class="codeBlockLines_XFAV"><span class="token-line" style="color:#393A34"><span class="token keyword module" style="color:#00009f">import</span><span class="token plain"> </span><span class="token imports punctuation" style="color:#393A34">{</span><span class="token imports"> </span><span class="token imports maybe-class-name">Logger</span><span class="token imports"> </span><span class="token imports punctuation" style="color:#393A34">}</span><span class="token plain"> </span><span class="token keyword module" style="color:#00009f">from</span><span class="token plain"> </span><span class="token string" style="color:#e3116c">'magiclogger'</span><span class="token punctuation" style="color:#393A34">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain" style="display:inline-block"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token keyword" style="color:#00009f">const</span><span class="token plain"> logger </span><span class="token operator" style="color:#393A34">=</span><span class="token plain"> </span><span class="token keyword" style="color:#00009f">new</span><span class="token plain"> </span><span class="token class-name">Logger</span><span class="token punctuation" style="color:#393A34">(</span><span class="token punctuation" style="color:#393A34">)</span><span class="token punctuation" style="color:#393A34">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">logger</span><span class="token punctuation" style="color:#393A34">.</span><span class="token method function property-access" style="color:#d73a49">info</span><span class="token punctuation" style="color:#393A34">(</span><span class="token string" style="color:#e3116c">'Welcome to beautiful logging'</span><span class="token punctuation" style="color:#393A34">)</span><span class="token punctuation" style="color:#393A34">;</span><br></span></code></pre></div></div>
+<p>Join us in making developer tools that developers actually love using.</p>
+<hr>
+<p>Built by <a href="https://manic.agency/" target="_blank" rel="noopener noreferrer">Manic Agency</a>. We create tools that make development more human.</p>]]></content>
+        <author>
+            <name>Manic Agency</name>
+            <uri>https://manic.agency</uri>
+        </author>
+        <category label="MagicLogger" term="MagicLogger"/>
+        <category label="Logging" term="Logging"/>
+        <category label="Developer Tools" term="Developer Tools"/>
+        <category label="Open Source" term="Open Source"/>
+    </entry>
+</feed>
