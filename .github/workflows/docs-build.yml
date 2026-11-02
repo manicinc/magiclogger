@@ -15,6 +15,9 @@ on:
       - 'src/**'
       - 'README.md'
       - 'tsconfig.json'
+      # The library build that runs first, as in the deploy.
+      - 'tsup.config.ts'
+      - 'tsconfig.build.json'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
