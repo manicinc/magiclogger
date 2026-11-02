@@ -5,9 +5,21 @@ on:
     branches:
       - master
       - main
+    # The paths docs-build.yml checks on a pull request: the site's pages and the API pages it
+    # generates from the source. This is the one workflow that publishes to gh-pages.
     paths:
       - 'docs/**'
       - 'website/**'
+      - 'src/**'
+      - 'README.md'
+      - 'tsconfig.json'
+      - 'tsup.config.ts'
+      - 'tsconfig.build.json'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'typedoc.json'
+      - 'scripts/build-docs-site.sh'
       - '.github/workflows/deploy-docs.yml'
   workflow_dispatch:
 
@@ -16,12 +28,19 @@ permissions:
   pages: write
   id-token: write
 
+# The running deploy finishes and only the newest waiting run is kept.
+concurrency:
+  group: deploy-docs-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -33,7 +52,8 @@ jobs:
           cache: 'pnpm'
 
       # The install, the library build, the API pages and the Docusaurus build, as docs-build.yml
-      # runs them on pull requests and ci.yml's deploy-docs job runs them before its own publish.
+      # runs them on pull requests. No website/node_modules cache is restored first: setup-node's
+      # pnpm cache holds the store.
       - name: Build the site
         run: bash scripts/build-docs-site.sh
         env:
@@ -46,6 +66,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./website/build
           publish_branch: gh-pages
+          force_orphan: true
           user_name: 'github-actions[bot]'
           user_email: 'github-actions[bot]@users.noreply.github.com'
-          commit_message: 'Deploy documentation website'
+          commit_message: 'Deploy docs from ${{ github.sha }}'

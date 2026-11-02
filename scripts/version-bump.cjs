@@ -139,7 +139,7 @@ try {
   // The tag workflow (release.yml) publishes nothing to npm, and semantic-release takes the
   // highest v* tag as the last release, so the version goes to npm before the tag is pushed.
   log('  2. Run: npm publish (with your own npm login)', 'info');
-  log('  3. Then: git push && git push --tags', 'info');
+  log('  3. Then: git push -u origin HEAD from a branch, merge the pull request, and git push --tags', 'info');
 
 } catch (error) {
   log(`Error during version bump: ${error.message}`, 'error');

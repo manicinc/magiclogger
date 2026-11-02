@@ -117,10 +117,11 @@ npm run version:bump patch # or minor / major
 
 `version:bump` stops, and lists them, when anything is staged or when `src/`, `package.json`, `CHANGELOG.md` or `README.md` has uncommitted changes, `preflight`'s among them (the formatter's in `src/`, the build-size table in `README.md`): its release commit would include them. Commit them, then run it again.
 
-3. Publish, then push the commit and its tag (semantic-release takes the highest `v*` tag as the last release, so the version reaches npm first):
+3. Publish, then bring the commit to `master` through a pull request and push its tag (semantic-release takes the highest `v*` tag as the last release, so the version reaches npm first, and `master` refuses a direct push):
 ```bash
 npm publish                  # with your own npm login
-git push && git push --tags
+git push -u origin HEAD      # from a branch, then open and merge the pull request
+git push --tags
 ```
 
 Or run it all in one step:

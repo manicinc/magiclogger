@@ -95,7 +95,8 @@ CI uploads the coverage of every push to `master` and every pull request to Code
 3. Publishing
    ```bash
    npm publish                  # Publish to npm with your own login
-   git push && git push --tags  # Then push the code and the version tag
+   git push -u origin HEAD      # From a branch: master refuses a direct push, so open and merge a pull request
+   git push --tags              # Then push the version tag
    ```
 
 ## 🎯 Philosophy

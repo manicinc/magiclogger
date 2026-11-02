@@ -1,3 +1,5 @@
+Releases after 0.1.1 are on [GitHub Releases](https://github.com/manicinc/magiclogger/releases). semantic-release commits nothing to `master`, so this file holds the releases through 0.1.1.
+
 ## [0.1.1](https://github.com/manicinc/magiclogger/compare/v0.1.0...v0.1.1) (2026-10-21)
 
 

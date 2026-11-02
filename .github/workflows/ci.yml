@@ -14,9 +14,11 @@ permissions:
   pull-requests: write
   id-token: write
 
+# On a pull request a newer push cancels the older run. On master the running run finishes and
+# only the newest waiting run is kept, so a stream of merges still reaches the end of the suite.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   NODE_VERSION: '22'
@@ -72,10 +74,11 @@ jobs:
       - name: Install deps
         run: pnpm install --frozen-lockfile
       
-      # Auto-format and commit if needed (only for non-fork PRs and direct pushes)
+      # Auto-format and commit if needed (non-fork pull requests only: master's ruleset refuses a
+      # direct push)
       - name: Auto-format code
         id: format
-        if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         run: |
           pnpm run format
           if [[ $(git status --porcelain) ]]; then
@@ -85,7 +88,7 @@ jobs:
           fi
       
       - name: Commit formatted code
-        if: steps.format.outputs.formatted == 'true' && (github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
+        if: steps.format.outputs.formatted == 'true' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -353,56 +356,6 @@ jobs:
       - uses: release-drafter/release-drafter@v6
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # Deploy docs to gh-pages after successful build on main/master branches
-  deploy-docs:
-    name: Deploy Documentation to gh-pages
-    runs-on: ubuntu-latest
-    needs: [build]
-    if: (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') && github.event_name == 'push'
-    permissions:
-      contents: write
-      pages: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-      
-      # The install, the library build, the API pages and the Docusaurus build, as docs-build.yml
-      # runs them on pull requests, after the same setup steps. No website/node_modules cache is
-      # restored first: the one that stood here keyed on website/package-lock.json, which does
-      # not exist, so its key never changed and every deploy restored the folder one master run
-      # saved, from an older dependency tree than the lockfile, before an install no
-      # pull-request check ran from. setup-node's pnpm cache holds the store.
-      - name: Build the site
-        run: bash scripts/build-docs-site.sh
-        env:
-          GA_TRACKING_ID: ${{ secrets.GA_TRACKING_ID }}
-          MS_CLARITY_ID: ${{ secrets.MS_CLARITY_ID }}
-      
-      - name: Deploy to gh-pages branch
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./website/build
-          publish_branch: gh-pages
-          force_orphan: true
-          user_name: 'github-actions[bot]'
-          user_email: 'github-actions[bot]@users.noreply.github.com'
-          commit_message: |
-            🚀 Deploy docs from ${{ github.sha }}
-            
-            Build: ${{ github.run_id }}
-            Actor: ${{ github.actor }}
 
   all-checks:
     runs-on: ubuntu-latest
