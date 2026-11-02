@@ -103,11 +103,11 @@ Versions come from semantic-release, configured in `.releaserc`.
 Dependencies are resolved in CI, never installed on a developer's machine. A locked version that still satisfies its dependents stays locked, so a patched release of a transitive dependency reaches `pnpm-lock.yaml` only through an update:
 
 ```bash
-gh workflow run lockfile.yml -R manicinc/magiclogger --ref <branch> -f update='qs express @aws-sdk/*'
+gh workflow run lockfile.yml -R manicinc/magiclogger --ref <branch> -f update='qs express jest @docusaurus/*'
 gh run download <run-id> -R manicinc/magiclogger -n pnpm-lock
 ```
 
-The job runs `pnpm update --recursive --include-workspace-root --depth Infinity --no-save --lockfile-only` with the names given, which re-resolves every dependency of those names at any depth in the library and in `website/`, and leaves the specifiers in `package.json` as they are. A recursive update without `--include-workspace-root` leaves the library's own dependencies as they are. When a dependent pins a vulnerable version, an entry under `overrides` in `pnpm-workspace.yaml` sets a floor; each one carries the advisory and the reason beside it.
+The job runs `pnpm update --recursive --include-workspace-root --depth Infinity --no-save --lockfile-only` with the names given and leaves the specifiers in `package.json` as they are. pnpm re-resolves a matching package only inside the trees of the direct dependencies (of the library or of `website/`) that the names also match, so the input names both: the packages to move and the direct dependencies whose trees hold them, which move to the highest version their own range allows. A name that matches no direct dependency changes nothing, and without `--include-workspace-root` the library's own dependencies stay as they are. The optional peers pnpm installs for the tests are never selected; `ws` and `@aws-sdk/client-s3` are devDependencies for that reason. When a dependent pins a vulnerable version, an entry under `overrides` in `pnpm-workspace.yaml` sets a floor; each one carries the advisory and the reason beside it.
 
 ## Security Scanning (Secrets)
 

@@ -13,10 +13,12 @@ name: Lockfile
 #
 # A locked version that still satisfies its dependents stays locked, so a patched release of a
 # transitive dependency reaches the lockfile only through an update. The update input names
-# the packages (or patterns such as '@aws-sdk/*') to move to the highest version their
-# dependents allow, at every depth, without touching package.json:
+# the packages (or patterns such as '@docusaurus/*') to move to the highest version their
+# dependents allow, without touching package.json. pnpm re-resolves them only inside the trees
+# of the direct dependencies the names also match, so name those too (jest for a package under
+# jest); a matched direct dependency moves to the highest version its own range allows:
 #
-#   gh workflow run lockfile.yml -R manicinc/magiclogger --ref <branch> -f update='qs express'
+#   gh workflow run lockfile.yml -R manicinc/magiclogger --ref <branch> -f update='qs express jest'
 
 on:
   push:
