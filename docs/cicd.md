@@ -20,10 +20,11 @@ Magiclogger CI currently does:
 1. Pre‑checks (commit lint, large file warning, and `scripts/check-git-add-paths.js`, which fails when a `git add` in a workflow, a package.json script, a git hook or a script under `scripts/` names a path that matches no tracked file)
 2. Lint, type-check, formatting verification, basic audit
 3. Tests with coverage on Node 22 (Ubuntu)
-4. Build artifacts (ESM + CJS) and upload dist
-5. Draft release notes maintenance (Release Drafter) when on `master` / `main`
-6. Coverage upload to Codecov ([Test Coverage](./test_coverage.md))
-7. Secret scanning with Trivy (free, no license required)
+4. Build artifacts (ESM + CJS) and upload dist and the packed tarball
+5. `runtime-floor`: installs the packed tarball with npm on the oldest Node that `engines.node` in `package.json` allows (16.11.0) and loads the CommonJS and ESM entry points (`scripts/check-runtime-floor.cjs`); `all-checks` fails when any job it needs did not succeed
+6. Draft release notes maintenance (Release Drafter) when on `master` / `main`
+7. Coverage upload to Codecov ([Test Coverage](./test_coverage.md))
+8. Secret scanning with Trivy (free, no license required)
 
 Releases to npm are made by semantic-release in `releases.yml`, through npm's trusted publisher; see [Release Procedure](#release-procedure).
 
@@ -94,20 +95,20 @@ The pipeline is defined in these workflow files:
 | `.github/workflows/releases.yml` | Release: semantic-release on `master` (a release-bearing push or a manual run), npm through the trusted publisher; dry runs on any branch |
 | `.github/workflows/release.yml` | A `v*` tag pushed by hand: build + GitHub Release (no npm publish) |
 | `.github/workflows/lockfile.yml` | Resolves `pnpm-lock.yaml` as an artifact when a branch push changes `package.json`, `website/package.json` or `pnpm-workspace.yaml`; run by hand with `-f update='<packages>'`, it moves those packages to the highest version their dependents allow, at every depth (see [Dependency updates](#dependency-updates)) |
-| `.github/workflows/docs-build.yml` | Builds the documentation site, deploying nothing, on a pull request that changes `docs/`, `website/`, the manifests or `pnpm-lock.yaml` |
+| `.github/workflows/docs-build.yml` | Builds the documentation site, deploying nothing, on a pull request that changes `docs/`, `website/`, `src/`, `README.md`, `tsconfig.json`, `typedoc.json`, the manifests or `pnpm-lock.yaml` |
 
 Versions come from semantic-release, configured in `.releaserc`.
 
 ## Dependency updates
 
-Dependencies are resolved in CI, never installed on a developer's machine. A locked version that still satisfies its dependents stays locked, so a patched release of a transitive dependency reaches `pnpm-lock.yaml` only through an update:
+`pnpm-lock.yaml` is resolved in CI, never on a developer's machine; installs, on a developer's machine and in the CI jobs, read the committed lockfile. A locked version that still satisfies its dependents stays locked, so a patched release of a transitive dependency reaches `pnpm-lock.yaml` only through an update:
 
 ```bash
 gh workflow run lockfile.yml -R manicinc/magiclogger --ref <branch> -f update='qs express jest @docusaurus/*'
 gh run download <run-id> -R manicinc/magiclogger -n pnpm-lock
 ```
 
-The job runs `pnpm update --recursive --include-workspace-root --depth Infinity --no-save --lockfile-only` with the names given and leaves the specifiers in `package.json` as they are. pnpm re-resolves a matching package only inside the trees of the direct dependencies (of the library or of `website/`) that the names also match, so the input names both: the packages to move and the direct dependencies whose trees hold them, which move to the highest version their own range allows. A name that matches no direct dependency changes nothing, and without `--include-workspace-root` the library's own dependencies stay as they are. The optional peers pnpm installs for the tests are never selected; `ws` and `@aws-sdk/client-s3` are devDependencies for that reason. When a dependent pins a vulnerable version, an entry under `overrides` in `pnpm-workspace.yaml` sets a floor; each one carries the advisory and the reason beside it.
+The job runs `pnpm update --recursive --include-workspace-root --depth Infinity --no-save --lockfile-only` with the names given and leaves the specifiers in `package.json` as they are. pnpm re-resolves a matching package only inside the trees of the direct dependencies (of the library or of `website/`) that the names also match, so the input names both: the packages to move and the direct dependencies whose trees hold them, which move to the highest version their own range allows. A name that matches no direct dependency changes nothing, and without `--include-workspace-root` the library's own dependencies stay as they are. The input takes names and patterns only: a word that starts with a dash (an option such as `--latest`, which moves packages past the ranges `package.json` declares) stops the run, and an input of spaces alone resolves the manifests as an empty one does. Each run's artifact is the whole lockfile resolved from the commit it ran on, so two runs from one commit each lose the other's changes: name every package in one run, or commit one artifact before starting the next. The step is `scripts/lockfile-resolve.sh`, which `tests/integration/lockfile-resolve.test.ts` runs with a stand-in pnpm. The optional peers pnpm installs for the tests are never selected; `ws` and `@aws-sdk/client-s3` are devDependencies for that reason. When a dependent pins a vulnerable version, an entry under `overrides` in `pnpm-workspace.yaml` sets a floor; each one carries the advisory and the reason beside it.
 
 ## Security Scanning (Secrets)
 

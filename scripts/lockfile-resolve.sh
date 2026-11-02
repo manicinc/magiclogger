@@ -12,10 +12,6 @@ set -euo pipefail
 
 UPDATE="${UPDATE:-}"
 
-if [ -z "$UPDATE" ]; then
-  exec pnpm install --lockfile-only
-fi
-
 case "$UPDATE" in
   *[!a-zA-Z0-9@/._*\ -]*)
     echo "::error::update takes package names and patterns separated by spaces"
@@ -25,6 +21,24 @@ esac
 
 # The patterns go to pnpm as written, never expanded against the checkout's files.
 set -f
-# shellcheck disable=SC2086
+# shellcheck disable=SC2206
+names=($UPDATE)
+
+# An input of spaces alone names nothing, and pnpm update with no name updates every package.
+if [ "${#names[@]}" -eq 0 ]; then
+  exec pnpm install --lockfile-only
+fi
+
+# pnpm would read a word that starts with a dash as an option: --latest moves packages past
+# the ranges package.json declares (pnpm.io/cli/update), and --no-save leaves that unrecorded.
+for name in "${names[@]}"; do
+  case "$name" in
+    -*)
+      echo "::error::update takes package names and patterns, not options: $name"
+      exit 1
+      ;;
+  esac
+done
+
 exec pnpm update --recursive --include-workspace-root --depth Infinity --no-save \
-  --lockfile-only $UPDATE
+  --lockfile-only "${names[@]}"
