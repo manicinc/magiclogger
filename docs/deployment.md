@@ -6,7 +6,7 @@ This document explains how a new version of `magiclogger` reaches npm and GitHub
 
 Releases are made by [semantic-release](https://github.com/semantic-release/semantic-release) in the Release workflow, `.github/workflows/releases.yml`, with the plugins and rules in `.releaserc`. The workflow's release job runs on `master` in two cases:
 
-- a push to `master` whose commit message starts with `feat:`, `fix:`, `perf:` or `revert:`, or a scoped form such as `fix(api):`, or contains `BREAKING CHANGE`;
+- a push to `master` whose commit message starts with `feat:`, `fix:`, `perf:` or `revert:`, a scoped form such as `fix(api):`, or `Revert "`, the message `git revert` writes, or contains `BREAKING CHANGE`;
 - a manual run on `master` (see [Run a Release by Hand](#run-a-release-by-hand)).
 
 The check reads the push's last commit only. A merge commit's message starts with `Merge pull request`, so after a pull request is merged with a merge commit, or after a push whose last commit calls for no release, run the release by hand to release what it brought: semantic-release reads every commit since the last tag.
@@ -49,9 +49,12 @@ semantic-release pushes the tag before it publishes, and a later run takes that 
   git push origin :refs/tags/vX.Y.Z
   gh workflow run releases.yml --ref master
   ```
-- **The version is on npm and the GitHub Release is missing:** the GitHub step runs after npm's, and a second run publishes nothing. Publish the draft the run left for that version, or create the release from the tag:
+- **The version is on npm and the GitHub Release is missing:** the GitHub step runs after npm's, and a second run publishes nothing. Create the release from the tag with the files a release carries, the tarball as npm holds it (`npm pack` with a version fetches the published tarball):
   ```bash
-  gh release create vX.Y.Z --verify-tag --generate-notes
+  git checkout vX.Y.Z
+  npm pack magiclogger@X.Y.Z
+  gh release create vX.Y.Z --verify-tag --generate-notes \
+    "magiclogger-X.Y.Z.tgz#Distribution (npm package)" "LICENSE.md#License" "README.md#Readme"
   ```
 
 ## Check a Release Without Making One
