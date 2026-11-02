@@ -5,7 +5,7 @@
 Magiclogger is a fully typed, high-performance logging library built with TypeScript. This guide provides comprehensive instructions for setting up, developing, and contributing to the project.
 
 ## Prerequisites
-- Node.js 18+ recommended (CI uses 18/20; docs deploy uses Node 20)
+- Node.js 22 or later recommended (CI and the docs deploy use Node 22; the docs site needs Node 20 or later)
 - pnpm (preferred). Corepack can enable pnpm automatically.
 - TypeScript 5.x
 
