@@ -259,7 +259,9 @@ jobs:
 
       # The tarball npm would publish, for the runtime-floor job to install as a consumer does.
       - name: Pack the package
-        run: npm pack --ignore-scripts --pack-destination "$RUNNER_TEMP/package"
+        run: |
+          mkdir -p "$RUNNER_TEMP/package"
+          npm pack --ignore-scripts --pack-destination "$RUNNER_TEMP/package"
 
       - name: Upload the packed package
         uses: actions/upload-artifact@v4
