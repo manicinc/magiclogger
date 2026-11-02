@@ -74,7 +74,9 @@ jobs:
 
       # docusaurus start is how the site is worked on (pnpm run docs). A Docusaurus or
       # webpack-dev-server release in pnpm-lock.yaml changes it, and the build above never runs
-      # it. webpack-dev-server answers once the first bundle has compiled.
+      # it. webpack-dev-server answers once the first bundle has compiled. The server rewrites an
+      # unknown path that accepts HTML to the home page, so the bundle request asks for JavaScript
+      # and reads the type that comes back.
       - name: Check the dev server serves the site
         working-directory: website
         run: |
@@ -84,8 +86,9 @@ jobs:
           trap 'kill "$server" 2>/dev/null || true' EXIT
           for attempt in $(seq 1 40); do
             if curl -fsS --max-time 10 http://localhost:3000/ 2>/dev/null | grep -q 'id="__docusaurus"' \
-              && curl -fsS --max-time 10 -o /dev/null http://localhost:3000/main.js; then
-              if grep -Eiq 'compiled with (errors|problems)' "$log"; then
+              && curl -fsS --max-time 10 -H 'Accept: application/javascript' -o /dev/null \
+                -w '%{content_type}' http://localhost:3000/main.js | grep -q javascript; then
+              if grep -Eiq 'compiled with ([0-9]+ |some )?(errors?|problems?)' "$log"; then
                 cat "$log"
                 echo "::error::the dev server compiled with errors"
                 exit 1
