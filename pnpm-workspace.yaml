@@ -31,11 +31,3 @@ overrides:
   # @docusaurus/theme-mermaid declares >=11.6.0, which reaches mermaid 12 (Node 22.12 or
   # later). This keeps the docs site on 11.x, where the advisories are fixed in 11.16.1.
   '@docusaurus/theme-mermaid>mermaid': '^11.16.1'
-  # pnpm installs the optional peers in package.json for the tests, and pnpm update selects
-  # only dependencies, devDependencies and optionalDependencies, so these two floors move the
-  # installed peers. ws 8.21.0 fixes GHSA-96hv-2xvq-fx4p and GHSA-58qx-3vcg-4xpx. In
-  # @aws-sdk/client-s3 3.1161.0, @aws-sdk/core no longer depends on fast-xml-parser (seven
-  # advisories against the 5.2.5 that 3.864.0 pins) and the client no longer depends on
-  # uuid 9.
-  'ws@>=8.0.0 <8.21.0': '^8.21.0'
-  '@aws-sdk/client-s3@<3.1161.0': '^3.1161.0'
