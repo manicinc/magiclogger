@@ -377,16 +377,12 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
       
-      - name: Cache website dependencies
-        uses: actions/cache@v4
-        with:
-          path: website/node_modules
-          key: ${{ runner.os }}-website-${{ hashFiles('website/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-website-
-      
       # The install, the library build, the API pages and the Docusaurus build, as docs-build.yml
-      # runs them on pull requests.
+      # runs them on pull requests, after the same setup steps. No website/node_modules cache is
+      # restored first: the one that stood here keyed on website/package-lock.json, which does
+      # not exist, so its key never changed and every deploy restored the folder one master run
+      # saved, from an older dependency tree than the lockfile, before an install no
+      # pull-request check ran from. setup-node's pnpm cache holds the store.
       - name: Build the site
         run: bash scripts/build-docs-site.sh
         env:
