@@ -1,0 +1,64 @@
+name: Docs build
+
+# Builds the documentation site as ci.yml's deploy-docs job does after each push to master, and
+# deploys nothing. Without it, a pull request that breaks the site (a Docusaurus or webpack
+# release in pnpm-lock.yaml, a page in docs/) passes every check and the break first shows in
+# the deploy on master.
+on:
+  pull_request:
+    branches: [master, main]
+    paths:
+      - 'docs/**'
+      - 'website/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'typedoc.json'
+      - 'scripts/sync-docs.js'
+      - '.github/workflows/docs-build.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-build-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  docs-build:
+    name: docs-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build library
+        run: pnpm run build
+        env:
+          NODE_ENV: production
+
+      - name: Generate API documentation
+        run: pnpm run docs:api
+
+      - name: Sync documentation
+        run: node scripts/sync-docs.js
+
+      - name: Build Docusaurus
+        working-directory: ./website
+        run: pnpm run build
+        env:
+          NODE_ENV: production

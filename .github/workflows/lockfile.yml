@@ -10,6 +10,13 @@ name: Lockfile
 #   gh run download <run-id> -R manicinc/magiclogger -n pnpm-lock
 #
 # then commit pnpm-lock.yaml to the branch. The job reads the repository and writes nothing.
+#
+# A locked version that still satisfies its dependents stays locked, so a patched release of a
+# transitive dependency reaches the lockfile only through an update. The update input names
+# the packages (or patterns such as '@aws-sdk/*') to move to the highest version their
+# dependents allow, at every depth, without touching package.json:
+#
+#   gh workflow run lockfile.yml -R manicinc/magiclogger --ref <branch> -f update='qs express'
 
 on:
   push:
@@ -24,6 +31,11 @@ on:
       - pnpm-workspace.yaml
       - .github/workflows/lockfile.yml
   workflow_dispatch:
+    inputs:
+      update:
+        description: 'Packages or patterns, space-separated, for pnpm update --recursive --no-save at every depth; empty resolves the manifests only'
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -51,9 +63,27 @@ jobs:
           node-version: '22'
 
       # --lockfile-only writes pnpm-lock.yaml without node_modules or scripts, and pnpm drops
-      # its frozen-lockfile default on CI for it.
+      # its frozen-lockfile default on CI for it. pnpm update re-resolves every dependency whose
+      # name matches, at any depth (its --depth defaults to Infinity), and --no-save keeps the
+      # specifiers in package.json.
       - name: Resolve
-        run: pnpm install --lockfile-only
+        env:
+          UPDATE: ${{ inputs.update }}
+        run: |
+          if [ -z "$UPDATE" ]; then
+            pnpm install --lockfile-only
+            exit 0
+          fi
+          case "$UPDATE" in
+            *[!a-zA-Z0-9@/._*\ -]*)
+              echo "::error::update takes package names and patterns separated by spaces"
+              exit 1
+              ;;
+          esac
+          # The patterns go to pnpm as written, never expanded against the checkout's files.
+          set -f
+          # shellcheck disable=SC2086
+          pnpm update --recursive --no-save --lockfile-only $UPDATE
 
       - name: Upload the lockfile
         uses: actions/upload-artifact@v4
