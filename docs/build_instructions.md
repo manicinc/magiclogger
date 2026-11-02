@@ -143,7 +143,7 @@ This runs `preflight`, then `version:bump`. When `preflight` changed `README.md`
 node dist/index.js
 ```
 
-3. If you see errors related to file extensions in `import` paths, make sure you're using Node 14+ with `"type": "module"` in `package.json`.
+3. If you see errors related to file extensions in `import` paths, make sure you're using Node 16.11 or later (the `engines` range in `package.json`) with `"type": "module"` in `package.json`.
 
 ## Package Structure
 

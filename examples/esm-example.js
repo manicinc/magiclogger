@@ -1,6 +1,6 @@
 // ESM Example - Modern JavaScript
 // Usage: node --experimental-modules scripts/esm-example.js
-// Or with Node.js 14+: node scripts/esm-example.js
+// Or with Node.js 16.11 or later: node scripts/esm-example.js
 
 import { createSyncLogger } from '../dist/index.js';
 
