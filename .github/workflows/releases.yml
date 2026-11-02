@@ -56,6 +56,8 @@ jobs:
         startsWith(github.event.head_commit.message, 'fix(') ||
         startsWith(github.event.head_commit.message, 'perf:') ||
         startsWith(github.event.head_commit.message, 'perf(') ||
+        startsWith(github.event.head_commit.message, 'revert:') ||
+        startsWith(github.event.head_commit.message, 'revert(') ||
         contains(github.event.head_commit.message, 'BREAKING CHANGE'))) ||
       (github.event_name == 'workflow_dispatch' && !inputs.dry_run &&
        (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'))

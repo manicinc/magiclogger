@@ -16,9 +16,11 @@ permissions:
 
 # On a pull request a newer push cancels the older run. On master the running run finishes and
 # only the newest waiting run is kept, so a stream of merges still reaches the end of the suite.
+# A re-run keys a group of its own: re-running an older commit's run never cancels the newest run
+# or takes its place in the queue.
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ${{ github.run_attempt == '1' && format('ci-{0}', github.ref) || format('ci-rerun-{0}', github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' && github.run_attempt == '1' }}
 
 env:
   NODE_VERSION: '22'

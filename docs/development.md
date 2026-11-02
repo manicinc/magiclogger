@@ -60,7 +60,7 @@ Flow:
 
 ## Version & Release
 
-semantic-release makes the releases from `.github/workflows/releases.yml`: it reads the conventional commits since the last `v*` tag, tags the new version, publishes it to npm through the package's trusted publisher (no npm token) and creates the GitHub Release. A push to `master` whose commit message starts with `feat:`, `fix:` or `perf:` starts it; after a merge commit, run it by hand:
+semantic-release makes the releases from `.github/workflows/releases.yml`: it reads the conventional commits since the last `v*` tag, tags the new version, publishes it to npm through the package's trusted publisher (no npm token) and creates the GitHub Release. A push to `master` whose commit message starts with `feat`, `fix`, `perf` or `revert`, scoped or not, starts it; after a merge commit, run it by hand:
 
 ```bash
 gh workflow run releases.yml --ref master

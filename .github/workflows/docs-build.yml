@@ -52,7 +52,7 @@ jobs:
           node-version: '22'
           cache: 'pnpm'
 
-      # Both deploys build with the analytics ids set, so this build sets stand-ins and takes the
+      # The deploy builds with the analytics ids set, so this build sets stand-ins and takes the
       # same branches of website/src/plugins/analyticsPlugin.js. Nothing here is deployed.
       - name: Build the site
         run: bash scripts/build-docs-site.sh

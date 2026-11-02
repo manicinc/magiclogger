@@ -28,13 +28,16 @@ permissions:
   pages: write
   id-token: write
 
-# The running deploy finishes and only the newest waiting run is kept.
+# One group, because every run publishes to the same gh-pages branch. The running deploy finishes
+# and only the newest waiting run is kept.
 concurrency:
-  group: deploy-docs-${{ github.ref }}
+  group: deploy-docs
   cancel-in-progress: false
 
 jobs:
   deploy:
+    # A manual run from another branch would replace the live site with that branch's pages.
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

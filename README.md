@@ -29,7 +29,7 @@
   <br />
   <!-- Tech Stack -->
   <img src="https://img.shields.io/badge/typescript-100%25-blue" alt="TypeScript"> 
-  <img src="https://img.shields.io/badge/node-14+-green" alt="Node.js"> 
+  <img src="https://img.shields.io/node/v/magiclogger" alt="Node.js"> 
   <img src="https://img.shields.io/badge/license-MIT-blue" alt="License">
 </p>
 

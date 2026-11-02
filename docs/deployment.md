@@ -6,10 +6,10 @@ This document explains how a new version of `magiclogger` reaches npm and GitHub
 
 Releases are made by [semantic-release](https://github.com/semantic-release/semantic-release) in the Release workflow, `.github/workflows/releases.yml`, with the plugins and rules in `.releaserc`. The workflow's release job runs on `master` in two cases:
 
-- a push to `master` whose commit message starts with `feat:`, `fix:` or `perf:`, or a scoped form such as `fix(api):`, or contains `BREAKING CHANGE`;
+- a push to `master` whose commit message starts with `feat:`, `fix:`, `perf:` or `revert:`, or a scoped form such as `fix(api):`, or contains `BREAKING CHANGE`;
 - a manual run on `master` (see [Run a Release by Hand](#run-a-release-by-hand)).
 
-A merge commit's message starts with `Merge pull request`, so after a pull request is merged with a merge commit, run the release by hand to release what it brought.
+The check reads the push's last commit only. A merge commit's message starts with `Merge pull request`, so after a pull request is merged with a merge commit, or after a push whose last commit calls for no release, run the release by hand to release what it brought: semantic-release reads every commit since the last tag.
 
 The release job runs the lint, the test suite with coverage, the build and the packed-files and release-asset checks, then semantic-release. It commits no coverage badge: coverage reaches Codecov from the CI workflow, and the badge reads it there ([Test Coverage](./test_coverage.md)). semantic-release reads the commits since the last `v*` tag. When they call for a release (`feat` a minor, `fix`, `perf` and `revert` a patch, a breaking change a major; `build`, `chore`, `ci`, `docs`, `refactor`, `style` and `test` none), it:
 
@@ -92,7 +92,7 @@ semantic-release writes each GitHub Release's notes from the conventional commit
 | `CODECOV_TOKEN` | Same | Authorises the Codecov upload in the CI workflow; when it is set, an upload that fails fails the job |
 | (none for Trivy) | — | Trivy requires no API keys or license for this workflow |
 
-`GITHUB_TOKEN` is provided by GitHub Actions; semantic-release uses it to push the release commit and the tag and to create the GitHub Release.
+`GITHUB_TOKEN` is provided by GitHub Actions; semantic-release uses it to push the tag and to create the GitHub Release.
 
 If `NPM_TOKEN` is set, keep it a granular token limited to publishing this package.
 
@@ -128,4 +128,4 @@ A: npm generates it for each trusted publish from this public repository; the re
 - Add CodeQL / OSS scan for security.
 
 ---
-_Last updated: 2026-10-21_
+_Last updated: 2026-11-02_
