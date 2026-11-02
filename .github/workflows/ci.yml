@@ -256,7 +256,18 @@ jobs:
       # own name, and a GitHub release holds one asset per name.
       - name: Check the release assets
         run: node scripts/check-release-assets.js
-      
+
+      # The tarball npm would publish, for the runtime-floor job to install as a consumer does.
+      - name: Pack the package
+        run: npm pack --ignore-scripts --pack-destination "$RUNNER_TEMP/package"
+
+      - name: Upload the packed package
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-${{ github.sha }}
+          path: ${{ runner.temp }}/package/*.tgz
+          if-no-files-found: error
+
       - name: Bundle size check
         run: pnpm run size:check
       
@@ -283,6 +294,53 @@ jobs:
         with:
           name: dist-${{ github.sha }}
           path: dist
+
+  # engines.node in package.json is the oldest Node a consumer may run magiclogger on. This
+  # installs the packed package with npm on that Node, as a consumer would, and loads both entry
+  # points through scripts/check-runtime-floor.cjs. The suite runs from src on Node 22 and
+  # cannot see a build that needs a newer Node than engines claims.
+  runtime-floor:
+    runs-on: ubuntu-latest
+    needs: build
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Read the oldest Node that engines allows
+        id: floor
+        run: |
+          floor=$(node -p '(/^>=\s*(\d+\.\d+\.\d+)$/.exec(require("./package.json").engines.node) || [])[1] || ""')
+          if [ -z "$floor" ]; then
+            echo "::error::engines.node in package.json must read >=x.y.z"
+            exit 1
+          fi
+          echo "version=$floor" >> "$GITHUB_OUTPUT"
+
+      - name: Download the packed package
+        uses: actions/download-artifact@v4
+        with:
+          name: package-${{ github.sha }}
+          path: ${{ runner.temp }}/package
+
+      - name: Setup Node.js ${{ steps.floor.outputs.version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ steps.floor.outputs.version }}
+
+      - name: Install the package as a consumer
+        working-directory: ${{ runner.temp }}
+        run: |
+          mkdir consumer
+          cd consumer
+          npm init -y > /dev/null
+          npm install --no-audit --no-fund ../package/*.tgz
+          cp "$GITHUB_WORKSPACE/scripts/check-runtime-floor.cjs" .
+
+      - name: Load both entry points
+        working-directory: ${{ runner.temp }}/consumer
+        run: node check-runtime-floor.cjs
 
   release-draft:
     name: Update Release Draft
@@ -381,9 +439,21 @@ jobs:
 
   all-checks:
     runs-on: ubuntu-latest
-    needs: [quality, test-linux, build, security]
-    # needs: [quality, test-linux, test-cross, build, security]  # UNCOMMENT FOR CROSS-PLATFORM
+    needs: [quality, test-linux, build, security, runtime-floor]
+    # needs: [quality, test-linux, test-cross, build, security, runtime-floor]  # UNCOMMENT FOR CROSS-PLATFORM
     if: always()
     steps:
+      # if: always() runs this job after a failed or skipped job too, so the needed jobs'
+      # results decide it; an echo alone passed while test-linux or build had failed.
       - name: Final status
-        run: echo "✅ Core CI jobs completed"
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Needed jobs: $RESULTS"
+          for result in $RESULTS; do
+            if [ "$result" != success ]; then
+              echo "::error::a needed job ended $result"
+              exit 1
+            fi
+          done
+          echo "Core CI jobs passed"
