@@ -52,12 +52,16 @@ jobs:
           node-version: '22'
           cache: 'pnpm'
 
+      # Both deploys build with the analytics ids set, so this build sets stand-ins and takes the
+      # same branches of website/src/plugins/analyticsPlugin.js. Nothing here is deployed.
       - name: Build the site
         run: bash scripts/build-docs-site.sh
+        env:
+          GA_TRACKING_ID: G-DOCSBUILD
+          MS_CLARITY_ID: docsbuild
 
-      # Both deploys build with the analytics ids set and the pages they publish carry the tags
-      # website/src/plugins/analyticsPlugin.js injects; without this, a release that stops the
-      # plugin's tags reaching the pages first shows on the live site, and shows nowhere in a run.
+      # A release that stops the plugin's tags reaching the pages would otherwise first show on
+      # the live site, and show nowhere in a run.
       - name: Check the analytics tags reached the pages
         run: |
           page=website/build/index.html
