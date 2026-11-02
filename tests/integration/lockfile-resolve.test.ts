@@ -83,6 +83,15 @@ describe('lockfile.yml Resolve step (scripts/lockfile-resolve.sh)', () => {
     expect(resolve(update)).toEqual({ status: 1, args: null });
   });
 
+  // pnpm update name@version moves the package to that version whatever package.json declares,
+  // and --no-save leaves the manifest behind the lockfile.
+  it.each(['jest@30.0.0', 'qs @docusaurus/core@3.10.2', 'qs@6'])(
+    'refuses the version in %p',
+    update => {
+      expect(resolve(update)).toEqual({ status: 1, args: null });
+    }
+  );
+
   it.each(['qs;touch x', 'qs $(id)', 'qs`id`', 'qs|cat', "qs'"])(
     'refuses the shell syntax in %p',
     update => {
