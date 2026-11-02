@@ -13,6 +13,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -92,10 +93,13 @@ describe('lockfile.yml Resolve step (scripts/lockfile-resolve.sh)', () => {
     }
   );
 
-  it.each(['qs;touch x', 'qs $(id)', 'qs`id`', 'qs|cat', "qs'"])(
+  // Each input writes a file when a shell runs it, so a script that ran the input before
+  // refusing it would leave that file in the working folder.
+  it.each(['qs;touch x', 'qs $(touch y)', 'qs`touch z`', 'qs|tee w', "qs'"])(
     'refuses the shell syntax in %p',
     update => {
       expect(resolve(update)).toEqual({ status: 1, args: null });
+      expect(readdirSync(dir).sort()).toEqual(['@docusaurus', 'bin']);
     }
   );
 });
