@@ -32,55 +32,30 @@ Releases to npm are made by semantic-release in `releases.yml`, through npm's tr
 
 ### Single Source of Truth
 
-MagicLogger maintains documentation in a single location to avoid duplication and inconsistencies:
-
-- **Source**: All documentation lives in `docs/` folder
-- **Website**: Docusaurus site in `website/` folder
-- **Sync**: Documentation is synced from `docs/` to `website/docs/` at build time
+The documentation lives in `docs/`, and the Docusaurus site in `website/` reads it from there: `website/docusaurus.config.ts` sets the docs plugin's `path` to `'../docs'`, so no page is copied before a build. TypeDoc writes the API pages to `website/static/api` (`typedoc.json`).
 
 ### How It Works
 
-1. **Local Development**:
+1. **Local development**: edit a page in `docs/`, then preview the site:
    ```bash
-   # Edit docs in docs/ folder
-   vim docs/my-doc.md
-   
-   # Test locally with auto-sync
    cd website
-   npm run start  # Automatically runs sync-docs first
+   pnpm run start
    ```
 
-2. **CI/CD Build**:
-   - GitHub Actions automatically syncs docs before building
-   - The `docs.yml` workflow runs `node scripts/sync-docs.js`
-   - Builds and deploys to GitHub Pages
-
-3. **Why This Approach**:
-   - Single source of truth in `docs/`
-   - No manual copying or duplication
-   - `website/docs/` is gitignored (except tutorials)
-   - Automatic frontmatter injection for Docusaurus
+2. **CI/CD build**: `scripts/build-docs-site.sh` installs the workspace, builds the library, generates the API pages and builds the Docusaurus site into `website/build`. `docs-build.yml` runs it on pull requests and deploys nothing; the `deploy-docs` job of `ci.yml` and `deploy-docs.yml` run it after a push to `master` and publish `website/build` to the `gh-pages` branch, which GitHub Pages serves.
 
 ### Adding New Documentation
 
-1. Create doc in `docs/` folder:
+1. Create the page in `docs/`:
    ```bash
    echo "# My New Feature" > docs/my-feature.md
    ```
 
-2. Add to sync list in `scripts/sync-docs.js`:
-   ```javascript
-   const DOCS_TO_SYNC = [
-     // ... existing docs
-     'my-feature.md',
-   ];
-   ```
+2. Add it to `website/sidebars.js`, which lists the pages of the sidebar.
 
-3. Update sidebar if needed in `website/sidebars.ts`
-
-4. Test locally:
+3. Preview it:
    ```bash
-   cd website && npm run start
+   cd website && pnpm run start
    ```
 
 ## Workflow Files
@@ -95,7 +70,8 @@ The pipeline is defined in these workflow files:
 | `.github/workflows/releases.yml` | Release: semantic-release on `master` (a release-bearing push or a manual run), npm through the trusted publisher; dry runs on any branch |
 | `.github/workflows/release.yml` | A `v*` tag pushed by hand: build + GitHub Release (no npm publish) |
 | `.github/workflows/lockfile.yml` | Resolves `pnpm-lock.yaml` as an artifact when a branch push changes `package.json`, `website/package.json` or `pnpm-workspace.yaml`; run by hand with `-f update='<packages>'`, it moves those packages to the highest version their dependents allow, at every depth (see [Dependency updates](#dependency-updates)) |
-| `.github/workflows/docs-build.yml` | Builds the documentation site, deploying nothing, on a pull request that changes `docs/`, `website/`, `src/`, `README.md`, `tsconfig.json`, `typedoc.json`, the manifests or `pnpm-lock.yaml` |
+| `.github/workflows/docs-build.yml` | Builds the documentation site with `scripts/build-docs-site.sh`, the script both deploys run, and deploys nothing, on a pull request that changes `docs/`, `website/`, `src/`, `README.md`, `tsconfig.json`, `typedoc.json`, the build configuration, the manifests, `pnpm-lock.yaml` or that script |
+| `.github/workflows/deploy-docs.yml` | After a push to `master` that changes `docs/` or `website/`: builds the site with `scripts/build-docs-site.sh` and publishes `website/build` to `gh-pages` (the `deploy-docs` job of `ci.yml` does the same after every push to `master`) |
 
 Versions come from semantic-release, configured in `.releaserc`.
 

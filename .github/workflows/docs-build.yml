@@ -1,9 +1,10 @@
 name: Docs build
 
-# Builds the documentation site as ci.yml's deploy-docs job does after each push to master, and
-# deploys nothing. Without it, a pull request that breaks the site (a Docusaurus or webpack
-# release in pnpm-lock.yaml, a page in docs/) passes every check and the break first shows in
-# the deploy on master.
+# Builds the documentation site with scripts/build-docs-site.sh, the script ci.yml's deploy-docs
+# job and deploy-docs.yml run after a push to master, and deploys nothing. Without it, a pull
+# request that breaks the site (a Docusaurus or webpack release in pnpm-lock.yaml, a page in
+# docs/, a change to the build commands) passes every check and the break first shows in the
+# deploy on master. The setup steps and the gh-pages publish stay in each deploy workflow.
 on:
   pull_request:
     branches: [master, main]
@@ -22,7 +23,7 @@ on:
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - 'typedoc.json'
-      - 'scripts/sync-docs.js'
+      - 'scripts/build-docs-site.sh'
       - '.github/workflows/docs-build.yml'
 
 permissions:
@@ -51,22 +52,5 @@ jobs:
           node-version: '22'
           cache: 'pnpm'
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build library
-        run: pnpm run build
-        env:
-          NODE_ENV: production
-
-      - name: Generate API documentation
-        run: pnpm run docs:api
-
-      - name: Sync documentation
-        run: node scripts/sync-docs.js
-
-      - name: Build Docusaurus
-        working-directory: ./website
-        run: pnpm run build
-        env:
-          NODE_ENV: production
+      - name: Build the site
+        run: bash scripts/build-docs-site.sh
