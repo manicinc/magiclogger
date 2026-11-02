@@ -54,3 +54,16 @@ jobs:
 
       - name: Build the site
         run: bash scripts/build-docs-site.sh
+
+      # Both deploys build with the analytics ids set and the pages they publish carry the tags
+      # website/src/plugins/analyticsPlugin.js injects; without this, a release that stops the
+      # plugin's tags reaching the pages first shows on the live site, and shows nowhere in a run.
+      - name: Check the analytics tags reached the pages
+        run: |
+          page=website/build/index.html
+          for wanted in 'googletagmanager.com/gtag/js?id=G-DOCSBUILD' 'clarity.ms/tag/' 'docsbuild'; do
+            if ! grep -Fq "$wanted" "$page"; then
+              echo "::error::$page does not carry $wanted"
+              exit 1
+            fi
+          done
