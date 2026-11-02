@@ -29,12 +29,19 @@ if [ "${#names[@]}" -eq 0 ]; then
   exec pnpm install --lockfile-only
 fi
 
-# pnpm would read a word that starts with a dash as an option: --latest moves packages past
-# the ranges package.json declares (pnpm.io/cli/update), and --no-save leaves that unrecorded.
+# pnpm would read a word that starts with a dash as an option, and an @ after the scope's as a
+# version: --latest and name@version move packages past the ranges package.json declares
+# (pnpm.io/cli/update), and --no-save leaves that unrecorded.
 for name in "${names[@]}"; do
   case "$name" in
     -*)
       echo "::error::update takes package names and patterns, not options: $name"
+      exit 1
+      ;;
+  esac
+  case "${name#@}" in
+    *@*)
+      echo "::error::update takes package names and patterns, not versions: $name"
       exit 1
       ;;
   esac
