@@ -42,30 +42,30 @@ jobs:
             // Fallback to PR title if nothing matched
             const changes = items.length ? items.join('\n') : `- ${pr.title}`;
 
-            const body = pr.body || '';
+            // Read the body now, not from the event: a run that started before the author's
+            // latest edit must not write its older copy back over that edit.
+            const { data: current } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+            });
+            const body = current.body || '';
             const start = '<!-- auto-summary-start -->';
             const end = '<!-- auto-summary-end -->';
             const summary = `\n## 🧾 Auto Summary\n${changes}\n`;
 
             let newBody;
             if (body.includes(start) && body.includes(end)) {
-              newBody = body.replace(new RegExp(`${start}[\s\S]*?${end}`), `${start}${summary}${end}`);
+              newBody = body.replace(new RegExp(`${start}[\\s\\S]*?${end}`), () => `${start}${summary}${end}`);
             } else {
               newBody = `${body}\n${start}${summary}${end}`.trim();
             }
 
-            core.setOutput('body', newBody);
-      - name: Update PR body
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const pr = context.payload.pull_request;
-            const body = process.env.BODY;
-            await github.rest.pulls.update({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: pr.number,
-              body,
-            });
-        env:
-          BODY: ${{ steps.build.outputs.body }}
+            if (newBody !== body) {
+              await github.rest.pulls.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+                body: newBody,
+              });
+            }
