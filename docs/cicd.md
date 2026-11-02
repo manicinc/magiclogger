@@ -65,6 +65,7 @@ The pipeline is defined in these workflow files:
 | File | Purpose |
 |------|---------|
 | `.github/workflows/ci.yml` | Core CI: pre-check, quality, matrix tests, build, draft update |
+| `.github/workflows/auto-format.yml` | By hand: formats a branch and commits the result. Push once more afterwards: a commit made with `GITHUB_TOKEN` starts no workflow, so that head reports no `all-checks` |
 | `.github/workflows/auto-label.yml` | Auto label PRs (paths + conventional commit types + size) |
 | `.github/workflows/release-drafter.yml` | Maintain draft release notes on PR merges / label changes |
 | `.github/workflows/releases.yml` | Release: semantic-release on `master` (a release-bearing push or a manual run), npm through the trusted publisher; dry runs on any branch |
@@ -197,6 +198,7 @@ If `NPM_TOKEN` is set, keep it a granular token limited to publishing this packa
 | Symptom | Likely Cause | Fix |
 |---------|--------------|-----|
 | Release job skipped on a push | The commit message does not start with `feat`, `fix` or `perf` (a merge commit never does) | Run it by hand: `gh workflow run releases.yml --ref master` |
+| `Format check` fails in `quality` | The pull request's formatting differs from Prettier's | Run `pnpm run format` and push |
 | A push to `master` is refused | `master`'s ruleset requires the `all-checks` job with no bypass | Open a pull request |
 | `verifyConditions` fails in `@semantic-release/npm` | The OIDC exchange failed (the log gives the status) and there is no valid `NPM_TOKEN` | Check that the package's trusted publisher on npmjs.com names `manicinc/magiclogger` and `releases.yml`, then check with a dry run |
 | Coverage not on Codecov | Missing token or job matrix mismatch | Add `CODECOV_TOKEN`, confirm path `coverage/lcov.info` |

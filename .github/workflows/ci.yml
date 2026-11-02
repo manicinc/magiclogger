@@ -74,33 +74,13 @@ jobs:
       - name: Install deps
         run: pnpm install --frozen-lockfile
       
-      # Auto-format and commit if needed (non-fork pull requests only: master's ruleset refuses a
-      # direct push)
-      - name: Auto-format code
-        id: format
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-        run: |
-          pnpm run format
-          if [[ $(git status --porcelain) ]]; then
-            echo "formatted=true" >> $GITHUB_OUTPUT
-          else
-            echo "formatted=false" >> $GITHUB_OUTPUT
-          fi
-      
-      - name: Commit formatted code
-        if: steps.format.outputs.formatted == 'true' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "style: auto-format code with prettier [skip ci]"
-          git push
-      
-      # For fork PRs, just check formatting without auto-fixing
-      - name: Format check (fork PRs)
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
+      # A check, not a commit: a push made with GITHUB_TOKEN starts no workflow, so a bot's commit
+      # on a pull request would leave a head that never reports all-checks, which master's ruleset
+      # requires. Fix a failure with pnpm run format.
+      - name: Format check
+        if: github.event_name == 'pull_request'
         run: pnpm run format:check
-      
+
       - name: Lint
         run: pnpm run lint
       
@@ -275,21 +255,6 @@ jobs:
 
       - name: Bundle size check
         run: pnpm run size:check
-      
-      - name: Update bundle size (README)
-        run: pnpm run size:update
-      
-      - name: Commit README size update (PR only)
-        if: github.event_name == 'pull_request'
-        run: |
-          if git diff --quiet --exit-code README.md; then
-            echo "No README size changes"; exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add README.md
-          git commit -m "chore(ci): update bundle size table [skip ci]" || true
-          git push || echo "Non-fatal: push failed (likely due to permissions)"
       
       - name: Bundle size analyze
         run: node scripts/analyze-build.js || true

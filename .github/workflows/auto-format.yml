@@ -1,8 +1,8 @@
 name: Auto Format
 
+# By hand only: a push made with GITHUB_TOKEN starts no workflow, so a commit from this job leaves
+# a head with no all-checks, which master's ruleset requires. Push once more after running it.
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
   workflow_dispatch:
 
 permissions:
