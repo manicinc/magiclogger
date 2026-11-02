@@ -63,9 +63,10 @@ jobs:
           node-version: '22'
 
       # --lockfile-only writes pnpm-lock.yaml without node_modules or scripts, and pnpm drops
-      # its frozen-lockfile default on CI for it. pnpm update re-resolves every dependency whose
-      # name matches, at any depth (its --depth defaults to Infinity), and --no-save keeps the
-      # specifiers in package.json.
+      # its frozen-lockfile default on CI for it. With --recursive and no --depth, pnpm update
+      # moves only the direct dependencies that match (pnpm 10.14 recursive.ts), so --depth
+      # Infinity makes it re-resolve every dependency whose name matches, at any depth.
+      # --no-save keeps the specifiers in package.json.
       - name: Resolve
         env:
           UPDATE: ${{ inputs.update }}
@@ -83,7 +84,7 @@ jobs:
           # The patterns go to pnpm as written, never expanded against the checkout's files.
           set -f
           # shellcheck disable=SC2086
-          pnpm update --recursive --no-save --lockfile-only $UPDATE
+          pnpm update --recursive --depth Infinity --no-save --lockfile-only $UPDATE
 
       - name: Upload the lockfile
         uses: actions/upload-artifact@v4

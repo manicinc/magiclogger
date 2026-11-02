@@ -107,7 +107,7 @@ gh workflow run lockfile.yml -R manicinc/magiclogger --ref <branch> -f update='q
 gh run download <run-id> -R manicinc/magiclogger -n pnpm-lock
 ```
 
-The job runs `pnpm update --recursive --no-save --lockfile-only` with the names given, which re-resolves every dependency of those names at any depth and leaves the specifiers in `package.json` as they are. When a dependent pins a vulnerable version, an entry under `overrides` in `pnpm-workspace.yaml` sets a floor; each one carries the advisory and the reason beside it.
+The job runs `pnpm update --recursive --depth Infinity --no-save --lockfile-only` with the names given, which re-resolves every dependency of those names at any depth (without `--depth`, a recursive update moves only matching direct dependencies) and leaves the specifiers in `package.json` as they are. When a dependent pins a vulnerable version, an entry under `overrides` in `pnpm-workspace.yaml` sets a floor; each one carries the advisory and the reason beside it.
 
 ## Security Scanning (Secrets)
 
