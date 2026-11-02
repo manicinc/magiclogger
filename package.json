@@ -407,7 +407,7 @@
     "docs:api": "typedoc",
     "docs:deploy": "npm run build && npm run docs:api && cd website && npm run build && npm run deploy",
     "deploy:gh-pages": "npm run build && cd website && npm ci && npm run build && gh-pages -d build -b gh-pages",
-    "docs:install": "cd website && npm ci",
+    "docs:install": "pnpm install --frozen-lockfile",
     "clean": "rimraf dist .tsbuildinfo",
     "clean:all": "rimraf dist test_logs .tsbuildinfo",
     "check": "npm run format && npm run lint",
