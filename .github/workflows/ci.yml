@@ -19,7 +19,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  NODE_VERSION: '18'
+  NODE_VERSION: '22'
 
 jobs:
   pre-check:
@@ -114,7 +114,7 @@ jobs:
     # strategy:
     #   fail-fast: false
     #   matrix:
-    #     node: ['18', '20']
+    #     node: ['22', '24']
     steps:
       - uses: actions/checkout@v4
       
@@ -135,14 +135,14 @@ jobs:
         run: pnpm run test:coverage
       
       - name: Upload coverage artifact
-        # if: matrix.node == '18'  # UNCOMMENT FOR MATRIX
+        # if: matrix.node == '22'  # UNCOMMENT FOR MATRIX
         uses: actions/upload-artifact@v4
         with:
           name: coverage-${{ github.sha }}
           path: coverage
       
       - name: Upload to Codecov
-        # if: matrix.node == '18'  # UNCOMMENT FOR MATRIX
+        # if: matrix.node == '22'  # UNCOMMENT FOR MATRIX
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -167,7 +167,7 @@ jobs:
   #     fail-fast: false
   #     matrix:
   #       os: [windows-latest, macos-latest]
-  #       node: ['20']
+  #       node: ['22']
   #   runs-on: ${{ matrix.os }}
   #   steps:
   #     - uses: actions/checkout@v4
@@ -256,7 +256,20 @@ jobs:
       # own name, and a GitHub release holds one asset per name.
       - name: Check the release assets
         run: node scripts/check-release-assets.js
-      
+
+      # The tarball npm would publish, for the runtime-floor job to install as a consumer does.
+      - name: Pack the package
+        run: |
+          mkdir -p "$RUNNER_TEMP/package"
+          npm pack --ignore-scripts --pack-destination "$RUNNER_TEMP/package"
+
+      - name: Upload the packed package
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-${{ github.sha }}
+          path: ${{ runner.temp }}/package/*.tgz
+          if-no-files-found: error
+
       - name: Bundle size check
         run: pnpm run size:check
       
@@ -283,6 +296,53 @@ jobs:
         with:
           name: dist-${{ github.sha }}
           path: dist
+
+  # engines.node in package.json is the oldest Node a consumer may run magiclogger on. This
+  # installs the packed package with npm on that Node, as a consumer would, and loads both entry
+  # points through scripts/check-runtime-floor.cjs. The suite runs from src on Node 22 and
+  # cannot see a build that needs a newer Node than engines claims.
+  runtime-floor:
+    runs-on: ubuntu-latest
+    needs: build
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Read the oldest Node that engines allows
+        id: floor
+        run: |
+          floor=$(node -p '(/^>=\s*(\d+\.\d+\.\d+)$/.exec(require("./package.json").engines.node) || [])[1] || ""')
+          if [ -z "$floor" ]; then
+            echo "::error::engines.node in package.json must read >=x.y.z"
+            exit 1
+          fi
+          echo "version=$floor" >> "$GITHUB_OUTPUT"
+
+      - name: Download the packed package
+        uses: actions/download-artifact@v4
+        with:
+          name: package-${{ github.sha }}
+          path: ${{ runner.temp }}/package
+
+      - name: Setup Node.js ${{ steps.floor.outputs.version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ steps.floor.outputs.version }}
+
+      - name: Install the package as a consumer
+        working-directory: ${{ runner.temp }}
+        run: |
+          mkdir consumer
+          cd consumer
+          npm init -y > /dev/null
+          npm install --no-audit --no-fund ../package/*.tgz
+          cp "$GITHUB_WORKSPACE/scripts/check-runtime-floor.cjs" .
+
+      - name: Load both entry points
+        working-directory: ${{ runner.temp }}/consumer
+        run: node check-runtime-floor.cjs
 
   release-draft:
     name: Update Release Draft
@@ -317,50 +377,15 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
       
-      - name: Cache website dependencies
-        uses: actions/cache@v4
-        with:
-          path: website/node_modules
-          key: ${{ runner.os }}-website-${{ hashFiles('website/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-website-
-      
-      - name: Install root dependencies
-        run: pnpm install --frozen-lockfile
-      
-      - name: Build library (minified production)
-        run: |
-          echo "Building minified production library..."
-          NODE_ENV=production pnpm run build
+      # The install, the library build, the API pages and the Docusaurus build, as docs-build.yml
+      # runs them on pull requests, after the same setup steps. No website/node_modules cache is
+      # restored first: the one that stood here keyed on website/package-lock.json, which does
+      # not exist, so its key never changed and every deploy restored the folder one master run
+      # saved, from an older dependency tree than the lockfile, before an install no
+      # pull-request check ran from. setup-node's pnpm cache holds the store.
+      - name: Build the site
+        run: bash scripts/build-docs-site.sh
         env:
-          NODE_ENV: production
-      
-      - name: Generate API documentation
-        run: |
-          echo "Generating TypeDoc API documentation..."
-          pnpm run docs:api
-      
-      - name: Install website dependencies
-        working-directory: ./website
-        run: |
-          # Use pnpm for consistency with root project
-          pnpm install --frozen-lockfile
-      
-      - name: Sync documentation
-        run: |
-          if [ -f "scripts/sync-docs.js" ]; then
-            node scripts/sync-docs.js
-          else
-            cp -r docs/* website/docs/ 2>/dev/null || true
-          fi
-      
-      - name: Build Docusaurus (production minified)
-        working-directory: ./website
-        run: |
-          echo "Building minified Docusaurus site..."
-          NODE_ENV=production pnpm run build
-        env:
-          NODE_ENV: production
           GA_TRACKING_ID: ${{ secrets.GA_TRACKING_ID }}
           MS_CLARITY_ID: ${{ secrets.MS_CLARITY_ID }}
       
@@ -381,9 +406,21 @@ jobs:
 
   all-checks:
     runs-on: ubuntu-latest
-    needs: [quality, test-linux, build, security]
-    # needs: [quality, test-linux, test-cross, build, security]  # UNCOMMENT FOR CROSS-PLATFORM
+    needs: [quality, test-linux, build, security, runtime-floor]
+    # needs: [quality, test-linux, test-cross, build, security, runtime-floor]  # UNCOMMENT FOR CROSS-PLATFORM
     if: always()
     steps:
+      # if: always() runs this job after a failed or skipped job too, so the needed jobs'
+      # results decide it; an echo alone passed while test-linux or build had failed.
       - name: Final status
-        run: echo "✅ Core CI jobs completed"
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Needed jobs: $RESULTS"
+          for result in $RESULTS; do
+            if [ "$result" != success ]; then
+              echo "::error::a needed job ended $result"
+              exit 1
+            fi
+          done
+          echo "Core CI jobs passed"

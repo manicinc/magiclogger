@@ -6,6 +6,7 @@ Magiclogger uses GitHub Actions for continuous integration and for releases to n
 
 - [CI/CD Overview](#cicd-overview)
 - [Workflow Files](#workflow-files)
+- [Dependency updates](#dependency-updates)
 - [Versioning Strategy](#versioning-strategy)
 - [Commit Message Conventions](#commit-message-conventions)
 - [Release Procedure](#release-procedure)
@@ -18,11 +19,12 @@ Magiclogger CI currently does:
 
 1. Pre‑checks (commit lint, large file warning, and `scripts/check-git-add-paths.js`, which fails when a `git add` in a workflow, a package.json script, a git hook or a script under `scripts/` names a path that matches no tracked file)
 2. Lint, type-check, formatting verification, basic audit
-3. Tests with coverage on Node 18 (Ubuntu)
-4. Build artifacts (ESM + CJS) and upload dist
-5. Draft release notes maintenance (Release Drafter) when on `master` / `main`
-6. Coverage upload to Codecov ([Test Coverage](./test_coverage.md))
-7. Secret scanning with Trivy (free, no license required)
+3. Tests with coverage on Node 22 (Ubuntu)
+4. Build artifacts (ESM + CJS) and upload dist and the packed tarball
+5. `runtime-floor`: installs the packed tarball with npm on the oldest Node that `engines.node` in `package.json` allows (16.11.0) and loads the CommonJS and ESM entry points (`scripts/check-runtime-floor.cjs`); `all-checks` fails when any job it needs did not succeed
+6. Draft release notes maintenance (Release Drafter) when on `master` / `main`
+7. Coverage upload to Codecov ([Test Coverage](./test_coverage.md))
+8. Secret scanning with Trivy (free, no license required)
 
 Releases to npm are made by semantic-release in `releases.yml`, through npm's trusted publisher; see [Release Procedure](#release-procedure).
 
@@ -30,55 +32,30 @@ Releases to npm are made by semantic-release in `releases.yml`, through npm's tr
 
 ### Single Source of Truth
 
-MagicLogger maintains documentation in a single location to avoid duplication and inconsistencies:
-
-- **Source**: All documentation lives in `docs/` folder
-- **Website**: Docusaurus site in `website/` folder
-- **Sync**: Documentation is synced from `docs/` to `website/docs/` at build time
+The documentation lives in `docs/`, and the Docusaurus site in `website/` reads it from there: `website/docusaurus.config.ts` sets the docs plugin's `path` to `'../docs'`, so no page is copied before a build. TypeDoc writes the API pages to `website/static/api` (`typedoc.json`).
 
 ### How It Works
 
-1. **Local Development**:
+1. **Local development**: edit a page in `docs/`, then preview the site:
    ```bash
-   # Edit docs in docs/ folder
-   vim docs/my-doc.md
-   
-   # Test locally with auto-sync
    cd website
-   npm run start  # Automatically runs sync-docs first
+   pnpm run start
    ```
 
-2. **CI/CD Build**:
-   - GitHub Actions automatically syncs docs before building
-   - The `docs.yml` workflow runs `node scripts/sync-docs.js`
-   - Builds and deploys to GitHub Pages
-
-3. **Why This Approach**:
-   - Single source of truth in `docs/`
-   - No manual copying or duplication
-   - `website/docs/` is gitignored (except tutorials)
-   - Automatic frontmatter injection for Docusaurus
+2. **CI/CD build**: `scripts/build-docs-site.sh` installs the workspace, builds the library, generates the API pages and builds the Docusaurus site into `website/build`. `docs-build.yml` runs it on pull requests and deploys nothing; the `deploy-docs` job of `ci.yml` and `deploy-docs.yml` run it after a push to `master` and publish `website/build` to the `gh-pages` branch, which GitHub Pages serves. All three run the same setup first (pnpm, Node 22 with setup-node's pnpm store cache) and restore no `node_modules`, so the pull-request check builds from the state the deploys build from. The deploys pass the real `GA_TRACKING_ID` and `MS_CLARITY_ID`; `docs-build.yml` passes stand-ins and checks that `website/build/index.html` carries the Google Analytics and Clarity tags, then starts `docusaurus start` and checks that the dev server serves the page and its bundle.
 
 ### Adding New Documentation
 
-1. Create doc in `docs/` folder:
+1. Create the page in `docs/`:
    ```bash
    echo "# My New Feature" > docs/my-feature.md
    ```
 
-2. Add to sync list in `scripts/sync-docs.js`:
-   ```javascript
-   const DOCS_TO_SYNC = [
-     // ... existing docs
-     'my-feature.md',
-   ];
-   ```
+2. Add it to `website/sidebars.js`, which lists the pages of the sidebar.
 
-3. Update sidebar if needed in `website/sidebars.ts`
-
-4. Test locally:
+3. Preview it:
    ```bash
-   cd website && npm run start
+   cd website && pnpm run start
    ```
 
 ## Workflow Files
@@ -92,9 +69,22 @@ The pipeline is defined in these workflow files:
 | `.github/workflows/release-drafter.yml` | Maintain draft release notes on PR merges / label changes |
 | `.github/workflows/releases.yml` | Release: semantic-release on `master` (a release-bearing push or a manual run), npm through the trusted publisher; dry runs on any branch |
 | `.github/workflows/release.yml` | A `v*` tag pushed by hand: build + GitHub Release (no npm publish) |
-| `.github/workflows/lockfile.yml` | Resolves `pnpm-lock.yaml` as an artifact when a branch push changes `package.json`, `website/package.json` or `pnpm-workspace.yaml` |
+| `.github/workflows/lockfile.yml` | Resolves `pnpm-lock.yaml` as an artifact when a branch push changes `package.json`, `website/package.json` or `pnpm-workspace.yaml`; run by hand with `-f update='<packages>'`, it moves those packages to the highest version their dependents allow, at every depth (see [Dependency updates](#dependency-updates)) |
+| `.github/workflows/docs-build.yml` | Builds the documentation site with `scripts/build-docs-site.sh`, the script both deploys run, and deploys nothing, on a pull request that changes `docs/`, `website/`, `src/`, `README.md`, `tsconfig.json`, `typedoc.json`, the build configuration, the manifests, `pnpm-lock.yaml` or that script |
+| `.github/workflows/deploy-docs.yml` | After a push to `master` that changes `docs/` or `website/`: builds the site with `scripts/build-docs-site.sh` and publishes `website/build` to `gh-pages` (the `deploy-docs` job of `ci.yml` does the same after every push to `master`) |
 
 Versions come from semantic-release, configured in `.releaserc`.
+
+## Dependency updates
+
+`pnpm-lock.yaml` is resolved in CI, never on a developer's machine; installs, on a developer's machine and in the CI jobs, read the committed lockfile. A locked version that still satisfies its dependents stays locked, so a patched release of a transitive dependency reaches `pnpm-lock.yaml` only through an update:
+
+```bash
+gh workflow run lockfile.yml -R manicinc/magiclogger --ref <branch> -f update='qs express jest @docusaurus/*'
+gh run download <run-id> -R manicinc/magiclogger -n pnpm-lock
+```
+
+The job runs `pnpm update --recursive --include-workspace-root --depth Infinity --no-save --lockfile-only` with the names given and leaves the specifiers in `package.json` as they are. pnpm re-resolves a matching package only inside the trees of the direct dependencies (of the library or of `website/`) that the names also match, so the input names both: the packages to move and the direct dependencies whose trees hold them, which move to the highest version their own range allows. A name that matches no direct dependency changes nothing, and without `--include-workspace-root` the library's own dependencies stay as they are. The input takes names and patterns only: a word that starts with a dash (an option such as `--latest`) or that carries a version (`jest@30.0.0`; the `@` of a scope such as `@docusaurus/*` is fine) stops the run, since both move packages past the ranges `package.json` declares, and an input of spaces alone resolves the manifests as an empty one does. Each run's artifact is the whole lockfile resolved from the commit it ran on, so two runs from one commit each lose the other's changes: name every package in one run, or commit one artifact before starting the next. The step is `scripts/lockfile-resolve.sh`, which `tests/integration/lockfile-resolve.test.ts` runs with a stand-in pnpm. The optional peers pnpm installs for the tests are never selected; `ws` and `@aws-sdk/client-s3` are devDependencies for that reason. When a dependent pins a vulnerable version, an entry under `overrides` in `pnpm-workspace.yaml` sets a floor; each one carries the advisory and the reason beside it.
 
 ## Security Scanning (Secrets)
 
@@ -173,7 +163,7 @@ BREAKING CHANGE: Previous function signature changed
 
 ## Coverage & Codecov
 
-Coverage is generated by `pnpm test:coverage` (Jest), and the test-linux job (Ubuntu, Node 18) uploads `coverage/lcov.info` to Codecov with the `CODECOV_TOKEN` secret. When the secret is set, an upload that does not reach Codecov fails the job. Pull requests from forks and from Dependabot run without it: a fork's upload goes without a token, and Dependabot's needs `CODECOV_TOKEN` as a Dependabot secret too while the organisation requires tokens for its public repositories ([Codecov: tokens](https://docs.codecov.com/docs/codecov-tokens)).
+Coverage is generated by `pnpm test:coverage` (Jest), and the test-linux job (Ubuntu, Node 22) uploads `coverage/lcov.info` to Codecov with the `CODECOV_TOKEN` secret. When the secret is set, an upload that does not reach Codecov fails the job. Pull requests from forks and from Dependabot run without it: a fork's upload goes without a token, and Dependabot's needs `CODECOV_TOKEN` as a Dependabot secret too while the organisation requires tokens for its public repositories ([Codecov: tokens](https://docs.codecov.com/docs/codecov-tokens)).
 
 `codecov.yml` sets the `codecov/patch` and `codecov/project` statuses, and both fail when Codecov has no report for the commit; [Test Coverage](./test_coverage.md) has the details, and which of them Codecov reports. The coverage badge in the README and in Test Coverage reads Codecov's figure for `master`. No workflow commits a coverage badge.
 

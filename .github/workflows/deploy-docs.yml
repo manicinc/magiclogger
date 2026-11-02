@@ -29,23 +29,16 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'pnpm'
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build library
-        run: pnpm run build
-
-      - name: Generate API documentation
-        run: pnpm run docs:api
-
-      - name: Install website dependencies
-        run: cd website && pnpm install --frozen-lockfile
-
-      - name: Build website
-        run: cd website && pnpm run build
+      # The install, the library build, the API pages and the Docusaurus build, as docs-build.yml
+      # runs them on pull requests and ci.yml's deploy-docs job runs them before its own publish.
+      - name: Build the site
+        run: bash scripts/build-docs-site.sh
+        env:
+          GA_TRACKING_ID: ${{ secrets.GA_TRACKING_ID }}
+          MS_CLARITY_ID: ${{ secrets.MS_CLARITY_ID }}
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3

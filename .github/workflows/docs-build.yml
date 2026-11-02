@@ -1,0 +1,108 @@
+name: Docs build
+
+# Builds the documentation site with scripts/build-docs-site.sh, the script ci.yml's deploy-docs
+# job and deploy-docs.yml run after a push to master, and deploys nothing. Without it, a pull
+# request that breaks the site (a Docusaurus or webpack release in pnpm-lock.yaml, a page in
+# docs/, a change to the build commands) passes every check and the break first shows in the
+# deploy on master. The setup steps and the gh-pages publish stay in each deploy workflow.
+on:
+  pull_request:
+    branches: [master, main]
+    paths:
+      - 'docs/**'
+      - 'website/**'
+      # TypeDoc reads the source, README.md and tsconfig.json for the API pages, and checks
+      # their links (typedoc.json validation.invalidLink).
+      - 'src/**'
+      - 'README.md'
+      - 'tsconfig.json'
+      # The library build that runs first, as in the deploy.
+      - 'tsup.config.ts'
+      - 'tsconfig.build.json'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'typedoc.json'
+      - 'scripts/build-docs-site.sh'
+      - '.github/workflows/docs-build.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-build-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  docs-build:
+    name: docs-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      # Both deploys build with the analytics ids set, so this build sets stand-ins and takes the
+      # same branches of website/src/plugins/analyticsPlugin.js. Nothing here is deployed.
+      - name: Build the site
+        run: bash scripts/build-docs-site.sh
+        env:
+          GA_TRACKING_ID: G-DOCSBUILD
+          MS_CLARITY_ID: docsbuild
+
+      # A release that stops the plugin's tags reaching the pages would otherwise first show on
+      # the live site, and show nowhere in a run.
+      - name: Check the analytics tags reached the pages
+        run: |
+          page=website/build/index.html
+          for wanted in 'googletagmanager.com/gtag/js?id=G-DOCSBUILD' 'clarity.ms/tag/' 'docsbuild'; do
+            if ! grep -Fq "$wanted" "$page"; then
+              echo "::error::$page does not carry $wanted"
+              exit 1
+            fi
+          done
+
+      # docusaurus start is how the site is worked on (pnpm run docs). A Docusaurus or
+      # webpack-dev-server release in pnpm-lock.yaml changes it, and the build above never runs
+      # it. webpack-dev-server answers once the first bundle has compiled. The server rewrites an
+      # unknown path that accepts HTML to the home page, so the bundle request asks for JavaScript
+      # and reads the type that comes back.
+      - name: Check the dev server serves the site
+        working-directory: website
+        run: |
+          log="$RUNNER_TEMP/docs-start.log"
+          pnpm run start --no-open > "$log" 2>&1 &
+          server=$!
+          trap 'kill "$server" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 40); do
+            if curl -fsS --max-time 10 http://localhost:3000/ 2>/dev/null | grep -q 'id="__docusaurus"' \
+              && curl -fsS --max-time 10 -H 'Accept: application/javascript' -o /dev/null \
+                -w '%{content_type}' http://localhost:3000/main.js | grep -q javascript; then
+              if grep -Eiq 'compiled with ([0-9]+ |some )?(errors?|problems?)' "$log"; then
+                cat "$log"
+                echo "::error::the dev server compiled with errors"
+                exit 1
+              fi
+              echo "the dev server served the page and its bundle on attempt $attempt"
+              exit 0
+            fi
+            if ! kill -0 "$server" 2>/dev/null; then
+              cat "$log"
+              echo "::error::the dev server exited"
+              exit 1
+            fi
+            sleep 5
+          done
+          cat "$log"
+          echo "::error::the dev server did not serve the site in time"
+          exit 1

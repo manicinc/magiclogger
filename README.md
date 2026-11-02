@@ -79,7 +79,7 @@ yarn add magiclogger
 pnpm add magiclogger
 ```
 
-Supports both ESM and CommonJS:
+Supports both ESM and CommonJS, on Node.js 16.11 or later:
 
 ```typescript
 import { Logger } from 'magiclogger';          // ESM/TypeScript

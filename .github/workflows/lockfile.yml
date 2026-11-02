@@ -1,15 +1,29 @@
 name: Lockfile
 
 # Resolves the dependency ranges in package.json, website/package.json and
-# pnpm-workspace.yaml into pnpm-lock.yaml and offers it as an artifact: dependencies are never
-# installed on a developer's machine. GitHub dispatches a workflow only once its file is on
-# the default branch or has run, so a push to another branch that changes one of those files
-# runs it too. By hand, on any branch:
+# pnpm-workspace.yaml into pnpm-lock.yaml and offers it as an artifact: the lockfile is never
+# resolved on a developer's machine, and installs read the committed lockfile. GitHub
+# dispatches a workflow only once its file is on the default branch or has run, so a push to
+# another branch that changes one of those files runs it too. By hand, on any branch:
 #
 #   gh workflow run lockfile.yml -R manicinc/magiclogger --ref <branch>
 #   gh run download <run-id> -R manicinc/magiclogger -n pnpm-lock
 #
 # then commit pnpm-lock.yaml to the branch. The job reads the repository and writes nothing.
+#
+# A locked version that still satisfies its dependents stays locked, so a patched release of a
+# transitive dependency reaches the lockfile only through an update. The update input names
+# the packages (or patterns such as '@docusaurus/*') to move to the highest version their
+# dependents allow, without touching package.json. pnpm re-resolves them only inside the trees
+# of the direct dependencies the names also match, so name those too (jest for a package under
+# jest); a matched direct dependency moves to the highest version its own range allows:
+#
+#   gh workflow run lockfile.yml -R manicinc/magiclogger --ref <branch> -f update='qs express jest @docusaurus/*'
+#
+# express and qs sit in @docusaurus/core's tree, which '@docusaurus/*' selects. Each run's
+# artifact is the whole lockfile resolved from the commit it ran on, so two runs from one commit
+# each lose the other's changes: name every package in one run, or commit one artifact before
+# the next run.
 
 on:
   push:
@@ -22,8 +36,14 @@ on:
       - package.json
       - website/package.json
       - pnpm-workspace.yaml
+      - scripts/lockfile-resolve.sh
       - .github/workflows/lockfile.yml
   workflow_dispatch:
+    inputs:
+      update:
+        description: 'Packages or patterns, space-separated, for pnpm update --recursive --no-save at every depth; empty resolves the manifests only'
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -50,10 +70,12 @@ jobs:
         with:
           node-version: '22'
 
-      # --lockfile-only writes pnpm-lock.yaml without node_modules or scripts, and pnpm drops
-      # its frozen-lockfile default on CI for it.
+      # The pnpm command and its flags are explained in the script, which
+      # tests/integration/lockfile-resolve.test.ts runs with a stand-in pnpm.
       - name: Resolve
-        run: pnpm install --lockfile-only
+        env:
+          UPDATE: ${{ inputs.update }}
+        run: bash scripts/lockfile-resolve.sh
 
       - name: Upload the lockfile
         uses: actions/upload-artifact@v4
