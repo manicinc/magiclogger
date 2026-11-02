@@ -47,7 +47,7 @@ If breaking, describe impact and migration path.
 
 ## Pictures
 
-<!-- Before and after pictures at phone and desktop width for anything a person sees. Write "No visible change" otherwise. -->
+<!-- Before and after pictures at phone and desktop width for anything a person sees, with secrets and personal data hidden. Write "No visible change" otherwise. -->
 
 ## 📸 Screenshots / Logs (optional)
 
