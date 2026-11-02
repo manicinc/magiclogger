@@ -522,15 +522,11 @@
   },
   "peerDependencies": {
     "@aws-sdk/client-s3": "^3.0.0",
-    "aws-sdk": "^2.0.0",
     "mongodb": "^4.0.0 || ^5.0.0 || ^6.0.0",
     "ws": "^8.0.0"
   },
   "peerDependenciesMeta": {
     "@aws-sdk/client-s3": {
-      "optional": true
-    },
-    "aws-sdk": {
       "optional": true
     },
     "mongodb": {
