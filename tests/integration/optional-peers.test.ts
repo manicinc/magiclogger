@@ -88,7 +88,7 @@ describe('optional peers, with the real libraries', () => {
       const head = requests.find(request => request.method === 'HEAD');
       const put = requests.find(request => request.method === 'PUT');
       expect(head?.url).toMatch(/^\/peer-logs/);
-      expect(put?.url).toMatch(/^\/peer-logs\/app\/.+\.jsonl/);
+      expect(put?.url).toMatch(/^\/peer-logs\/app\/.+\.json/);
       expect(put?.headers['x-amz-meta-log-transport']).toBe('magiclogger');
       expect(put?.headers.authorization).toMatch(/^AWS4-HMAC-SHA256 Credential=test\//);
       expect(put?.body).toContain('through the real S3 client');
