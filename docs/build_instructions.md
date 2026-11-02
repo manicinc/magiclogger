@@ -124,6 +124,8 @@ git push -u origin HEAD      # from a branch, then open and merge the pull reque
 git push --tags
 ```
 
+Merge that pull request with a merge commit, so the tagged commit is on `master`, and start no release before it lands: until then semantic-release does not see the tag, picks the same version, and npm refuses it.
+
 Or run it all in one step:
 ```bash
 npm run release:manual patch

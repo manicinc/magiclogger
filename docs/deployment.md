@@ -39,6 +39,21 @@ gh workflow run releases.yml --ref master
 
 The release job runs as above; semantic-release releases only when the commits since the last tag call for it.
 
+### When a Release Fails
+
+semantic-release pushes the tag before it publishes, and a later run takes that tag as the last release, so the recovery depends on how far the run got. Read the log of the Semantic Release step:
+
+- **No `Created tag vX.Y.Z` line:** nothing was released. Fix the cause and run the release again.
+- **`Created tag vX.Y.Z`, and `npm view magiclogger@X.Y.Z version` prints nothing:** a second run finds no commits after the tag and publishes nothing. Delete the tag, then run the release again:
+  ```bash
+  git push origin :refs/tags/vX.Y.Z
+  gh workflow run releases.yml --ref master
+  ```
+- **The version is on npm and the GitHub Release is missing:** the GitHub step runs after npm's, and a second run publishes nothing. Publish the draft the run left for that version, or create the release from the tag:
+  ```bash
+  gh release create vX.Y.Z --verify-tag --generate-notes
+  ```
+
 ## Check a Release Without Making One
 
 Run the same workflow with `dry_run` on, on any branch:

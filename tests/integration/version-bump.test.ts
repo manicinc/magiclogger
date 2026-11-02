@@ -15,7 +15,7 @@ jest.setTimeout(60_000);
 
 const script = path.join(__dirname, '..', '..', 'scripts', 'version-bump.cjs');
 
-const env = {
+const env: NodeJS.ProcessEnv = {
   ...process.env,
   GIT_CONFIG_GLOBAL: '/dev/null',
   GIT_CONFIG_NOSYSTEM: '1',
@@ -24,6 +24,13 @@ const env = {
   GIT_COMMITTER_NAME: 'Fixture',
   GIT_COMMITTER_EMAIL: 'fixture@example.com',
 };
+
+// Git exports GIT_DIR and its like to a hook, and .husky/pre-push runs this suite. Left set, they
+// would point the fixture's git commands at the checkout instead of the scratch repository.
+const localVariables = execFileSync('git', ['rev-parse', '--local-env-vars'], { encoding: 'utf8' });
+for (const name of localVariables.split('\n')) {
+  delete env[name];
+}
 
 describe('scripts/version-bump.cjs', () => {
   let dir: string;

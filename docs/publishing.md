@@ -99,6 +99,8 @@ CI uploads the coverage of every push to `master` and every pull request to Code
    git push --tags              # Then push the version tag
    ```
 
+   Merge that pull request with a merge commit, so the tagged commit is on `master`, and start no release before it lands: until then semantic-release does not see the tag, picks the same version, and npm refuses it.
+
 ## 🎯 Philosophy
 
 Our scripts aim to:

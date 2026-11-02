@@ -7,8 +7,8 @@ on:
       - master
   # Runs a release by hand: after a merged pull request, whose push is a merge commit and starts
   # no release, and for a release that failed after its commits landed (a re-run reads the
-  # workflow of the failed commit). With dry_run, the dry-run job below runs instead, on any
-  # branch.
+  # workflow of the failed commit). A run that failed after it pushed its tag needs the steps in
+  # docs/deployment.md first. With dry_run, the dry-run job below runs instead, on any branch.
   workflow_dispatch:
     inputs:
       dry_run:
