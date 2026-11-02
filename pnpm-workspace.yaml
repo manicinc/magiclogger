@@ -9,3 +9,25 @@ packages:
 # exchange with the trusted publisher for releases.yml succeeds.
 overrides:
   '@semantic-release/npm': '$@semantic-release/npm'
+
+  # Security floors for packages whose dependents pin a vulnerable version. A selector range
+  # matches every dependency spec it intersects (pnpm 10.14, @pnpm/hooks.read-package-hook
+  # createVersionsOverrider), so each one names only the versions below the patched release.
+  # serve 14.2.6 pins compression 1.8.1 (GHSA-vc2v-76pw-4v95, fixed in 1.8.2).
+  'compression@<1.8.2': '^1.8.2'
+  # copy-webpack-plugin 11 and css-minimizer-webpack-plugin 5, which Docusaurus 3.10 asks for,
+  # declare ^6, and the three advisories are fixed only in 7.x. 7.1.4 is still a CommonJS
+  # module whose export is serialize(obj, options), the call both plugins make.
+  'serialize-javascript@<7.1.3': '^7.1.3'
+  # @docusaurus/core 3.10.2 declares ^1.0.2, and both advisories are fixed only in 2.x. Its SSG
+  # executor loads tinypool only with future.faster.ssgWorkerThreads, which website/ does not
+  # set, and then builds new Tinypool({ filename, minThreads, maxThreads,
+  # concurrentTasksPerWorker, runtime, isolateWorkers, workerData,
+  # maxMemoryLimitBeforeRecycle, resourceLimits }), all options 2.x keeps.
+  'tinypool@<2.1.2': '^2.1.2'
+  # sockjs 0.3.24, the last release, declares ^8.3.2 and calls only require('uuid').v4, which
+  # 11.x still exports for require (GHSA-w5hq-g745-h8pq, fixed in 11.1.1).
+  'sockjs>uuid': '^11.1.1'
+  # @docusaurus/theme-mermaid declares >=11.6.0, which reaches mermaid 12 (Node 22.12 or
+  # later). This keeps the docs site on 11.x, where the advisories are fixed in 11.16.1.
+  '@docusaurus/theme-mermaid>mermaid': '^11.16.1'
