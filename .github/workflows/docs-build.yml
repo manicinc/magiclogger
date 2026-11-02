@@ -71,3 +71,35 @@ jobs:
               exit 1
             fi
           done
+
+      # docusaurus start is how the site is worked on (pnpm run docs). A Docusaurus or
+      # webpack-dev-server release in pnpm-lock.yaml changes it, and the build above never runs
+      # it. webpack-dev-server answers once the first bundle has compiled.
+      - name: Check the dev server serves the site
+        working-directory: website
+        run: |
+          log="$RUNNER_TEMP/docs-start.log"
+          pnpm run start --no-open > "$log" 2>&1 &
+          server=$!
+          trap 'kill "$server" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 40); do
+            if curl -fsS --max-time 10 http://localhost:3000/ 2>/dev/null | grep -q 'id="__docusaurus"' \
+              && curl -fsS --max-time 10 -o /dev/null http://localhost:3000/main.js; then
+              if grep -Eiq 'compiled with (errors|problems)' "$log"; then
+                cat "$log"
+                echo "::error::the dev server compiled with errors"
+                exit 1
+              fi
+              echo "the dev server served the page and its bundle on attempt $attempt"
+              exit 0
+            fi
+            if ! kill -0 "$server" 2>/dev/null; then
+              cat "$log"
+              echo "::error::the dev server exited"
+              exit 1
+            fi
+            sleep 5
+          done
+          cat "$log"
+          echo "::error::the dev server did not serve the site in time"
+          exit 1
