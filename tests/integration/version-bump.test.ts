@@ -83,12 +83,12 @@ describe('scripts/version-bump.cjs', () => {
 
   it('applies the bump type to that tag', () => {
     repository('0.1.1');
-    git('tag', 'v0.1.2');
+    git('tag', 'v0.2.0');
 
     const { status, version } = bump('minor');
 
     expect(status).toBe(0);
-    expect(version).toBe('0.2.0');
+    expect(version).toBe('0.3.0');
   });
 
   it('orders tags as versions, not as text', () => {
