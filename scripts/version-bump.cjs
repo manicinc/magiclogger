@@ -54,6 +54,33 @@ function changesTheReleaseWouldTake() {
   return [staged, changed].filter(Boolean).join('\n');
 }
 
+/**
+ * Reads the highest vX.Y.Z tag on this branch, the version semantic-release takes as the last
+ * release. Prereleases and other v* tags do not count.
+ *
+ * @returns {string | null} The version without its v, or null when the branch has no release tag.
+ */
+function highestReleaseTag() {
+  const tags = execSync('git tag --merged HEAD --list "v*" --sort=-v:refname', {
+    encoding: 'utf8',
+  }).split('\n');
+  const highest = tags.find(tag => /^v\d+\.\d+\.\d+$/.test(tag));
+  return highest ? highest.slice(1) : null;
+}
+
+/**
+ * @param {string} version
+ * @param {string} other
+ * @returns {boolean} Whether version comes after other, reading each as major.minor.patch.
+ */
+function isAhead(version, other) {
+  const [a, b] = [version, other].map(v => v.split('-')[0].split('.').map(Number));
+  for (let i = 0; i < 3; i++) {
+    if (a[i] !== b[i]) return a[i] > b[i];
+  }
+  return false;
+}
+
 try {
   // A change of your own would ship in the release commit and its tag.
   const pending = changesTheReleaseWouldTake();
@@ -74,6 +101,16 @@ try {
   log('Running linter...');
   execSync('npm run lint', { stdio: 'inherit' });
   
+  // semantic-release tags and publishes with nothing committed, so package.json on master stays
+  // behind the highest tag, and a bump from it would pick a version already released.
+  const packagePath = path.join(__dirname, '..', 'package.json');
+  const packageVersion = JSON.parse(fs.readFileSync(packagePath, 'utf8')).version;
+  const released = highestReleaseTag();
+  if (released && isAhead(released, packageVersion)) {
+    log(`package.json is at ${packageVersion} and v${released} is released: bumping from the tag`);
+    execSync(`npm version ${released} --no-git-tag-version --ignore-scripts`);
+  }
+
   // Bump version
   log(`Bumping ${bumpType} version...`, 'warning');
   const output = execSync(`npm version ${bumpType} --no-git-tag-version`).toString().trim();

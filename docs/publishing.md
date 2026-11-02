@@ -61,7 +61,7 @@ Located at `scripts/version-bump.cjs`, this comprehensive script:
 - Validates version bump type (patch/minor/major)
 - Stops when anything is staged, or when `src/`, `package.json`, `CHANGELOG.md` or `README.md` has uncommitted changes, and lists them: its release commit takes the whole index and the files it stages, and `npm version` runs the package's `version` script, which formats `src/` and stages all of it
 - Runs pre-bump checks (tests, linting)
-- Bumps package version
+- Bumps the package version, from the highest `v*` tag on the branch when `package.json` is behind it (semantic-release commits nothing, so `package.json` on `master` stays behind the tag)
 - Updates README version badge
 - Updates CHANGELOG.md with git logs
 - Stages and commits changes

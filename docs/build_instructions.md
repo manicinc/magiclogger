@@ -115,7 +115,7 @@ npm run preflight
 npm run version:bump patch # or minor / major
 ```
 
-`version:bump` stops, and lists them, when anything is staged or when `src/`, `package.json`, `CHANGELOG.md` or `README.md` has uncommitted changes, `preflight`'s among them (the formatter's in `src/`, the build-size table in `README.md`): its release commit would include them. Commit them, then run it again.
+`version:bump` stops, and lists them, when anything is staged or when `src/`, `package.json`, `CHANGELOG.md` or `README.md` has uncommitted changes, `preflight`'s among them (the formatter's in `src/`, the build-size table in `README.md`): its release commit would include them. Commit them, then run it again. It bumps from the highest `v*` tag on the branch when `package.json` is behind it, as it is after a release from CI.
 
 3. Publish, then bring the commit to `master` through a pull request and push its tag (semantic-release takes the highest `v*` tag as the last release, so the version reaches npm first, and `master` refuses a direct push):
 ```bash
