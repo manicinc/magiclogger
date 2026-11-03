@@ -69,16 +69,49 @@ function highestReleaseTag() {
 }
 
 /**
+ * Brings in the remote's tags, so a release CI tagged after this branch was made counts, and
+ * stops when HEAD lacks the remote's master, whose newer releases it could not see. Without an
+ * origin remote it reads the local tags alone.
+ */
+function syncWithRemote() {
+  try {
+    execSync('git remote get-url origin', { stdio: 'ignore' });
+  } catch {
+    log('No origin remote: reading the local tags only', 'warning');
+    return;
+  }
+  execSync('git fetch --quiet --tags origin', { stdio: 'inherit' });
+  for (const branch of ['master', 'main']) {
+    try {
+      execSync(`git fetch --quiet origin ${branch}`, { stdio: 'ignore' });
+    } catch {
+      continue;
+    }
+    try {
+      execSync(`git merge-base --is-ancestor origin/${branch} HEAD`, { stdio: 'ignore' });
+    } catch {
+      log(`This branch lacks commits on origin/${branch}: merge it first, then run again`, 'error');
+      process.exit(1);
+    }
+    return;
+  }
+}
+
+/**
  * @param {string} version
  * @param {string} other
- * @returns {boolean} Whether version comes after other, reading each as major.minor.patch.
+ * @returns {boolean} Whether version comes after other in SemVer order, where a release comes
+ * after its own prereleases (0.2.0 after 0.2.0-rc.1).
  */
 function isAhead(version, other) {
-  const [a, b] = [version, other].map(v => v.split('-')[0].split('.').map(Number));
+  const [a, b] = [version, other].map(v => {
+    const [core, ...prerelease] = v.split('+')[0].split('-');
+    return { core: core.split('.').map(Number), prerelease: prerelease.length > 0 };
+  });
   for (let i = 0; i < 3; i++) {
-    if (a[i] !== b[i]) return a[i] > b[i];
+    if (a.core[i] !== b.core[i]) return a.core[i] > b.core[i];
   }
-  return false;
+  return !a.prerelease && b.prerelease;
 }
 
 try {
@@ -105,6 +138,7 @@ try {
   // behind the highest tag, and a bump from it would pick a version already released.
   const packagePath = path.join(__dirname, '..', 'package.json');
   const packageVersion = JSON.parse(fs.readFileSync(packagePath, 'utf8')).version;
+  syncWithRemote();
   const released = highestReleaseTag();
   if (released && isAhead(released, packageVersion)) {
     log(`package.json is at ${packageVersion} and v${released} is released: bumping from the tag`);

@@ -28,10 +28,12 @@ permissions:
   pages: write
   id-token: write
 
-# One group, because every run publishes to the same gh-pages branch. The running deploy finishes
-# and only the newest waiting run is kept.
+# Every run that publishes waits in one group, because all of them publish to the one gh-pages
+# branch: the running deploy finishes and only the newest waiting run is kept. A manual run from
+# another branch publishes nothing and keys a group of its own, so it never takes a waiting
+# deploy's place.
 concurrency:
-  group: deploy-docs
+  group: ${{ (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') && 'deploy-docs' || format('deploy-docs-{0}', github.run_id) }}
   cancel-in-progress: false
 
 jobs:
@@ -40,10 +42,18 @@ jobs:
     if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
+      # The branch's tip when the job starts, not the commit that started the run: a re-run keeps
+      # its run's commit, and an older re-run would otherwise publish older pages over newer ones.
+      # With ref set, actions/checkout fetches the branch and checks out its head.
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.ref }}
           fetch-depth: 0
+
+      - name: Read the commit being published
+        id: tip
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -72,4 +82,4 @@ jobs:
           force_orphan: true
           user_name: 'github-actions[bot]'
           user_email: 'github-actions[bot]@users.noreply.github.com'
-          commit_message: 'Deploy docs from ${{ github.sha }}'
+          commit_message: 'Deploy docs from ${{ steps.tip.outputs.sha }}'

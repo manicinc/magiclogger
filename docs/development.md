@@ -101,17 +101,19 @@ We use Conventional Commits for semantic versioning:
 |------|---------|----------------|
 | `feat` | New feature | Minor version bump |
 | `fix` | Bug fix | Patch version bump |
+| `perf` | Performance improvement | Patch version bump |
+| `revert` | Revert of an earlier commit (also `git revert`'s `Revert "..."`) | Patch version bump |
 | `docs` | Documentation changes | No version change |
 | `style` | Code formatting | No version change |
 | `refactor` | Code restructuring | No version change |
 | `test` | Test modifications | No version change |
+| `build` | Build system and dependencies | No version change |
+| `ci` | CI configuration | No version change |
 | `chore` | Maintenance tasks | No version change |
 
 ### Breaking Changes
 
-Indicate breaking changes by:
-- Adding `!` after the type, or
-- Including a `BREAKING CHANGE:` footer
+Indicate a breaking change with a `BREAKING CHANGE:` footer. The `angular` preset in `.releaserc` does not read a `!` after the type, so `feat!: ...` with no footer releases nothing.
 
 ## Release Process
 
