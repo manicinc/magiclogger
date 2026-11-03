@@ -34,6 +34,7 @@ for (const name of localVariables.split('\n')) {
 
 describe('scripts/version-bump.cjs', () => {
   let dir: string;
+  let remote: string;
 
   const git = (...args: string[]) =>
     execFileSync('git', args, { cwd: dir, env, encoding: 'utf8' }).trim();
@@ -66,12 +67,21 @@ describe('scripts/version-bump.cjs', () => {
     return { status: result.status, output: `${result.stdout}${result.stderr}`, version };
   }
 
+  /** Gives the repository an origin, a bare repository holding its master. */
+  function origin() {
+    execFileSync('git', ['init', '-q', '--bare', '-b', 'master', remote], { env });
+    git('remote', 'add', 'origin', remote);
+    git('push', '-q', 'origin', 'master');
+  }
+
   beforeEach(() => {
     dir = mkdtempSync(path.join(tmpdir(), 'version-bump-'));
+    remote = mkdtempSync(path.join(tmpdir(), 'version-bump-origin-'));
   });
 
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true });
+    rmSync(remote, { recursive: true, force: true });
   });
 
   it('bumps past the highest tag when a release left package.json behind', () => {
@@ -117,6 +127,47 @@ describe('scripts/version-bump.cjs', () => {
 
     expect(status).toBe(0);
     expect(version).toBe('0.3.1');
+  });
+
+  it('bumps past a release tag that only the remote holds', () => {
+    repository('0.1.1');
+    origin();
+    // A release from CI after this clone was made: the tag is on origin and not here.
+    git('tag', 'v0.1.2');
+    git('push', '-q', 'origin', 'v0.1.2');
+    git('tag', '-d', 'v0.1.2');
+
+    const { status, version } = bump('patch');
+
+    expect(status).toBe(0);
+    expect(version).toBe('0.1.3');
+  });
+
+  it('stops when the branch lacks the remote master', () => {
+    repository('0.1.1');
+    origin();
+    git('checkout', '-q', '-b', 'release');
+    git('checkout', '-q', 'master');
+    git('commit', '-q', '--allow-empty', '-m', 'fix: after the branch');
+    git('push', '-q', 'origin', 'master');
+    git('checkout', '-q', 'release');
+
+    const { status, output, version } = bump('patch');
+
+    expect(status).toBe(1);
+    expect(output).toContain('origin/master');
+    expect(version).toBe('0.1.1');
+    expect(git('tag', '--list')).toBe('');
+  });
+
+  it('bumps past a release of the prerelease package.json holds', () => {
+    repository('0.2.0-rc.1');
+    git('tag', 'v0.2.0');
+
+    const { status, version } = bump('patch');
+
+    expect(status).toBe(0);
+    expect(version).toBe('0.2.1');
   });
 
   it('counts release tags on this branch only', () => {
