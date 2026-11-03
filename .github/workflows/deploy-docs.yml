@@ -44,12 +44,15 @@ jobs:
     steps:
       # The branch's tip when the job starts, not the commit that started the run: a re-run keeps
       # its run's commit, and an older re-run would otherwise publish older pages over newer ones.
-      # With ref set, actions/checkout fetches the branch and checks out its head.
+      # With ref set, actions/checkout fetches the branch and checks out its head. The build runs
+      # the dependencies' install scripts, so the token stays out of .git/config; the publish step
+      # receives it as github_token.
       - name: Checkout
         uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Read the commit being published
         id: tip

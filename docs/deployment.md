@@ -4,7 +4,7 @@ This document explains how a new version of `magiclogger` reaches npm and GitHub
 
 ## Overview
 
-Releases are made by [semantic-release](https://github.com/semantic-release/semantic-release) in the Release workflow, `.github/workflows/releases.yml`, with the plugins and rules in `.releaserc`. The workflow's release job runs on `master` in two cases:
+Releases are made by [semantic-release](https://github.com/semantic-release/semantic-release) in the Release workflow, `.github/workflows/releases.yml`, with the plugins and rules in `.releaserc`. The workflow's release job runs on `master` (or `main`, which `.releaserc` also names) in two cases:
 
 - a push to `master` whose commit message starts with `feat:`, `fix:`, `perf:` or `revert:`, a scoped form such as `fix(api):`, or `Revert "`, the message `git revert` writes, or contains a `BREAKING CHANGE:` footer;
 - a manual run on `master` (see [Run a Release by Hand](#run-a-release-by-hand)).

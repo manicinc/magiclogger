@@ -72,7 +72,7 @@ The pipeline is defined in these workflow files:
 | `.github/workflows/release.yml` | A `v*` tag pushed by hand: build + GitHub Release (no npm publish) |
 | `.github/workflows/lockfile.yml` | Resolves `pnpm-lock.yaml` as an artifact when a branch push changes `package.json`, `website/package.json` or `pnpm-workspace.yaml`; run by hand with `-f update='<packages>'`, it moves those packages to the highest version their dependents allow, at every depth (see [Dependency updates](#dependency-updates)) |
 | `.github/workflows/docs-build.yml` | Builds the documentation site with `scripts/build-docs-site.sh`, the script `deploy-docs.yml` runs, and deploys nothing, on a pull request that changes `docs/`, `website/`, `src/`, `README.md`, `tsconfig.json`, `typedoc.json`, the build configuration, the manifests, `pnpm-lock.yaml` or that script |
-| `.github/workflows/deploy-docs.yml` | After a push to `master` that changes a path `docs-build.yml` watches: builds the site with `scripts/build-docs-site.sh` and publishes `website/build` to `gh-pages`. It is the one workflow that publishes the site, from the tip of `master` when the job starts, so a re-run never publishes older pages; a manual run publishes from `master` only |
+| `.github/workflows/deploy-docs.yml` | After a push to `master` (or `main`) that changes a path `docs-build.yml` watches: builds the site with `scripts/build-docs-site.sh` and publishes `website/build` to `gh-pages`. It is the one workflow that publishes the site, from the tip of that branch when the job starts, so a re-run never publishes older pages; a manual run from any other branch publishes nothing |
 
 Versions come from semantic-release, configured in `.releaserc`.
 
