@@ -84,7 +84,7 @@ Types:
 - `test`: Adding or correcting tests
 - `chore`: Changes to build process or tools
 
-For breaking changes, add `!` after the type or include a `BREAKING CHANGE:` footer.
+For breaking changes, include a `BREAKING CHANGE:` footer. The `angular` preset in `.releaserc` does not read a `!` after the type.
 
 Example:
 ```

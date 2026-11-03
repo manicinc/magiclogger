@@ -6,7 +6,7 @@ This document explains how a new version of `magiclogger` reaches npm and GitHub
 
 Releases are made by [semantic-release](https://github.com/semantic-release/semantic-release) in the Release workflow, `.github/workflows/releases.yml`, with the plugins and rules in `.releaserc`. The workflow's release job runs on `master` in two cases:
 
-- a push to `master` whose commit message starts with `feat:`, `fix:`, `perf:` or `revert:`, a scoped form such as `fix(api):`, or `Revert "`, the message `git revert` writes, or contains `BREAKING CHANGE`;
+- a push to `master` whose commit message starts with `feat:`, `fix:`, `perf:` or `revert:`, a scoped form such as `fix(api):`, or `Revert "`, the message `git revert` writes, or contains a `BREAKING CHANGE:` footer;
 - a manual run on `master` (see [Run a Release by Hand](#run-a-release-by-hand)).
 
 The check reads the push's last commit only. A merge commit's message starts with `Merge pull request`, so after a pull request is merged with a merge commit, or after a push whose last commit calls for no release, run the release by hand to release what it brought: semantic-release reads every commit since the last tag.
