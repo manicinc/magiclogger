@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MagicLogger Live Demo</title>
+  <style>
+    .demo-container {
+      background: #1e1e1e;
+      border-radius: 15px;
+      padding: 2rem;
+      font-family: 'JetBrains Mono', 'Courier New', monospace;
+      color: #e0e0e0;
+      max-height: 400px;
+      overflow-y: auto;
+      border: 2px solid #333;
+      position: relative;
+    }
+
+    .demo-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid #333;
+    }
+
+    .demo-title {
+      font-size: 1.2rem;
+      font-weight: bold;
+      background: linear-gradient(45deg, #ff6b6b, #feca57, #48dbfb, #ff9ff3, #54a0ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .demo-controls {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .demo-btn {
+      background: #333;
+      border: 1px solid #555;
+      color: #e0e0e0;
+      padding: 0.3rem 0.8rem;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: all 0.2s;
+    }
+
+    .demo-btn:hover {
+      background: #444;
+      border-color: #666;
+    }
+
+    .demo-output {
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+
+    .log-line {
+      margin: 0.2rem 0;
+      white-space: pre-wrap;
+    }
+
+    /* Traffic lights */
+    .window-controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .control-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .control-dot.close { background: #ff5f57; }
+    .control-dot.minimize { background: #ffbd2e; }
+    .control-dot.maximize { background: #28ca42; }
+  </style>
+</head>
+<body>
+  <div class="demo-container">
+    <div class="demo-header">
+      <div class="window-controls">
+        <div class="control-dot close"></div>
+        <div class="control-dot minimize"></div>
+        <div class="control-dot maximize"></div>
+      </div>
+      <div class="demo-title">🌈 MagicLogger Live Demo</div>
+      <div class="demo-controls">
+        <button class="demo-btn" onclick="runDemo()">▶️ Run Demo</button>
+        <button class="demo-btn" onclick="clearDemo()">🗑️ Clear</button>
+      </div>
+    </div>
+    <div class="demo-output" id="demo-output">
+      <div class="log-line" style="color: #888;">Click "Run Demo" to see MagicLogger in action...</div>
+    </div>
+  </div>
+
+  <!-- Include MagicLogger from CDN -->
+  <script src="https://unpkg.com/magiclogger@latest/dist/index.umd.js"></script>
+  
+  <script>
+    let logger;
+    let outputElement;
+
+    // Initialize the demo
+    function initDemo() {
+      outputElement = document.getElementById('demo-output');
+      
+      // Create logger with custom output
+      logger = new MagicLogger.Logger({
+        theme: 'rainbow',
+        storage: false, // Disable storage for demo
+        transports: [{
+          name: 'demo',
+          log: function(entry) {
+            addLogLine(entry);
+          }
+        }]
+      });
+    }
+
+    function addLogLine(entry) {
+      const line = document.createElement('div');
+      line.className = 'log-line';
+      
+      // Simple color mapping for demo
+      const colors = {
+        info: '#48dbfb',
+        success: '#00d68f',
+        warn: '#feca57',
+        error: '#ff6b6b',
+        debug: '#a5b4fc'
+      };
+      
+      const color = colors[entry.level] || '#e0e0e0';
+      const timestamp = new Date().toLocaleTimeString();
+      
+      line.innerHTML = `<span style="color: #888;">[${timestamp}]</span> <span style="color: ${color}; font-weight: bold;">[${entry.level.toUpperCase()}]</span> <span style="color: #e0e0e0;">${entry.message}</span>`;
+      
+      outputElement.appendChild(line);
+      outputElement.scrollTop = outputElement.scrollHeight;
+    }
+
+    function runDemo() {
+      clearDemo();
+      
+      setTimeout(() => logger.info('🌈 Welcome to MagicLogger!'), 100);
+      setTimeout(() => logger.success('✅ Zero configuration required'), 600);
+      setTimeout(() => logger.warn('⚠️ Beautiful colors out of the box'), 1100);
+      setTimeout(() => logger.error('❌ And error handling too!'), 1600);
+      setTimeout(() => logger.debug('🔍 Debug information available'), 2100);
+      setTimeout(() => logger.info('🚀 Cross-platform support: Node.js & Browser'), 2600);
+      setTimeout(() => logger.success('🎨 12+ built-in themes available'), 3100);
+      setTimeout(() => logger.info('📁 File logging, rotation & compression'), 3600);
+      setTimeout(() => logger.warn('⚡ High performance with smart buffering'), 4100);
+      setTimeout(() => logger.success('🌟 Ready for production use!'), 4600);
+    }
+
+    function clearDemo() {
+      outputElement.innerHTML = '<div class="log-line" style="color: #888;">Output cleared. Click "Run Demo" to start...</div>';
+    }
+
+    // Initialize when page loads
+    window.addEventListener('DOMContentLoaded', initDemo);
+  </script>
+</body>
+</html>
