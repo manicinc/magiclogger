@@ -42,7 +42,7 @@ The documentation lives in `docs/`, and the Docusaurus site in `website/` reads 
    pnpm run start
    ```
 
-2. **CI/CD build**: `scripts/build-docs-site.sh` installs the workspace, builds the library, generates the API pages and builds the Docusaurus site into `website/build`. `docs-build.yml` runs it on pull requests and deploys nothing; the `deploy-docs` job of `ci.yml` and `deploy-docs.yml` run it after a push to `master` and publish `website/build` to the `gh-pages` branch, which GitHub Pages serves. All three run the same setup first (pnpm, Node 22 with setup-node's pnpm store cache) and restore no `node_modules`, so the pull-request check builds from the state the deploys build from. The deploys pass the real `GA_TRACKING_ID` and `MS_CLARITY_ID`; `docs-build.yml` passes stand-ins and checks that `website/build/index.html` carries the Google Analytics and Clarity tags, then starts `docusaurus start` and checks that the dev server serves the page and its bundle.
+2. **CI/CD build**: `scripts/build-docs-site.sh` installs the workspace, builds the library, generates the API pages and builds the Docusaurus site into `website/build`. `docs-build.yml` runs it on pull requests and deploys nothing; `deploy-docs.yml` runs it after a push to `master` and publishes `website/build` to the `gh-pages` branch, which GitHub Pages serves. Both run the same setup first (pnpm, Node 22 with setup-node's pnpm store cache) and restore no `node_modules`, so the pull-request check builds from the state the deploy builds from. The deploy passes the real `GA_TRACKING_ID` and `MS_CLARITY_ID`; `docs-build.yml` passes stand-ins and checks that `website/build/index.html` carries the Google Analytics and Clarity tags, then starts `docusaurus start` and checks that the dev server serves the page and its bundle.
 
 ### Adding New Documentation
 
@@ -65,13 +65,14 @@ The pipeline is defined in these workflow files:
 | File | Purpose |
 |------|---------|
 | `.github/workflows/ci.yml` | Core CI: pre-check, quality, matrix tests, build, draft update |
+| `.github/workflows/auto-format.yml` | By hand: formats a branch and commits the result. Push once more afterwards: a commit made with `GITHUB_TOKEN` starts no workflow, so that head reports no `all-checks` |
 | `.github/workflows/auto-label.yml` | Auto label PRs (paths + conventional commit types + size) |
 | `.github/workflows/release-drafter.yml` | Maintain draft release notes on PR merges / label changes |
 | `.github/workflows/releases.yml` | Release: semantic-release on `master` (a release-bearing push or a manual run), npm through the trusted publisher; dry runs on any branch |
 | `.github/workflows/release.yml` | A `v*` tag pushed by hand: build + GitHub Release (no npm publish) |
 | `.github/workflows/lockfile.yml` | Resolves `pnpm-lock.yaml` as an artifact when a branch push changes `package.json`, `website/package.json` or `pnpm-workspace.yaml`; run by hand with `-f update='<packages>'`, it moves those packages to the highest version their dependents allow, at every depth (see [Dependency updates](#dependency-updates)) |
-| `.github/workflows/docs-build.yml` | Builds the documentation site with `scripts/build-docs-site.sh`, the script both deploys run, and deploys nothing, on a pull request that changes `docs/`, `website/`, `src/`, `README.md`, `tsconfig.json`, `typedoc.json`, the build configuration, the manifests, `pnpm-lock.yaml` or that script |
-| `.github/workflows/deploy-docs.yml` | After a push to `master` that changes `docs/` or `website/`: builds the site with `scripts/build-docs-site.sh` and publishes `website/build` to `gh-pages` (the `deploy-docs` job of `ci.yml` does the same after every push to `master`) |
+| `.github/workflows/docs-build.yml` | Builds the documentation site with `scripts/build-docs-site.sh`, the script `deploy-docs.yml` runs, and deploys nothing, on a pull request that changes `docs/`, `website/`, `src/`, `README.md`, `tsconfig.json`, `typedoc.json`, the build configuration, the manifests, `pnpm-lock.yaml` or that script |
+| `.github/workflows/deploy-docs.yml` | After a push to `master` (or `main`) that changes a path `docs-build.yml` watches: builds the site with `scripts/build-docs-site.sh` and publishes `website/build` to `gh-pages`. It is the one workflow that publishes the site, from the tip of that branch when the job starts, so a re-run never publishes older pages; a manual run from any other branch publishes nothing |
 
 Versions come from semantic-release, configured in `.releaserc`.
 
@@ -118,7 +119,7 @@ Exit code 1 indicates secrets found; rotate any exposed credentials and remove t
 
 ## Versioning Strategy
 
-semantic-release sets each version from the conventional commits since the last `v*` tag (`.releaserc`): `feat` a minor, `fix`, `perf` and `revert` a patch, a breaking change a major; the other types release nothing. It commits the new version to `package.json` and `CHANGELOG.md`, tags it, publishes it to npm and creates the GitHub Release. Release Drafter keeps a separate draft of the notes, grouped by pull request label.
+semantic-release sets each version from the conventional commits since the last `v*` tag (`.releaserc`): `feat` a minor, `fix`, `perf` and `revert` a patch, a breaking change a major; the other types release nothing. It tags the version, publishes it to npm and creates the GitHub Release, and commits nothing to `master`. Release Drafter keeps a separate draft of the notes, grouped by pull request label.
 
 ## Commit Message Conventions
 
@@ -161,6 +162,8 @@ feat(api): add new API that breaks backward compatibility
 BREAKING CHANGE: Previous function signature changed
 ```
 
+The `BREAKING CHANGE:` footer is what counts. The `angular` preset in `.releaserc` does not read the `!` in a header, so `feat!: ...` with no footer releases nothing.
+
 ## Coverage & Codecov
 
 Coverage is generated by `pnpm test:coverage` (Jest), and the test-linux job (Ubuntu, Node 22) uploads `coverage/lcov.info` to Codecov with the `CODECOV_TOKEN` secret. When the secret is set, an upload that does not reach Codecov fails the job. Pull requests from forks and from Dependabot run without it: a fork's upload goes without a token, and Dependabot's needs `CODECOV_TOKEN` as a Dependabot secret too while the organisation requires tokens for its public repositories ([Codecov: tokens](https://docs.codecov.com/docs/codecov-tokens)).
@@ -172,11 +175,11 @@ Coverage is generated by `pnpm test:coverage` (Jest), and the test-linux job (Ub
 The [Deployment & Release Guide](./deployment.md) has the details. In short:
 
 1. Merge pull requests into `master` with green checks.
-2. A push to `master` whose commit message starts with `feat:`, `fix:` or `perf:` (or contains `BREAKING CHANGE`) runs the release job. After a merge commit, run it by hand: `gh workflow run releases.yml --ref master`.
-3. semantic-release commits the version, tags it, publishes to npm through the trusted publisher (no npm token) and creates the GitHub Release, when the commits since the last tag call for a release.
+2. A push to `master` whose commit message starts with `feat:`, `fix:`, `perf:` or `revert:`, a scoped form such as `fix(api):`, or `Revert "` (or contains a `BREAKING CHANGE:` footer), runs the release job. After a merge commit, run it by hand: `gh workflow run releases.yml --ref master`.
+3. semantic-release tags the version, publishes to npm through the trusted publisher (no npm token) and creates the GitHub Release, when the commits since the last tag call for a release.
 4. To check a release without making one, on any branch: `gh workflow run releases.yml --ref <branch> -f dry_run=true`.
 
-To skip CI for non-critical doc-only commits you can append `[skip ci]` to the commit message (use sparingly).
+Keep `[skip ci]` out of a pull request's last commit: GitHub starts no CI run for it, `all-checks` stays pending and the merge is blocked ([GitHub: Skip workflow runs](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/skip-workflow-runs)).
 
 ## Required & Optional Secrets
 
@@ -188,7 +191,7 @@ To skip CI for non-critical doc-only commits you can append `[skip ci]` to the c
 
 Add via: Repository → Settings → Secrets and variables → Actions → New repository secret.
 
-`GITHUB_TOKEN` is automatically provided and used for draft releases, artifact uploads, labeling, and by semantic-release for the release commit, the tag and the GitHub Release.
+`GITHUB_TOKEN` is automatically provided and used for draft releases, artifact uploads, labeling, and by semantic-release for the tag and the GitHub Release.
 
 If `NPM_TOKEN` is set, keep it a granular token limited to publishing this package.
 
@@ -196,7 +199,9 @@ If `NPM_TOKEN` is set, keep it a granular token limited to publishing this packa
 
 | Symptom | Likely Cause | Fix |
 |---------|--------------|-----|
-| Release job skipped on a push | The commit message does not start with `feat:`, `fix:` or `perf:` (a merge commit never does) | Run it by hand: `gh workflow run releases.yml --ref master` |
+| Release job skipped on a push | The commit message does not start with `feat`, `fix`, `perf` or `revert`, or with `Revert "` (a merge commit never does) | Run it by hand: `gh workflow run releases.yml --ref master` |
+| `Format check` fails in `quality` | The pull request's formatting differs from Prettier's | Run `pnpm run format` and push |
+| A push to `master` is refused | `master`'s ruleset requires the `all-checks` job with no bypass | Open a pull request |
 | `verifyConditions` fails in `@semantic-release/npm` | The OIDC exchange failed (the log gives the status) and there is no valid `NPM_TOKEN` | Check that the package's trusted publisher on npmjs.com names `manicinc/magiclogger` and `releases.yml`, then check with a dry run |
 | Coverage not on Codecov | Missing token or job matrix mismatch | Add `CODECOV_TOKEN`, confirm path `coverage/lcov.info` |
 | Draft release empty | PR labels missing conventional prefixes | Ensure commit/PR titles follow convention |

@@ -61,7 +61,8 @@ Located at `scripts/version-bump.cjs`, this comprehensive script:
 - Validates version bump type (patch/minor/major)
 - Stops when anything is staged, or when `src/`, `package.json`, `CHANGELOG.md` or `README.md` has uncommitted changes, and lists them: its release commit takes the whole index and the files it stages, and `npm version` runs the package's `version` script, which formats `src/` and stages all of it
 - Runs pre-bump checks (tests, linting)
-- Bumps package version
+- Fetches the tags from `origin` and stops when the branch lacks commits on `origin/master`
+- Bumps the package version, from the highest `v*` tag on the branch when `package.json` is behind it (semantic-release commits nothing, so `package.json` on `master` stays behind the tag)
 - Updates README version badge
 - Updates CHANGELOG.md with git logs
 - Stages and commits changes
@@ -95,8 +96,11 @@ CI uploads the coverage of every push to `master` and every pull request to Code
 3. Publishing
    ```bash
    npm publish                  # Publish to npm with your own login
-   git push && git push --tags  # Then push the code and the version tag
+   git push -u origin HEAD      # From a branch: master refuses a direct push, so open and merge a pull request
+   git push --tags              # Then push the version tag
    ```
+
+   Merge that pull request with a merge commit, so the tagged commit is on `master`, and start no release before it lands: until then semantic-release does not see the tag, picks the same version, and npm refuses it.
 
 ## 🎯 Philosophy
 

@@ -60,7 +60,7 @@ Flow:
 
 ## Version & Release
 
-semantic-release makes the releases from `.github/workflows/releases.yml`: it reads the conventional commits since the last `v*` tag, commits the new version to `package.json` and `CHANGELOG.md`, tags it, publishes it to npm through the package's trusted publisher (no npm token) and creates the GitHub Release. A push to `master` whose commit message starts with `feat:`, `fix:` or `perf:` starts it; after a merge commit, run it by hand:
+semantic-release makes the releases from `.github/workflows/releases.yml`: it reads the conventional commits since the last `v*` tag, tags the new version, publishes it to npm through the package's trusted publisher (no npm token) and creates the GitHub Release. A push to `master` (or `main`) whose commit message starts with `feat`, `fix`, `perf` or `revert`, scoped or not, or with `Revert "` from `git revert`, or that carries a `BREAKING CHANGE:` footer under any type the job does not exclude (`chore`, `docs`, `style`, `test`, `ci` and `build` never start it), starts it; after a merge commit, run it by hand:
 
 ```bash
 gh workflow run releases.yml --ref master
@@ -101,17 +101,19 @@ We use Conventional Commits for semantic versioning:
 |------|---------|----------------|
 | `feat` | New feature | Minor version bump |
 | `fix` | Bug fix | Patch version bump |
+| `perf` | Performance improvement | Patch version bump |
+| `revert` | Revert of an earlier commit (also `git revert`'s `Revert "..."`) | Patch version bump |
 | `docs` | Documentation changes | No version change |
 | `style` | Code formatting | No version change |
 | `refactor` | Code restructuring | No version change |
 | `test` | Test modifications | No version change |
+| `build` | Build system and dependencies | No version change |
+| `ci` | CI configuration | No version change |
 | `chore` | Maintenance tasks | No version change |
 
 ### Breaking Changes
 
-Indicate breaking changes by:
-- Adding `!` after the type, or
-- Including a `BREAKING CHANGE:` footer
+Indicate a breaking change with a `BREAKING CHANGE:` footer. The `angular` preset in `.releaserc` does not read a `!` after the type, so `feat!: ...` with no footer releases nothing.
 
 ## Release Process
 

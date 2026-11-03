@@ -1,10 +1,10 @@
 name: Docs build
 
-# Builds the documentation site with scripts/build-docs-site.sh, the script ci.yml's deploy-docs
-# job and deploy-docs.yml run after a push to master, and deploys nothing. Without it, a pull
+# Builds the documentation site with scripts/build-docs-site.sh, the script deploy-docs.yml runs
+# after a push to master, and deploys nothing. Without it, a pull
 # request that breaks the site (a Docusaurus or webpack release in pnpm-lock.yaml, a page in
 # docs/, a change to the build commands) passes every check and the break first shows in the
-# deploy on master. The setup steps and the gh-pages publish stay in each deploy workflow.
+# deploy on master. The setup steps and the gh-pages publish stay in deploy-docs.yml.
 on:
   pull_request:
     branches: [master, main]
@@ -16,7 +16,7 @@ on:
       - 'src/**'
       - 'README.md'
       - 'tsconfig.json'
-      # The library build that runs first, as in the deploy.
+      # The library build that runs first, as in the deploy. deploy-docs.yml watches these paths.
       - 'tsup.config.ts'
       - 'tsconfig.build.json'
       - 'package.json'
@@ -52,7 +52,7 @@ jobs:
           node-version: '22'
           cache: 'pnpm'
 
-      # Both deploys build with the analytics ids set, so this build sets stand-ins and takes the
+      # The deploy builds with the analytics ids set, so this build sets stand-ins and takes the
       # same branches of website/src/plugins/analyticsPlugin.js. Nothing here is deployed.
       - name: Build the site
         run: bash scripts/build-docs-site.sh

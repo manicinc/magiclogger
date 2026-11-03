@@ -115,13 +115,16 @@ npm run preflight
 npm run version:bump patch # or minor / major
 ```
 
-`version:bump` stops, and lists them, when anything is staged or when `src/`, `package.json`, `CHANGELOG.md` or `README.md` has uncommitted changes, `preflight`'s among them (the formatter's in `src/`, the build-size table in `README.md`): its release commit would include them. Commit them, then run it again.
+`version:bump` stops, and lists them, when anything is staged or when `src/`, `package.json`, `CHANGELOG.md` or `README.md` has uncommitted changes, `preflight`'s among them (the formatter's in `src/`, the build-size table in `README.md`): its release commit would include them. Commit them, then run it again. It fetches the tags from `origin`, stops when the branch lacks commits on `origin/master`, and bumps from the highest `v*` tag on the branch when `package.json` is behind it, as it is after a release from CI.
 
-3. Publish, then push the commit and its tag (semantic-release takes the highest `v*` tag as the last release, so the version reaches npm first):
+3. Publish, then bring the commit to `master` through a pull request and push its tag (semantic-release takes the highest `v*` tag as the last release, so the version reaches npm first, and `master` refuses a direct push):
 ```bash
 npm publish                  # with your own npm login
-git push && git push --tags
+git push -u origin HEAD      # from a branch, then open and merge the pull request
+git push --tags
 ```
+
+Merge that pull request with a merge commit, so the tagged commit is on `master`, and start no release before it lands: until then semantic-release does not see the tag, picks the same version, and npm refuses it.
 
 Or run it all in one step:
 ```bash

@@ -4,19 +4,20 @@ This document explains how a new version of `magiclogger` reaches npm and GitHub
 
 ## Overview
 
-Releases are made by [semantic-release](https://github.com/semantic-release/semantic-release) in the Release workflow, `.github/workflows/releases.yml`, with the plugins and rules in `.releaserc`. The workflow's release job runs on `master` in two cases:
+Releases are made by [semantic-release](https://github.com/semantic-release/semantic-release) in the Release workflow, `.github/workflows/releases.yml`, with the plugins and rules in `.releaserc`. The workflow's release job runs on `master` (or `main`, which `.releaserc` also names) in two cases:
 
-- a push to `master` whose commit message starts with `feat:`, `fix:` or `perf:`, or contains `BREAKING CHANGE` (a scoped `feat(api):` does not match);
+- a push to `master` whose commit message starts with `feat:`, `fix:`, `perf:` or `revert:`, a scoped form such as `fix(api):`, or `Revert "`, the message `git revert` writes, or contains a `BREAKING CHANGE:` footer;
 - a manual run on `master` (see [Run a Release by Hand](#run-a-release-by-hand)).
 
-A merge commit's message starts with `Merge pull request`, so after a pull request is merged with a merge commit, run the release by hand to release what it brought. The workflow also runs when a pull request into `master` is merged, and semantic-release then stops with "This run was triggered by a pull request and therefore a new version won't be published".
+The check reads the push's last commit only. A merge commit's message starts with `Merge pull request`, so after a pull request is merged with a merge commit, or after a push whose last commit calls for no release, run the release by hand to release what it brought: semantic-release reads every commit since the last tag.
 
 The release job runs the lint, the test suite with coverage, the build and the packed-files and release-asset checks, then semantic-release. It commits no coverage badge: coverage reaches Codecov from the CI workflow, and the badge reads it there ([Test Coverage](./test_coverage.md)). semantic-release reads the commits since the last `v*` tag. When they call for a release (`feat` a minor, `fix`, `perf` and `revert` a patch, a breaking change a major; `build`, `chore`, `ci`, `docs`, `refactor`, `style` and `test` none), it:
 
-1. commits `package.json` and `CHANGELOG.md` as `chore(release): X.Y.Z [skip ci]` and pushes the commit,
-2. tags that commit `vX.Y.Z`,
-3. publishes the version to npm,
-4. creates the GitHub Release with the packed tarball, `LICENSE.md` and `README.md`.
+1. tags the commit `vX.Y.Z`,
+2. publishes the version to npm,
+3. creates the GitHub Release with the packed tarball, `LICENSE.md` and `README.md`.
+
+Nothing is committed to `master`. `master`'s ruleset requires the `all-checks` job with no bypass, and refuses a deletion and a force-push, so it would refuse a release commit. `package.json`'s version on `master` is not the released version; the highest `v*` tag is, and semantic-release sets the version in the package it publishes.
 
 ## npm Authentication
 
@@ -37,6 +38,24 @@ gh workflow run releases.yml --ref master
 ```
 
 The release job runs as above; semantic-release releases only when the commits since the last tag call for it.
+
+### When a Release Fails
+
+semantic-release pushes the tag before it publishes, and a later run takes that tag as the last release, so the recovery depends on how far the run got. Read the log of the Semantic Release step:
+
+- **No `Created tag vX.Y.Z` line:** nothing was released. Fix the cause and run the release again.
+- **`Created tag vX.Y.Z`, and `npm view magiclogger@X.Y.Z version` prints nothing:** a second run finds no commits after the tag and publishes nothing. Delete the tag, then run the release again:
+  ```bash
+  git push origin :refs/tags/vX.Y.Z
+  gh workflow run releases.yml --ref master
+  ```
+- **The version is on npm and the GitHub Release is missing:** the GitHub step runs after npm's, and a second run publishes nothing. Create the release from the tag with the files a release carries, the tarball as npm holds it (`npm pack` with a version fetches the published tarball):
+  ```bash
+  git checkout vX.Y.Z
+  npm pack magiclogger@X.Y.Z
+  gh release create vX.Y.Z --verify-tag --generate-notes \
+    "magiclogger-X.Y.Z.tgz#Distribution (npm package)" "LICENSE.md#License" "README.md#Readme"
+  ```
 
 ## Check a Release Without Making One
 
@@ -81,7 +100,7 @@ If a release is broken:
 
 ## Release Notes
 
-semantic-release writes each GitHub Release's notes and the `CHANGELOG.md` entry from the conventional commits since the previous tag. Release Drafter keeps a separate draft release whose notes group merged pull requests by label (feat, fix, chore, perf, docs, breaking).
+semantic-release writes each GitHub Release's notes from the conventional commits since the previous tag. `CHANGELOG.md` holds the releases through 0.1.1; the GitHub Releases hold the later ones. Release Drafter keeps a separate draft release whose notes group merged pull requests by label (feat, fix, chore, perf, docs, breaking).
 
 ## Secrets
 
@@ -91,7 +110,7 @@ semantic-release writes each GitHub Release's notes and the `CHANGELOG.md` entry
 | `CODECOV_TOKEN` | Same | Authorises the Codecov upload in the CI workflow; when it is set, an upload that fails fails the job |
 | (none for Trivy) | — | Trivy requires no API keys or license for this workflow |
 
-`GITHUB_TOKEN` is provided by GitHub Actions; semantic-release uses it to push the release commit and the tag and to create the GitHub Release.
+`GITHUB_TOKEN` is provided by GitHub Actions; semantic-release uses it to push the tag and to create the GitHub Release.
 
 If `NPM_TOKEN` is set, keep it a granular token limited to publishing this package.
 
@@ -127,4 +146,4 @@ A: npm generates it for each trusted publish from this public repository; the re
 - Add CodeQL / OSS scan for security.
 
 ---
-_Last updated: 2026-10-21_
+_Last updated: 2026-11-02_

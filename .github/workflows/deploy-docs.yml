@@ -5,9 +5,21 @@ on:
     branches:
       - master
       - main
+    # The paths docs-build.yml checks on a pull request: the site's pages and the API pages it
+    # generates from the source. This is the one workflow that publishes to gh-pages.
     paths:
       - 'docs/**'
       - 'website/**'
+      - 'src/**'
+      - 'README.md'
+      - 'tsconfig.json'
+      - 'tsup.config.ts'
+      - 'tsconfig.build.json'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'typedoc.json'
+      - 'scripts/build-docs-site.sh'
       - '.github/workflows/deploy-docs.yml'
   workflow_dispatch:
 
@@ -16,12 +28,35 @@ permissions:
   pages: write
   id-token: write
 
+# Every run that publishes waits in one group, because all of them publish to the one gh-pages
+# branch: the running deploy finishes and only the newest waiting run is kept. A manual run from
+# another branch publishes nothing and keys a group of its own, so it never takes a waiting
+# deploy's place.
+concurrency:
+  group: ${{ (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') && 'deploy-docs' || format('deploy-docs-{0}', github.run_id) }}
+  cancel-in-progress: false
+
 jobs:
   deploy:
+    # A manual run from another branch would replace the live site with that branch's pages.
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
+      # The branch's tip when the job starts, not the commit that started the run: a re-run keeps
+      # its run's commit, and an older re-run would otherwise publish older pages over newer ones.
+      # With ref set, actions/checkout fetches the branch and checks out its head. The build runs
+      # the dependencies' install scripts, so the token stays out of .git/config; the publish step
+      # receives it as github_token.
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Read the commit being published
+        id: tip
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -33,7 +68,8 @@ jobs:
           cache: 'pnpm'
 
       # The install, the library build, the API pages and the Docusaurus build, as docs-build.yml
-      # runs them on pull requests and ci.yml's deploy-docs job runs them before its own publish.
+      # runs them on pull requests. No website/node_modules cache is restored first: setup-node's
+      # pnpm cache holds the store.
       - name: Build the site
         run: bash scripts/build-docs-site.sh
         env:
@@ -46,6 +82,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./website/build
           publish_branch: gh-pages
+          force_orphan: true
           user_name: 'github-actions[bot]'
           user_email: 'github-actions[bot]@users.noreply.github.com'
-          commit_message: 'Deploy documentation website'
+          commit_message: 'Deploy docs from ${{ steps.tip.outputs.sha }}'

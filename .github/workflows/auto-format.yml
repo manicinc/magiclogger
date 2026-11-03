@@ -1,26 +1,23 @@
 name: Auto Format
 
+# By hand only: a push made with GITHUB_TOKEN starts no workflow, so a commit from this job leaves
+# a head with no all-checks, which master's ruleset requires. Push once more after running it.
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
   workflow_dispatch:
 
 permissions:
   contents: write
-  pull-requests: write
 
 jobs:
   format:
     runs-on: ubuntu-latest
-    # Only run on PRs from the same repo (not forks)
-    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'workflow_dispatch'
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          ref: ${{ github.head_ref || github.ref }}
+          ref: ${{ github.ref }}
           fetch-depth: 0
 
       - name: Setup pnpm
@@ -57,16 +54,3 @@ jobs:
 
           Co-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
           git push
-
-      - name: Comment on PR
-        if: steps.prettier.outputs.formatted == 'true' && github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: '✨ **Auto-formatted code with Prettier**\n\nI\'ve automatically formatted the code to match the project\'s style guidelines. The changes have been pushed to this PR.'
-            })

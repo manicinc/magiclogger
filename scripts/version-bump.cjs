@@ -54,6 +54,66 @@ function changesTheReleaseWouldTake() {
   return [staged, changed].filter(Boolean).join('\n');
 }
 
+/**
+ * Reads the highest vX.Y.Z tag on this branch, the version semantic-release takes as the last
+ * release. Prereleases and other v* tags do not count.
+ *
+ * @returns {string | null} The version without its v, or null when the branch has no release tag.
+ */
+function highestReleaseTag() {
+  const tags = execSync('git tag --merged HEAD --list "v*" --sort=-v:refname', {
+    encoding: 'utf8',
+  }).split('\n');
+  const highest = tags.find(tag => /^v\d+\.\d+\.\d+$/.test(tag));
+  return highest ? highest.slice(1) : null;
+}
+
+/**
+ * Brings in the remote's tags, so a release CI tagged after this branch was made counts, and
+ * stops when HEAD lacks the remote's master, whose newer releases it could not see. Without an
+ * origin remote it reads the local tags alone.
+ */
+function syncWithRemote() {
+  try {
+    execSync('git remote get-url origin', { stdio: 'ignore' });
+  } catch {
+    log('No origin remote: reading the local tags only', 'warning');
+    return;
+  }
+  execSync('git fetch --quiet --tags origin', { stdio: 'inherit' });
+  for (const branch of ['master', 'main']) {
+    try {
+      execSync(`git fetch --quiet origin ${branch}`, { stdio: 'ignore' });
+    } catch {
+      continue;
+    }
+    try {
+      execSync(`git merge-base --is-ancestor origin/${branch} HEAD`, { stdio: 'ignore' });
+    } catch {
+      log(`This branch lacks commits on origin/${branch}: merge it first, then run again`, 'error');
+      process.exit(1);
+    }
+    return;
+  }
+}
+
+/**
+ * @param {string} version
+ * @param {string} other
+ * @returns {boolean} Whether version comes after other in SemVer order, where a release comes
+ * after its own prereleases (0.2.0 after 0.2.0-rc.1).
+ */
+function isAhead(version, other) {
+  const [a, b] = [version, other].map(v => {
+    const [core, ...prerelease] = v.split('+')[0].split('-');
+    return { core: core.split('.').map(Number), prerelease: prerelease.length > 0 };
+  });
+  for (let i = 0; i < 3; i++) {
+    if (a.core[i] !== b.core[i]) return a.core[i] > b.core[i];
+  }
+  return !a.prerelease && b.prerelease;
+}
+
 try {
   // A change of your own would ship in the release commit and its tag.
   const pending = changesTheReleaseWouldTake();
@@ -74,6 +134,17 @@ try {
   log('Running linter...');
   execSync('npm run lint', { stdio: 'inherit' });
   
+  // semantic-release tags and publishes with nothing committed, so package.json on master stays
+  // behind the highest tag, and a bump from it would pick a version already released.
+  const packagePath = path.join(__dirname, '..', 'package.json');
+  const packageVersion = JSON.parse(fs.readFileSync(packagePath, 'utf8')).version;
+  syncWithRemote();
+  const released = highestReleaseTag();
+  if (released && isAhead(released, packageVersion)) {
+    log(`package.json is at ${packageVersion} and v${released} is released: bumping from the tag`);
+    execSync(`npm version ${released} --no-git-tag-version --ignore-scripts`);
+  }
+
   // Bump version
   log(`Bumping ${bumpType} version...`, 'warning');
   const output = execSync(`npm version ${bumpType} --no-git-tag-version`).toString().trim();
@@ -139,7 +210,7 @@ try {
   // The tag workflow (release.yml) publishes nothing to npm, and semantic-release takes the
   // highest v* tag as the last release, so the version goes to npm before the tag is pushed.
   log('  2. Run: npm publish (with your own npm login)', 'info');
-  log('  3. Then: git push && git push --tags', 'info');
+  log('  3. Then: git push -u origin HEAD from a branch, merge the pull request with a merge commit, and git push --tags', 'info');
 
 } catch (error) {
   log(`Error during version bump: ${error.message}`, 'error');
